@@ -1109,10 +1109,29 @@ async function connectEgg() {
   if (!navigator.bluetooth) { notify('This browser cannot use Bluetooth. Open this page in Chrome on Android.'); return; }
   const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'Fancy' }], optionalServices: [0xffe0] });
   if (Object.values(conns).some(c => c.device.id === device.id && state[c.kind].connected)) { notify('That egg is already connected. Pick the other one.'); return; }
-  const c = { device, kind: null, sent: -1 };
-  device.addEventListener('gattserverdisconnected', () => dropped(c));
+  const c = eggFor(device);
+  if (c.trying) { notify('That egg will join by itself as soon as it is switched on.'); return; }
   await linkUp(c);
   if (!wakeLock) keepScreenOn();
+}
+const tries = new Map();   // one record per egg she has picked; kept for the whole visit
+function eggFor(device) {
+  let c = tries.get(device.id);
+  if (!c) { c = { device, kind: null, sent: -1 }; tries.set(device.id, c); device.addEventListener('gattserverdisconnected', () => dropped(c)); }
+  return c;
+}
+const isUp = c => c.kind && conns[c.kind] === c && state[c.kind].connected;
+async function keepTrying(c) {   // for as long as Closer is open: an egg switched off joins again by itself when switched on
+  if (c.trying) return;
+  c.trying = true;
+  while (!parked && !isUp(c)) {
+    try { await linkUp(c); } catch { await new Promise(r => setTimeout(r, 4000)); }
+  }
+  c.trying = false;
+}
+async function autoJoin() {   // eggs picked on an earlier visit, where Chrome remembers them
+  if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return;
+  try { for (const d of await navigator.bluetooth.getDevices()) if ((d.name || '').startsWith('Fancy')) keepTrying(eggFor(d)); } catch {}
 }
 async function linkUp(c) {
   const server = await c.device.gatt.connect();
@@ -1146,13 +1165,9 @@ function reply(c, b) {
 async function dropped(c) {
   if (!c.kind || parked) return;
   state[c.kind].connected = false; render(); publishStateSoon();
-  notify(label(c.kind) + ' lost Bluetooth. Reconnecting…');
-  for (let i = 0; i < 40; i++) {   // about 2 minutes; an egg that was switched off stays off
-    await new Promise(r => setTimeout(r, 3000));
-    if (parked) return;
-    try { await linkUp(c); return; } catch {}
-  }
-  notify(label(c.kind) + ' could not reconnect. Check it is on, then connect it again.');
+  notify(`${label(c.kind)} is off or out of reach. He joins again by himself when he's back on.`);
+  await new Promise(r => setTimeout(r, 1500));
+  keepTrying(c);
 }
 
 async function stopAll(why) {
@@ -1246,6 +1261,7 @@ async function begin() {
     if (busy) { showPark('Closer is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver); return; }
   }
   startNet().catch(() => notify('Could not start the secure connection. Reload the page.'));
+  if (!isRemote) autoJoin();
 }
 begin();
 setInterval(() => {   // every tick: animate orbs; on the egg phone also drive the eggs
