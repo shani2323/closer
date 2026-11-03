@@ -125,6 +125,11 @@
   .msgs::-webkit-scrollbar { display: none; }
   .msgs:empty { display: none; }
   .dock.open .msgs { max-height: 55dvh; }
+  .clearChat { display: none; margin: 0 auto 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--red); font-size: 13px; font-weight: 600; }
+  .dock.open .clearChat { display: block; }
+  #clearSheet { z-index: 12; }
+  .primary.danger { background: var(--red); }
+  .ghost { width: 100%; height: 50px; margin-top: 8px; border: 0; border-radius: 14px; background: var(--fill); color: var(--blue); font-size: 17px; font-weight: 600; }
   .bubble { max-width: 80%; padding: 6px 8px 5px 10px; border-radius: 10px 10px 10px 3px; font-size: 16px; line-height: 1.32; letter-spacing: -.01em;
             align-self: flex-start; overflow-wrap: anywhere; white-space: pre-wrap; background: #202c33; color: #e9edef; }
   .bubble.mine { align-self: flex-end; border-radius: 10px 10px 3px 10px; background: #005c4b; }
@@ -188,13 +193,28 @@
          border-radius: 16px; text-align: left; font-size: 17px; font-weight: 600; }
   .mix span { grid-row: 1 / 3; font-size: 24px; }
   .mix small { font-size: 13px; font-weight: 400; color: var(--label2); }
-  .touch { position: fixed; inset: 0; z-index: 9; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
-           background: rgba(0, 0, 0, .74); -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%); }
-  .touchHead { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .touchCard { margin-top: 10px; padding: 12px; border-radius: 24px; }
+  body.touching #eggs, body.touching .mix, body.touching #hero, body.touching #together, body.touching #hostPanel, body.touching #remotePanel { display: none !important; }
+  .touchHead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .tdare { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .tdare p { flex: 1; margin: 0; font-size: 14px; line-height: 1.35; color: var(--label2); }
+  .tdare p.on { color: var(--label); font-weight: 500; }
+  .dareBtn { flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font: 600 14px/34px inherit; }
+  .hot { position: absolute; width: 0; height: 0; pointer-events: none; }
+  .hot::before { content: ''; position: absolute; left: -40px; top: -40px; width: 80px; height: 80px; border-radius: 50%;
+                 background: radial-gradient(circle, rgba(255, 230, 160, .95), rgba(255, 90, 60, .7) 35%, rgba(255, 40, 120, 0) 70%); animation: hotglow .7s ease-out forwards; }
+  .hot span { position: absolute; left: -16px; top: -18px; font-size: 30px; animation: hotup .8s cubic-bezier(.2, .8, .3, 1) forwards; }
+  @keyframes hotglow { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+  @keyframes hotup { from { transform: scale(.4); opacity: 1; } to { transform: translateY(-60px) scale(1.2); opacity: 0; } }
+  .combo { position: absolute; right: 16px; top: 40px; text-align: right; font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: #fff;
+           text-shadow: 0 0 24px rgba(255, 80, 150, .9); pointer-events: none; opacity: 0; transition: opacity .3s; }
+  .combo small { display: block; font-size: 14px; font-weight: 700; letter-spacing: 0; }
+  .combo.on { opacity: 1; } .combo.bump { animation: bump .18s ease-out; }
+  @keyframes bump { 50% { transform: scale(1.25); } }
   .tchips { display: flex; flex: 1; flex-wrap: wrap; gap: 8px; }
   .tchip { height: 34px; padding: 0 14px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font: 600 15px/34px inherit; }
   .tchip[aria-pressed=true] { background: linear-gradient(120deg, #ff5e9a, #a65bff); color: #fff; }
-  .pad { position: relative; flex: 1; border-radius: 28px; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none;
+  .pad { position: relative; height: clamp(260px, 46vh, 420px); border-radius: 22px; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none;
          background: radial-gradient(130% 90% at 100% 0%, rgba(255, 70, 140, .55), transparent 62%), linear-gradient(0deg, rgba(30, 14, 46, .95), rgba(120, 40, 120, .5)), #0b0710;
          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
   .pad canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -363,6 +383,14 @@
   </section>
 
   <button class="mix glass" id="mixBtn" aria-pressed="false"><span>🔀</span> Threesome mix<small>Leo and Max at different paces</small></button>
+  <section class="touchCard glass" id="touchSheet" hidden>
+    <div class="touchHead"><div class="tchips" id="touchWho"></div><button class="done" id="touchDone">Done</button></div>
+    <div class="tdare"><button class="dareBtn" id="dareBtn">🎲 Dare</button><p id="dareText">Tap, hold or draw. Every tap is a pulse.</p></div>
+    <div class="pad" id="pad"><canvas id="padInk"></canvas>
+      <span class="ax up">Stronger ↑</span><span class="ax origin">Gentle</span><span class="ax right">Faster →</span>
+      <div class="combo" id="combo"></div>
+      <div class="padRead" id="padRead">Touch, tap or draw.<br>Lift your finger and they stop.</div></div>
+  </section>
   <button class="mix glass" id="touchBtn"><span>✋</span> Touch control<small>Draw: higher is stronger, right is faster</small></button>
 
   <section class="group glass" id="together" aria-label="Together">
@@ -393,6 +421,7 @@
 </main>
 
 <div class="dock" id="dock"><div class="dock-in">
+  <button class="clearChat" id="clearChat" hidden>Clear chat</button>
   <div class="msgs" id="msgs" aria-live="polite" title="Tap to see more"></div>
   <div class="typing" id="typing" hidden></div>
   <div class="quick glass" id="quick" hidden></div>
@@ -414,11 +443,14 @@
   <button class="primary" id="parkGo"></button><button class="primary alt" id="parkAlt" hidden></button>
 </div></div>
 
-<div class="touch" id="touchSheet" hidden>
-  <div class="touchHead"><div class="tchips" id="touchWho"></div><button class="done" id="touchDone">Done</button></div>
-  <div class="pad" id="pad"><canvas id="padInk"></canvas>
-    <span class="ax up">Stronger ↑</span><span class="ax origin">Gentle</span><span class="ax right">Faster →</span>
-    <div class="padRead" id="padRead">Touch and move your finger.<br>Lift it and they stop.</div></div>
+<div class="sheet" id="clearSheet" hidden>
+  <form id="clearForm" class="glass">
+    <div class="grabber"></div>
+    <h2>Clear chat?</h2>
+    <p>Every message is deleted on both phones. This cannot be undone.</p>
+    <button class="primary danger" id="clearYes">Clear for both of us</button>
+    <button type="button" class="ghost" id="clearNo">Cancel</button>
+  </form>
 </div>
 <div class="sheet" id="nameSheet" hidden>
   <form id="nameForm" class="glass">
@@ -657,7 +689,7 @@ function render() {
   for (const k in KINDS) cards[k].hidden = solo && !state[k].connected;
   $('mixBtn').hidden = onKinds.length < 2;
   $('touchBtn').hidden = !onKinds.length;
-  if (!$('touchSheet').hidden) renderTouch();
+  if (!$('touchSheet').hidden) { if (onKinds.length) renderTouch(); else closeTouch(); }
   const low = onKinds.filter(k => state[k].battery != null && state[k].battery <= 20);
   $('batWarn').hidden = !low.length;
   $('batWarn').textContent = low.map(k => `${faces[k]} ${label(k)} battery is low (${state[k].battery}%). Top strength is held at ${batteryCap(state[k].battery)}% so he lasts longer. Charge him soon.`).join(' ');
@@ -725,7 +757,7 @@ function render() {
 }
 
 let toastTimer;
-function notify(msg) { $('toast').textContent = msg; $('toast').classList.remove('hide'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.add('hide'), 4000); }
+function notify(msg, ms = 4000) { $('toast').textContent = msg; $('toast').classList.remove('hide'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.add('hide'), ms); }
 
 // ---- keys and locked messages
 let linkKey, pairKey, keys, pair = null, hostPair = null;
@@ -911,6 +943,26 @@ async function gotRtc(m) {
 
 // ---- chat: floats above the dock on both phones; resent until the other phone confirms
 let chat = store.get('chat:' + room, []);
+const cleared = new Set(store.get('chatCleared:' + room, []));   // messages cleared here: a late copy never brings them back
+let lastClear = store.get('lastClear:' + room, null);
+function forgetIds(ids) { for (const i of ids) cleared.add(i); store.set('chatCleared:' + room, [...cleared].slice(-600)); }
+function clearChat() {
+  const ids = chat.map(c => c.id);
+  forgetIds(ids); chat = []; saveChat();
+  lastClear = { id: b64url(rand(6)), ids, at: Date.now() }; store.set('lastClear:' + room, lastClear);
+  forgetIds(['clear:' + lastClear.id]);
+  $('dock').classList.remove('open'); renderChat();
+  send({ t: 'clearchat', id: lastClear.id, ids });
+  notify('Chat cleared on both phones.');
+}
+function gotClear(m) {
+  if (typeof m.id !== 'string' || !Array.isArray(m.ids) || cleared.has('clear:' + m.id)) return;
+  const ids = m.ids.filter(x => typeof x === 'string').slice(0, 600);
+  forgetIds([...ids, 'clear:' + m.id]);
+  const before = chat.length;
+  chat = chat.filter(c => !ids.includes(c.id)); saveChat(); renderChat();
+  if (chat.length !== before) notify(`${who()} cleared the chat.`);
+}
 const saveChat = () => { chat = chat.slice(-200); store.set('chat:' + room, chat); };
 const emojiOnly = t => t.length <= 16 && /^(\p{Extended_Pictographic}|\p{Emoji_Modifier}|️|‍|\s)+$/u.test(t);
 function sendChat(text) {
@@ -923,6 +975,7 @@ function sendChat(text) {
 }
 function gotChat(m) {
   if (typeof m.text !== 'string' || typeof m.id !== 'string') return;
+  if (cleared.has(m.id)) { send({ t: 'ack', id: m.id }); return; }   // cleared: just stop the resending
   typingUntil = 0;
   if (!chat.some(c => c.id === m.id && c.who === 'them')) {
     chat.push({ id: m.id, who: 'them', text: m.text.slice(0, 500), at: +m.at || Date.now(), st: 2 });
@@ -950,6 +1003,7 @@ function renderChat() {
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   $('msgs').innerHTML = chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) ? 'big' : ''}">${esc(c.text)}<span class="meta">${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
   $('msgs').scrollTop = $('msgs').scrollHeight;
+  $('clearChat').hidden = !chat.length;
   fitDock();
 }
 function burst(text) {   // full-screen moment: the emoji pops big in the middle, then a shower rises
@@ -969,7 +1023,86 @@ function burst(text) {   // full-screen moment: the emoji pops big in the middle
 function fitDock() { document.body.style.setProperty('--dock', $('dock').offsetHeight + 'px'); }
 
 // ---- touch pad: a finger drives Leo and Max live; lift it and they stop
-let touchK = 'both', touchPrev = null, touchLast = null;
+const PAD_DARES = [   // {S} her, {X} him, {A} Leo, {B} Max; she stays lying or sitting
+  '{X}, {A} ko 10 second tak top par rakho. {S}, is dauran sirf {X} ka naam lo.',
+  '{S}, aankhen band karo. {X} dheere dheere upar le kar jayega. Jab bardasht na ho to "bas" kehna.',
+  '{X}, 15 taps karo. Har tap par {S} ek siskari bhare.',
+  '{S}, {B} ki suction ke saath apni sab se garam fantasy sunao. {X} sunte hue speed barhata jaye.',
+  '{X}, 30 second sirf neeche wale hissay mein khelo. {S} ko minnat karni hai ke upar le jao.',
+  '{S}, takiye ko kas ke pakro. {X} 20 second tak flutter par rakhega. Haath chhorna mana hai.',
+  '{X}, {S} jo lafz bole, usi rhythm mein tap karo.',
+  '{S}, jab {A} full par ho, {X} ko ek voice note bhejo.',
+  '{X}, {A} aur {B} ko baari baari chalao, 5 second ek, 5 second doosra. {S}, batao kaun zyada acha laga.',
+  '{S}, leti raho aur jab {X} upar jaye to kamar uthao, neeche aaye to wapas rakho.',
+  '{X}, pad par dil ki shape banao. {S}, mehsoos kar ke batao kya bana.',
+  '{S}, 1 minute tak awaaz nahi nikalni. {X} poori koshish karega ke nikal jaye.',
+  '{X}, teen baar upar le jao aur ain waqt par ruk jao. Chauthi baar {S} ki marzi.',
+  '{S}, {X} ko batao kahan aur kaise chhuna chahti ho. {X} pad par bilkul waisa hi banaye.',
+  '{X}, 30 taps ek saath. Har 10 par {S} tumhara naam pukare.',
+  '{X}, sab se neeche aur sab se dheeme se shuru karo. 1 minute mein top tak pohncho, beech mein rukna mana hai.',
+  '{X}, {S} ki saans ke saath chalo: saans andar to upar, saans bahar to neeche.',
+  '{S}, jab {A} aur {B} dono full par hon, {X} ke liye ek sexy line type karo.',
+  '{X}, 20 second {A} tez aur {B} dheema, phir ulta. {S}, threesome ka maza lo.',
+  '{S}, aankhen band kar ke socho {A} aur {B} sach mein tumhare paas hain. Jo mehsoos ho, {X} ko batao.',
+  '{X}, tab tak mat ruko jab tak {S} "please" na kahe.',
+  '{S}, pait ke bal let jao. {X} 30 second sirf {B} chalayega.',
+  '{X}, apni ungli se pad par {S} ka naam likho, har harf ek lehar ki tarah.',
+  '{S}, {X} ko batao tumhe ab kaisa chahiye. {X} bilkul waisa kare, ek lafz bhi idhar udhar nahi.',
+  '{X}, 5 lambi taps aur 5 chhoti. {S}, gin kar batao kitni thi.',
+  '{S}, jab {A} top par ho, awaaz mein ek chumma bhejo.',
+  '{X}, 45 second tak beech mein rakho, na upar na neeche. {S} ko tadpana hai.',
+  '{S}, jab tak {X} 20 taps poori na kar le, dono haath sar ke upar rakho.',
+  '{X}, top-right kone mein 5 second rakho, phir achanak ruk jao. {S} ki awaaz suno.',
+  '{S}, {B} chal raha ho to {X} ko apni sab se garam yaad sunao.',
+  '{X}, har 5 taps par {S} tumhe ek raaz batayegi.',
+  '{S}, {X} sirf tab barhaye jab tum "aur tez" kaho.',
+  '{X}, 1 minute bina ruke lehron mein khelo: upar neeche, upar neeche.',
+  '{S}, {A} aur {B} dono ke saath 30 second sirf {X} ka naam lo.',
+  '{X}, 10 second sab se tez flutter, phir 10 second khamoshi. Teen baar.',
+  '{S}, 30 second pad tum sambhalo aur {X} ko dikhao tumhe kaisa pasand hai.',
+  '{X}, {S} ki pasandeeda speed dhoondo. Wo sirf "garam" ya "thanda" bolegi.',
+  '{S}, aakhri 10 second sabr karo. {X} ulti gintee karega aur zero par full.',
+  '{X}, {S} ke honton ka socho aur pad par dheere dheere chumne ki tarah taps karo.',
+  '{S}, {X} ko batao {A} ya {B}, aaj raat kaun tumhara pasandeeda hai. {X} usi ko 1 minute dega.',
+];
+let touchK = 'both', touchPrev = null, padDownAt = 0, padRelease = 0;
+const fingers = new Map();   // pointer id -> last point, so several fingers and quick taps all count
+const her = () => isRemote ? partnerName || 'Her' : myName, him = () => isRemote ? myName : partnerName || 'Him';
+const fillDare = t => t.replace(/\{S\}/g, her()).replace(/\{X\}/g, him()).replace(/\{A\}/g, label('vib')).replace(/\{B\}/g, label('suc'));
+const usedDares = new Set();
+function showDare(i) { $('dareText').textContent = fillDare(PAD_DARES[i]); $('dareText').classList.add('on'); }
+$('dareBtn').onclick = () => {
+  tap();
+  if (usedDares.size >= PAD_DARES.length) usedDares.clear();
+  const left = PAD_DARES.map((_, i) => i).filter(i => !usedDares.has(i)), i = left[Math.floor(Math.random() * left.length)];
+  usedDares.add(i); showDare(i); send({ t: 'pdare', i });
+};
+function gotPadDare(m) {
+  if (!Number.isInteger(m.i) || m.i < 0 || m.i >= PAD_DARES.length) return;
+  usedDares.add(m.i); showDare(m.i); tap();
+  notify(`🎲 ${fillDare(PAD_DARES[m.i])}`, 9000);
+}
+let combo = 0, comboT = 0, tapBest = +store.get('tapBest', 0) || 0;
+const comboName = n => n >= 50 ? 'Unstoppable 😈' : n >= 35 ? 'Wild 💦' : n >= 20 ? 'On fire ❤️‍🔥' : n >= 10 ? 'Hot 🔥' : n >= 5 ? 'Warm 😏' : 'taps';
+function countTap() {   // a tap game: taps less than 1.2 s apart build a streak
+  combo++; clearTimeout(comboT);
+  const c = $('combo'); c.innerHTML = `${combo}<small>${comboName(combo)}</small>`; c.classList.add('on');
+  c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+  comboT = setTimeout(endCombo, 1200);
+}
+function endCombo() {
+  const n = combo; combo = 0; $('combo').classList.remove('on');
+  if (n < 5) return;
+  const best = n > tapBest; if (best) { tapBest = n; store.set('tapBest', n); }
+  notify(`${n} taps in a row ${best ? '— your new best! ' : ''}🔥`);
+  send({ t: 'combo', n });
+  if (n >= 20) burst('🔥');
+}
+function hotAt(pt) {   // every tap leaves a hot spark where the finger landed
+  const h = document.createElement('div'); h.className = 'hot'; h.style.left = pt.px + 'px'; h.style.top = pt.py + 'px';
+  const e = document.createElement('span'); e.textContent = ['🔥', '💦', '💋', '❤️‍🔥', '🫦'][Math.floor(Math.random() * 5)]; h.appendChild(e);
+  $('pad').appendChild(h); setTimeout(() => h.remove(), 900);
+}
 const touchOn = () => Object.keys(KINDS).filter(k => state[k].connected);
 const touchKinds = () => touchOn().filter(k => touchK === 'both' || touchK === k);
 function renderTouch() {
@@ -1001,32 +1134,37 @@ function padAt(ev) {
   const r = $('pad').getBoundingClientRect();
   return { x: Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height)), px: ev.clientX - r.left, py: ev.clientY - r.top };
 }
-function padDrive(pt) {
+function padDrive(pt, from) {
   const level = Math.round((1 - pt.y) * 100), speed = Math.round(pt.x * 100) / 100;
   for (const k of touchKinds()) change(k, { level, mode: 'touch', speed });
   $('padRead').textContent = `Strength ${level} · ${speed < .08 ? 'smooth' : speed < .45 ? 'slow throb' : speed < .8 ? 'quick throb' : 'flutter'}`;
   inkG.strokeStyle = `hsl(${330 - level * .6}, 100%, ${62 + level * .12}%)`; inkG.lineWidth = 8 + level / 7; inkG.lineCap = 'round';
   inkG.shadowColor = 'rgba(255, 80, 160, .9)'; inkG.shadowBlur = 22;
-  inkG.beginPath(); inkG.moveTo((touchLast || pt).px, (touchLast || pt).py); inkG.lineTo(pt.px, pt.py); inkG.stroke();
-  touchLast = pt;
+  inkG.beginPath(); inkG.moveTo((from || pt).px, (from || pt).py); inkG.lineTo(pt.px, pt.py); inkG.stroke();
 }
 function padUp() {   // finger lifted: they stop, and go back to the pattern they had
   if (!touchPrev) return;
   for (const k in touchPrev) change(k, { level: 0, mode: touchPrev[k].mode, speed: touchPrev[k].speed });
-  touchPrev = null; touchLast = null;
-  $('pad').classList.remove('on'); $('padRead').innerHTML = 'Touch and move your finger.<br>Lift it and they stop.';
+  touchPrev = null; fingers.clear();
+  $('pad').classList.remove('on'); $('padRead').innerHTML = 'Touch, tap or draw.<br>Lift your finger and they stop.';
 }
 $('pad').addEventListener('pointerdown', ev => {
   const why = padLocked() || (touchKinds().length ? '' : `${label('vib')} and ${label('suc')} are not connected right now.`);
   if (why) { notify(why); return; }
-  $('pad').setPointerCapture(ev.pointerId); tap();
-  touchPrev = {}; for (const k of touchKinds()) touchPrev[k] = { mode: state[k].mode === 'touch' ? 'steady' : state[k].mode, speed: state[k].speed };
-  $('pad').classList.add('on'); padDrive(padAt(ev));
+  $('pad').setPointerCapture(ev.pointerId); tap(); clearTimeout(padRelease);
+  if (!touchPrev) { touchPrev = {}; for (const k of touchKinds()) touchPrev[k] = { mode: state[k].mode === 'touch' ? 'steady' : state[k].mode, speed: state[k].speed }; }
+  const pt = padAt(ev); fingers.set(ev.pointerId, pt); padDownAt = Date.now();
+  $('pad').classList.add('on'); hotAt(pt); countTap(); padDrive(pt);
 });
-$('pad').addEventListener('pointermove', ev => { if (touchPrev) padDrive(padAt(ev)); });
-for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) $('pad').addEventListener(t, padUp);
-$('touchBtn').onclick = () => { tap(); $('touchSheet').hidden = false; renderTouch(); sizeInk(); requestAnimationFrame(fadeInk); };
-$('touchDone').onclick = () => { padUp(); $('touchSheet').hidden = true; };
+$('pad').addEventListener('pointermove', ev => { const from = fingers.get(ev.pointerId); if (from) { const pt = padAt(ev); fingers.set(ev.pointerId, pt); padDrive(pt, from); } });
+for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) $('pad').addEventListener(t, ev => {
+  if (!fingers.delete(ev.pointerId)) return;
+  if (fingers.size) { padDrive([...fingers.values()].pop()); return; }   // another finger is still down: it leads
+  padRelease = setTimeout(padUp, Math.max(0, 220 - (Date.now() - padDownAt)));   // a quick tap still makes a full pulse
+});
+function closeTouch() { clearTimeout(padRelease); padUp(); $('touchSheet').hidden = true; document.body.classList.remove('touching'); }
+$('touchBtn').onclick = () => { tap(); $('touchSheet').hidden = false; document.body.classList.add('touching'); renderTouch(); sizeInk(); requestAnimationFrame(fadeInk); scrollTo({ top: 0 }); };
+$('touchDone').onclick = closeTouch;
 addEventListener('resize', () => { if (!$('touchSheet').hidden) sizeInk(); });
 
 // ---- threesome mix: Leo and Max at different paces, reshuffled every 25 seconds until you touch anything
@@ -1061,6 +1199,7 @@ function openPanel(p, fromPartner, quiet) {
   if (!['play', 'draw', 'game', 'watch'].includes(p)) return;
   const changed = p !== panel;
   if (panel === 'watch' && p !== 'watch') leaveWatch();
+  if (p !== 'play' && !$('touchSheet').hidden) closeTouch();
   panel = p; keep('panel', p);
   document.body.classList.toggle('panel', p !== 'play');
   $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('watchPanel').hidden = p !== 'watch';
@@ -1114,6 +1253,7 @@ setInterval(flushDraw, 50);
 function resync() {   // the other phone came back: send what is open here so both screens match again
   if (panel !== 'play') send({ t: 'panel', p: panel });
   if (game.k) send({ t: 'game', game });
+  if (lastClear && Date.now() - lastClear.at < 86400000) send({ t: 'clearchat', id: lastClear.id, ids: lastClear.ids });   // a phone that was away clears too
   for (const x of strokes) send({ t: 'stroke', s: { id: x.id, c: x.c, w: x.w, e: x.e, pts: x.pts } });
   if (wstate.id) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v });
 }
@@ -1816,11 +1956,14 @@ async function fromHost(m, viaLink) {
 }
 function common(m) {   // messages both phones handle the same way
   if (m.t === 'msg') gotChat(m);
+  if (m.t === 'clearchat') gotClear(m);
   if (m.t === 'ack') gotAck(m);
   if (m.t === 'seen') gotSeen();
   if (m.t === 'typing') typingUntil = Date.now() + 3500;
   if (m.t === 'listening') partnerListening = !!m.on;
   if (m.t === 'panel') openPanel(m.p, true);
+  if (m.t === 'pdare') gotPadDare(m);
+  if (m.t === 'combo' && Number.isInteger(m.n) && m.n > 0) { notify(`${who()} tapped ${Math.min(m.n, 999)} in a row 🔥`); m.n >= 20 ? burst('🔥') : tap(); }
   if (m.t === 'draw') gotDraw(m);
   if (m.t === 'game') gotGame(m);
   if (m.t === 'resync') resync();
@@ -2027,6 +2170,10 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
 $('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
+$('clearChat').onclick = ev => { ev.stopPropagation(); tap(); $('clearSheet').hidden = false; };
+$('clearNo').onclick = () => { $('clearSheet').hidden = true; };
+$('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
+$('clearForm').onsubmit = ev => { ev.preventDefault(); $('clearSheet').hidden = true; clearChat(); };
 $('msgs').onclick = () => { $('dock').classList.toggle('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
 $('meBtn').onclick = () => { $('nameInput').value = myName; $('nameSheet').hidden = false; $('nameInput').focus(); };
 $('nameForm').onsubmit = ev => {
