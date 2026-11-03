@@ -1164,8 +1164,9 @@ function reply(c, b) {
 }
 async function dropped(c) {
   if (!c.kind || parked) return;
-  state[c.kind].connected = false; render(); publishStateSoon();
-  notify(`${label(c.kind)} is off or out of reach. He joins again by himself when he's back on.`);
+  state[c.kind].connected = false; state[c.kind].level = 0; stopMix(true);   // fail safe: he comes back at 0, never at the old strength
+  render(); publishStateSoon();
+  notify(`${label(c.kind)} is off or out of reach. He joins again by himself at 0 when he's back on.`);
   await new Promise(r => setTimeout(r, 1500));
   keepTrying(c);
 }
