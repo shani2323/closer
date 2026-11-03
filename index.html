@@ -1,0 +1,1313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#000000">
+<title>Closer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js" integrity="sha384-u4uqeACkFcoKl57rBQJHVGDd1pqhW4w8X3WjTu1ZksPdxoLqdt34jpoNkJisE25W" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg: #000; --label: #f5f5f7; --label2: rgba(235, 235, 245, .62); --label3: rgba(235, 235, 245, .32);
+    --fill: rgba(118, 118, 128, .24); --fill2: rgba(118, 118, 128, .36);
+    --glass: rgba(28, 28, 30, .58); --glass-strong: rgba(22, 22, 24, .78); --hair: rgba(255, 255, 255, .1); --edge: rgba(255, 255, 255, .14);
+    --blue: #0a84ff; --green: #30d158; --red: #ff453a; --glow: 191, 90, 242;
+    --dock: 76px;
+    font-family: -apple-system, "SF Pro Text", Inter, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--label); }
+  body { min-height: 100dvh; font-size: 17px; line-height: 1.35; letter-spacing: -.022em; font-optical-sizing: auto;
+         padding: max(12px, env(safe-area-inset-top)) 16px calc(var(--dock) + 16px); }
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(60% 40% at 15% 8%, rgba(94, 92, 230, .30), transparent 70%),
+                radial-gradient(55% 35% at 90% 30%, rgba(191, 90, 242, .22), transparent 70%),
+                radial-gradient(70% 45% at 40% 95%, rgba(255, 122, 184, .14), transparent 70%), var(--bg); }
+  main { max-width: 480px; margin: 0 auto; }
+  button, input { font: inherit; letter-spacing: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:active { transform: scale(.97); transition: transform .1s ease-out; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .glass { background: var(--glass); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+           border: .5px solid var(--hair); box-shadow: inset 0 .5px 0 var(--edge); }
+
+  header { display: flex; justify-content: space-between; align-items: center; padding: 4px 0 10px; }
+  h1 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+  .me { min-height: 36px; padding: 0 14px; border-radius: 18px; font-size: 15px; font-weight: 500; }
+
+  .status { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; }
+  .status li { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; font-size: 13px; letter-spacing: -.005em;
+               color: var(--label2); background: var(--fill); }
+  .status li.on { color: var(--label); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--label3); flex: none; }
+  .on .dot { background: var(--green); }
+
+  .eggs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .egg { border-radius: 22px; padding: 14px 12px 12px; text-align: center; min-width: 0; transition: opacity .2s; }
+  .egg.off { opacity: .4; }
+  .egg.off .controls { pointer-events: none; }
+  .orb { --g: 0; position: relative; display: grid; place-items: center; width: 80px; height: 80px; margin: 2px auto 8px; padding: 0; border: 0;
+         border-radius: 50%; background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, .16), rgba(255, 255, 255, .04) 70%);
+         box-shadow: inset 0 0 0 1.5px rgba(var(--glow), calc(.25 + var(--g) * .75)), 0 0 calc(4px + var(--g) * 40px) calc(var(--g) * 8px) rgba(var(--glow), calc(.1 + var(--g) * .55));
+         transform: scale(calc(.95 + var(--g) * .1)); transition: transform .12s linear, box-shadow .12s linear; }
+  .orb .face { font-size: 46px; line-height: 1; }
+  .orb .num { position: absolute; right: -6px; bottom: -2px; min-width: 32px; height: 22px; padding: 0 6px; border-radius: 11px; background: #fff; color: #000;
+              font-size: 13px; font-weight: 700; line-height: 22px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .name { display: block; width: 100%; background: none; border: 0; padding: 0; font-size: 17px; font-weight: 600; }
+  .sub { font-size: 13px; color: var(--label2); letter-spacing: -.005em; min-height: 18px; }
+
+  input[type=range] { --p: 0%; -webkit-appearance: none; appearance: none; width: 100%; height: 30px; margin: 4px 0 0; background: transparent; }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #fff var(--p), var(--fill2) var(--p)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -9px; border-radius: 50%; background: #fff;
+                                            box-shadow: 0 2px 6px rgba(0, 0, 0, .4); }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #fff var(--p), var(--fill2) var(--p)); }
+  input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border: 0; border-radius: 50%; background: #fff; }
+  .mode { position: relative; display: block; margin-top: 8px; }
+  .modeSel { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; padding: 0 28px 0 12px; border: 0; border-radius: 17px;
+             background: var(--fill); color: var(--label); font: 500 15px/34px inherit; letter-spacing: -.01em; text-align: center; text-align-last: center; }
+  .modeSel option { background: #1c1c1e; }
+  .mode svg { position: absolute; right: 11px; top: 11px; width: 12px; height: 12px; color: var(--label2); pointer-events: none; }
+  .speed { display: block; margin-top: 8px; font-size: 12px; color: var(--label2); text-align: left; }
+  .speed.idle { visibility: hidden; }
+  body.solo .speed.idle { display: none; }
+
+  .group { margin-top: 12px; border-radius: 18px; overflow: hidden; }
+  .group h2 { margin: 0; padding: 12px 16px 2px; font-size: 13px; font-weight: 600; color: var(--label2); letter-spacing: -.005em; }
+  .note { margin: 0; padding: 0 16px 10px; font-size: 15px; color: var(--label2); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 6px 16px; width: 100%;
+         border: 0; border-top: .5px solid var(--hair); background: none; text-align: left; font-size: 17px; }
+  .row.action { color: var(--blue); }
+  .row.danger { color: var(--red); }
+  .row svg { width: 20px; height: 20px; flex: none; }
+  .row .grow { flex: 1; display: flex; align-items: center; gap: 10px; }
+  .seg { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 8px 16px 12px; padding: 2px; border-radius: 9px; background: var(--fill); }
+  .seg button { height: 32px; border: 0; border-radius: 7px; background: none; font-size: 13px; font-weight: 500; letter-spacing: -.005em; padding: 0 4px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg button[aria-checked=true] { background: #636366; box-shadow: 0 3px 8px rgba(0, 0, 0, .25); font-weight: 600; }
+  .switch { -webkit-appearance: none; appearance: none; flex: none; position: relative; width: 51px; height: 31px; margin: 0; border-radius: 16px;
+            background: var(--fill2); transition: background .2s; cursor: pointer; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff;
+                   box-shadow: 0 3px 8px rgba(0, 0, 0, .2); transition: transform .2s cubic-bezier(.3, .7, .4, 1); }
+  .switch:checked { background: var(--green); }
+  .switch:checked::after { transform: translateX(20px); }
+  .live { color: var(--label2); font-size: 15px; }
+  .mute { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); font-size: 14px; font-weight: 500; }
+
+  /* floating chat + dock */
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; padding: 18px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .dock::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: rgba(0, 0, 0, .55);
+                  -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+                  -webkit-mask-image: linear-gradient(transparent, #000 26px); mask-image: linear-gradient(transparent, #000 26px); }
+  .dock-in { max-width: 480px; margin: 0 auto; }
+  .msgs { display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; padding: 4px 4px 8px; scrollbar-width: none;
+          -webkit-mask-image: linear-gradient(transparent, #000 20px); mask-image: linear-gradient(transparent, #000 20px); }
+  .msgs::-webkit-scrollbar { display: none; }
+  .msgs:empty { display: none; }
+  .dock.open .msgs { max-height: 55dvh; }
+  .bubble { max-width: 80%; padding: 6px 8px 5px 10px; border-radius: 10px 10px 10px 3px; font-size: 16px; line-height: 1.32; letter-spacing: -.01em;
+            align-self: flex-start; overflow-wrap: anywhere; white-space: pre-wrap; background: #202c33; color: #e9edef; }
+  .bubble.mine { align-self: flex-end; border-radius: 10px 10px 3px 10px; background: #005c4b; }
+  .bubble.big { background: none; font-size: 40px; line-height: 1.1; padding: 0 2px; }
+  .meta { float: right; margin: 7px 0 -3px 10px; font-size: 11px; line-height: 1; color: rgba(233, 237, 239, .6); letter-spacing: 0; white-space: nowrap; }
+  .big .meta { float: none; display: block; text-align: right; margin: 0; }
+  .tick { margin-left: 3px; letter-spacing: -3px; }
+  .tick.st3 { color: #53bdeb; }
+  .typing { font-size: 13px; color: var(--label2); padding: 0 8px 6px; }
+  .quick { display: flex; gap: 2px; overflow-x: auto; margin-bottom: 8px; padding: 6px; border-radius: 26px; scrollbar-width: none; }
+  .quick button { flex: none; width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; font-size: 26px; line-height: 1; }
+  .bar { display: flex; gap: 8px; align-items: center; }
+  .compose { flex: 1; min-width: 0; display: flex; align-items: center; height: 52px; padding: 0 5px 0 4px; border-radius: 26px; }
+  .compose input { flex: 1; min-width: 0; height: 44px; border: 0; background: none; padding: 0 6px; font-size: 17px; outline: none; }
+  .compose input::placeholder { color: var(--label3); }
+  .icon { flex: none; width: 42px; height: 42px; border: 0; border-radius: 50%; background: none; display: grid; place-items: center; color: var(--label2); }
+  .icon svg { width: 24px; height: 24px; }
+  .send { background: var(--blue); color: #fff; width: 36px; height: 36px; }
+  .send svg { width: 18px; height: 18px; }
+  .send:disabled { background: var(--fill2); color: var(--label3); }
+  .stop { flex: none; height: 52px; padding: 0 24px; border: 0; border-radius: 26px; background: #fff; color: #000; font-size: 17px; font-weight: 600;
+          box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
+
+  .toast { position: fixed; left: 12px; right: 12px; top: max(10px, env(safe-area-inset-top)); z-index: 6; max-width: 480px; margin: 0 auto;
+           padding: 12px 16px; border-radius: 18px; font-size: 15px; letter-spacing: -.01em; background: var(--glass-strong);
+           transition: opacity .25s, transform .3s cubic-bezier(.3, .7, .4, 1); }
+  .toast.hide { opacity: 0; transform: translateY(-16px) scale(.98); pointer-events: none; }
+
+  .sheet { position: fixed; inset: 0; z-index: 7; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, .5); }
+  .sheet form { width: 100%; max-width: 480px; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; background: var(--glass-strong); }
+  .grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--fill2); margin: 0 auto 14px; }
+  .sheet h2 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -.025em; }
+  .sheet p { margin: 0 0 14px; color: var(--label2); font-size: 15px; }
+  .field { width: 100%; height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--fill); font-size: 17px; }
+  .primary { width: 100%; height: 50px; margin-top: 12px; border: 0; border-radius: 14px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 600; }
+
+  body::after { content: ""; position: fixed; inset: 0; z-index: 9; pointer-events: none; transition: box-shadow .5s; }
+  body.trio::after { box-shadow: inset 0 0 26px 1px rgba(191, 90, 242, .38); }
+  body.alone #tabs, body.alone #together, body.alone .msgs, body.alone .typing, body.alone .compose, body.alone #quick { display: none !important; }
+  body.alone .stop { flex: 1; }
+  body.calling::after { animation: callglow 1.4s ease-in-out infinite alternate; }
+  body.listening::after { box-shadow: inset 0 0 30px 2px rgba(255, 122, 184, .45); }
+  @keyframes callglow { from { box-shadow: inset 0 0 16px 0 rgba(255, 122, 184, .35); } to { box-shadow: inset 0 0 64px 8px rgba(255, 122, 184, .8); } }
+  .ask { margin: 0 0 12px; padding: 14px 16px; border-radius: 18px; text-align: center; }
+  .ask b { display: block; font-size: 17px; }
+  .ask p { margin: 2px 0 10px; font-size: 15px; color: var(--label2); }
+  .ask .primary { margin: 0; }
+  .mix { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; width: 100%; margin-top: 10px; padding: 10px 16px;
+         border-radius: 16px; text-align: left; font-size: 17px; font-weight: 600; }
+  .mix span { grid-row: 1 / 3; font-size: 24px; }
+  .mix small { font-size: 13px; font-weight: 400; color: var(--label2); }
+  .mix[aria-pressed=true] { background: linear-gradient(120deg, rgba(94, 92, 230, .55), rgba(255, 55, 95, .45)); }
+  body.panel .mix { display: none; }
+  body.solo .eggs { grid-template-columns: 1fr; }
+  body.solo:not(.panel) .orb { width: 128px; height: 128px; margin: 6px auto 12px; }
+  body.solo:not(.panel) .orb .face { font-size: 76px; }
+  body.solo:not(.panel) .orb .num { min-width: 40px; height: 26px; font-size: 15px; line-height: 26px; right: -4px; bottom: 2px; }
+  body.solo:not(.panel) .name { font-size: 22px; }
+  .warn { margin: 0 0 12px; padding: 10px 14px; border-radius: 14px; background: rgba(255, 159, 10, .16); color: #ffd60a; font-size: 15px; }
+  .park { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, .78); }
+  .parkBox { width: 100%; max-width: 420px; padding: 22px 18px; border-radius: 22px; text-align: center; }
+  .parkBox h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -.025em; }
+  .parkBox p { margin: 0 0 14px; color: var(--label2); font-size: 15px; }
+  .primary.alt { background: var(--fill2); }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 0 0 12px; padding: 2px; border-radius: 10px; background: var(--fill); }
+  .tabs button { height: 34px; border: 0; border-radius: 8px; background: none; font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
+  .tabs button[aria-selected=true] { background: #636366; font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .25); }
+  body.panel .egg { display: grid; grid-template-columns: 44px 1fr; column-gap: 10px; align-items: center; text-align: left; padding: 8px 12px 8px 8px; border-radius: 16px; }
+  body.panel .orb { grid-row: 1 / 4; width: 44px; height: 44px; margin: 0; }
+  body.panel .orb .face { font-size: 26px; }
+  body.panel .orb .num { right: -8px; bottom: -6px; min-width: 26px; height: 18px; padding: 0 4px; font-size: 11px; line-height: 18px; }
+  body.panel .name { font-size: 15px; text-align: left; min-height: 0; }
+  body.panel .sub, body.panel .mode, body.panel .speed, body.panel #together, body.panel #hostPanel, body.panel #remotePanel { display: none; }
+  body.panel .controls { margin: 0; }
+  body.panel input.level { height: 24px; margin: 0; }
+  .panelBox { margin-top: 10px; padding: 12px; border-radius: 20px; }
+  .panelHead { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 10px; }
+  .panelHead b { font-size: 17px; letter-spacing: -.02em; }
+  .done { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--blue); font-size: 14px; font-weight: 600; }
+  #board { display: block; width: 100%; aspect-ratio: 1; border-radius: 14px; background: #0b0b0d; touch-action: none; }
+  .tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; margin-top: 10px; }
+  .sw { width: 26px; height: 26px; padding: 0; border: 2px solid transparent; border-radius: 50%; box-shadow: inset 0 0 0 2px #000; }
+  .sw[aria-pressed=true] { border-color: #fff; }
+  .tool { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--fill); }
+  .tool svg { width: 19px; height: 19px; }
+  .tool[aria-pressed=true] { background: #fff; color: #000; }
+  .tools .tool:first-of-type { margin-left: auto; }
+  .turn { margin: 0 2px 8px; font-size: 15px; color: var(--label2); }
+  .card { display: grid; place-items: center; min-height: 160px; padding: 20px; border-radius: 16px; text-align: center;
+          background: linear-gradient(160deg, rgba(94, 92, 230, .35), rgba(255, 55, 95, .18)); font-size: 20px; font-weight: 600; line-height: 1.35; letter-spacing: -.02em; }
+  .card small { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--label2); letter-spacing: -.005em; }
+  .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .pick button { height: 50px; border: 0; border-radius: 14px; background: var(--fill2); font-size: 17px; font-weight: 600; }
+  .pick .truth { background: #5e5ce6; }
+  .pick .dare { background: #ff375f; }
+  .pop { position: fixed; left: 50%; top: 42%; z-index: 8; font-size: 150px; line-height: 1; pointer-events: none; transform: translate(-50%, -50%) scale(.2);
+         animation: pop 1.9s cubic-bezier(.2, .9, .3, 1.15) forwards; }
+  @keyframes pop { 25% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; } 70% { transform: translate(-50%, -50%) scale(1); opacity: 1; } to { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
+  .veil { position: fixed; inset: 0; z-index: 7; pointer-events: none; background: radial-gradient(circle at 50% 42%, rgba(255, 55, 95, .32), rgba(94, 92, 230, .12) 45%, transparent 70%);
+          animation: veil 2s ease-out forwards; }
+  @keyframes veil { from { opacity: 0; } 20% { opacity: 1; } to { opacity: 0; } }
+  .float { position: fixed; bottom: 140px; z-index: 8; font-size: 34px; pointer-events: none; animation: rise 2.4s cubic-bezier(.2, .6, .3, 1) forwards; }
+  @keyframes rise { to { transform: translate(var(--dx, 0), -70vh) rotate(var(--r, 0deg)) scale(1.3); opacity: 0; } }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { .orb, .toast, .switch::after { transition: none; } .float, .pop, .veil { display: none; } }
+  @media (prefers-reduced-transparency: reduce) { .glass, .toast, .sheet form, .bubble { background: #1c1c1e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Closer</h1>
+    <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
+  </header>
+  <ul class="status" id="status" aria-label="Who and what is connected"></ul>
+  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game">Truth or Dare</button></nav>
+  <p class="warn" id="batWarn" role="alert" hidden></p>
+  <section class="ask glass" id="listenAsk" hidden>
+    <b id="askTitle">🎧 Your partner wants you to listen</b>
+    <p>Put your AirPods or headphones in first. The sound stays silent until you tap.</p>
+    <button class="primary" id="listenGo">My headphones are in</button>
+  </section>
+
+  <div class="eggs" id="eggs"></div>
+
+  <section class="panelBox glass" id="drawPanel" hidden>
+    <div class="panelHead"><b>Draw together</b><button class="done" data-close>Done</button></div>
+    <canvas id="board" aria-label="Shared drawing board"></canvas>
+    <div class="tools" id="tools"><button class="tool" id="eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21h10M5.5 13.5l6-6 6 6-5 5H9z"/></svg></button><button class="tool" id="clearBtn" aria-label="Clear both boards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button><button class="tool" id="saveBtn" aria-label="Save drawing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>
+  </section>
+
+  <section class="panelBox glass" id="gamePanel" hidden>
+    <div class="panelHead"><b>Truth or Dare</b><button class="done" data-close>Done</button></div>
+    <p class="turn" id="turnText"></p>
+    <div class="card" id="card"></div>
+    <div class="pick" id="pick"><button class="truth" id="pickTruth">Truth</button><button class="dare" id="pickDare">Dare</button></div>
+    <div class="pick" id="after" hidden><button id="cardDone">Done ✓</button><button id="cardSkip">Skip</button></div>
+  </section>
+
+  <button class="mix glass" id="mixBtn" aria-pressed="false"><span>🔀</span> Threesome mix<small>Leo and Max at different paces</small></button>
+
+  <section class="group glass" id="together" aria-label="Together">
+    <h2>Together</h2>
+    <p class="note" id="leadText"></p>
+    <div class="seg" role="radiogroup" aria-label="Who is in control">
+      <button role="radio" data-lead="both">Shared</button><button role="radio" data-lead="host"></button><button role="radio" data-lead="remote"></button>
+    </div>
+    <label class="row"><span class="grow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <span id="micText">Let your partner hear you</span></span><input type="checkbox" class="switch" id="micSwitch"></label>
+    <div class="row live" id="listenRow" hidden><span id="listenText"></span><button class="mute" id="muteBtn">Mute</button></div>
+    <audio id="audio" autoplay playsinline></audio>
+  </section>
+
+  <section class="group glass" id="hostPanel" hidden>
+    <h2>Your eggs</h2>
+    <p class="note" id="hostHint"></p>
+    <button class="row action" id="connect">Connect an egg</button>
+    <label class="row"><span id="allowLabel">Let your partner control</span><input type="checkbox" class="switch" id="allow" checked></label>
+    <button class="row action" id="share">Share private link</button>
+    <button class="row danger" id="forget" hidden>Forget paired phone</button>
+  </section>
+
+  <section class="group glass" id="remotePanel" hidden>
+    <h2 id="remoteTitle">Holding the remote</h2>
+    <p class="note" id="remoteText"></p>
+  </section>
+</main>
+
+<div class="dock" id="dock"><div class="dock-in">
+  <div class="msgs" id="msgs" aria-live="polite" title="Tap to see more"></div>
+  <div class="typing" id="typing" hidden></div>
+  <div class="quick glass" id="quick" hidden></div>
+  <div class="bar">
+    <form class="compose glass" id="compose">
+      <button type="button" class="icon" id="emojiBtn" aria-label="Emoji">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></svg></button>
+      <input id="text" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message" enterkeyhint="send">
+      <button class="icon send" id="sendBtn" aria-label="Send" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+    </form>
+    <button class="stop" id="stop">Stop</button>
+  </div>
+</div></div>
+
+<div class="toast glass hide" id="toast" role="status"></div>
+
+<div class="park" id="park" hidden><div class="parkBox glass">
+  <h2 id="parkTitle"></h2><p id="parkText"></p>
+  <button class="primary" id="parkGo"></button><button class="primary alt" id="parkAlt" hidden></button>
+</div></div>
+
+<div class="sheet" id="nameSheet" hidden>
+  <form id="nameForm" class="glass">
+    <div class="grabber"></div>
+    <h2>Your name</h2>
+    <p>Your partner sees this next to your messages.</p>
+    <input class="field" id="nameInput" maxlength="24" autocomplete="off" aria-label="Your name" required>
+    <button class="primary">Save</button>
+  </form>
+</div>
+
+<div class="sheet" id="charSheet" hidden>
+  <form id="charForm" class="glass">
+    <div class="grabber"></div>
+    <h2 id="charTitle">Edit him</h2>
+    <p id="charJob"></p>
+    <div class="quick" id="charEmoji" style="flex-wrap:wrap;justify-content:center;background:var(--fill)"></div>
+    <input class="field" id="charName" maxlength="16" autocomplete="off" aria-label="His name" required>
+    <button class="primary">Save</button>
+  </form>
+</div>
+
+<script>
+// Egg protocol, read from the official app's Bluetooth recording and confirmed on the real eggs (2026-11-03):
+//   service 0xFFE0; commands to 0xFFE1; replies from 0xFFE2
+//   strength 55 03 05 A 00 B  (A = suction egg, B = vibrating egg, 0..100)
+//   status ask 55 04 once a second; reply 55 84 01 x 00 00 (suction) or 55 84 00 00 01 x (vibrating)
+// Pairing: the link key only carries hello/welcome/busy. The first phone to say hello is paired; after that the
+// two phones talk with a key made from their own key pairs (ECDH), so a copied link alone cannot read or control.
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];   // both used; first copy to arrive wins
+const FACES = ['🧔‍♂️', '👨‍🦱', '👱‍♂️', '👨', '🤴', '😈', '🦊', '🐺', '🍆', '🔥'];
+const KINDS = { vib: 'Vibrates', suc: 'Suction' };   // each egg's job
+const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
+const MODES = {   // name, base speed in beats per second (the speed slider scales it 0.5x to 1.5x)
+  steady: ['Steady', 0], wave: ['Wave', .9], pulse: ['Pulse', 1.2], heart: ['Heartbeat', 1.1], rise: ['Rise', 1.2],
+  nipple: ['Nipple suck', 1.2], suckle: ['Soft suckle', .9], clit: ['Clit flick', 4],
+  sex: ['Sex', 1.1], deep: ['Deep sex', .55], fast: ['Fast sex', 2.6],
+  tease: ['Tease and edge', .04], climax: ['Build to climax', 0], storm: ['Storm', 4],
+};
+const GROUPS = [['Basics', ['steady', 'wave', 'pulse', 'heart', 'rise']], ['Sucking', ['nipple', 'suckle']], ['Clit', ['clit']],
+  ['Sex', ['sex', 'deep', 'fast']], ['Build up', ['tease', 'climax', 'storm']]];
+const SLOW = ['deep', 'suckle', 'nipple', 'wave'], FAST = ['fast', 'clit', 'sex', 'pulse'];
+const EMOJI = ['🔥', '🥵', '😈', '💋', '🫦', '👅', '💦', '🍑', '🍆', '🍒', '🌶️', '😏', '🤤', '😍', '❤️‍🔥', '💞', '🙈', '🥂', '🌹', '⛓️', '👀', '🖤', '😘', '💑'];
+const TICK_MS = 125, PARTNER_TIMEOUT_MS = 5000;
+
+const $ = id => document.getElementById(id);
+const rand = n => crypto.getRandomValues(new Uint8Array(n));
+const b64 = b => btoa(String.fromCharCode(...b));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const b64url = b => b64(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64url = s => unb64(s.replace(/-/g, '+').replace(/_/g, '/'));
+const clampLevel = v => Math.max(0, Math.min(100, Math.round(+v || 0)));
+const clampSpeed = v => Math.max(0, Math.min(1, +v || 0));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const tap = () => { try { navigator.vibrate && navigator.vibrate(8); } catch {} };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('closer:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { v == null ? localStorage.removeItem('closer:' + k) : localStorage.setItem('closer:' + k, JSON.stringify(v)); } catch {} },
+};
+
+// ---- room
+if (!location.hash && !store.get('hostRoom') && store.get('lastRemote')) location.replace(store.get('lastRemote'));
+const firstVisit = !location.hash && !store.get('hostRoom') && !store.get('lastRemote');
+let hp = new URLSearchParams(location.hash.slice(1));
+const isRemote = hp.has('r') && hp.has('k') && !hp.has('h');
+if (!hp.has('r') || !hp.has('k')) {
+  const saved = store.get('hostRoom');
+  hp = new URLSearchParams({ h: '1', r: saved ? saved.r : b64url(rand(12)), k: saved ? saved.k : b64url(rand(32)) });
+  history.replaceState(null, '', '#' + hp);
+}
+const room = hp.get('r');
+const ownLink = isRemote && (store.get('hostRoom') || {}).r === room;   // her own link opened on her own phone
+if (!isRemote && !firstVisit) store.set('hostRoom', { r: room, k: hp.get('k') });
+if (isRemote && !ownLink) store.set('lastRemote', location.href);
+const shareUrl = location.origin + location.pathname + '#r=' + room + '&k=' + hp.get('k');
+const me = store.get('me') || b64url(rand(8)); store.set('me', me);
+let myName = store.get('name', '');
+let partnerName = store.get('partnerName:' + room, '');
+
+// ---- shared egg model
+const blank = () => ({ level: 0, mode: 'steady', speed: .5, battery: null, connected: false, by: '', t0: performance.now(), editUntil: 0 });
+const state = { vib: blank(), suc: blank() };
+let allow = true, partnerSeen = 0, online = false, blocked = false;
+let mic = null, hearing = false;   // live sound: my microphone stream / partner's sound playing here
+let listenGate = true, partnerListening = false, typingUntil = 0, typingSent = 0;   // sound stays muted until headphones are confirmed
+let seenTogether = null, seenTrio = null;   // last mode shown, to notice when it changes
+let lead = 'both';   // who controls: 'both', 'host' (egg phone only) or 'remote' (remote phone only)
+let names = store.get('eggNames:' + room, { vib: 'Leo', suc: 'Max' });
+let faces = store.get('eggFaces:' + room, { vib: '🧔‍♂️', suc: '👨‍🦱' });
+const label = kind => names[kind] || KINDS[kind];
+
+function output(e, now) {   // strength the egg should run at right now, 0..100
+  if (!e.level) return 0;
+  const k = .5 + e.speed, t = (now - e.t0) / 1000, p = t * MODES[e.mode][1] * k, x = p - Math.floor(p);
+  const swell = .5 - .5 * Math.cos(2 * Math.PI * x);
+  const noise = n => { const h = Math.sin(n * 127.1 + 311.7) * 43758.5453; return h - Math.floor(h); };
+  let f = 1;
+  switch (e.mode) {
+    case 'wave': f = .15 + .85 * swell; break;
+    case 'pulse': f = x < .5 ? 1 : 0; break;
+    case 'heart': { const g = c => Math.exp(-(((x - c) / .06) ** 2)); f = Math.min(1, .12 + g(.12) + .75 * g(.34)); break; }
+    case 'rise': f = [22, 32, 43, 53, 64, 74, 85, 95][Math.floor(x * 8)] / 95; break;
+    case 'nipple': f = x < .45 ? .15 + .85 * Math.sin(Math.PI * x / .45) ** .6 : .15; break;   // pull, hold, release
+    case 'suckle': f = x < .22 || (x > .3 && x < .52) ? 1 : .1; break;                          // suck, suck, pause
+    case 'clit': f = x < .35 ? 1 : .2; break;                                                     // quick flicks
+    case 'sex': f = .25 + .75 * swell; break;
+    case 'deep': f = x < .6 ? .1 + .9 * (x / .6) ** 1.5 : x < .8 ? 1 : 1 - (x - .8) / .2 * .9; break;   // slow in, hold, out
+    case 'fast': f = .35 + .65 * swell; break;
+    case 'tease': f = x < .85 ? .1 + .85 * (x / .85) ** 2 : .05; break;                       // build close to the top, then stop
+    case 'climax': f = Math.min(1, .3 + .7 * t * k / 60) * (.85 + .15 * Math.sin(2 * Math.PI * 3 * t)); break;   // about a minute to full
+    case 'storm': { const a = noise(Math.floor(p)), b = noise(Math.floor(p) + 1); f = .2 + .8 * (a + (b - a) * x); break; }
+  }
+  return Math.round(Math.min(e.level * f, batteryCap(e.battery)));
+}
+
+const batteryCap = b => b == null ? 100 : b <= 10 ? 50 : b <= 20 ? 70 : 100;   // keep a low egg going longer
+const fillRange = r => r.style.setProperty('--p', (r.value - r.min) / (r.max - r.min) * 100 + '%');
+
+// ---- egg cards
+const cards = {};
+for (const kind in KINDS) {
+  const el = document.createElement('section');
+  el.className = 'egg glass off';
+  el.innerHTML = `<button class="orb" aria-label="Change his look"><span class="face"></span><span class="num">0</span></button>
+    <button class="name" aria-label="Rename this egg"></button><div class="sub"></div>
+    <div class="controls">
+      <input type="range" class="level" min="0" max="100" value="0" aria-label="${KINDS[kind]} strength">
+      <label class="mode"><select class="modeSel" aria-label="${KINDS[kind]} pattern">${GROUPS.map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m}">${MODES[m][0]}</option>`).join('')}</optgroup>`).join('')}</select>
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></label>
+      <label class="speed">Speed<input type="range" class="spd" min="0" max="100" value="50"></label>
+    </div>`;
+  $('eggs').appendChild(el);
+  cards[kind] = el;
+  el.querySelector('.level').addEventListener('input', ev => { fillRange(ev.target); change(kind, { level: clampLevel(ev.target.value) }); });
+  el.querySelector('.spd').addEventListener('input', ev => { fillRange(ev.target); change(kind, { speed: clampSpeed(ev.target.value / 100) }); });
+  el.querySelector('.modeSel').addEventListener('change', ev => { tap(); change(kind, { mode: ev.target.value }); });
+  el.querySelector('.name').onclick = el.querySelector('.orb').onclick = () => openChar(kind);
+}
+let charKind = null, charFace = '';
+function openChar(kind) {
+  charKind = kind; charFace = faces[kind];
+  $('charTitle').textContent = `Edit ${label(kind)}`;
+  $('charJob').textContent = kind === 'vib' ? 'His job: vibrating.' : 'His job: suction.';
+  $('charName').value = label(kind);
+  $('charEmoji').innerHTML = FACES.map(f => `<button type="button" aria-pressed="${f === charFace}" style="${f === charFace ? 'background:var(--fill2)' : ''}">${f}</button>`).join('');
+  $('charEmoji').querySelectorAll('button').forEach(b => b.onclick = () => { charFace = b.textContent; openCharFaces(); });
+  $('charSheet').hidden = false;
+}
+function openCharFaces() { $('charEmoji').querySelectorAll('button').forEach(b => b.style.background = b.textContent === charFace ? 'var(--fill2)' : ''); }
+$('charForm').onsubmit = ev => {
+  ev.preventDefault();
+  const n = $('charName').value.trim().slice(0, 16);
+  $('charSheet').hidden = true;
+  if (!n) return;
+  rename(charKind, n, charFace);
+  if (isRemote) send({ t: 'rename', egg: charKind, label: n, face: charFace });
+};
+$('charSheet').onclick = ev => { if (ev.target === $('charSheet')) $('charSheet').hidden = true; };
+function rename(kind, n, face) {
+  names[kind] = n;
+  if (FACES.includes(face)) faces[kind] = face;
+  if (!isRemote) { store.set('eggNames:' + room, names); store.set('eggFaces:' + room, faces); publishStateSoon(); }
+  render();
+}
+function setLead(l) {
+  if (!['both', 'host', 'remote'].includes(l)) return;
+  lead = l;
+  if (isRemote) send({ t: 'lead', lead: l }); else publishStateSoon();
+  render();
+}
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { tap(); setLead(b.dataset.lead); });
+
+function apply(e, m) {
+  if ('level' in m) e.level = clampLevel(m.level);
+  if ('speed' in m) e.speed = clampSpeed(m.speed);
+  if (m.mode in MODES && m.mode !== e.mode) { e.mode = m.mode; e.t0 = performance.now(); }
+}
+
+function change(kind, m, fromMix) {   // a change made on this phone
+  if (lead === (isRemote ? 'host' : 'remote')) return;
+  if (!fromMix && (mixTimer || partnerMixing)) stopMix(true);
+  const e = state[kind];
+  apply(e, m);
+  e.editUntil = Date.now() + 1000;
+  if (isRemote) queueSet(kind);
+  else { e.by = 'me'; publishStateSoon(); }
+  render();
+}
+
+const partnerOnline = () => Date.now() - partnerSeen < PARTNER_TIMEOUT_MS;
+const who = () => partnerName || 'Your partner';
+
+function render() {
+  const onKinds = Object.keys(KINDS).filter(k => state[k].connected), solo = onKinds.length === 1;
+  const together = isRemote || partnerOnline(), trio = onKinds.length === 2;
+  document.body.classList.toggle('alone', !together);
+  document.body.classList.toggle('trio', trio);
+  if (seenTogether !== null && together !== seenTogether) {   // partner mode switches on and off by itself
+    if (together) { notify(`${who()} is here. You're together now 💞`); burst('💞'); }
+    else { if (panel !== 'play') openPanel('play', true); notify(`${who()} left. It's just you for now.`); }
+  }
+  if (seenTrio !== null && trio && !seenTrio) { notify(`${label('vib')} and ${label('suc')} are both with you. Threesome on 🔥`); burst('🔥'); }
+  seenTogether = together; seenTrio = trio;
+  document.body.classList.toggle('solo', solo);
+  for (const k in KINDS) cards[k].hidden = solo && !state[k].connected;
+  $('mixBtn').hidden = onKinds.length < 2;
+  const low = onKinds.filter(k => state[k].battery != null && state[k].battery <= 20);
+  $('batWarn').hidden = !low.length;
+  $('batWarn').textContent = low.map(k => `${faces[k]} ${label(k)} battery is low (${state[k].battery}%). Top strength is held at ${batteryCap(state[k].battery)}% so he lasts longer. Charge him soon.`).join(' ');
+  const canControl = isRemote ? partnerOnline() && allow && !blocked && lead !== 'host' : lead !== 'remote';
+  for (const kind in KINDS) {
+    const e = state[kind], el = cards[kind];
+    el.classList.toggle('off', !(e.connected && canControl));
+    el.querySelector('.name').textContent = label(kind);
+    el.querySelector('.face').textContent = faces[kind];
+    el.querySelector('.num').textContent = e.level;
+    el.querySelector('.sub').textContent = KINDS[kind] + (!e.connected ? ', off' : e.battery == null ? '' : `, ${e.battery}%`);
+    if (Date.now() > e.editUntil) {
+      el.querySelector('.level').value = e.level;
+      el.querySelector('.spd').value = Math.round(e.speed * 100);
+    }
+    fillRange(el.querySelector('.level')); fillRange(el.querySelector('.spd'));
+    el.querySelector('.modeSel').value = e.mode;
+    el.querySelector('.speed').classList.toggle('idle', e.mode === 'steady');
+  }
+  const items = [
+    [myName || 'You', online, online ? '' : ', offline'],
+    [who(), partnerOnline(), partnerOnline() ? '' : isRemote ? ', waiting' : ', not here'],
+    ...(solo ? onKinds : Object.keys(KINDS)).map(k => [faces[k] + ' ' + label(k), state[k].connected, state[k].connected ? (state[k].battery != null ? ` ${state[k].battery}%` : '') : ', off']),
+  ];
+  $('status').innerHTML = items.map(([n, on, extra]) => `<li class="${on ? 'on' : ''}"><span class="dot"></span>${esc(n)}${esc(extra)}</li>`).join('');
+  $('meBtn').textContent = myName || 'Your name';
+  $('mixBtn').querySelector('small').textContent = `${label('vib')} and ${label('suc')} at different paces`;
+
+  const mine = isRemote ? 'remote' : 'host', theirs = isRemote ? 'host' : 'remote';
+  document.querySelector(`.seg [data-lead=${mine}]`).textContent = 'I lead';
+  document.querySelector(`.seg [data-lead=${theirs}]`).textContent = `${partnerName || 'Partner'} leads`;
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-checked', b.dataset.lead === lead));
+  $('leadText').textContent = lead === 'both' ? 'You can both play.'
+    : lead === mine ? `You have full control. ${who()} just enjoys.`
+    : isRemote ? `${who()} has taken control. Sit back and listen.` : `${who()} has full control. Relax. Stop always works for you.`;
+  $('micSwitch').checked = !!mic;
+  $('micText').textContent = !mic ? `Let ${partnerName || 'your partner'} hear you` : partnerListening ? `${who()} is listening 🎧` : `Waiting for ${who()} to put headphones in`;
+  $('listenAsk').hidden = !(hearing && listenGate);
+  $('askTitle').textContent = `🎧 ${who()} wants you to listen`;
+  $('listenRow').hidden = !hearing || listenGate;
+  $('listenText').textContent = `${$('audio').muted ? 'Muted' : 'Listening to'} ${who()} 🎧`;
+  $('muteBtn').textContent = $('audio').muted ? 'Unmute' : 'Mute';
+  document.body.classList.toggle('calling', hearing && listenGate);
+  document.body.classList.toggle('listening', (hearing && !listenGate) || !!mic);
+  $('typing').hidden = Date.now() > typingUntil;
+  $('typing').textContent = `${who()} is typing…`;
+
+  if (isRemote) {
+    const [t, p] = blocked ? ['This link is taken', `It is already paired with another phone. Ask your partner to tap "Forget paired phone", then reload.`]
+      : !partnerOnline() ? ["Waiting for your partner's phone", 'Ask your partner to open Closer. You will connect by yourself.']
+      : !allow ? ['Paused', `${who()} has paused your control for now.`]
+      : ['Holding the remote', `Your moves reach the eggs live. ${who()} can stop at any time.`];
+    $('remoteTitle').textContent = t; $('remoteText').textContent = p;
+  } else {
+    const n = Object.values(state).filter(e => e.connected).length;
+    $('connect').hidden = n === 2;
+    const inK = Object.keys(KINDS).find(k => state[k].connected), outK = inK === 'vib' ? 'suc' : 'vib', who2 = k => `${faces[k]} ${label(k)}`;
+    $('connect').textContent = n === 1 ? `Make it a threesome: bring ${who2(outK)} in` : `Bring ${who2('vib')} or ${who2('suc')} in`;
+    $('hostHint').textContent = n === 2 ? `${label('vib')} and ${label('suc')} are both here.` : n === 1 ? `${label(inK)} is here. Switch ${label(outK)} on to join you both.` : 'Switch the eggs on and close the official app.';
+    $('allowLabel').textContent = `Let ${partnerName || 'your partner'} control`;
+    $('forget').hidden = !pair;
+  }
+}
+
+let toastTimer;
+function notify(msg) { $('toast').textContent = msg; $('toast').classList.remove('hide'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.add('hide'), 4000); }
+
+// ---- keys and locked messages
+let linkKey, pairKey, keys, pair = null, hostPair = null;
+const ECDH = { name: 'ECDH', namedCurve: 'P-256' };
+const pubOnly = j => ({ kty: j.kty, crv: j.crv, x: j.x, y: j.y });
+const sameKey = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y;
+async function loadKeys() {
+  const j = store.get('ecdh');
+  if (j) try { return { priv: await crypto.subtle.importKey('jwk', j.priv, ECDH, false, ['deriveKey']), pub: j.pub }; } catch {}
+  const kp = await crypto.subtle.generateKey(ECDH, true, ['deriveKey']);
+  const priv = await crypto.subtle.exportKey('jwk', kp.privateKey), pub = pubOnly(await crypto.subtle.exportKey('jwk', kp.publicKey));
+  store.set('ecdh', { priv, pub });
+  return { priv: kp.privateKey, pub };
+}
+async function derive(theirPub) {
+  const pub = await crypto.subtle.importKey('jwk', pubOnly(theirPub), ECDH, false, []);
+  return crypto.subtle.deriveKey({ name: 'ECDH', public: pub }, keys.priv, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function seal(obj, key) {
+  const iv = rand(12);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj))));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+  return b64(out);
+}
+async function unseal(text, key) {
+  try {
+    const b = unb64(text);
+    return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(0, 12) }, key, b.slice(12))));
+  } catch { return null; }
+}
+
+const topicFromHost = `closer-v2/${room}/h`, topicFromRemote = `closer-v2/${room}/c`;
+async function startNet() {
+  linkKey = await crypto.subtle.importKey('raw', unb64url(hp.get('k')), 'AES-GCM', false, ['encrypt', 'decrypt']);
+  keys = await loadKeys();
+  if (isRemote) { hostPair = store.get('hostPair:' + room); if (hostPair) pairKey = await derive(hostPair.pub); }
+  else { pair = store.get('pair:' + room); if (pair) pairKey = await derive(pair.pub); }
+  BROKERS.forEach((url, i) => {
+    const c = mqtt.connect(url, { clientId: `closer_${me}_${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 2000, connectTimeout: 8000 });
+    clients.push(c);
+    c.on('connect', () => {
+      c.subscribe(isRemote ? topicFromHost : topicFromRemote);
+      const first = !online; online = true;
+      if (first) isRemote ? hello() : publishState();
+      render();
+    });
+    c.on('close', () => {
+      if (!online || clients.some(x => x.connected)) return;
+      online = false; if (!isRemote) partnerLost('The internet connection dropped'); render();
+    });
+    c.on('message', (_topic, payload) => incoming(payload.toString()));
+  });
+}
+const clients = [], seenPayloads = new Set(), lastTs = {};
+let dc = null, dataAt = 0;   // direct line between the two phones once paired; relays stay as backup
+const direct = () => !!dc && dc.readyState === 'open';
+let inQ = Promise.resolve();
+function incoming(txt) { inQ = inQ.then(() => handle(txt)).catch(() => {}); }   // unlocking can finish out of order; handle in arrival order
+async function handle(txt) {
+  if (seenPayloads.has(txt)) return;   // the same message arrives by every route; use the first
+  seenPayloads.add(txt); if (seenPayloads.size > 500) seenPayloads.delete(seenPayloads.values().next().value);
+  const viaLink = txt.startsWith('L.'), key = viaLink ? linkKey : pairKey;
+  if (!key) return;
+  const m = await unseal(txt.slice(2), key);
+  if (!m || m.from === me || Math.abs(Date.now() - m.ts) > 300000) return;
+  if (viaLink !== ['hello', 'welcome', 'busy'].includes(m.t)) return;
+  if (['state', 'set', 'lead', 'game', 'panel', 'rename', 'mix'].includes(m.t)) {   // a copy can arrive late by the slower route: never let it undo a newer change
+    const slot = m.t + (m.egg || '');
+    if (m.ts < (lastTs[slot] || 0)) return;
+    lastTs[slot] = m.ts;
+  }
+  isRemote ? fromHost(m, viaLink) : fromRemote(m, viaLink);
+}
+let sendQ = Promise.resolve();
+function send(obj, viaLink = false) {   // in order: sound setup messages must not overtake each other; resolves true once sent
+  sendQ = sendQ.then(async () => {
+    const key = viaLink ? linkKey : pairKey;
+    if (parked || (!online && !direct()) || !key) return false;
+    obj.from = me; obj.ts = Date.now();
+    const payload = (viaLink ? 'L.' : 'P.') + await seal(obj, key);
+    if (!viaLink && direct()) dc.send(payload);
+    for (const c of clients) if (c.connected) c.publish(isRemote ? topicFromRemote : topicFromHost, payload);
+    return true;
+  }).catch(() => false);
+  return sendQ;
+}
+function setupDc(ch) {
+  dc = ch;
+  ch.onmessage = e => incoming(e.data);
+  ch.onopen = render;
+  ch.onclose = () => { if (dc === ch) dc = null; render(); };
+}
+async function startData() {   // egg phone opens the direct line
+  dataAt = Date.now();
+  endRtc('data');
+  const pc = newPc('data');
+  setupDc(pc.createDataChannel('closer'));
+  await pc.setLocalDescription(await pc.createOffer());
+  send({ t: 'rtc', for: 'data', sdp: pc.localDescription.toJSON() });
+}
+
+// ---- live sound: one connection per direction, straight between the two phones
+const rtc = { send: null, recv: null }, pendingIce = { send: [], recv: [] };
+function newPc(dir) {
+  const pc = new RTCPeerConnection({ iceServers: ICE });
+  pc.onicecandidate = e => { if (e.candidate) send({ t: 'rtc', for: dir === 'data' ? 'data' : dir === 'send' ? 'recv' : 'send', ice: e.candidate.toJSON() }); };
+  if (dir === 'recv') pc.ontrack = e => {
+    $('audio').muted = true; listenGate = true;
+    $('audio').srcObject = e.streams[0];
+    $('audio').play().catch(() => {});
+    hearing = true; tap(); render();
+  };
+  if (dir === 'data' && isRemote) pc.ondatachannel = e => setupDc(e.channel);
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState !== 'failed') return;
+    if (dir === 'data') { endRtc('data'); return; }
+    notify('Live sound could not connect on this network. Try Wi-Fi on both phones.'); endRtc(dir, true);
+  };
+  rtc[dir] = pc; pendingIce[dir] = [];
+  return pc;
+}
+function endRtc(dir, tell) {
+  if (rtc[dir]) rtc[dir].close();
+  rtc[dir] = null;
+  if (dir === 'send' && mic) { mic.getTracks().forEach(t => t.stop()); mic = null; partnerListening = false; }
+  if (dir === 'recv') { if (hearing && !listenGate) send({ t: 'listening', on: false }); $('audio').srcObject = null; hearing = false; listenGate = true; }
+  if (dir === 'data') { dc = null; return; }
+  if (tell) send({ t: 'rtc', for: dir === 'send' ? 'recv' : 'send', bye: true });
+  render();
+}
+async function startMic() {
+  if (!pairKey || !partnerOnline()) { notify(`${who()} is not connected yet.`); render(); return; }
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true } }); }
+  catch { notify('Allow the microphone for this page to share your sound.'); render(); return; }
+  const pc = newPc('send');
+  mic.getTracks().forEach(t => pc.addTrack(t, mic));
+  await pc.setLocalDescription(await pc.createOffer());
+  send({ t: 'rtc', for: 'recv', sdp: pc.localDescription.toJSON() });
+  render();
+}
+async function gotRtc(m) {
+  const dir = m.for;
+  if (!['send', 'recv', 'data'].includes(dir)) return;
+  if (m.bye) { endRtc(dir, false); return; }
+  if (m.sdp) {
+    if (m.sdp.type === 'offer' && (dir === 'recv' || (dir === 'data' && isRemote))) { endRtc(dir, false); newPc(dir); }
+    const pc = rtc[dir];
+    if (!pc) return;
+    await pc.setRemoteDescription(m.sdp);
+    for (const c of pendingIce[dir].splice(0)) await pc.addIceCandidate(c).catch(() => {});
+    if (m.sdp.type === 'offer') {
+      await pc.setLocalDescription(await pc.createAnswer());
+      send({ t: 'rtc', for: dir === 'data' ? 'data' : 'send', sdp: pc.localDescription.toJSON() });
+    }
+  }
+  if (m.ice) {
+    const pc = rtc[dir];
+    if (pc && pc.remoteDescription) await pc.addIceCandidate(m.ice).catch(() => {});
+    else pendingIce[dir].push(m.ice);
+  }
+}
+
+// ---- chat: floats above the dock on both phones; resent until the other phone confirms
+let chat = store.get('chat:' + room, []);
+const saveChat = () => { chat = chat.slice(-200); store.set('chat:' + room, chat); };
+const emojiOnly = t => t.length <= 16 && /^(\p{Extended_Pictographic}|\p{Emoji_Modifier}|️|‍|\s)+$/u.test(t);
+function sendChat(text) {
+  text = text.trim().slice(0, 500);
+  if (!text) return;
+  tap();
+  const c = { id: b64url(rand(8)), who: 'me', text, at: Date.now(), st: 0 };   // st: 0 waiting, 1 sent, 2 delivered, 3 seen
+  chat.push(c); saveChat(); renderChat();
+  send({ t: 'msg', id: c.id, text, at: c.at }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
+}
+function gotChat(m) {
+  if (typeof m.text !== 'string' || typeof m.id !== 'string') return;
+  typingUntil = 0;
+  if (!chat.some(c => c.id === m.id && c.who === 'them')) {
+    chat.push({ id: m.id, who: 'them', text: m.text.slice(0, 500), at: +m.at || Date.now(), st: 2 });
+    saveChat(); renderChat(); tap();
+    if (emojiOnly(m.text)) burst(m.text);
+  }
+  send({ t: 'ack', id: m.id, seen: !document.hidden });
+}
+function gotAck(m) {
+  const c = chat.find(c => c.id === m.id && c.who === 'me');
+  const st = m.seen ? 3 : 2;
+  if (c && (c.st || 0) < st) { c.st = st; saveChat(); renderChat(); }
+}
+function gotSeen() {
+  let changed = false;
+  for (const c of chat) if (c.who === 'me' && c.st === 2) { c.st = 3; changed = true; }
+  if (changed) { saveChat(); renderChat(); }
+}
+function resendChat() {
+  if (!partnerOnline()) return;
+  for (const c of chat) if (c.who === 'me' && (c.st || 0) < 2 && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at });
+}
+function renderChat() {
+  const time = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
+  $('msgs').innerHTML = chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) ? 'big' : ''}">${esc(c.text)}<span class="meta">${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+  fitDock();
+}
+function burst(text) {   // full-screen moment: the emoji pops big in the middle, then a shower rises
+  const e = (text.match(/\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/u) || ['❤️'])[0];
+  const add = (cls, txt, life) => { const n = document.createElement('div'); n.className = cls; n.textContent = txt; document.body.appendChild(n); setTimeout(() => n.remove(), life); return n; };
+  add('veil', '', 2200);
+  add('pop', e, 2100);
+  for (let i = 0; i < 24; i++) {
+    const s = add('float', e, 4200);
+    s.style.left = (4 + Math.random() * 88) + 'vw'; s.style.fontSize = (22 + Math.random() * 30) + 'px';
+    s.style.animationDelay = (.25 + i * .06) + 's';
+    s.style.setProperty('--dx', (Math.random() * 30 - 15) + 'vw'); s.style.setProperty('--r', (Math.random() * 60 - 30) + 'deg');
+  }
+}
+function fitDock() { document.body.style.setProperty('--dock', $('dock').offsetHeight + 'px'); }
+
+// ---- threesome mix: Leo and Max at different paces, reshuffled every 25 seconds until you touch anything
+let mixTimer = null, partnerMixing = false;
+const pickOne = a => a[Math.floor(Math.random() * a.length)];
+function mixOnce() {
+  const slowOne = Math.random() < .5 ? 'vib' : 'suc', fastOne = slowOne === 'vib' ? 'suc' : 'vib';
+  for (const [kind, list, lo] of [[slowOne, SLOW, .1], [fastOne, FAST, .65]]) {
+    const lvl = state[kind].level || 60;
+    change(kind, { mode: pickOne(list), speed: lo + Math.random() * .3, level: lvl }, true);
+  }
+  notify(`${label(slowOne)} goes slow, ${label(fastOne)} goes fast.`);
+}
+function stopMix(tell) {
+  if (tell && (mixTimer || partnerMixing)) send({ t: 'mix', on: false });
+  clearInterval(mixTimer); mixTimer = null; partnerMixing = false; $('mixBtn').setAttribute('aria-pressed', false);
+}
+function gotMix(m) {
+  clearInterval(mixTimer); mixTimer = null;   // only one phone runs the mix
+  partnerMixing = !!m.on; $('mixBtn').setAttribute('aria-pressed', partnerMixing);
+}
+$('mixBtn').onclick = () => {
+  tap();
+  if (mixTimer || partnerMixing) { stopMix(true); return; }
+  send({ t: 'mix', on: true });
+  mixOnce(); mixTimer = setInterval(mixOnce, 25000); $('mixBtn').setAttribute('aria-pressed', true);
+};
+
+// ---- shared tabs: whatever one phone opens, the other opens too; Leo and Max stay in view as a slim strip
+let panel = 'play';
+function openPanel(p, fromPartner) {
+  if (!['play', 'draw', 'game'].includes(p)) return;
+  const changed = p !== panel;
+  panel = p;
+  document.body.classList.toggle('panel', p !== 'play');
+  $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game';
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p));
+  if (p === 'draw') sizeBoard();
+  renderGame();
+  if (!fromPartner) send({ t: 'panel', p });
+  else if (changed && p !== 'play') { tap(); notify(`${who()} opened ${p === 'draw' ? 'Draw' : 'Truth or Dare'}.`); }
+}
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { tap(); openPanel(b.dataset.p); });
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => openPanel('play'));
+
+// ---- drawing: both draw and erase on the same board at once; points are 0..1 so any screen size matches
+const board = $('board'), bctx = board.getContext('2d');
+const COLORS = ['#ffffff', '#ff7ab8', '#bf5af2', '#ff453a', '#0a84ff', '#30d158'];
+let strokes = [], pen = { c: '#ff7ab8', w: 4, e: false }, drawing = null;
+function sizeBoard() {
+  const w = Math.round(board.getBoundingClientRect().width * (devicePixelRatio || 1));
+  if (w && w !== board.width) { board.width = board.height = w; }
+  redraw();
+}
+function seg(s, from) {
+  const W = board.width, p = s.pts;
+  if (!W || !p.length) return;
+  bctx.globalCompositeOperation = s.e ? 'destination-out' : 'source-over';
+  bctx.strokeStyle = s.c; bctx.lineWidth = s.w * W / 360 * (s.e ? 5 : 1); bctx.lineCap = bctx.lineJoin = 'round';
+  bctx.beginPath();
+  const a = p[Math.max(0, from - 1)];
+  bctx.moveTo(a[0] * W, a[1] * W);
+  for (let i = from; i < p.length; i++) bctx.lineTo(p[i][0] * W, p[i][1] * W);
+  if (p.length === 1) bctx.lineTo(a[0] * W + .1, a[1] * W);
+  bctx.stroke();
+}
+function redraw() { bctx.clearRect(0, 0, board.width, board.height); strokes.forEach(s => seg(s, 0)); }
+const point = e => { const r = board.getBoundingClientRect(); return [+((e.clientX - r.left) / r.width).toFixed(4), +((e.clientY - r.top) / r.height).toFixed(4)]; };
+board.onpointerdown = e => {
+  board.setPointerCapture(e.pointerId);
+  drawing = { id: b64url(rand(6)), c: pen.c, w: pen.w, e: pen.e, pts: [point(e)], sent: 0 };
+  strokes.push(drawing); seg(drawing, 0);
+};
+board.onpointermove = e => { if (!drawing) return; drawing.pts.push(point(e)); seg(drawing, drawing.pts.length - 1); };
+board.onpointerup = board.onpointercancel = () => { flushDraw(); drawing = null; };
+function flushDraw() {   // send new points about 20 times a second while drawing
+  const d = drawing;
+  if (!d || d.sent >= d.pts.length) return;
+  send({ t: 'draw', id: d.id, c: d.c, w: d.w, e: d.e, pts: d.pts.slice(d.sent) });
+  d.sent = d.pts.length;
+}
+setInterval(flushDraw, 50);
+function gotDraw(m) {
+  if (m.clear) { strokes = []; redraw(); return; }
+  if (typeof m.id !== 'string' || !Array.isArray(m.pts)) return;
+  let s = strokes.find(x => x.id === m.id);
+  if (!s) {
+    s = { id: m.id, c: /^#[0-9a-f]{6}$/i.test(m.c) ? m.c : '#ffffff', w: Math.max(1, Math.min(12, +m.w || 4)), e: !!m.e, pts: [] };
+    strokes.push(s);
+  }
+  const from = s.pts.length;
+  for (const q of m.pts) if (Array.isArray(q) && q.length === 2 && q.every(v => v >= 0 && v <= 1)) s.pts.push(q);
+  if (panel === 'draw') seg(s, from);
+}
+$('tools').insertAdjacentHTML('afterbegin', COLORS.map(c => `<button class="sw" style="background:${c}" data-c="${c}" aria-label="Colour ${c}"></button>`).join(''));
+function renderTools() {
+  document.querySelectorAll('.sw').forEach(b => b.setAttribute('aria-pressed', !pen.e && b.dataset.c === pen.c));
+  $('eraser').setAttribute('aria-pressed', pen.e);
+}
+document.querySelectorAll('.sw').forEach(b => b.onclick = () => { pen.c = b.dataset.c; pen.e = false; renderTools(); });
+$('eraser').onclick = () => { pen.e = !pen.e; renderTools(); };
+$('clearBtn').onclick = () => { strokes = []; redraw(); send({ t: 'draw', clear: true }); };
+$('saveBtn').onclick = () => {   // downloads a picture; Android's gallery shows the Downloads folder
+  const c = document.createElement('canvas'); c.width = board.width; c.height = board.height;
+  const x = c.getContext('2d'); x.fillStyle = '#0b0b0d'; x.fillRect(0, 0, c.width, c.height); x.drawImage(board, 0, 0);
+  const a = document.createElement('a');
+  a.download = `closer-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.png`;
+  a.href = c.toDataURL('image/png'); a.click();
+  notify('Drawing saved. Find it in your gallery under Downloads.');
+};
+renderTools();
+window.addEventListener('resize', () => { if (panel === 'draw') sizeBoard(); });
+
+// ---- truth or dare: made for long distance, done lying in bed or sitting in one place
+const TRUTHS = [
+  'What was the first thing you noticed about me?', "What's a fantasy you've never told me?", 'Which of my messages made you blush the most?',
+  'What do you wear to bed when you think of me?', 'Where would you kiss me first if I were next to you right now?',
+  "What's the naughtiest dream you've had about me?", 'Leo or Max: who would you pick to tease you first tonight, and why?',
+  "What's one thing I do that drives you crazy in the best way?", 'Describe our perfect night together, slowly.',
+  'What part of me do you miss most right now?', "What's the most daring place you've imagined us together?",
+  'Which song makes you think of us in bed?', 'What do you want me to whisper to you tonight?', 'How do you like to be touched when you feel shy?',
+  "What's the boldest thing you wanted to text me but didn't?", "When did you last think about me when you shouldn't have?",
+  'What is your favourite memory of us being close?', 'What would you do if I knocked on your door right now?',
+  'Which outfit of mine do you think about most?', "What's one word that turns you on instantly?",
+  'If Leo and Max were real for one night, what would you ask them to do?', "What's something new you want to try with me?",
+  'How long could you resist me if I teased you slowly?', "What's your secret favourite way I say your name?",
+  'What do you think about right before you fall asleep?', "What's the sexiest thing about my voice?",
+  'Which of your senses misses me the most?', "Tell me one rule you'd make me follow for a whole night.",
+  'What is the most romantic thing you want us to do when we meet?', 'Which compliment from me did you replay in your head?',
+  'Do you prefer slow and teasing, or fast and wild?', 'What is the most you have ever wanted me in one moment?',
+  'Where on your body should my first kiss land when we meet?', 'What makes you feel most desired by me?',
+  'What would you want my hands doing right now?', "What's something you would only admit in the dark?",
+  'Which photo of me do you look at the most?', 'What would you do with ten minutes alone with me?',
+  'Who likes being in control more, you or me? Be honest.', 'Which sound from me do you love hearing?',
+  'What is the softest, sweetest thing you want from me tonight?', 'Have you ever imagined me watching you? Tell me about it.',
+  'How would you love to wake up next to me?', 'If you could feel one of my touches right now, which would it be?',
+  "What's the most romantic thing I've ever said to you?", 'What should I wear the next time we video call?',
+  'What are you craving from me right now?', "Tell me about a kiss you'll never forget.", 'How do you want me to say goodnight tonight?',
+  'What turns you on that might surprise me?', 'Tell me about a moment you wished I could see you.',
+  'What is your favourite thing to hear me say in bed?', 'Tonight: Leo, Max, or both at once? Why?',
+  'What promise do you want me to keep when we meet?', 'What is the first thing you will do when you finally see me?',
+];
+const DARES = [
+  'Turn on your mic for 30 seconds and just breathe slowly for me.', 'Let me control Leo for one minute. Hands off the screen.',
+  'Close your eyes and describe what you would do if I were lying next to you.', 'Say my name on the mic the way you would whisper it in bed.',
+  'Draw a heart on the board where you want my kiss.', 'Bite your lip and tell me exactly what you are thinking about.',
+  'Let Max run a slow wave for 60 seconds while you stay completely quiet.', 'Describe what you are wearing in five words.',
+  'Run your fingers slowly along your neck and tell me how it feels.', 'Send me the most flirty sentence you can think of in ten seconds.',
+  'Set "partner leads" and give me full control for two minutes.', 'Hum the song that reminds you of us.',
+  'Lie back, close your eyes and count to 20 out loud, slowly.', 'Draw something that shows what you want tonight.',
+  'Say "I\'m yours" on the mic in your softest voice.', 'Pick a pattern for Leo and keep it on until your next turn.',
+  'Describe my lips in three words.', 'Hug your pillow like it is me and tell me what you would whisper.',
+  'Send three emojis that describe your mood right now.', 'Hold your breath while I raise Max slowly from 0 to 50.',
+  'Tell me exactly where you want my hands, slowly.', 'Write my name on the board with your finger.',
+  'Stay perfectly still for 30 seconds while I play with Leo.', 'Moan my name once. Just once.',
+  'Kiss the back of your hand like it is my cheek, then tell me how it felt.', 'Use your softest voice to tell me a secret.',
+  'Let me choose Leo and Max\'s patterns. You may only say "please".', 'Describe your perfect kiss in exact detail.',
+  'Turn the lights down and tell me what you can see.', 'Send the most romantic emoji combo you can make.',
+  'Let Leo pulse on Heartbeat while you tell me about your day in your bedroom voice.', 'Pretend I am behind you and tell me what I am doing.',
+  'Draw where you want me to touch you first.', 'Tell me three things you would do if we had one hour alone.',
+  'Whisper "closer" on the mic three times, slower each time.', 'Raise Max yourself to the highest level you can take without making a sound.',
+  'Make up a pet name for me and use it for the rest of the game.', 'Describe how my hand on your waist would feel.',
+  'Turn on your mic and laugh for me.', 'Ask me for something using only emojis.',
+  'Let me lead for one minute and say "yes" to everything I set.', 'Tell me a fantasy that includes Leo and Max.',
+  'Close your eyes and let me surprise you with any pattern for 45 seconds.', 'Trace one slow line down the board while you think of me.',
+  'Read my last flirty message back to me in your sexiest voice.', 'Tell me what you want me to do to you first when we meet.',
+  'Stretch slowly like a cat in bed and describe it to me.', 'Rate my last kiss, real or imagined, out of 10 and explain why.',
+  'Send me a "come here" in the cutest way you can.', 'For one minute, answer my questions only with "mmm" or "yes".',
+  'Pick a song for us and describe what we would do while it plays.', 'Keep your eyes on the screen while I set Leo to Rise.',
+  'Tell me what you want to hear from me before you sleep tonight.', 'Draw a tiny portrait of me. No skipping.',
+  'Beg me, sweetly, for one more minute of Max.',
+];
+const myRole = isRemote ? 'remote' : 'host';
+let game = { turn: 'host', k: null, i: -1 };
+const recentCards = [];
+function renderGame() {
+  const mineTurn = game.turn === myRole, list = game.k === 'truth' ? TRUTHS : DARES, card = game.k ? list[game.i] : null;
+  $('turnText').textContent = mineTurn ? 'Your turn' : `${who()}'s turn`;
+  $('card').innerHTML = card
+    ? `<div><small>${game.k === 'truth' ? 'Truth' : 'Dare'} for ${mineTurn ? 'you' : esc(who())}</small>${esc(card)}</div>`
+    : `<div><small>${mineTurn ? 'Your pick' : 'Waiting'}</small>${mineTurn ? 'Truth or dare?' : esc(who()) + ' is choosing…'}</div>`;
+  $('pick').hidden = !!card || !mineTurn;
+  $('after').hidden = !card;
+}
+function setGame(g, fromPartner) { game = g; renderGame(); if (!fromPartner) send({ t: 'game', game: g }); }
+function pickCard(k) {
+  const n = (k === 'truth' ? TRUTHS : DARES).length;
+  let i;
+  do { i = Math.floor(Math.random() * n); } while (recentCards.includes(k + i));
+  recentCards.push(k + i); if (recentCards.length > 30) recentCards.shift();
+  tap(); setGame({ turn: game.turn, k, i });
+}
+function gotGame(m) {
+  const g = m.game || {};
+  if (!['host', 'remote'].includes(g.turn)) return;
+  const list = g.k === 'truth' ? TRUTHS : g.k === 'dare' ? DARES : null;
+  if (g.k !== null && !(list && Number.isInteger(g.i) && g.i >= 0 && g.i < list.length)) return;
+  setGame({ turn: g.turn, k: g.k, i: g.k ? g.i : -1 }, true);
+  if (g.k) tap();
+}
+const nextTurn = () => setGame({ turn: game.turn === 'host' ? 'remote' : 'host', k: null, i: -1 });
+$('pickTruth').onclick = () => pickCard('truth');
+$('pickDare').onclick = () => pickCard('dare');
+$('cardDone').onclick = nextTurn;
+$('cardSkip').onclick = nextTurn;
+renderGame();
+
+// ---- remote side
+let helloAt = 0;
+function hello() { helloAt = Date.now(); send({ t: 'hello', pub: keys.pub, name: myName }, true); }
+const setTimers = {};
+function queueSet(kind) {   // at most ~8 messages a second per egg while dragging
+  if (setTimers[kind]) return;
+  setTimers[kind] = setTimeout(() => {
+    setTimers[kind] = null;
+    const e = state[kind];
+    send({ t: 'set', egg: kind, level: e.level, mode: e.mode, speed: e.speed });
+  }, TICK_MS);
+}
+async function fromHost(m, viaLink) {
+  if (viaLink) {
+    if (m.to !== me) return;
+    if (m.t === 'busy') { blocked = true; render(); }
+    if (m.t === 'welcome') {
+      blocked = false;
+      if (!hostPair || hostPair.id !== m.from || !sameKey(hostPair.pub, m.pub)) {
+        hostPair = { id: m.from, pub: pubOnly(m.pub) }; store.set('hostPair:' + room, hostPair);
+        pairKey = await derive(hostPair.pub);
+      }
+      gotName(m.name); partnerSeen = Date.now(); resendChat(); render();
+    }
+    return;
+  }
+  if (!hostPair || m.from !== hostPair.id) return;
+  partnerSeen = Date.now();
+  gotName(m.name);
+  if (m.t === 'rtc') gotRtc(m);
+  if (m.t === 'state') {
+    allow = !!m.allow;
+    if (['both', 'host', 'remote'].includes(m.lead)) lead = m.lead;
+    if (m.names) for (const k in KINDS) if (typeof m.names[k] === 'string') names[k] = m.names[k].slice(0, 16);
+    if (m.faces) for (const k in KINDS) if (FACES.includes(m.faces[k])) faces[k] = m.faces[k];
+    for (const kind in KINDS) {
+      const s = m.eggs && m.eggs[kind], e = state[kind];
+      if (!s) continue;
+      e.connected = !!s.connected; e.battery = s.battery;
+      if (Date.now() > e.editUntil) apply(e, s);
+    }
+  }
+  common(m);
+  render();
+}
+function common(m) {   // messages both phones handle the same way
+  if (m.t === 'msg') gotChat(m);
+  if (m.t === 'ack') gotAck(m);
+  if (m.t === 'seen') gotSeen();
+  if (m.t === 'typing') typingUntil = Date.now() + 3500;
+  if (m.t === 'listening') partnerListening = !!m.on;
+  if (m.t === 'panel') openPanel(m.p, true);
+  if (m.t === 'draw') gotDraw(m);
+  if (m.t === 'game') gotGame(m);
+  if (m.t === 'mix') gotMix(m);
+}
+function gotName(n) {
+  if (typeof n === 'string' && n && n !== partnerName) { partnerName = n.slice(0, 24); store.set('partnerName:' + room, partnerName); }
+}
+
+// ---- egg side (the phone with Bluetooth)
+const conns = {};
+async function fromRemote(m, viaLink) {
+  if (viaLink) {   // hello: pair the first phone, refuse any other
+    if (pair && !(pair.id === m.from && sameKey(pair.pub, m.pub))) { send({ t: 'busy', to: m.from }, true); return; }
+    if (!pair) {
+      pair = { id: m.from, pub: pubOnly(m.pub) }; store.set('pair:' + room, pair);
+      pairKey = await derive(pair.pub);
+      notify('Paired with your partner\'s phone.');
+    }
+    partnerSeen = Date.now(); gotName(m.name);
+    await send({ t: 'welcome', to: m.from, pub: keys.pub, name: myName }, true);
+    publishState(); resendChat(); render();
+    return;
+  }
+  if (!pair || m.from !== pair.id) return;
+  partnerSeen = Date.now();
+  gotName(m.name);
+  if (m.t === 'stop') stopAll(`${who()} pressed stop`);
+  if (m.t === 'rtc') gotRtc(m);
+  if (m.t === 'lead' && allow) setLead(m.lead);
+  if (m.t === 'rename' && m.egg in KINDS && typeof m.label === 'string' && m.label.trim()) rename(m.egg, m.label.trim().slice(0, 16), m.face);
+  if (m.t === 'set' && allow && lead !== 'host' && state[m.egg] && state[m.egg].connected) {
+    const e = state[m.egg];
+    apply(e, m); e.by = 'partner';
+    publishStateSoon();
+  }
+  common(m);
+  render();
+}
+function publishState() {
+  const eggs = {};
+  for (const kind in KINDS) { const e = state[kind]; eggs[kind] = { level: e.level, mode: e.mode, speed: e.speed, battery: e.battery, connected: e.connected }; }
+  send({ t: 'state', allow, eggs, name: myName, lead, names, faces });
+}
+function publishStateSoon() { clearTimeout(publishStateSoon.t); publishStateSoon.t = setTimeout(publishState, 80); }
+
+function partnerLost(why) {
+  let stopped = false;
+  for (const kind in KINDS) { const e = state[kind]; if (e.by === 'partner' && e.level) { e.level = 0; stopped = true; } }
+  if (partnerMixing) stopMix();
+  if (lead === 'remote') { lead = 'both'; stopped = true; publishStateSoon(); }   // hand control back to her
+  if (stopped) { notify(`${why}, so ${who()}'s settings were stopped.`); render(); }
+}
+
+function write(c, bytes) {   // one Bluetooth write at a time per egg
+  c.q = (c.q || Promise.resolve()).then(() => c.tx.writeValueWithoutResponse(new Uint8Array(bytes))).catch(() => {});
+  return c.q;
+}
+const strength = v => [0x55, 0x03, 0x05, v, 0x00, v];
+
+async function connectEgg() {
+  if (!navigator.bluetooth) { notify('This browser cannot use Bluetooth. Open this page in Chrome on Android.'); return; }
+  const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'Fancy' }], optionalServices: [0xffe0] });
+  if (Object.values(conns).some(c => c.device.id === device.id && state[c.kind].connected)) { notify('That egg is already connected. Pick the other one.'); return; }
+  const c = { device, kind: null, sent: -1 };
+  device.addEventListener('gattserverdisconnected', () => dropped(c));
+  await linkUp(c);
+  if (!wakeLock) keepScreenOn();
+}
+async function linkUp(c) {
+  const server = await c.device.gatt.connect();
+  const svc = await server.getPrimaryService(0xffe0);
+  c.tx = await svc.getCharacteristic(0xffe1);
+  const rx = await svc.getCharacteristic(0xffe2);
+  const known = new Promise(res => { c.onKind = res; setTimeout(res, 3000); });
+  rx.addEventListener('characteristicvaluechanged', ev => reply(c, new Uint8Array(ev.target.value.buffer, ev.target.value.byteOffset, ev.target.value.byteLength)));
+  await rx.startNotifications();
+  await write(c, [0x55, 0x03, 0x00, 0x00, 0x00, 0x00]);
+  await write(c, [0x55, 0x04]);
+  await known;
+  const taken = k => conns[k] && conns[k] !== c && state[k].connected;
+  if (!c.kind || taken(c.kind)) c.kind = taken('vib') ? 'suc' : 'vib';   // unknown or slot busy: take the free slot, never replace a connected egg
+  conns[c.kind] = c; c.sent = -1;
+  state[c.kind].connected = true;
+  notify(label(c.kind) + ' connected.');
+  render(); publishStateSoon();
+}
+function reply(c, b) {
+  if (b[0] !== 0x55 || b[1] !== 0x84) return;
+  const kind = b[2] === 1 ? 'suc' : b[4] === 1 ? 'vib' : null;
+  if (!kind) return;
+  if (!c.kind) { c.kind = kind; c.onKind(); }
+  const e = state[c.kind];
+  e.batHist = (e.batHist || []).concat(kind === 'suc' ? b[3] : b[5]).slice(-5);
+  const was = e.battery;
+  e.battery = Math.round(e.batHist.reduce((a, v) => a + v, 0) / e.batHist.length);
+  if (was != null && was > 20 && e.battery <= 20) notify(`${label(c.kind)} battery is low. Top strength is now held at ${batteryCap(e.battery)}%.`);
+}
+async function dropped(c) {
+  if (!c.kind || parked) return;
+  state[c.kind].connected = false; render(); publishStateSoon();
+  notify(label(c.kind) + ' lost Bluetooth. Reconnecting…');
+  for (let i = 0; i < 40; i++) {   // about 2 minutes; an egg that was switched off stays off
+    await new Promise(r => setTimeout(r, 3000));
+    if (parked) return;
+    try { await linkUp(c); return; } catch {}
+  }
+  notify(label(c.kind) + ' could not reconnect. Check it is on, then connect it again.');
+}
+
+async function stopAll(why) {
+  tap(); stopMix(true);
+  for (const kind in KINDS) { state[kind].level = 0; state[kind].by = 'me'; }
+  if (isRemote) send({ t: 'stop' });
+  else {
+    await Promise.all(Object.values(conns).map(c => { c.sent = 0; return write(c, strength(0)); }));
+    publishStateSoon();
+  }
+  if (why) notify(why + '.');
+  render();
+}
+
+let wakeLock = null;
+async function keepScreenOn() { try { wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
+
+// ---- start
+$('quick').innerHTML = EMOJI.map(e => `<button type="button" aria-label="Send ${e}">${e}</button>`).join('');
+$('quick').querySelectorAll('button').forEach(b => b.onclick = () => sendChat(b.textContent));
+$('emojiBtn').onclick = () => { $('quick').hidden = !$('quick').hidden; fitDock(); };
+$('text').oninput = () => {
+  $('sendBtn').disabled = !$('text').value.trim();
+  if (Date.now() - typingSent > 2000) { typingSent = Date.now(); send({ t: 'typing' }); }
+};
+$('listenGo').onclick = () => {
+  listenGate = false; $('audio').muted = false; $('audio').play().catch(() => {});
+  send({ t: 'listening', on: true }); tap(); render();
+};
+if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => {   // headphones changed: never fall back to the speaker
+  if (!hearing || listenGate) return;
+  listenGate = true; $('audio').muted = true; send({ t: 'listening', on: false });
+  notify('Your headphones changed, so the sound was muted. Put them back in to keep listening.'); render();
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
+$('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
+$('msgs').onclick = () => { $('dock').classList.toggle('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
+$('meBtn').onclick = () => { $('nameInput').value = myName; $('nameSheet').hidden = false; $('nameInput').focus(); };
+$('nameForm').onsubmit = ev => {
+  ev.preventDefault();
+  myName = $('nameInput').value.trim().slice(0, 24); store.set('name', myName);
+  $('nameSheet').hidden = true;
+  isRemote ? hello() : publishState();
+  render();
+};
+if (!myName) $('nameSheet').hidden = false;
+new ResizeObserver(fitDock).observe($('dock'));
+
+render(); renderChat();
+let parked = false;
+const bc = 'BroadcastChannel' in window ? new BroadcastChannel('closer') : null;
+function showPark(title, text, go, goFn, alt, altFn) {
+  parked = true; $('nameSheet').hidden = true;
+  $('parkTitle').textContent = title; $('parkText').textContent = text;
+  $('parkGo').textContent = go; $('parkGo').onclick = goFn;
+  $('parkAlt').hidden = !alt; $('parkAlt').textContent = alt || ''; $('parkAlt').onclick = altFn;
+  $('park').hidden = false;
+}
+function parkHere() {   // another tab took over: let go of everything on this one
+  if (parked) return;
+  stopAll();
+  parked = true;
+  for (const c of clients) c.end(true);
+  for (const c of Object.values(conns)) { try { c.device.gatt.disconnect(); } catch {} }
+  endRtc('send', true); endRtc('recv', true); endRtc('data');
+  showPark('Closer moved to another tab', 'It is now open in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
+}
+function takeOver() { if (bc) bc.postMessage({ t: 'takeover' }); setTimeout(() => location.reload(), 400); }
+if (bc) bc.onmessage = e => {
+  if (parked) return;
+  if (e.data.t === 'who') bc.postMessage({ t: 'here' });
+  if (e.data.t === 'takeover') parkHere();
+};
+async function begin() {
+  if (firstVisit) {
+    showPark('Who has the eggs?', 'Closer runs on two phones: the one with the eggs, and the remote.', 'I have the eggs',
+      () => { store.set('hostRoom', { r: room, k: hp.get('k') }); location.reload(); },
+      'My partner has them', () => { $('parkTitle').textContent = 'Open their link'; $('parkText').textContent = 'Ask your partner to tap "Share private link" and send it to you. Open that link on this phone.'; $('parkGo').hidden = true; $('parkAlt').hidden = true; });
+    return;
+  }
+  if (ownLink) {
+    showPark('This is your own link', 'Send it to your partner. They open it on their phone to hold your remote.', 'Go to my eggs', () => location.replace(location.pathname));
+    return;
+  }
+  if (bc) {   // is Closer already running in another tab on this phone?
+    let busy = false;
+    const h = e => { if (e.data.t === 'here') busy = true; };
+    bc.addEventListener('message', h); bc.postMessage({ t: 'who' });
+    await new Promise(r => setTimeout(r, 400));
+    bc.removeEventListener('message', h);
+    if (busy) { showPark('Closer is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver); return; }
+  }
+  startNet().catch(() => notify('Could not start the secure connection. Reload the page.'));
+}
+begin();
+setInterval(() => {   // every tick: animate orbs; on the egg phone also drive the eggs
+  if (parked) return;
+  const now = performance.now();
+  for (const kind in KINDS) {
+    const v = state[kind].connected ? output(state[kind], now) : 0;
+    cards[kind].querySelector('.orb').style.setProperty('--g', v / 100);
+    const c = conns[kind];
+    if (!isRemote && c && state[kind].connected && v !== c.sent && !c.busy) {
+      c.busy = true; c.sent = v;
+      write(c, strength(v)).finally(() => { c.busy = false; });
+    }
+  }
+}, TICK_MS);
+setInterval(() => {   // once a second: presence, safety check, status ask
+  if (parked) return;
+  if (isRemote) {
+    if (!blocked && !partnerOnline() && Date.now() - helloAt > 3000) hello();
+    else send({ t: 'ping' });
+  } else {
+    if (!partnerOnline()) partnerLost(`${who()}'s connection dropped`);
+    else if (pairKey && !direct() && Date.now() - dataAt > 10000) startData().catch(() => {});
+    for (const c of Object.values(conns)) if (state[c.kind].connected) write(c, [0x55, 0x04]);
+    publishState();
+  }
+  render();
+}, 1000);
+setInterval(resendChat, 3000);
+
+$('micSwitch').onchange = ev => { tap(); ev.target.checked ? startMic().catch(() => notify('Live sound could not start. Try again.')) : endRtc('send', true); };
+$('muteBtn').onclick = () => { $('audio').muted = !$('audio').muted; render(); };
+document.addEventListener('click', () => { if (hearing && $('audio').paused) $('audio').play().catch(() => {}); });
+window.addEventListener('pagehide', () => { endRtc('send', true); endRtc('recv', true); });
+
+if (isRemote) $('remotePanel').hidden = false;
+else {
+  $('hostPanel').hidden = false;
+  $('connect').onclick = () => connectEgg().catch(e => { if (e.name !== 'NotFoundError') notify('Could not connect: ' + e.message); });
+  $('allow').onchange = ev => {
+    allow = ev.target.checked;
+    if (!allow) partnerLost(`You paused ${who()}`);
+    publishState(); render();
+  };
+  $('share').onclick = async () => {
+    try { await navigator.share({ title: 'Closer', text: 'Hold my remote', url: shareUrl }); }
+    catch (e) { if (e.name === 'AbortError') return; try { await navigator.clipboard.writeText(shareUrl); notify('Link copied. Send it only to your partner.'); } catch { prompt('Copy this link', shareUrl); } }
+  };
+  $('forget').onclick = () => {
+    if (!confirm('Forget the paired phone? The next phone that opens your link will be paired instead.')) return;
+    partnerLost('You forgot the paired phone');
+    endRtc('send', true); endRtc('recv', true);
+    pair = null; pairKey = null; partnerSeen = 0; store.set('pair:' + room, null);
+    render();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopAll('The eggs stopped because Closer left the screen');
+    else if (wakeLock) keepScreenOn();
+  });
+  window.addEventListener('pagehide', () => stopAll());
+}
+$('stop').onclick = () => stopAll(isRemote ? 'You stopped both eggs' : 'Both eggs stopped');
+</script>
+</body>
+</html>
