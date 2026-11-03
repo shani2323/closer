@@ -1508,7 +1508,7 @@ const CARDS = {
 const myRole = isRemote ? 'remote' : 'host';
 let game = { turn: 'host', k: null, i: -1 };
 const usedCards = {};   // a fresh shuffled deck each session per player and kind; no repeats until every card is used
-const deck = (turn, k) => CARDS[turn] && CARDS[turn][k];
+const deck = (turn, k) => ['host', 'remote'].includes(turn) && ['truth', 'dare'].includes(k) ? CARDS[turn][k] : null;   // only real decks
 const used = (turn, k) => usedCards[turn + k] || (usedCards[turn + k] = new Set());
 function fillCard(t) {   // names instead of placeholders: her, him, and each egg
   return t.replace(/\{A\}/g, label('vib')).replace(/\{B\}/g, label('suc'))
