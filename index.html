@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#000000">
-<title>Midnight Kiss</title>
+<title>Loveline</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
     font-family: -apple-system, "SF Pro Text", Inter, system-ui, sans-serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; background: var(--bg); color: var(--label); }
+  html, body { margin: 0; background: var(--bg); color: var(--label); overscroll-behavior-y: none; }   /* no accidental pull-to-refresh */
   body { min-height: 100dvh; font-size: 17px; line-height: 1.35; letter-spacing: -.022em; font-optical-sizing: auto;
          padding: max(12px, env(safe-area-inset-top)) 16px calc(var(--dock) + 16px); }
   body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
@@ -76,7 +76,19 @@
              background: var(--fill); color: var(--label); font: 500 15px/34px inherit; letter-spacing: -.01em; text-align: center; text-align-last: center; }
   .modeSel option { background: #1c1c1e; }
   .mode svg { position: absolute; right: 11px; top: 11px; width: 12px; height: 12px; color: var(--label2); pointer-events: none; }
-  .speed { display: block; margin-top: 8px; font-size: 12px; color: var(--label2); text-align: left; }
+  .strength, .speed { display: block; text-align: left; }
+  .cap { display: block; font-size: 12px; font-weight: 600; color: var(--label2); letter-spacing: .01em; }
+  input.level { height: 34px; }
+  input.level::-webkit-slider-runnable-track { height: 12px; border-radius: 6px; background: linear-gradient(90deg, #ff5e9a, #a65bff) 0 0 / var(--p) 100% no-repeat, var(--fill2); }
+  input.level::-webkit-slider-thumb { width: 30px; height: 30px; margin-top: -9px; }
+  input.level::-moz-range-track { height: 12px; border-radius: 6px; background: linear-gradient(90deg, #ff5e9a, #a65bff) 0 0 / var(--p) 100% no-repeat, var(--fill2); }
+  .speed { margin-top: 10px; }
+  input.spd { height: 22px; margin: 0; }
+  input.spd::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, rgba(255,255,255,.75) var(--p), var(--fill2) var(--p)); }
+  input.spd::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -7px; }
+  input.spd::-moz-range-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, rgba(255,255,255,.75) var(--p), var(--fill2) var(--p)); }
+  input.spd::-moz-range-thumb { width: 18px; height: 18px; }
+  .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--label3, var(--label2)); }
   .speed.idle { visibility: hidden; }
   body.solo .speed.idle { display: none; }
 
@@ -200,6 +212,7 @@
   body.panel .sub, body.panel .mode, body.panel .speed, body.panel #together, body.panel #hostPanel, body.panel #remotePanel { display: none; }
   body.panel .controls { margin: 0; }
   body.panel input.level { height: 24px; margin: 0; }
+  body.panel .strength .cap { display: none; }
   .panelBox { margin-top: 10px; padding: 12px; border-radius: 20px; }
   .panelHead { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 10px; }
   .panelHead b { font-size: 17px; letter-spacing: -.02em; }
@@ -272,7 +285,7 @@
 <body>
 <main>
   <header>
-    <h1>Midnight Kiss</h1>
+    <h1>Loveline</h1>
     <div class="hdr">
       <button class="stop" id="stop" aria-label="Stop both eggs">Stop</button>
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
@@ -510,10 +523,10 @@ for (const kind in KINDS) {
   el.innerHTML = `<button class="orb" aria-label="Change his look"><span class="face"></span><span class="num">0</span></button>
     <button class="name" aria-label="Rename this egg"></button><div class="sub"></div>
     <div class="controls">
-      <input type="range" class="level" min="0" max="100" value="0" aria-label="${KINDS[kind]} strength">
+      <label class="strength"><span class="cap">Strength</span><input type="range" class="level" min="0" max="100" value="0" aria-label="${KINDS[kind]} strength"></label>
       <label class="mode"><select class="modeSel" aria-label="${KINDS[kind]} pattern">${GROUPS.map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m}">${MODES[m][0]}</option>`).join('')}</optgroup>`).join('')}</select>
         <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></label>
-      <label class="speed">Speed<input type="range" class="spd" min="0" max="100" value="50"></label>
+      <label class="speed"><span class="cap">Speed</span><input type="range" class="spd" min="0" max="100" value="50" aria-label="${KINDS[kind]} speed"><span class="ends"><span>Slow</span><span>Fast</span></span></label>
     </div>`;
   $('eggs').appendChild(el);
   cards[kind] = el;
@@ -600,7 +613,8 @@ function render() {
     $('heroText').textContent = isRemote ? `${label('vib')} and ${label('suc')} join as soon as she switches them on.`
       : looking ? 'Looking for them now. Switch them on and they join by themselves.'
       : guide ? guide[1]
-      : 'Switch an egg on. Tap below, tap "Fancy" in the list, then tap Pair. Do it once for each egg.';
+      : store.get('eggsSeen') && !(navigator.bluetooth && navigator.bluetooth.getDevices) ? 'Chrome forgets them when the page reloads. Keep them switched on, tap below and pick each one again.'
+      : 'Switch them on. Tap below, tap "Fancy" in the list, then tap Pair. Do it once for each.';
   }
   if (!isRemote) {
     if (noEggs && btn.parentNode !== $('heroSlot')) { $('heroSlot').append(btn); btn.className = 'primary'; }
@@ -664,7 +678,7 @@ function render() {
 
   if (isRemote) {
     const [t, p] = blocked ? ['This link is taken', `It is already paired with another phone. Ask your partner to tap "Forget paired phone", then reload.`]
-      : !partnerOnline() ? ["Waiting for your partner's phone", 'Ask your partner to open Midnight Kiss. You will connect by yourself.']
+      : !partnerOnline() ? ["Waiting for your partner's phone", 'Ask your partner to open Loveline. You will connect by yourself.']
       : !allow ? ['Paused', `${who()} has paused your control for now.`]
       : ['Holding the remote', `Your moves reach the eggs live. ${who()} can stop at any time.`];
     $('remoteTitle').textContent = t; $('remoteText').textContent = p;
@@ -672,7 +686,7 @@ function render() {
     const n = Object.values(state).filter(e => e.connected).length;
     $('connect').hidden = n === 2 || (n === 0 && bt === 'off');   // Bluetooth off: the guide says what to do first
     const inK = Object.keys(KINDS).find(k => state[k].connected), outK = inK === 'vib' ? 'suc' : 'vib', who2 = k => `${faces[k]} ${label(k)}`;
-    $('connect').textContent = n === 0 ? (bt === 'nochrome' ? 'Copy address' : bt === 'notfound' || bt === 'blocked' ? 'Try again' : store.get('eggsSeen') ? 'Reconnect your eggs' : 'Connect an egg') : n === 1 ? `Make it a threesome: bring ${who2(outK)} in` : `Bring ${who2('vib')} or ${who2('suc')} in`;
+    $('connect').textContent = n === 0 ? (bt === 'nochrome' ? 'Copy address' : bt === 'notfound' || bt === 'blocked' ? 'Try again' : store.get('eggsSeen') ? `Bring ${label('vib')} and ${label('suc')} back` : `Connect ${label('vib')} and ${label('suc')}`) : n === 1 ? `Make it a threesome: bring ${who2(outK)} in` : `Bring ${who2('vib')} or ${who2('suc')} in`;
     $('hostHint').textContent = n === 2 ? `${label('vib')} and ${label('suc')} are both here.` : n === 1 ? `${label(inK)} is here. Switch ${label(outK)} on to join you both.` : 'Switch the eggs on and close the official app.';
     $('allowLabel').textContent = `Let ${partnerName || 'your partner'} control`;
     $('forget').hidden = !pair;
@@ -1776,32 +1790,48 @@ async function connectEgg() {
   if (!navigator.bluetooth) { notify('This browser cannot use Bluetooth. Open this page in Chrome on Android.'); return; }
   const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'Fancy' }], optionalServices: [0xffe0] });
   const c = eggFor(device);
-  if (c.up) { notify('That egg is already connected. Pick the other one.'); return; }
-  if (c.trying) { notify('That egg will join by itself as soon as it is switched on.'); return; }
-  for (let i = 0; ; i++) {   // the first try often fails on Android: try 3 times before giving up
-    try { await linkUp(c); break; }
-    catch (e) { if (i === 2) throw e; await new Promise(r => setTimeout(r, 1200)); }
+  if (c.up) { notify('That one is already connected. Pick the other one.'); return; }
+  for (let i = 0; i < 3 && !c.up; i++) {   // the first try often fails on Android
+    try { await linkUp(c); } catch { await new Promise(r => setTimeout(r, 1200)); }
   }
+  if (!c.up) { notify('Connecting… keep it switched on and close to the phone.'); keepTrying(c); render(); }
   if (!wakeLock) keepScreenOn();
 }
 function eggFor(device) {
   let c = tries.get(device.id);
-  if (!c) { c = { device, up: false, sent: '', seen: {} }; tries.set(device.id, c); device.addEventListener('gattserverdisconnected', () => dropped(c)); }
+  if (!c) { c = { device, up: false, sent: '', seen: {} }; tries.set(device.id, c); }
+  if (!device.__watched) { device.__watched = true; device.addEventListener('gattserverdisconnected', () => { if (c.device === device) dropped(c); }); }
+  if (!c.up) c.device = device;   // the device she just picked in the list connects most reliably
   return c;
 }
-async function keepTrying(c) {   // for as long as Midnight Kiss is open: an egg switched off joins again by itself when switched on
+async function keepTrying(c) {   // for as long as Loveline is open: an egg switched off joins again by itself when switched on
   if (c.trying) return;
   c.trying = true;
   while (!parked && !c.up) {
-    try { await linkUp(c); } catch { await new Promise(r => setTimeout(r, 4000)); }
+    await nearby(c.device);
+    try { await linkUp(c); } catch { await new Promise(r => setTimeout(r, 3000)); }
   }
   c.trying = false;
+}
+async function nearby(device) {   // a remembered egg can only be reached after Chrome hears it nearby
+  if (!device.watchAdvertisements) return;
+  const ac = new AbortController();
+  await new Promise(res => {
+    device.addEventListener('advertisementreceived', res, { once: true });
+    device.watchAdvertisements({ signal: ac.signal }).catch(res);
+    setTimeout(res, 15000);
+  });
+  ac.abort();
 }
 async function autoJoin() {   // eggs picked on an earlier visit, where Chrome remembers them
   if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return;
   try { for (const d of await navigator.bluetooth.getDevices()) if ((d.name || '').startsWith('Fancy')) keepTrying(eggFor(d)); } catch {}
 }
-async function linkUp(c) {
+function linkUp(c) {   // one attempt at a time per egg
+  if (!c.linking) c.linking = linkOnce(c).finally(() => { c.linking = null; });
+  return c.linking;
+}
+async function linkOnce(c) {
   c.q = null; c.busy = false;
   let giveUp;
   const server = await Promise.race([c.device.gatt.connect(), new Promise((_, no) => { giveUp = setTimeout(() => {
@@ -1918,7 +1948,7 @@ async function parkHere() {   // another tab took over: let go of everything on 
   for (const c of clients) c.end(true);
   for (const c of tries.values()) { try { c.device.gatt.disconnect(); } catch {} }
   endRtc('send', true); endRtc('recv', true); endRtc('data');
-  showPark('Midnight Kiss moved to another tab', 'It is now open in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
+  showPark('Loveline moved to another tab', 'It is now open in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
 }
 function takeOver() { if (bc) bc.postMessage({ t: 'takeover' }); setTimeout(() => location.reload(), 400); }
 if (bc) bc.onmessage = e => {
@@ -1928,7 +1958,7 @@ if (bc) bc.onmessage = e => {
 };
 async function begin() {
   if (firstVisit) {
-    showPark('Who has the eggs?', 'Midnight Kiss runs on two phones: the one with the eggs, and the remote.', 'I have the eggs',
+    showPark('Who has the eggs?', 'Loveline runs on two phones: the one with the eggs, and the remote.', 'I have the eggs',
       () => { store.set('hostRoom', { r: room, k: hp.get('k') }); location.reload(); },
       'My partner has them', () => { $('parkTitle').textContent = 'Open their link'; $('parkText').textContent = 'Ask your partner to tap "Share private link" and send it to you. Open that link on this phone.'; $('parkGo').hidden = true; $('parkAlt').hidden = true; });
     return;
@@ -1937,13 +1967,13 @@ async function begin() {
     showPark('This is your own link', 'Send it to your partner. They open it on their phone to hold your remote.', 'Go to my eggs', () => location.replace(location.pathname));
     return;
   }
-  if (bc) {   // is Midnight Kiss already running in another tab on this phone?
+  if (bc) {   // is Loveline already running in another tab on this phone?
     let busy = false;
     const h = e => { if (e.data.t === 'here') busy = true; };
     bc.addEventListener('message', h); bc.postMessage({ t: 'who' });
     await new Promise(r => setTimeout(r, 400));
     bc.removeEventListener('message', h);
-    if (busy) { showPark('Midnight Kiss is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver); return; }
+    if (busy) { showPark('Loveline is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver); return; }
   }
   startNet().catch(() => notify('Could not start the secure connection. Reload the page.'));
   if (!isRemote) autoJoin();
@@ -2013,14 +2043,16 @@ else {
     await stopAll();
     store.set('pair:' + room, null);
     store.set('hostRoom', { r: b64url(rand(12)), k: b64url(rand(32)) });
-    location.replace(location.pathname);
+    leaving = true; location.replace(location.pathname);
   };
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopAll('The eggs stopped because Midnight Kiss left the screen');
+    if (document.hidden) stopAll('The eggs stopped because Loveline left the screen');
     else if (wakeLock) keepScreenOn();
   });
   window.addEventListener('pagehide', () => stopAll());
 }
+let leaving = false;
+addEventListener('beforeunload', e => { if (!isRemote && !leaving && Object.values(state).some(x => x.connected)) { e.preventDefault(); e.returnValue = ''; } });
 addEventListener('scroll', () => document.querySelector('header').classList.toggle('small', scrollY > 24), { passive: true });   // large title shrinks into a bar
 $('stop').onclick = () => stopAll(isRemote ? 'You stopped both eggs' : 'Both eggs stopped');
 </script>
