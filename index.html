@@ -169,7 +169,7 @@
   .hero h2 { margin: 0 0 6px; font-size: 24px; font-weight: 700; letter-spacing: -.025em; }
   .hero .note { margin: 0 auto; max-width: 300px; }
   .hero .primary { margin-top: 20px; }
-  body.noeggs #eggs, body.noeggs #mixBtn, body.noeggs #stop { display: none !important; }
+  body.noeggs #eggs, body.noeggs #mixBtn, body.noeggs #touchBtn, body.noeggs #stop { display: none !important; }
   body.panel #hero { display: none; }   /* Draw, Truth or Dare and Watch keep the full screen */
   .primary { width: 100%; height: 50px; margin-top: 12px; border: 0; border-radius: 14px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 600; }
 
@@ -188,6 +188,20 @@
          border-radius: 16px; text-align: left; font-size: 17px; font-weight: 600; }
   .mix span { grid-row: 1 / 3; font-size: 24px; }
   .mix small { font-size: 13px; font-weight: 400; color: var(--label2); }
+  .touch { position: fixed; inset: 0; z-index: 9; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
+           background: rgba(0, 0, 0, .74); -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%); }
+  .touchHead { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .tchips { display: flex; flex: 1; flex-wrap: wrap; gap: 8px; }
+  .tchip { height: 34px; padding: 0 14px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font: 600 15px/34px inherit; }
+  .tchip[aria-pressed=true] { background: linear-gradient(120deg, #ff5e9a, #a65bff); color: #fff; }
+  .pad { position: relative; flex: 1; border-radius: 28px; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none;
+         background: radial-gradient(130% 90% at 100% 0%, rgba(255, 70, 140, .55), transparent 62%), linear-gradient(0deg, rgba(30, 14, 46, .95), rgba(120, 40, 120, .5)), #0b0710;
+         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+  .pad canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .ax { position: absolute; font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, .5); pointer-events: none; }
+  .ax.up { top: 14px; left: 16px; } .ax.origin { left: 16px; bottom: 14px; } .ax.right { right: 16px; bottom: 14px; }
+  .padRead { position: absolute; left: 0; right: 0; top: 44%; text-align: center; font-size: 17px; font-weight: 600; line-height: 1.4; color: rgba(255, 255, 255, .72); pointer-events: none; }
+  .pad.on .padRead { top: 12px; font-size: 15px; color: #fff; }
   .mix[aria-pressed=true] { background: linear-gradient(120deg, rgba(94, 92, 230, .55), rgba(255, 55, 95, .45)); }
   body.panel .mix { display: none; }
   body.solo .eggs { grid-template-columns: 1fr; }
@@ -270,15 +284,20 @@
   .vbar i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .3s; }
   .vempty { margin: 0 2px; font-size: 15px; color: var(--label2); }
   .pop { position: fixed; left: 50%; top: 42%; z-index: 8; font-size: 150px; line-height: 1; pointer-events: none; transform: translate(-50%, -50%) scale(.2);
-         animation: pop 1.9s cubic-bezier(.2, .9, .3, 1.15) forwards; }
-  @keyframes pop { 25% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; } 70% { transform: translate(-50%, -50%) scale(1); opacity: 1; } to { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
-  .veil { position: fixed; inset: 0; z-index: 7; pointer-events: none; background: radial-gradient(circle at 50% 42%, rgba(255, 55, 95, .32), rgba(94, 92, 230, .12) 45%, transparent 70%);
-          animation: veil 2s ease-out forwards; }
-  @keyframes veil { from { opacity: 0; } 20% { opacity: 1; } to { opacity: 0; } }
-  .float { position: fixed; bottom: 140px; z-index: 8; font-size: 34px; pointer-events: none; animation: rise 2.4s cubic-bezier(.2, .6, .3, 1) forwards; }
-  @keyframes rise { to { transform: translate(var(--dx, 0), -70vh) rotate(var(--r, 0deg)) scale(1.3); opacity: 0; } }
+         filter: drop-shadow(0 0 36px rgba(255, 80, 150, .65)); animation: pop 3.8s cubic-bezier(.2, .9, .3, 1.1) forwards; }
+  @keyframes pop { 0% { opacity: 0; } 10% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; } 20% { transform: translate(-50%, -50%) scale(1); }
+                   30% { transform: translate(-50%, -50%) scale(1.18); } 40% { transform: translate(-50%, -50%) scale(1); }
+                   80% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; } to { transform: translate(-50%, -50%) scale(1.7); opacity: 0; } }
+  .ring { position: fixed; left: 50%; top: 42%; z-index: 7; width: 140px; height: 140px; margin: -70px 0 0 -70px; border-radius: 50%; pointer-events: none;
+          border: 3px solid rgba(255, 120, 180, .75); box-shadow: 0 0 30px rgba(255, 80, 150, .5); transform: scale(.3); animation: ring 1.8s cubic-bezier(.1, .7, .3, 1) forwards; }
+  @keyframes ring { 15% { opacity: 1; } to { transform: scale(7); opacity: 0; } }
+  .veil { position: fixed; inset: 0; z-index: 7; pointer-events: none; background: radial-gradient(circle at 50% 42%, rgba(255, 55, 120, .5), rgba(150, 70, 230, .25) 45%, rgba(20, 0, 30, .35) 100%);
+          animation: veil 4.6s ease-out forwards; }
+  @keyframes veil { from { opacity: 0; } 10% { opacity: 1; } 20% { opacity: .65; } 30% { opacity: 1; } 75% { opacity: .85; } to { opacity: 0; } }
+  .float { position: fixed; bottom: -60px; z-index: 8; font-size: 34px; pointer-events: none; animation: rise 2.4s cubic-bezier(.2, .6, .3, 1) both; }
+  @keyframes rise { from { transform: none; opacity: 0; } 12% { opacity: 1; } to { transform: translate(var(--dx, 0), -95vh) rotate(var(--r, 0deg)) scale(1.3); opacity: 0; } }
   [hidden] { display: none !important; }
-  @media (prefers-reduced-motion: reduce) { .orb, .toast, .switch::after { transition: none; } .float, .pop, .veil { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .orb, .toast, .switch::after { transition: none; } .float, .pop, .veil, .ring { display: none; } }
   @media (prefers-reduced-transparency: reduce) { .glass, .toast, .sheet form, .bubble { background: #1c1c1e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
 </style>
 </head>
@@ -344,6 +363,7 @@
   </section>
 
   <button class="mix glass" id="mixBtn" aria-pressed="false"><span>🔀</span> Threesome mix<small>Leo and Max at different paces</small></button>
+  <button class="mix glass" id="touchBtn"><span>✋</span> Touch control<small>Draw: higher is stronger, right is faster</small></button>
 
   <section class="group glass" id="together" aria-label="Together">
     <h2>Together</h2>
@@ -394,6 +414,12 @@
   <button class="primary" id="parkGo"></button><button class="primary alt" id="parkAlt" hidden></button>
 </div></div>
 
+<div class="touch" id="touchSheet" hidden>
+  <div class="touchHead"><div class="tchips" id="touchWho"></div><button class="done" id="touchDone">Done</button></div>
+  <div class="pad" id="pad"><canvas id="padInk"></canvas>
+    <span class="ax up">Stronger ↑</span><span class="ax origin">Gentle</span><span class="ax right">Faster →</span>
+    <div class="padRead" id="padRead">Touch and move your finger.<br>Lift it and they stop.</div></div>
+</div>
 <div class="sheet" id="nameSheet" hidden>
   <form id="nameForm" class="glass">
     <div class="grabber"></div>
@@ -430,13 +456,13 @@ const MODES = {   // name, base speed in beats per second (the speed slider scal
   steady: ['Steady', 0], wave: ['Wave', .9], pulse: ['Pulse', 1.2], heart: ['Heartbeat', 1.1], rise: ['Rise', 1.2],
   nipple: ['Nipple suck', 1.2], suckle: ['Soft suckle', .9], clit: ['Clit flick', 4],
   sex: ['Sex', 1.1], deep: ['Deep sex', .55], fast: ['Fast sex', 2.6],
-  tease: ['Tease and edge', .04], climax: ['Build to climax', 0], storm: ['Storm', 4],
+  tease: ['Tease and edge', .04], climax: ['Build to climax', 0], storm: ['Storm', 4], touch: ['Finger', 1],
 };
 const GROUPS = [['Basics', ['steady', 'wave', 'pulse', 'heart', 'rise']], ['Sucking', ['nipple', 'suckle']], ['Clit', ['clit']],
-  ['Sex', ['sex', 'deep', 'fast']], ['Build up', ['tease', 'climax', 'storm']]];
+  ['Sex', ['sex', 'deep', 'fast']], ['Build up', ['tease', 'climax', 'storm']], ['Touch', ['touch']]];
 const SLOW = ['deep', 'suckle', 'nipple', 'wave'], FAST = ['fast', 'clit', 'sex', 'pulse'];
 const EMOJI = ['🔥', '🥵', '😈', '💋', '🫦', '👅', '💦', '🍑', '🍆', '🍒', '🌶️', '😏', '🤤', '😍', '❤️‍🔥', '💞', '🙈', '🥂', '🌹', '⛓️', '👀', '🖤', '😘', '💑'];
-const TICK_MS = 125, PARTNER_TIMEOUT_MS = 5000;
+const TICK_MS = 125, PARTNER_TIMEOUT_MS = 5000, DROP_STOP_MS = 30000;   // his settings keep running 30 s after his phone goes quiet
 
 const $ = id => document.getElementById(id);
 const rand = n => crypto.getRandomValues(new Uint8Array(n));
@@ -507,6 +533,7 @@ function output(e, now) {   // strength the egg should run at right now, 0..100
     case 'fast': f = .35 + .65 * swell; break;
     case 'tease': f = x < .85 ? .1 + .85 * (x / .85) ** 2 : .05; break;                       // build close to the top, then stop
     case 'climax': f = Math.min(1, .3 + .7 * t * k / 60) * (.85 + .15 * Math.sin(2 * Math.PI * 3 * t)); break;   // about a minute to full
+    case 'touch': f = e.speed < .08 ? 1 : .35 + .65 * (.5 - .5 * Math.cos(2 * Math.PI * t * (.6 + 7 * e.speed))); break;   // left smooth, right flutter
     case 'storm': { const a = noise(Math.floor(p)), b = noise(Math.floor(p) + 1); f = .2 + .8 * (a + (b - a) * x); break; }
   }
   return Math.round(Math.min(e.level * f, batteryCap(e.battery)));
@@ -629,6 +656,8 @@ function render() {
   document.body.classList.toggle('solo', solo);
   for (const k in KINDS) cards[k].hidden = solo && !state[k].connected;
   $('mixBtn').hidden = onKinds.length < 2;
+  $('touchBtn').hidden = !onKinds.length;
+  if (!$('touchSheet').hidden) renderTouch();
   const low = onKinds.filter(k => state[k].battery != null && state[k].battery <= 20);
   $('batWarn').hidden = !low.length;
   $('batWarn').textContent = low.map(k => `${faces[k]} ${label(k)} battery is low (${state[k].battery}%). Top strength is held at ${batteryCap(state[k].battery)}% so he lasts longer. Charge him soon.`).join(' ');
@@ -680,6 +709,7 @@ function render() {
     const [t, p] = blocked ? ['This link is taken', `It is already paired with another phone. Ask your partner to tap "Forget paired phone", then reload.`]
       : !partnerOnline() ? ["Waiting for your partner's phone", 'Ask your partner to open Loveline. You will connect by yourself.']
       : !allow ? ['Paused', `${who()} has paused your control for now.`]
+      : lead === 'host' ? [`${who()} is leading`, 'Your controls wake up when she taps Shared or lets you lead.']
       : ['Holding the remote', `Your moves reach the eggs live. ${who()} can stop at any time.`];
     $('remoteTitle').textContent = t; $('remoteText').textContent = p;
   } else {
@@ -744,7 +774,7 @@ async function startNet() {
     });
     c.on('close', () => {
       if (!online || clients.some(x => x.connected)) return;
-      online = false; if (!isRemote) partnerLost('The internet connection dropped'); render();
+      online = false; render();
     });
     c.on('message', (_topic, payload) => incoming(payload.toString()));
   });
@@ -857,6 +887,7 @@ async function startMic() {
   render();
 }
 async function gotRtc(m) {
+  if (!window.RTCPeerConnection) return;   // a browser without live sound: the relays still carry everything
   const dir = m.for;
   if (!['send', 'recv', 'data'].includes(dir)) return;
   if (m.bye) { endRtc(dir, false); return; }
@@ -924,16 +955,79 @@ function renderChat() {
 function burst(text) {   // full-screen moment: the emoji pops big in the middle, then a shower rises
   const e = (text.match(/\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/u) || ['❤️'])[0];
   const add = (cls, txt, life) => { const n = document.createElement('div'); n.className = cls; n.textContent = txt; document.body.appendChild(n); setTimeout(() => n.remove(), life); return n; };
-  add('veil', '', 2200);
-  add('pop', e, 2100);
-  for (let i = 0; i < 24; i++) {
-    const s = add('float', e, 4200);
-    s.style.left = (4 + Math.random() * 88) + 'vw'; s.style.fontSize = (22 + Math.random() * 30) + 'px';
-    s.style.animationDelay = (.25 + i * .06) + 's';
+  add('veil', '', 4800);
+  add('pop', e, 4000);
+  for (const d of [0, .45, 1.1]) add('ring', '', 3200).style.animationDelay = d + 's';   // heartbeat rings
+  if (navigator.vibrate) navigator.vibrate([70, 90, 140]);
+  for (let i = 0; i < 46; i++) {
+    const s = add('float', e, 7000);
+    s.style.left = (2 + Math.random() * 92) + 'vw'; s.style.fontSize = (20 + Math.random() * 40) + 'px';
+    s.style.animationDelay = (.2 + i * .07) + 's'; s.style.animationDuration = (2.6 + Math.random() * 1.8) + 's';
     s.style.setProperty('--dx', (Math.random() * 30 - 15) + 'vw'); s.style.setProperty('--r', (Math.random() * 60 - 30) + 'deg');
   }
 }
 function fitDock() { document.body.style.setProperty('--dock', $('dock').offsetHeight + 'px'); }
+
+// ---- touch pad: a finger drives Leo and Max live; lift it and they stop
+let touchK = 'both', touchPrev = null, touchLast = null;
+const touchOn = () => Object.keys(KINDS).filter(k => state[k].connected);
+const touchKinds = () => touchOn().filter(k => touchK === 'both' || touchK === k);
+function renderTouch() {
+  const on = touchOn(), opts = on.length === 2 ? ['vib', 'suc', 'both'] : on;
+  if (!opts.includes(touchK)) touchK = opts.length === 1 ? opts[0] : 'both';
+  const key = opts.join() + touchK + opts.map(k => k in KINDS ? faces[k] + label(k) : '').join();
+  if ($('touchWho').dataset.key === key) return;
+  $('touchWho').dataset.key = key; $('touchWho').textContent = '';
+  for (const k of opts) {
+    const b = document.createElement('button');
+    b.className = 'tchip'; b.setAttribute('aria-pressed', k === touchK);
+    b.textContent = k === 'both' ? 'Both' : `${faces[k]} ${label(k)}`;
+    b.onclick = () => { tap(); padUp(); touchK = k; renderTouch(); };
+    $('touchWho').appendChild(b);
+  }
+}
+const padLocked = () => isRemote ? (!partnerOnline() ? `${who()} is not connected right now.` : !allow ? `${who()} paused your control.` : lead === 'host' ? `${who()} is leading right now.` : '')
+  : lead === 'remote' ? `${who()} is leading right now. Tap Shared to join in.` : '';
+const ink = $('padInk'), inkG = ink.getContext('2d');
+function sizeInk() { const r = $('pad').getBoundingClientRect(), d = devicePixelRatio || 1; ink.width = r.width * d; ink.height = r.height * d; inkG.setTransform(d, 0, 0, d, 0, 0); }
+function fadeInk() {   // the trail fades like light on skin
+  if ($('touchSheet').hidden) return;
+  inkG.save(); inkG.setTransform(1, 0, 0, 1, 0, 0);
+  inkG.globalCompositeOperation = 'destination-out'; inkG.fillStyle = 'rgba(0, 0, 0, .06)'; inkG.fillRect(0, 0, ink.width, ink.height);
+  inkG.restore();
+  requestAnimationFrame(fadeInk);
+}
+function padAt(ev) {
+  const r = $('pad').getBoundingClientRect();
+  return { x: Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height)), px: ev.clientX - r.left, py: ev.clientY - r.top };
+}
+function padDrive(pt) {
+  const level = Math.round((1 - pt.y) * 100), speed = Math.round(pt.x * 100) / 100;
+  for (const k of touchKinds()) change(k, { level, mode: 'touch', speed });
+  $('padRead').textContent = `Strength ${level} · ${speed < .08 ? 'smooth' : speed < .45 ? 'slow throb' : speed < .8 ? 'quick throb' : 'flutter'}`;
+  inkG.strokeStyle = `hsl(${330 - level * .6}, 100%, ${62 + level * .12}%)`; inkG.lineWidth = 8 + level / 7; inkG.lineCap = 'round';
+  inkG.shadowColor = 'rgba(255, 80, 160, .9)'; inkG.shadowBlur = 22;
+  inkG.beginPath(); inkG.moveTo((touchLast || pt).px, (touchLast || pt).py); inkG.lineTo(pt.px, pt.py); inkG.stroke();
+  touchLast = pt;
+}
+function padUp() {   // finger lifted: they stop, and go back to the pattern they had
+  if (!touchPrev) return;
+  for (const k in touchPrev) change(k, { level: 0, mode: touchPrev[k].mode, speed: touchPrev[k].speed });
+  touchPrev = null; touchLast = null;
+  $('pad').classList.remove('on'); $('padRead').innerHTML = 'Touch and move your finger.<br>Lift it and they stop.';
+}
+$('pad').addEventListener('pointerdown', ev => {
+  const why = padLocked() || (touchKinds().length ? '' : `${label('vib')} and ${label('suc')} are not connected right now.`);
+  if (why) { notify(why); return; }
+  $('pad').setPointerCapture(ev.pointerId); tap();
+  touchPrev = {}; for (const k of touchKinds()) touchPrev[k] = { mode: state[k].mode === 'touch' ? 'steady' : state[k].mode, speed: state[k].speed };
+  $('pad').classList.add('on'); padDrive(padAt(ev));
+});
+$('pad').addEventListener('pointermove', ev => { if (touchPrev) padDrive(padAt(ev)); });
+for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) $('pad').addEventListener(t, padUp);
+$('touchBtn').onclick = () => { tap(); $('touchSheet').hidden = false; renderTouch(); sizeInk(); requestAnimationFrame(fadeInk); };
+$('touchDone').onclick = () => { padUp(); $('touchSheet').hidden = true; };
+addEventListener('resize', () => { if (!$('touchSheet').hidden) sizeInk(); });
 
 // ---- threesome mix: Leo and Max at different paces, reshuffled every 25 seconds until you touch anything
 let mixTimer = null, partnerMixing = false;
@@ -1698,6 +1792,12 @@ async function fromHost(m, viaLink) {
   seen(m);
   gotName(m.name);
   if (m.t === 'rtc') gotRtc(m);
+  if (m.t === 'nope') notify({
+    paused: `${who()} paused your control. Ask her to switch it back on.`,
+    leading: `${who()} is leading right now. Ask her to tap Shared.`,
+    stopped: `${who()} just pressed Stop. Try again in a moment.`,
+    off: `${label(m.egg in KINDS ? m.egg : 'vib')} is not connected on her phone right now.`,
+  }[m.why] || 'That move did not reach her eggs. Try again.');
   if (m.t === 'state') {
     allow = !!m.allow;
     if (m.eggs && Object.values(m.eggs).every(s => !s.level)) hostZeroAt = Date.now();
@@ -1753,15 +1853,23 @@ async function fromRemote(m, viaLink) {
   gotName(m.name);
   if (m.t === 'stop') { stopAll(`${who()} pressed stop`); stoppedAt = 0; partnerStopTs = m.ts; }   // his own later moves still count
   if (m.t === 'rtc') gotRtc(m);
-  if (m.t === 'lead' && allow && lead !== 'host') setLead(m.lead);
+  if (m.t === 'lead') { if (allow && lead !== 'host') setLead(m.lead); else refuse(!allow ? 'paused' : 'leading'); }
   if (m.t === 'rename' && m.egg in KINDS && typeof m.label === 'string' && m.label.trim()) rename(m.egg, m.label.trim().slice(0, 16), m.face);
-  if (m.t === 'set' && allow && lead !== 'host' && !document.hidden && Date.now() - stoppedAt > 1500 && m.ts >= partnerStopTs && state[m.egg] && state[m.egg].connected) {
+  if (m.t === 'set') {
+    const why = !allow ? 'paused' : lead === 'host' ? 'leading' : Date.now() - stoppedAt <= 1500 || m.ts < partnerStopTs ? 'stopped' : !(state[m.egg] && state[m.egg].connected) ? 'off' : '';
+    if (why) refuse(why, m.egg);
+  }
+  if (m.t === 'set' && allow && lead !== 'host' && Date.now() - stoppedAt > 1500 && m.ts >= partnerStopTs && state[m.egg] && state[m.egg].connected) {
     const e = state[m.egg];
     apply(e, m); e.by = 'partner';
     publishStateSoon();
   }
   common(m);
   render();
+}
+function refuse(why, egg) {   // at most one note every 3 s
+  if (Date.now() - (refuse.at || 0) < 3000) return;
+  refuse.at = Date.now(); send({ t: 'nope', why, egg });
 }
 function publishState() {
   const eggs = {};
@@ -1984,7 +2092,7 @@ setInterval(() => {   // every tick: animate orbs; on the egg phone also drive t
   const now = performance.now();
   const out = {};
   for (const kind in KINDS) {
-    out[kind] = state[kind].connected && !(!isRemote && document.hidden) ? output(state[kind], now) : 0;   // her screen off: eggs stay at 0
+    out[kind] = state[kind].connected ? output(state[kind], now) : 0;   // keeps running with her screen off: he can still play
     cards[kind].querySelector('.orb').style.setProperty('--g', out[kind] / 100);
   }
   if (!isRemote) for (const c of ups()) {   // every connection gets both strengths; each egg takes its own
@@ -2001,7 +2109,7 @@ setInterval(() => {   // once a second: presence, safety check, status ask
     else if (stopPending && Date.now() - stopPending > 10000) { stopPending = 0; notify('Stop could not reach her phone. Ask her to press Stop.'); }
     else if (stopPending) send({ t: 'stop' });
   } else {
-    if (!partnerOnline()) partnerLost(`${who()}'s connection dropped`);
+    if (Date.now() - partnerSeen > DROP_STOP_MS) partnerLost(`${who()}'s connection dropped for 30 seconds`);
     else if (pairKey && (!direct() || !fcOpen()) && Date.now() - dataAt > 10000) startData().catch(() => {});
     for (const c of ups()) { c.sent = ''; write(c, [0x55, 0x04]); }   // re-send strength each second: a lost stop cannot stick
     for (const kind in KINDS) if (state[kind].connected && Date.now() - seenAt[kind] > 4500) eggGone(kind);   // he stopped answering
@@ -2046,8 +2154,7 @@ else {
     leaving = true; location.replace(location.pathname);
   };
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopAll('The eggs stopped because Loveline left the screen');
-    else if (wakeLock) keepScreenOn();
+    if (!document.hidden && wakeLock) keepScreenOn();
   });
   window.addEventListener('pagehide', () => stopAll());
 }
