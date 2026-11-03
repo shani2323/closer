@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#000000">
-<title>Closer</title>
+<title>Midnight Kiss</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
@@ -38,7 +38,8 @@
            margin: -12px -16px 0; padding: 12px 16px 10px; transition: background-color .3s; }
   header.small { background: rgba(0, 0, 0, .72); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
                  box-shadow: 0 .5px 0 rgba(255, 255, 255, .1); }
-  h1 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; transition: font-size .25s; }
+  h1 { margin: 0; font-size: clamp(26px, 8.4vw, 34px); font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; transition: font-size .25s; }
+  .me { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   header.small h1 { font-size: 22px; }
   .hdr { display: flex; align-items: center; gap: 8px; }
   .me { min-height: 36px; padding: 0 14px; border-radius: 18px; font-size: 15px; font-weight: 500; }
@@ -271,7 +272,7 @@
 <body>
 <main>
   <header>
-    <h1>Closer</h1>
+    <h1>Midnight Kiss</h1>
     <div class="hdr">
       <button class="stop" id="stop" aria-label="Stop both eggs">Stop</button>
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
@@ -566,6 +567,7 @@ function change(kind, m, fromMix) {   // a change made on this phone
   if (!fromMix && (mixTimer || partnerMixing)) stopMix(true);
   stopPending = 0;   // he chose a new strength after stopping
   const e = state[kind];
+  if (!fromMix && m.mode && m.mode !== 'steady' && !e.level && !('level' in m)) m = { ...m, level: 40 };
   apply(e, m);
   e.editUntil = Date.now() + 1000;
   if (isRemote) queueSet(kind);
@@ -662,7 +664,7 @@ function render() {
 
   if (isRemote) {
     const [t, p] = blocked ? ['This link is taken', `It is already paired with another phone. Ask your partner to tap "Forget paired phone", then reload.`]
-      : !partnerOnline() ? ["Waiting for your partner's phone", 'Ask your partner to open Closer. You will connect by yourself.']
+      : !partnerOnline() ? ["Waiting for your partner's phone", 'Ask your partner to open Midnight Kiss. You will connect by yourself.']
       : !allow ? ['Paused', `${who()} has paused your control for now.`]
       : ['Holding the remote', `Your moves reach the eggs live. ${who()} can stop at any time.`];
     $('remoteTitle').textContent = t; $('remoteText').textContent = p;
@@ -736,11 +738,18 @@ async function startNet() {
 const clients = [], seenPayloads = new Set(), lastTs = {};
 let lastSeenTs = 0;
 let syncAsked = false;
+const keep = (k, v) => { try { sessionStorage.setItem('closer:' + k, JSON.stringify(v)); } catch {} };   // lasts through a refresh only
+const kept = k => { try { return JSON.parse(sessionStorage.getItem('closer:' + k)); } catch { return null; } };
+function restoreOwn() {   // after a refresh: what this phone had open, unless the partner already said otherwise
+  const g = kept('game'), p = kept('panel');
+  if (g && g.k && !lastTs.game) gotGame({ game: g });
+  if (p && p !== 'play' && panel === 'play' && !lastTs.panel) openPanel(p, true, true);
+}
 const seen = m => {
   if (!(m.ts > lastSeenTs)) return;
-  const back = !partnerOnline();
+  const back = !partnerOnline(), first = !syncAsked;
   lastSeenTs = m.ts; partnerSeen = Date.now();
-  if (back || !syncAsked) { syncAsked = true; setTimeout(() => send({ t: 'resync' }), 800); }   // ask what is open over there
+  if (back || first) { syncAsked = true; setTimeout(() => { if (first) restoreOwn(); send({ t: 'resync' }); }, 800); }   // ask what is open over there
 };   // only newer messages count as the partner being here
 let dc = null, dataAt = 0;   // direct line between the two phones once paired; relays stay as backup
 let fc = null;   // second channel on the same direct line, only for video files (never through the relays)
@@ -840,7 +849,7 @@ async function gotRtc(m) {
   if (m.sdp) {
     if (m.sdp.type === 'offer' && (dir === 'recv' || (dir === 'data' && isRemote))) { endRtc(dir, false); newPc(dir); }
     const pc = rtc[dir];
-    if (!pc) return;
+    if (!pc || (m.sdp.type === 'answer' && pc.signalingState !== 'have-local-offer')) return;
     await pc.setRemoteDescription(m.sdp);
     for (const c of pendingIce[dir].splice(0)) await pc.addIceCandidate(c).catch(() => {});
     if (m.sdp.type === 'offer') {
@@ -940,11 +949,11 @@ $('mixBtn').onclick = () => {
 
 // ---- shared tabs: whatever one phone opens, the other opens too; Leo and Max stay in view as a slim strip
 let panel = 'play';
-function openPanel(p, fromPartner) {
+function openPanel(p, fromPartner, quiet) {
   if (!['play', 'draw', 'game', 'watch'].includes(p)) return;
   const changed = p !== panel;
   if (panel === 'watch' && p !== 'watch') leaveWatch();
-  panel = p;
+  panel = p; keep('panel', p);
   document.body.classList.toggle('panel', p !== 'play');
   $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('watchPanel').hidden = p !== 'watch';
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p));
@@ -952,7 +961,7 @@ function openPanel(p, fromPartner) {
   if (p === 'watch') { renderVids(); renderPlayer(); }
   renderGame();
   if (!fromPartner) send({ t: 'panel', p });
-  else if (changed && p !== 'play') { tap(); notify(`${who()} opened ${{ draw: 'Draw', game: 'Truth or Dare', watch: 'Watch' }[p]}.`); }
+  else if (changed && p !== 'play' && !quiet) { tap(); notify(`${who()} opened ${{ draw: 'Draw', game: 'Truth or Dare', watch: 'Watch' }[p]}.`); }
 }
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { tap(); openPanel(b.dataset.p); });
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => openPanel('play'));
@@ -1249,7 +1258,7 @@ function renderGame() {
   $('pick').hidden = !!card || !mineTurn;
   $('after').hidden = !card;
 }
-function setGame(g, fromPartner) { game = g; renderGame(); if (!fromPartner) send({ t: 'game', game: g }); }
+function setGame(g, fromPartner) { game = g; keep('game', g); renderGame(); if (!fromPartner) send({ t: 'game', game: g }); }
 function pickCard(k) {
   const n = (k === 'truth' ? TRUTHS : DARES).length;
   if (usedCards[k].size >= n) usedCards[k].clear();
@@ -1780,7 +1789,7 @@ function eggFor(device) {
   if (!c) { c = { device, up: false, sent: '', seen: {} }; tries.set(device.id, c); device.addEventListener('gattserverdisconnected', () => dropped(c)); }
   return c;
 }
-async function keepTrying(c) {   // for as long as Closer is open: an egg switched off joins again by itself when switched on
+async function keepTrying(c) {   // for as long as Midnight Kiss is open: an egg switched off joins again by itself when switched on
   if (c.trying) return;
   c.trying = true;
   while (!parked && !c.up) {
@@ -1794,10 +1803,11 @@ async function autoJoin() {   // eggs picked on an earlier visit, where Chrome r
 }
 async function linkUp(c) {
   c.q = null; c.busy = false;
-  const server = await Promise.race([c.device.gatt.connect(), new Promise((_, no) => setTimeout(() => {
+  let giveUp;
+  const server = await Promise.race([c.device.gatt.connect(), new Promise((_, no) => { giveUp = setTimeout(() => {
     try { c.device.gatt.disconnect(); } catch {}
     no(new Error('Bluetooth took too long'));
-  }, 12000))]);
+  }, 12000); })]).finally(() => clearTimeout(giveUp));
   const svc = await server.getPrimaryService(0xffe0);
   c.tx = await svc.getCharacteristic(0xffe1);
   const rx = await svc.getCharacteristic(0xffe2);
@@ -1908,7 +1918,7 @@ async function parkHere() {   // another tab took over: let go of everything on 
   for (const c of clients) c.end(true);
   for (const c of tries.values()) { try { c.device.gatt.disconnect(); } catch {} }
   endRtc('send', true); endRtc('recv', true); endRtc('data');
-  showPark('Closer moved to another tab', 'It is now open in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
+  showPark('Midnight Kiss moved to another tab', 'It is now open in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
 }
 function takeOver() { if (bc) bc.postMessage({ t: 'takeover' }); setTimeout(() => location.reload(), 400); }
 if (bc) bc.onmessage = e => {
@@ -1918,7 +1928,7 @@ if (bc) bc.onmessage = e => {
 };
 async function begin() {
   if (firstVisit) {
-    showPark('Who has the eggs?', 'Closer runs on two phones: the one with the eggs, and the remote.', 'I have the eggs',
+    showPark('Who has the eggs?', 'Midnight Kiss runs on two phones: the one with the eggs, and the remote.', 'I have the eggs',
       () => { store.set('hostRoom', { r: room, k: hp.get('k') }); location.reload(); },
       'My partner has them', () => { $('parkTitle').textContent = 'Open their link'; $('parkText').textContent = 'Ask your partner to tap "Share private link" and send it to you. Open that link on this phone.'; $('parkGo').hidden = true; $('parkAlt').hidden = true; });
     return;
@@ -1927,13 +1937,13 @@ async function begin() {
     showPark('This is your own link', 'Send it to your partner. They open it on their phone to hold your remote.', 'Go to my eggs', () => location.replace(location.pathname));
     return;
   }
-  if (bc) {   // is Closer already running in another tab on this phone?
+  if (bc) {   // is Midnight Kiss already running in another tab on this phone?
     let busy = false;
     const h = e => { if (e.data.t === 'here') busy = true; };
     bc.addEventListener('message', h); bc.postMessage({ t: 'who' });
     await new Promise(r => setTimeout(r, 400));
     bc.removeEventListener('message', h);
-    if (busy) { showPark('Closer is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver); return; }
+    if (busy) { showPark('Midnight Kiss is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver); return; }
   }
   startNet().catch(() => notify('Could not start the secure connection. Reload the page.'));
   if (!isRemote) autoJoin();
@@ -2006,7 +2016,7 @@ else {
     location.replace(location.pathname);
   };
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopAll('The eggs stopped because Closer left the screen');
+    if (document.hidden) stopAll('The eggs stopped because Midnight Kiss left the screen');
     else if (wakeLock) keepScreenOn();
   });
   window.addEventListener('pagehide', () => stopAll());
