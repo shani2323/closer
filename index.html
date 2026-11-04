@@ -878,7 +878,7 @@ async function handle(txt) {
     return;
   }
   clockOff = 0;
-  if (viaLink !== ['hello', 'welcome', 'busy', 'clock'].includes(m.t)) return;
+  if (viaLink !== ['hello', 'welcome', 'busy', 'clock', 'here'].includes(m.t)) return;
   if (['state', 'set', 'lead', 'game', 'panel', 'rename', 'mix', 'wplay', 'wbeat', 'vlib'].includes(m.t)) {   // a copy can arrive late by the slower route: never let it undo a newer change
     const slot = m.t + (m.egg || '');
     if (m.ts < (lastTs[slot] || 0)) return;
@@ -2001,15 +2001,20 @@ function queueSet(kind) {   // at most ~8 messages a second per egg while draggi
     send({ t: 'set', egg: kind, level: e.level, mode: e.mode, speed: e.speed });
   }, TICK_MS);
 }
+const eggsOn = () => Object.values(state).filter(e => e.connected).length;
 async function fromHost(m, viaLink) {
   if (viaLink) {
+    if (m.t === 'here') { if ((!hostPair || m.from !== hostPair.id) && m.eggs > eggsOn() && Date.now() - helloAt > 3000) hello(); return; }   // another page of hers has more eggs than the one this phone is with
     if (m.to !== me) return;
     if (m.t === 'busy' && !partnerOnline()) { blocked = m.no ? 'no' : 'ask'; render(); }
     if (m.t === 'welcome') {
+      const other = !hostPair || hostPair.id !== m.from;
+      if (other && partnerOnline() && !(m.eggs > eggsOn())) return;   // her link is open somewhere else too: stay with the page that has the eggs
       blocked = false;
-      if (!hostPair || hostPair.id !== m.from || !sameKey(hostPair.pub, m.pub)) {
+      if (other || !sameKey(hostPair.pub, m.pub)) {
         hostPair = { id: m.from, pub: pubOnly(m.pub) }; store.set('hostPair:' + room, hostPair);
         pairKey = await derive(hostPair.pub);
+        if (other) { for (const k in lastTs) delete lastTs[k]; lastSeenTs = 0; logLink('now with her page ' + m.from.slice(0, 4) + ', eggs ' + m.eggs); }   // that page's clock is the only one that counts now
       }
       gotName(m.name); seen(m); resendChat(); render();
     }
@@ -2074,7 +2079,7 @@ async function letIn(m) {
     notify('Paired with your partner\'s phone.');
   }
   seen(m); gotName(m.name);
-  await send({ t: 'welcome', to: m.from, pub: keys.pub, name: myName }, true);
+  await send({ t: 'welcome', to: m.from, pub: keys.pub, name: myName, eggs: Object.values(state).filter(e => e.connected).length }, true);
   publishState(); resendChat(); render();
 }
 let asking = null;
@@ -2380,7 +2385,7 @@ steady(() => {   // every tick: animate orbs; on the egg phone also drive the eg
     if (key !== c.sent && !c.busy) { c.busy = true; c.sent = key; write(c, command(out.suc, out.vib)).finally(() => { c.busy = false; }); }
   }
 }, TICK_MS);
-let lastBeat = Date.now(), netWarned = false;
+let lastBeat = Date.now(), netWarned = false, hereAt = 0;
 function wokeUp(gap) {   // the phone or Chrome put this page to sleep: its connections may be dead without saying so
   logLink(`woke after ${Math.round(gap / 1000)} s asleep`);
   for (const c of clients) if (c.connected && c.stream) try { c.stream.destroy(); } catch {}
@@ -2407,6 +2412,7 @@ steady(() => {   // once a second: presence, safety check, status ask
       if (c.asked >= SILENT_ASKS) letGo(c);
     }
     for (const kind in KINDS) if (state[kind].connected && !ups().some(c => c.seen[kind] && (c.miss[kind] || 0) < 5)) eggGone(kind);   // he stopped answering, counted in unanswered questions so a slow phone is no false alarm
+    if (ups().length && Date.now() - hereAt > 3000) { hereAt = Date.now(); send({ t: 'here', eggs: Object.values(state).filter(e => e.connected).length }, true); }   // lets his phone find this page if an empty one took him
     if (!online && Date.now() - startedAt > 8000 && !netWarned) { netWarned = true; notify('This phone can\'t reach the internet. Your partner can\'t reach you until it can.', 9000); }
     if (online) netWarned = false;
     publishState();
