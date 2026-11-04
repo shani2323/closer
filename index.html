@@ -448,7 +448,7 @@
 <div class="sheet" id="askSheet" hidden>
   <form id="askForm" class="glass">
     <div class="grabber"></div>
-    <h2>Allow this phone?</h2>
+    <h2 id="askTitle">Allow this phone?</h2>
     <p id="askText"></p>
     <button class="primary" id="askYes">Allow</button>
     <button type="button" class="ghost" id="askNo">Refuse</button>
@@ -838,7 +838,8 @@ async function startNet() {
     c.on('message', (topic, payload) => topic === fileIn ? slowIn(payload.toString()) : incoming(payload.toString()));
   });
 }
-const clients = [], seenPayloads = new Set(), lastTs = {}, startedAt = Date.now();
+const clients = [], seenPayloads = new Set(), lastTs = {}, startedAt = Date.now(), refused = new Set();
+let asking = null;
 let clockOff = 0;
 let lastSeenTs = 0;
 let syncAsked = false;
@@ -1586,10 +1587,11 @@ $('cardSkip').onclick = nextTurn;
 renderGame();
 
 // ---- watch together: a video library saved on both phones, played in step
-// Files travel only over the direct line (the 'files' channel, encrypted end to end by WebRTC), never through the relays.
-// Each phone keeps the videos in IndexedDB; a phone receiving one stores it in 1 MB pieces as they come, so a cut line
-// resumes from the last byte it has. Play/pause/seek are small locked messages; the latest action wins on both phones.
-const PIECE = 1 << 20, BIG = 300 * PIECE;
+// Files travel over the direct line when one forms, otherwise over two extra relay connections, scrambled with the pair key.
+// Each phone keeps the videos in IndexedDB; a phone receiving one stores numbered parts in any order, so a cut line loses
+// nothing and the player can ask for whichever part it needs (sw.js). Play/pause/seek are small locked messages; the latest action wins on both phones.
+const PIECE = 1 << 20, BIG = 300 * PIECE, PART = 1 << 19, AT_ONCE = 10, START_BY_ITSELF = 50 * PIECE;
+const partsIn = v => Math.ceil(v.size / PART);
 const vid = $('vid'), vidMap = {}, recv = {};
 const gone = new Set(store.get('vidGone:' + room, []));   // deleted videos are remembered so they never come back
 const validId = id => typeof id === 'string' && /^[A-Za-z0-9_-]{12}$/.test(id);
@@ -1614,7 +1616,16 @@ async function tx(stores, mode, fn) {   // one IndexedDB transaction; resolves w
 }
 const partsOf = id => IDBKeyRange.bound([id, 0], [id, Infinity]);
 const saveMeta = v => tx(['meta'], 'readwrite', s => { s('meta').put(v); }).catch(() => {});
-const libLoaded = tx(['meta'], 'readonly', s => s('meta').getAll()).then(list => { for (const v of list) vidMap[v.id] = v; renderVids(); }).catch(() => {});
+const libLoaded = tx(['meta'], 'readonly', s => s('meta').getAll()).then(async list => {
+  for (const v of list) {
+    vidMap[v.id] = v;
+    if (!v.ready && !v.done) {   // half-arrived under the old way of storing: start that one again
+      v.have = 0; v.done = [];
+      await tx(['parts', 'meta'], 'readwrite', s => { s('parts').delete(partsOf(v.id)); s('meta').put(v); });
+    }
+  }
+  renderVids();
+}).catch(() => {});
 function rememberGone(id) { gone.add(id); store.set('vidGone:' + room, [...gone].slice(-300)); }
 
 // library list: who has what, sent on every change and every 15 s; deletions travel with it
@@ -1640,7 +1651,7 @@ async function gotLib(m) {
     if (!v) {
       v = { id: x.id, name: String(x.name || 'Video').replace(/[\u0000-\u001f]/g, '').slice(0, 120), size: x.size,
             type: /^video\/[\w.+-]+$/.test(x.type) ? x.type : 'video/mp4', by: String(x.by || '').slice(0, 24),
-            from: String(x.from || '').slice(0, 16), at: Number.isFinite(x.at) ? x.at : Date.now(), have: 0, ready: false, peer: x.ready ? x.size : 0 };
+            from: String(x.from || '').slice(0, 16), at: Number.isFinite(x.at) ? x.at : Date.now(), have: 0, done: [], ready: false, peer: x.ready ? x.size : 0 };
       vidMap[v.id] = v; await saveMeta(v);
       notify(`${who()} added a video: "${vTitle(v)}".` + (fcOpen() ? '' : ' It will arrive when your partner\'s phone is back.'));
     } else {
@@ -1664,11 +1675,13 @@ $('vidFile').onchange = async ev => {
   catch { notify('This phone could not save that video. It may be out of space, or this is a private tab.'); return; }
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
   vidMap[v.id] = v; tap(); sendLib(); renderVids();
+  if (f.size >= START_BY_ITSELF && partnerOnline() && !wstate.playing) act(true, 0, v.id);
   const slow = f.size > BIG ? ` It is big (${fmtSize(f.size)}), so over phone data it can take a long time. Wi-Fi is better.` : '';
   notify((fcOpen() ? `Sending "${vTitle(v)}" to ${who()}.` : `Saved. It will send to ${who()} when their phone is back.`) + slow);
 };
 async function removeVid(id) {
   delete vidMap[id]; delete recv[id];
+  for (let i = outQ.length - 1; i >= 0; i--) if (outQ[i].id === id) outQ.splice(i, 1);
   if (wstate.id === id) { wstate = { ...wstate, id: null, playing: false }; applyState(); }
   await tx(['meta', 'blobs', 'parts'], 'readwrite', s => { s('meta').delete(id); s('blobs').delete(id); s('parts').delete(partsOf(id)); }).catch(() => {});
   renderVids();
@@ -1694,27 +1707,45 @@ async function shareVid(id) {
 // sending: the phone that needs a video asks for it from the byte it has; the other streams 1 MB blocks in ~64 KB chunks
 // frame = 12-byte video id + 8-byte position + data; anything not exactly at the next expected byte is dropped, never stored
 const fileIn = `closer-v2/${room}/f${isRemote ? 'h' : 'c'}`, fileOut = `closer-v2/${room}/f${isRemote ? 'c' : 'h'}`;
-let noDirectSince = window.RTCPeerConnection ? Date.now() : 0, slowBytes = 0, slowOutQ = Promise.resolve(), slowInQ = Promise.resolve();
-const slowClient = () => [clients[1], clients[0]].find(c => c && c.connected);   // the third relay refuses pieces this big
+const dataIn = `closer-v2/${room}/d${isRemote ? 'h' : 'c'}`, dataOut = `closer-v2/${room}/d${isRemote ? 'c' : 'h'}`;
+let noDirectSince = window.RTCPeerConnection ? Date.now() : 0, slowInQ = Promise.resolve(), lanes = null, lanesAt = 0, slowWake = [];
+const LANE_ROOM = 8, SLOW_PIECE = 48000;   // pieces waiting for an answer per connection; the third relay refuses pieces this big
+const slowClient = () => clients.find(c => c && c.connected);
 function fileLine() {
   if (fcDirect()) { noDirectSince = Date.now(); return fc; }
-  return pairKey && partnerOnline() && slowClient() && Date.now() - noDirectSince > 15000 ? slowLine : null;
+  return pairKey && partnerOnline() && slowClient() && Date.now() - noDirectSince > 8000 ? slowLine : null;
 }
+function wakeSlow() { const w = slowWake; slowWake = []; w.forEach(f => f()); }
+function ensureLanes() {   // two connections only for video, so slider moves and chat never queue behind it; more get refused by the relays
+  lanesAt = Date.now();
+  if (lanes) return;
+  lanes = [BROKERS[1], BROKERS[0]].map(([url], i) => {
+    const c = mqtt.connect(url, { clientId: `closer_${me}_v${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 3000, connectTimeout: 8000 });
+    c.left = 0;
+    c.on('connect', () => { c.subscribe(dataIn); wakeSlow(); });
+    c.on('close', () => { c.left = 0; wakeSlow(); });
+    c.on('message', (_topic, payload) => { lanesAt = Date.now(); slowIn(payload.toString()); });
+    return c;
+  });
+}
+const freeLane = () => (lanes || []).filter(c => c.connected && c.left < LANE_ROOM).sort((a, b) => a.left - b.left)[0];
 const slowLine = {   // looks like the direct channel to the code that sends files
   readyState: 'open',
-  get bufferedAmount() { return slowBytes > 200000 ? Infinity : 0; },
-  addEventListener() {},
+  get bufferedAmount() { ensureLanes(); return freeLane() ? 0 : Infinity; },
+  addEventListener(_type, f) { slowWake.push(f); },
   send(data) {
     const text = typeof data === 'string', body = text ? new TextEncoder().encode(data) : data;
     const plain = new Uint8Array(body.length + 1); plain[0] = text ? 1 : 0; plain.set(body, 1);
-    slowBytes += plain.length;
-    slowOutQ = slowOutQ.then(async () => {
-      const iv = rand(12), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, pairKey, plain));
-      const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
-      const c = slowClient();
-      if (!c) { slowBytes -= plain.length; return; }
-      c.publish(fileOut, b64(out), { qos: 1 }, () => { slowBytes -= plain.length; });
-    }).catch(() => { slowBytes -= plain.length; });
+    const lane = text ? null : freeLane();
+    if (lane) lane.left++;
+    const done = () => { if (lane) { lane.left = Math.max(0, lane.left - 1); wakeSlow(); } };
+    const iv = rand(12);
+    crypto.subtle.encrypt({ name: 'AES-GCM', iv }, pairKey, plain).then(ct => {
+      const out = new Uint8Array(12 + ct.byteLength); out.set(iv); out.set(new Uint8Array(ct), 12);
+      const c = lane || slowClient();
+      if (!c || !c.connected) { done(); return; }
+      c.publish(lane ? dataOut : fileOut, b64(out), { qos: lane ? 1 : 0 }, done);
+    }).catch(done);
   },
 };
 function slowIn(txt) {
@@ -1731,46 +1762,67 @@ function setupFc(ch) {
   ch.onmessage = e => gotFile(e.data, ch);
   ch.onclose = () => { if (fc === ch) dropFc(); };
 }
-function dropFc() { fc = null; outTok++; for (const id in recv) flushRecv(id); renderVids(); }
+function dropFc() { fc = null; outTok++; outQ.length = 0; renderVids(); }
 const sendFc = obj => { const l = fileLine(); if (l) try { l.send(JSON.stringify(obj)); } catch {} };
-let outTok = 0;
-async function streamOut(id, from, via) {
-  const tok = ++outTok, ch = via, v = vidMap[id];
-  if (!validId(id) || !v || !v.ready || !ch) return;
+
+// sending: the other phone names the parts it wants; frame = 12-byte video id + 8-byte position + data
+const outQ = [];
+let outTok = 0, pumping = false;
+function gotWant(m, via) {
+  const v = validId(m.id) && vidMap[m.id];
+  if (!v || !v.ready || !Array.isArray(m.ps)) return;
+  if (m.now) { outQ.length = 0; outTok++; }   // the player jumped: what it needs now goes first
+  const n = partsIn(v);
+  for (const i of m.ps.slice(0, 64)) if (Number.isInteger(i) && i >= 0 && i < n && !outQ.some(q => q.id === m.id && q.i === i)) outQ.push({ id: m.id, i, via });
+  pump();
+}
+async function pump() {
+  if (pumping) return;
+  pumping = true;
+  try { while (outQ.length) { const q = outQ.shift(); await sendPart(q.id, q.i, q.via); } } finally { pumping = false; }
+}
+async function sendPart(id, i, ch) {
+  const tok = outTok, v = vidMap[id];
+  if (!v || !v.ready || ch.readyState !== 'open') return;
   const blob = await tx(['blobs'], 'readonly', s => s('blobs').get(id)).catch(() => null);
   if (!blob) return;
-  const head = new TextEncoder().encode(id), size = ch === slowLine ? 48000 : Math.min(65536, (rtc.data && rtc.data.sctp && rtc.data.sctp.maxMessageSize) || 65536) - 20;
-  let off = Math.max(0, Math.min(Math.floor(+from || 0), blob.size));
-  while (off < blob.size) {
-    const block = new Uint8Array(await blob.slice(off, off + PIECE).arrayBuffer());
-    for (let i = 0; i < block.length; i += size) {
-      while (tok === outTok && ch.readyState === 'open' && ch.bufferedAmount > 4 * PIECE) await new Promise(r => { ch.addEventListener('bufferedamountlow', r, { once: true }); wait(250).then(r); });
-      if (tok !== outTok || ch.readyState !== 'open' || !vidMap[id] || (ch === slowLine && (fcDirect() || !partnerOnline()))) return;
-      const part = block.subarray(i, i + size), frame = new Uint8Array(20 + part.length);
-      frame.set(head); new DataView(frame.buffer).setFloat64(12, off + i); frame.set(part, 20);
-      try { ch.send(frame); } catch { return; }
-    }
-    off += block.length;
+  const head = new TextEncoder().encode(id), size = ch === slowLine ? SLOW_PIECE : Math.min(65536, (rtc.data && rtc.data.sctp && rtc.data.sctp.maxMessageSize) || 65536) - 20;
+  const start = i * PART, block = new Uint8Array(await blob.slice(start, Math.min(v.size, start + PART)).arrayBuffer());
+  for (let at = 0; at < block.length; at += size) {
+    while (tok === outTok && ch.readyState === 'open' && ch.bufferedAmount > 4 * PIECE && !(ch === slowLine && !partnerOnline())) await new Promise(r => { ch.addEventListener('bufferedamountlow', r, { once: true }); wait(250).then(r); });
+    if (tok !== outTok || ch.readyState !== 'open' || !vidMap[id] || (ch === slowLine && (fcDirect() || !partnerOnline()))) return;
+    const part = block.subarray(at, at + size), frame = new Uint8Array(20 + part.length);
+    frame.set(head); new DataView(frame.buffer).setFloat64(12, start + at); frame.set(part, 20);
+    try { ch.send(frame); } catch { return; }
   }
 }
+
+// receiving: up to 10 parts on the way at once, starting from where the player is
+let wantFrom = null;
 function rx(id) {
   const v = vidMap[id];
-  return recv[id] || (recv[id] = { have: v.have, wrote: v.have, buf: [], bytes: 0, q: Promise.resolve(), lastAt: 0, askAt: 0, askCh: null });
+  return recv[id] || (recv[id] = { have: v.have || 0, done: new Set(v.done || []), open: new Map(), asked: new Map(), lastAt: 0, q: Promise.resolve(), line: null, urgent: false });
 }
-function askNext() {   // one video at a time, oldest first; ask again after 4 s of silence or on a new line
+function askNext() {
   const line = fileLine();
   if (!line) return;
-  const v = Object.values(vidMap).filter(v => !v.ready).sort((a, b) => a.at - b.at)[0];
+  const now = Date.now(), first = wantFrom && vidMap[wantFrom.id] && !vidMap[wantFrom.id].ready ? vidMap[wantFrom.id] : null;
+  const v = first || Object.values(vidMap).filter(v => !v.ready).sort((a, b) => a.at - b.at)[0];
   if (!v) return;
-  const r = rx(v.id);
-  if (r.askCh === line && Date.now() - Math.max(r.lastAt, r.askAt) < (line === slowLine ? 10000 : 4000)) return;
-  r.askCh = line; r.askAt = Date.now();
-  sendFc({ op: 'want', id: v.id, from: r.have });
+  const r = rx(v.id), n = partsIn(v), start = first ? wantFrom.i : 0, ps = [];
+  if (r.line !== line) { r.line = line; r.asked.clear(); r.open.clear(); }   // pieces are cut differently on each route
+  for (const [i, at] of r.asked) if (r.done.has(i) || now - at > 30000 || (now - r.lastAt > 6000 && now - at > 6000)) r.asked.delete(i);
+  for (let k = 0; k < n && r.asked.size + ps.length < AT_ONCE; k++) { const i = (start + k) % n; if (!r.done.has(i) && !r.asked.has(i)) ps.push(i); }
+  if (!ps.length) return;
+  if (line === slowLine) ensureLanes();
+  for (const i of ps) r.asked.set(i, now);
+  sendFc({ op: 'want', id: v.id, ps, now: r.urgent });
+  r.urgent = false;
 }
 function gotFile(data, via) {
   if (typeof data === 'string') {
     let m; try { m = JSON.parse(data); } catch { return; }
-    if (m.op === 'want') streamOut(m.id, m.from, via);
+    if (m.op === 'want') gotWant(m, via);
     if (m.op === 'got' && vidMap[m.id]) {   // how much the other phone has saved: drives the sender's progress bar
       const v = vidMap[m.id], h = Math.min(v.size, Math.floor(+m.have || 0));
       if (h > v.peer) { v.peer = h; if (h >= v.size) saveMeta(v); vidsSoon(); }
@@ -1780,42 +1832,48 @@ function gotFile(data, via) {
   if (!(data instanceof ArrayBuffer) || data.byteLength <= 20) return;
   const b = new Uint8Array(data), id = new TextDecoder().decode(b.subarray(0, 12)), off = new DataView(data).getFloat64(12);
   const v = vidMap[id];
-  if (!v || v.ready) return;
-  const r = rx(id), part = b.subarray(20);
-  if (off !== r.have || off + part.length > v.size) { if (off > r.have) { r.askCh = null; askNext(); } return; }
-  r.buf.push(part); r.bytes += part.length; r.have += part.length; r.lastAt = Date.now();
-  if (r.bytes >= PIECE || r.have >= v.size) flushRecv(id);
+  if (!v || v.ready || !Number.isSafeInteger(off) || off < 0) return;
+  const r = rx(id), piece = b.subarray(20), i = Math.floor(off / PART), size = Math.min(PART, v.size - i * PART);
+  if (i >= partsIn(v) || r.done.has(i) || off - i * PART + piece.length > size) return;
+  r.lastAt = Date.now();
+  let o = r.open.get(i);
+  if (!o) r.open.set(i, o = { bits: new Map(), n: 0 });
+  if (!o.bits.has(off)) { o.bits.set(off, piece); o.n += piece.length; }
+  if (o.n >= size) {
+    r.open.delete(i);
+    savePart(id, r, i, new Blob([...o.bits.keys()].sort((a, c) => a - c).map(k => o.bits.get(k))));
+  }
   vidsSoon();
 }
-function flushRecv(id) {   // store what has come so far as one piece, together with the new byte count, in one step
-  const r = recv[id], v = vidMap[id];
-  if (!r || !v || !r.bytes) return;
-  const blob = new Blob(r.buf), start = r.wrote;
-  r.buf = []; r.bytes = 0; r.wrote += blob.size;
+function savePart(id, r, i, blob) {   // the part and the new count are saved in one step
+  const v = vidMap[id];
+  r.done.add(i); r.have += blob.size; v.have = r.have; v.done = [...r.done];
   r.q = r.q.then(async () => {
     if (recv[id] !== r || !vidMap[id]) return;
-    v.have = start + blob.size;
-    await tx(['parts', 'meta'], 'readwrite', s => { s('parts').put(blob, [id, start]); s('meta').put(v); });
+    await tx(['parts', 'meta'], 'readwrite', s => { s('parts').put(blob, [id, i]); s('meta').put(v); });
+    r.asked.delete(i);
     sendFc({ op: 'got', id, have: v.have });
-    if (v.have >= v.size) await finishRecv(id);
+    if (r.done.size >= partsIn(v)) await finishRecv(id);
+    else askNext();
   }).catch(() => {
     if (recv[id] !== r) return;
-    v.have = start; delete recv[id]; saveMeta(v);
+    r.done.delete(i); r.have -= blob.size; v.have = r.have; v.done = [...r.done]; r.asked.delete(i); saveMeta(v);
     notify('There is not enough space on this phone for the video. Free some space and it carries on.');
   });
 }
 async function finishRecv(id) {
   const v = vidMap[id];
   const [keys, parts] = await tx(['parts'], 'readonly', s => [s('parts').getAllKeys(partsOf(id)), s('parts').getAll(partsOf(id))]);
-  let at = 0; const use = [];
-  keys.forEach((k, i) => { if (k[1] === at) { use.push(parts[i]); at += parts[i].size; } });
-  if (at !== v.size) {   // should never happen; start this video again rather than keep a broken copy
-    v.have = 0; delete recv[id];
+  const use = [];
+  keys.forEach((k, x) => { use[k[1]] = parts[x]; });
+  const whole = new Blob(use.filter(Boolean), { type: v.type });
+  if (whole.size !== v.size) {   // should never happen; start this video again rather than keep a broken copy
+    v.have = 0; v.done = []; delete recv[id];
     await tx(['parts', 'meta'], 'readwrite', s => { s('parts').delete(partsOf(id)); s('meta').put(v); });
     return;
   }
-  v.ready = true;
-  await tx(['blobs', 'meta'], 'readwrite', s => { s('blobs').put(new Blob(use, { type: v.type }), id); s('meta').put(v); });
+  v.ready = true; v.have = v.size;
+  await tx(['blobs', 'meta'], 'readwrite', s => { s('blobs').put(whole, id); s('meta').put(v); });
   await tx(['parts'], 'readwrite', s => { s('parts').delete(partsOf(id)); }).catch(() => {});
   delete recv[id];
   sendFc({ op: 'got', id, have: v.size }); sendLib();
@@ -1869,7 +1927,7 @@ $('vidList').onclick = ev => {
   else if (b.dataset.del) deleteVid(b.dataset.del);
   else if (b.dataset.open) {
     const v = vidMap[b.dataset.open];
-    if (!v || !v.ready) { notify('This video is still arriving. You can watch it once it is here.'); return; }
+    if (!v || (!v.ready && !canStream())) { notify('This video is still arriving. You can watch it once it is here.'); return; }
     if (wstate.id !== v.id) act(false, 0, v.id);
     $('watchPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
@@ -1885,6 +1943,7 @@ const here = () => !!wstate.id && loadedId === wstate.id && vid.readyState >= 1;
 const curPos = () => here() ? vid.currentTime : target();
 const showsPlaying = () => wstate.playing && !(here() && vid.ended);   // a video that reached its end shows Play again
 function act(playing, pos, id = wstate.id) {   // an action on this phone: apply it, then tell the other phone once
+  holding = false;
   const v = Math.max(Date.now(), wstate.v + 1);
   wstate = { id, playing: !!playing && !!id, pos: Math.max(0, pos || 0), base: performance.now(), v, from: me };
   beatAt = Date.now();
@@ -1912,6 +1971,36 @@ function playVid() {
     notify('The video sound went off. Tap the speaker button to turn it back on.'); renderPlayer();
   });
 }
+const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+if (navigator.serviceWorker) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('message', e => {   // the player needs a part that is not here yet
+    const m = e.data, v = m && validId(m.need) && vidMap[m.need];
+    if (!v || v.ready || !Number.isFinite(m.at)) return;
+    const i = Math.floor(m.at / PART);
+    if (!wantFrom || wantFrom.id !== v.id || wantFrom.i !== i) { wantFrom = { id: v.id, i }; const r = rx(v.id); r.asked.clear(); r.urgent = true; }
+    askNext();
+  });
+}
+let holding = false, stallAt = 0;
+vid.addEventListener('waiting', () => { stallAt = Date.now(); });
+vid.addEventListener('playing', () => { stallAt = 0; });
+vid.addEventListener('loadedmetadata', () => applyState());
+const aheadOf = () => { for (let i = 0; i < vid.buffered.length; i++) if (vid.buffered.start(i) <= vid.currentTime + .1 && vid.buffered.end(i) >= vid.currentTime) return vid.buffered.end(i) - vid.currentTime; return 0; };
+function keepTogether() {   // the video is still arriving: when this phone runs out, both wait and carry on together
+  const v = wstate.id && vidMap[wstate.id];
+  if (holding && (!v || wstate.from !== me || wstate.playing)) holding = false;
+  if (!v || panel !== 'watch' || loadedId !== v.id) return;
+  if (holding) {
+    if (v.ready || (here() && (vid.readyState >= 4 || (vid.readyState >= 3 && aheadOf() >= 2)))) { const at = here() ? vid.currentTime : wstate.pos; act(true, at); }
+    return;
+  }
+  if (v.ready || !wstate.playing) return;
+  if (!here() || (stallAt && vid.readyState < 3 && Date.now() - stallAt > 1500)) {
+    act(false, here() ? vid.currentTime : wstate.pos); holding = true; stallAt = 0;
+    notify('Waiting for the video to catch up. It carries on by itself.');
+  }
+}
 function unload() { vid.pause(); vid.removeAttribute('src'); vid.load(); if (vidUrl) URL.revokeObjectURL(vidUrl); vidUrl = null; loadedId = null; }
 const applyState = () => (applyQ = applyQ.then(doApply).catch(() => {}));
 async function doApply() {   // make this phone's player match the shared state
@@ -1922,6 +2011,8 @@ async function doApply() {   // make this phone's player match the shared state
     if (blob && wstate.id === id) {
       vidUrl = URL.createObjectURL(blob); vid.src = vidUrl; loadedId = id;
       await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); });
+    } else if (v && !v.ready && canStream() && wstate.id === id) {   // still arriving: play the part that is here
+      vid.preload = 'auto'; vid.src = `stream/${room}/${id}`; loadedId = id; stallAt = 0;
     }
   }
   if (here()) {
@@ -1932,9 +2023,9 @@ async function doApply() {   // make this phone's player match the shared state
   }
   renderPlayer(); vidsSoon();
 }
-function leaveWatch() {   // both phones leave the tab together; each pauses on its own, nothing to send
+function leaveWatch() {   // either phone leaving Watch pauses the video on both, as a real action: a late message can never start it again
+  if (wstate.playing) act(false, curPos());
   if (!vid.paused) vid.pause();
-  if (wstate.playing) wstate = { ...wstate, playing: false, pos: curPos() };
 }
 const setIcon = (b, html) => { if (b._icon !== html) { b._icon = html; b.innerHTML = html; } };
 function renderPlayer() {
@@ -1958,7 +2049,7 @@ function renderPlayer() {
   setIcon($('vidSound'), vid.muted ? ICON_MUTED : ICON_SOUND);
   $('vidSound').setAttribute('aria-pressed', !vid.muted);
   $('vidSound').setAttribute('aria-label', vid.muted ? 'Turn the video sound on' : 'Turn the video sound off');
-  $('vidNote').textContent = v && v.ready && v.peer < v.size ? `${who()}'s phone is still getting this video (${Math.floor(v.peer / v.size * 100)}%). It plays there as soon as it arrives.` : '';
+  $('vidNote').textContent = v && v.ready && v.peer < v.size ? `${who()}'s phone is still getting this video (${Math.floor(v.peer / v.size * 100)}%). You can watch together already.` : '';
 }
 ['timeupdate', 'play', 'pause', 'loadedmetadata', 'volumechange', 'ended'].forEach(e => vid.addEventListener(e, renderPlayer));
 $('vidPlay').onclick = () => { tap(); act(!showsPlaying(), here() && vid.ended ? 0 : curPos()); };
@@ -1976,8 +2067,14 @@ $('vidSound').onclick = () => {   // muted until this phone says the headphones 
 };
 steady(() => {   // once a second: keep the library in step, fetch missing videos, keep the players together
   if (parked) return;
+  const far = Object.values(vidMap).map(v => vidState(v)[1]).filter(x => x !== null), watchLabel = far.length && fcOpen() ? `Watch ${Math.floor(Math.min(...far) * 100)}%` : 'Watch', watchTab = document.querySelector('#tabs [data-p=watch]');
+  if (watchTab.textContent !== watchLabel) watchTab.textContent = watchLabel;
   if (pairKey && partnerOnline() && Date.now() - libAt > 15000) sendLib();
   askNext();
+  keepTogether();
+  if (lanes && Date.now() - lanesAt > 60000) { lanes.forEach(c => c.end(true)); lanes = null; wakeSlow(); }
+  if (wstate.id && wstate.id !== loadedId && panel === 'watch' && vidMap[wstate.id] && (vidMap[wstate.id].ready || canStream())) applyState();
+  if (loadedId && vid.error && vid.error.code === 2) { const at = curPos(); vid.load(); vid.currentTime = at; }   // the part took too long: ask again
   if (here() && !vid.seeking && panel === 'watch') {
     if (wstate.playing) {
       if (wstate.from === me) {
@@ -2002,21 +2099,32 @@ function queueSet(kind) {   // at most ~8 messages a second per egg while draggi
   }, TICK_MS);
 }
 const eggsOn = () => Object.values(state).filter(e => e.connected).length;
+const eggCount = m => Number.isInteger(m.eggs) ? Math.min(Math.max(m.eggs, 0), 2) : 0;   // only a hint from whoever has the link: never trusted on its own
+function takeHost(m) {   // this phone now talks to that page; its clock is the only one that counts from here on
+  const other = !hostPair || hostPair.id !== m.from;
+  hostPair = { id: m.from, pub: pubOnly(m.pub) }; store.set('hostPair:' + room, hostPair);
+  if (other) { for (const k in lastTs) delete lastTs[k]; lastSeenTs = 0; logLink(`now with her page, ${eggCount(m)} eggs on it`); }
+  return derive(hostPair.pub).then(k => { pairKey = k; blocked = false; gotName(m.name); seen(m); resendChat(); render(); });
+}
+function newHost(m) {   // her page has a key this phone has not seen: only he can say yes, so nobody else with the link can pull him away
+  if (refused.has(m.from) || (asking && asking.from === m.from)) return;
+  const quiet = !asking; asking = m;
+  wait(quiet ? 4000 : 0).then(() => {   // her usual page normally answers first: then there is nothing to ask
+    if (asking !== m || (partnerOnline() && !(eggCount(m) > eggsOn()))) { if (asking === m) asking = null; return; }
+    logLink('a new page of hers asked to connect'); tap();
+    $('askTitle').textContent = 'Connect to this page?';
+    $('askText').textContent = `${typeof m.name === 'string' && m.name ? m.name.slice(0, 24) : 'Someone with your link'} opened Loveline on a new phone or tab${eggCount(m) ? ' and has the eggs there' : ''}. Connect only if this is really your partner.`;
+    $('askSheet').hidden = false;
+  });
+}
 async function fromHost(m, viaLink) {
   if (viaLink) {
-    if (m.t === 'here') { if ((!hostPair || m.from !== hostPair.id) && m.eggs > eggsOn() && Date.now() - helloAt > 3000) hello(); return; }   // another page of hers has more eggs than the one this phone is with
+    if (m.t === 'here') { if ((!hostPair || m.from !== hostPair.id) && eggCount(m) > eggsOn() && Date.now() - helloAt > 3000) hello(); return; }   // another page of hers has more eggs than the one this phone is with
     if (m.to !== me) return;
     if (m.t === 'busy' && !partnerOnline()) { blocked = m.no ? 'no' : 'ask'; render(); }
-    if (m.t === 'welcome') {
-      const other = !hostPair || hostPair.id !== m.from;
-      if (other && partnerOnline() && !(m.eggs > eggsOn())) return;   // her link is open somewhere else too: stay with the page that has the eggs
-      blocked = false;
-      if (other || !sameKey(hostPair.pub, m.pub)) {
-        hostPair = { id: m.from, pub: pubOnly(m.pub) }; store.set('hostPair:' + room, hostPair);
-        pairKey = await derive(hostPair.pub);
-        if (other) { for (const k in lastTs) delete lastTs[k]; lastSeenTs = 0; logLink('now with her page ' + m.from.slice(0, 4) + ', eggs ' + m.eggs); }   // that page's clock is the only one that counts now
-      }
-      gotName(m.name); seen(m); resendChat(); render();
+    if (m.t === 'welcome' && typeof m.from === 'string') {
+      if (hostPair && !sameKey(hostPair.pub, m.pub)) { if (!partnerOnline() || eggCount(m) > eggsOn()) newHost(m); return; }
+      await takeHost(m);
     }
     return;
   }
@@ -2082,8 +2190,6 @@ async function letIn(m) {
   await send({ t: 'welcome', to: m.from, pub: keys.pub, name: myName, eggs: Object.values(state).filter(e => e.connected).length }, true);
   publishState(); resendChat(); render();
 }
-let asking = null;
-const refused = new Set();
 function newPhone(m) {   // the link is right but the phone is new (other phone, private tab, wiped browser): only she can say yes
   if (refused.has(m.from)) { send({ t: 'busy', to: m.from, no: true }, true); return; }
   send({ t: 'busy', to: m.from }, true);
@@ -2306,8 +2412,8 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
 document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
 $('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
 $('clearChat').onclick = ev => { ev.stopPropagation(); tap(); $('clearSheet').hidden = false; };
-$('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; const m = asking; asking = null; if (m) letIn(m); };
-$('askNo').onclick = () => { $('askSheet').hidden = true; if (asking) { refused.add(asking.from); send({ t: 'busy', to: asking.from, no: true }, true); logLink('she refused a new phone'); } asking = null; };
+$('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
+$('askNo').onclick = () => { $('askSheet').hidden = true; if (asking) { refused.add(asking.from); if (!isRemote) send({ t: 'busy', to: asking.from, no: true }, true); logLink('a new phone or page was refused'); } asking = null; };
 for (const b of document.querySelectorAll('.copyReport')) b.onclick = async () => { try { await navigator.clipboard.writeText(linkReport()); notify('Connection report copied. Paste it to Claude.'); } catch { notify('Could not copy. Try again with this page on screen.'); } };
 $('clearNo').onclick = () => { $('clearSheet').hidden = true; };
 $('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
@@ -2412,7 +2518,7 @@ steady(() => {   // once a second: presence, safety check, status ask
       if (c.asked >= SILENT_ASKS) letGo(c);
     }
     for (const kind in KINDS) if (state[kind].connected && !ups().some(c => c.seen[kind] && (c.miss[kind] || 0) < 5)) eggGone(kind);   // he stopped answering, counted in unanswered questions so a slow phone is no false alarm
-    if (ups().length && Date.now() - hereAt > 3000) { hereAt = Date.now(); send({ t: 'here', eggs: Object.values(state).filter(e => e.connected).length }, true); }   // lets his phone find this page if an empty one took him
+    if (ups().length && !partnerOnline() && Date.now() - hereAt > 3000) { hereAt = Date.now(); send({ t: 'here', eggs: Object.values(state).filter(e => e.connected).length }, true); }   // lets his phone find this page if an empty one took him
     if (!online && Date.now() - startedAt > 8000 && !netWarned) { netWarned = true; notify('This phone can\'t reach the internet. Your partner can\'t reach you until it can.', 9000); }
     if (online) netWarned = false;
     publishState();
