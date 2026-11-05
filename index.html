@@ -1622,7 +1622,7 @@ renderGame();
 // Files travel over the direct line when one forms, otherwise over two extra relay connections, scrambled with the pair key.
 // Each phone keeps the videos in IndexedDB; a phone receiving one stores numbered parts in any order, so a cut line loses
 // nothing and the player can ask for whichever part it needs (sw.js). Play/pause/seek are small locked messages; the latest action wins on both phones.
-const PIECE = 1 << 20, BIG = 300 * PIECE, PART = 1 << 19, AT_ONCE = 10, START_BY_ITSELF = 50 * PIECE;
+const PIECE = 1 << 20, BIG = 300 * PIECE, PART = 1 << 19, AT_ONCE = 10, START_BY_ITSELF = 5 * PIECE;
 const partsIn = v => Math.ceil(v.size / PART);
 const vid = $('vid'), vidMap = {}, recv = {};
 const gone = new Set(store.get('vidGone:' + room, []));   // deleted videos are remembered so they never come back
@@ -1742,23 +1742,23 @@ const fileIn = `closer-v2/${room}/f${isRemote ? 'h' : 'c'}`, fileOut = `closer-v
 const dataIn = `closer-v2/${room}/d${isRemote ? 'h' : 'c'}`, dataOut = `closer-v2/${room}/d${isRemote ? 'c' : 'h'}`;
 let noDirectSince = window.RTCPeerConnection ? Date.now() : 0, slowInQ = Promise.resolve(), lanes = null, lanesAt = 0, slowWake = [], peerLanes = null;
 const slowSeen = new Set();
-const LANE_ROOM = 8, SLOW_PIECE = 48000;
+const LANE_ROOM = 8, SLOW_PIECE = 60000;
 let laneRoom = 2, laneGrew = 0;   // pieces waiting for an answer per connection; the third relay refuses pieces this big
 const slowClient = () => clients.find(c => c && c.connected);
 function fileLine() {
   if (fcDirect()) { noDirectSince = Date.now(); return fc; }
-  return pairKey && partnerOnline() && slowClient() && Date.now() - noDirectSince > 8000 ? slowLine : null;
+  return pairKey && partnerOnline() && slowClient() && Date.now() - noDirectSince > 3000 ? slowLine : null;
 }
 function wakeSlow() { const w = slowWake; slowWake = []; w.forEach(f => f()); }
 function ensureLanes() {   // two connections only for video, so slider moves and chat never queue behind it; more get refused by the relays
   lanesAt = Date.now();
   if (lanes) return;
-  lanes = [BROKERS[1], BROKERS[0]].map(([url], i) => {
-    const c = mqtt.connect(url, { clientId: `closer_${me}_v${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 3000, connectTimeout: 8000 });
+  lanes = [BROKERS[0], BROKERS[1], BROKERS[0], BROKERS[2]].map(([url, login], i) => {
+    const c = mqtt.connect(url, { clientId: `closer_${me}_v${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 3000, connectTimeout: 8000, ...login });
     c.left = 0;
     c.on('connect', () => { c.subscribe(dataIn); wakeSlow(); });
     c.on('close', () => { c.left = 0; wakeSlow(); });
-    c.on('message', (_topic, payload) => { lanesAt = Date.now(); slowIn(payload.toString()); });
+    c.on('message', (_topic, payload) => { lanesAt = Date.now(); slowIn(new Uint8Array(payload)); });
     return c;
   });
 }
@@ -1783,17 +1783,17 @@ const slowLine = {   // looks like the direct channel to the code that sends fil
       const out = new Uint8Array(12 + ct.byteLength); out.set(iv); out.set(new Uint8Array(ct), 12);
       const to = lane ? [lane] : clients.slice(0, 2).filter(c => c.connected);   // requests go on both relays: the other phone may only hear one
       if (!to.length) { done(); return; }
-      const txt = b64(out);
-      to.forEach(c => c.publish(lane ? dataOut : fileOut, txt, { qos: lane ? 1 : 0 }, done));
+      const body = lane ? out : b64(out);
+      to.forEach(c => c.publish(lane ? dataOut : fileOut, body, { qos: lane ? 1 : 0 }, done));
     }).catch(done);
   },
 };
-function slowIn(txt) {
+function slowIn(got) {
   slowInQ = slowInQ.then(async () => {
     if (!pairKey) return;
-    const b = unb64(txt);
+    const b = typeof got === 'string' ? unb64(got) : got;
     const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(0, 12) }, pairKey, b.slice(12)));
-    const tag = txt.slice(0, 24);   // the same request can arrive by both relays
+    const tag = String.fromCharCode(...b.subarray(0, 12));   // the same request can arrive by both relays
     if (slowSeen.has(tag)) return;
     slowSeen.add(tag); if (slowSeen.size > 2000) slowSeen.delete(slowSeen.values().next().value);
     gotFile(plain[0] ? new TextDecoder().decode(plain.subarray(1)) : plain.slice(1).buffer, slowLine);
@@ -1856,7 +1856,8 @@ function askNext() {
   const r = rx(v.id), n = partsIn(v), start = first ? wantFrom.i : 0, ps = [];
   if (r.line !== line) { r.line = line; r.asked.clear(); r.open.clear(); }   // pieces are cut differently on each route
   for (const [i, at] of r.asked) if (r.done.has(i) || now - at > 30000 || (now - r.lastAt > 6000 && now - at > 6000)) r.asked.delete(i);
-  for (let k = 0; k < n && r.asked.size + ps.length < AT_ONCE; k++) { const i = (start + k) % n; if (!r.done.has(i) && !r.asked.has(i)) ps.push(i); }
+  for (const i of [n - 1, n - 2]) if (i >= 0 && !r.done.has(i) && !r.asked.has(i) && r.asked.size + ps.length < AT_ONCE) ps.push(i);
+  for (let k = 0; k < n && r.asked.size + ps.length < AT_ONCE; k++) { const i = (start + k) % n; if (!r.done.has(i) && !r.asked.has(i) && !ps.includes(i)) ps.push(i); }
   if (!ps.length) return;
   if (line === slowLine) ensureLanes();
   for (const i of ps) r.asked.set(i, now);
@@ -2017,9 +2018,11 @@ function playVid() {
     notify('The video sound went off. Tap the speaker button to turn it back on.'); renderPlayer();
   });
 }
+const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
 if (navigator.serviceWorker) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => applyState());
   navigator.serviceWorker.addEventListener('message', e => {   // the player needs a part that is not here yet
     const m = e.data, v = m && validId(m.need) && vidMap[m.need];
     if (!v || v.ready || !Number.isFinite(m.at)) return;
@@ -2028,8 +2031,13 @@ if (navigator.serviceWorker) {
     askNext();
   });
 }
-let holding = false, stallAt = 0;
+let noStreamSaid = false;
+let holding = false, stallAt = 0, holdAhead = 2, holdNoteAt = 0, holdId = null;
 vid.addEventListener('waiting', () => { stallAt = Date.now(); });
+vid.addEventListener('error', () => {   // 3 and 4: the phone cannot decode this file, waiting will not help
+  const c = vid.error && vid.error.code; logLink(`video error ${c}`);
+  if (c === 3 || c === 4) { send({ t: 'cantplay', id: wstate.id }); notify(CANT_PLAY, 12000); }
+});
 vid.addEventListener('playing', () => { stallAt = 0; });
 vid.addEventListener('loadedmetadata', () => applyState());
 const aheadOf = () => { for (let i = 0; i < vid.buffered.length; i++) if (vid.buffered.start(i) <= vid.currentTime + .1 && vid.buffered.end(i) >= vid.currentTime) return vid.buffered.end(i) - vid.currentTime; return 0; };
@@ -2038,13 +2046,15 @@ function keepTogether() {   // the video is still arriving: when this phone runs
   if (holding && (!v || wstate.playing)) holding = false;
   if (!v || panel !== 'watch' || loadedId !== v.id) return;
   if (holding) {
-    if (v.ready || (here() && (vid.readyState >= 4 || (vid.readyState >= 3 && aheadOf() >= 2)))) { const at = here() ? vid.currentTime : wstate.pos; act(true, at); }
+    if (v.ready || (here() && vid.readyState >= 3 && (aheadOf() >= holdAhead || vid.currentTime + aheadOf() >= vid.duration - .5))) { const at = here() ? vid.currentTime : wstate.pos; act(true, at); }
     return;
   }
   if (v.ready || !wstate.playing) return;
   if (!here() || (stallAt && vid.readyState < 3 && Date.now() - stallAt > 1500)) {
     act(false, here() ? vid.currentTime : wstate.pos, wstate.id, true); stallAt = 0;
-    notify('Waiting for the video to catch up. It carries on by itself.');
+    if (holdId === v.id) holdAhead = Math.min(30, holdAhead * 2); else { holdId = v.id; holdAhead = 2; }
+    logLink(`video waits: ${Math.floor((recv[v.id] ? recv[v.id].have : v.have) / v.size * 100)}% here, by the ${fcDirect() ? 'direct' : 'backup'} route`);
+    if (Date.now() - holdNoteAt > 60000) { holdNoteAt = Date.now(); notify('Waiting for the video to catch up. It carries on by itself.'); }
   }
 }
 function unload() { vid.pause(); vid.removeAttribute('src'); vid.load(); if (vidUrl) URL.revokeObjectURL(vidUrl); vidUrl = null; loadedId = null; }
@@ -2059,6 +2069,10 @@ async function doApply() {   // make this phone's player match the shared state
       await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); });
     } else if (v && !v.ready && canStream() && wstate.id === id) {   // still arriving: play the part that is here
       vid.preload = 'auto'; vid.src = `stream/${room}/${id}`; loadedId = id; stallAt = 0;
+      logLink(`video starts while arriving, by the ${fcDirect() ? 'direct' : 'backup'} route`);
+    } else if (v && !v.ready && !navigator.serviceWorker && !noStreamSaid) {
+      noStreamSaid = true; logLink('this browser cannot play a video while it arrives');
+      notify('This browser can only play a video once all of it has arrived. On iPhone, Safari can play it while it arrives.', 9000);
     }
   }
   if (here()) {
@@ -2243,6 +2257,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'vlib') gotLib(m);
   if (m.t === 'wplay') gotWplay(m);
   if (m.t === 'wbeat') gotBeat(m);
+  if (m.t === 'cantplay' && m.id === wstate.id) notify(`${who()}'s phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.`, 12000);
 }
 function gotName(n) {
   if (typeof n === 'string' && n && n !== partnerName) { partnerName = n.slice(0, 24); store.set('partnerName:' + room, partnerName); }

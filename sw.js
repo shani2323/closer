@@ -15,7 +15,7 @@ const get = (db, store, key) => new Promise((res, rej) => {
   r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
 });
 const reply = (blob, start, end, v) => new Response(blob, { status: 206, headers: {
-  'Content-Type': v.type, 'X-Content-Type-Options': 'nosniff', 'Accept-Ranges': 'bytes', 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${v.size}` } });
+  'Content-Type': v.type === 'video/quicktime' ? 'video/mp4' : v.type, 'X-Content-Type-Options': 'nosniff', 'Accept-Ranges': 'bytes', 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${v.size}` } });
 async function serve(req, room, id) {
   const db = await openDb(room);
   try {
