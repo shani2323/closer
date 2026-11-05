@@ -1835,7 +1835,7 @@ function linkEntry(link, from) {
            size: 1, type: 'video/mp4', link: String(link).slice(0, 2000), page: from && /^https:\/\//.test(from.page) ? String(from.page).slice(0, 1000) : '', by: from ? String(from.by || '').slice(0, 24) : myName, from: from ? String(from.from || '').slice(0, 16) : me,
            at: from && Number.isFinite(from.at) ? from.at : Date.now(), have: 1, ready: true, peer: from ? 1 : 1 };
 }
-const SHORTCUT = String.raw`javascript:(()=>{const t=document.documentElement.innerHTML.replace(/\\\//g,'/').replace(/&amp;/g,'&');const m=t.match(/setVideoHLS\(\s*['"](https:[^'"]+)/)||t.match(/https:\/\/[^\s"'<>\\]+?\.m3u8(?:\?[^\s"'<>\\]*)?/)||t.match(/setVideoUrlHigh\(\s*['"](https:[^'"]+)/)||t.match(/https:\/\/[^\s"'<>\\]+?\.(?:mp4|webm)(?:\?[^\s"'<>\\]*)?/);const v=document.querySelector('video');const u=m?(m[1]||m[0]):(v&&/^https:/.test(v.currentSrc)?v.currentSrc:'');if(!u){alert('No video address found on this page.');return}const done=()=>alert('Copied. Now paste it into Loveline: Watch, Add link.');navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(u).then(done,()=>prompt('Copy this, then paste it into Loveline',u)):prompt('Copy this, then paste it into Loveline',u)})()`;
+const SHORTCUT = String.raw`javascript:(()=>{const t=document.documentElement.innerHTML.replace(/\\\//g,'/').replace(/&amp;/g,'&');const m=t.match(/setVideoHLS\(\s*['"](https:[^'"]+)/)||t.match(/https:\/\/[^\s"'<>\\]+?\.m3u8(?:\?[^\s"'<>\\]*)?/)||t.match(/setVideoUrlHigh\(\s*['"](https:[^'"]+)/)||t.match(/https:\/\/[^\s"'<>\\]+?\.(?:mp4|webm)(?:\?[^\s"'<>\\]*)?/);const v=document.querySelector('video');const u=m?(m[1]||m[0]):(v&&/^https:/.test(v.currentSrc)?v.currentSrc:'');if(!u||/_fb\.mp4/.test(u)){alert('No video address found on this page.');return}const done=()=>alert('Copied. Now paste it into Loveline: Watch, Add link.');navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(u).then(done,()=>prompt('Copy this, then paste it into Loveline',u)):prompt('Copy this, then paste it into Loveline',u)})()`;
 $('shortcutBtn').onclick = async () => {
   tap();
   const say = 'Shortcut copied. Set it up once: bookmark any page, edit that bookmark, name it love, and paste this as its address. To use it: on the video page, type love in the address bar and tap the bookmark. Then paste here.';
@@ -2228,7 +2228,7 @@ async function startStream(id, url) {
   if (loadedId !== id) return;
   if (window.Hls && Hls.isSupported()) {
     let fixes = 0;
-    hlsPlayer = new Hls({ xhrSetup: (_, u) => { if (homeNet(new URL(u).hostname)) throw new Error('home network'); } });
+    hlsPlayer = new Hls({ abrEwmaDefaultEstimate: 3e6, xhrSetup: (_, u) => { if (homeNet(new URL(u).hostname)) throw new Error('home network'); } });
     hlsPlayer.on(Hls.Events.ERROR, (_, d) => {
       if (!d.fatal) return;
       if (d.type === Hls.ErrorTypes.MEDIA_ERROR && fixes++ < 2) { hlsPlayer.recoverMediaError(); return; }
