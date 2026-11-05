@@ -160,6 +160,7 @@
            transition: opacity .25s, transform .3s cubic-bezier(.3, .7, .4, 1); }
   .toast.hide { opacity: 0; transform: translateY(-16px) scale(.98); pointer-events: none; }
 
+  body:has(.sheet:not([hidden])):not(:has(.park:not([hidden]))) header { z-index: 13; }
   .sheet { position: fixed; inset: 0; z-index: 7; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, .5); }
   .sheet form { width: 100%; max-width: 480px; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; background: var(--glass-strong); }
   .grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--fill2); margin: 0 auto 14px; }
@@ -392,7 +393,7 @@
       <p class="vnote" id="vidNote"></p>
     </div>
     <div class="vhead"><b>Your videos</b><span class="vadds"><button class="vadd quiet" id="linkBtn">Add link</button><label class="vadd">Add video<input type="file" id="vidFile" accept="video/*" hidden></label></span></div>
-    <form class="linkrow" id="linkForm" hidden><input id="linkText" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a video link" aria-label="Video link"><button class="vadd" id="linkGo">Play</button></form>
+    <form class="linkrow" id="linkForm" hidden><input id="linkText" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a video link" aria-label="Video link"><button class="vadd" id="linkGo">Play</button><button type="button" class="vadd quiet" id="shortcutBtn">Site shortcut</button></form>
     <p class="vnote" id="vidLine"></p>
     <ul class="vlist" id="vidList"></ul>
     <p class="vempty" id="vidEmpty">No videos yet. Add one and it is saved on both phones.</p>
@@ -1380,7 +1381,10 @@ board.onpointerdown = e => {
   strokes.push(drawing); seg(drawing, 0);
 };
 board.onpointermove = e => { if (!drawing) return; drawing.pts.push(point(e)); seg(drawing, drawing.pts.length - 1); };
-board.onpointerup = board.onpointercancel = () => { flushDraw(); drawing = null; };
+board.onpointerup = board.onpointercancel = () => { flushDraw(); if (drawing) resendLine(drawing); drawing = null; };
+function resendLine(s) {   // the other phone may have dropped out half way through this line
+  for (const ms of [3000, 10000, 30000, 60000]) setTimeout(() => { if (strokes.includes(s)) send({ t: 'stroke', s: { id: s.id, c: s.c, w: s.w, e: s.e, pts: s.pts } }); }, ms);
+}
 function flushDraw() {   // send new points about 20 times a second while drawing
   const d = drawing;
   if (!d || d.sent >= d.pts.length) return;
@@ -1399,6 +1403,11 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   if (m.gv < gameV) send({ t: 'game', game, v: gameV });
   if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
   if (Number.isInteger(m.lc) && m.lc !== libSize() && Date.now() - libSentAt > 5000) { libSentAt = Date.now(); sendLib(); }
+}
+function gotWhole(x) {   // a whole line: never twice, and one that lost its end gets it back
+  const s = strokes.find(o => o.id === x.id);
+  if (!s) return gotDraw(x);
+  if (Array.isArray(x.pts) && x.pts.length > s.pts.length) { s.pts = []; gotDraw(x); if (panel === 'draw') redraw(); }
 }
 function gotDraw(m) {
   if (m.clear) { strokes = []; redraw(); return; }
@@ -1740,7 +1749,7 @@ function rememberGone(id) { gone.add(id); store.set('vidGone:' + room, [...gone]
 let libAt = 0;
 function sendLib() {
   libAt = Date.now();
-  send({ t: 'vlib', vids: Object.values(vidMap).map(v => ({ id: v.id, name: v.name, size: v.size, type: v.type, by: v.by, from: v.from, at: v.at, ready: v.ready, link: v.link })), gone: [...gone].slice(-300) });
+  send({ t: 'vlib', vids: Object.values(vidMap).map(v => ({ id: v.id, name: v.name, size: v.size, type: v.type, by: v.by, from: v.from, at: v.at, ready: v.ready, link: v.link, page: v.page })), gone: [...gone].slice(-300) });
 }
 async function gotLib(m) {
   await libLoaded;
@@ -1793,6 +1802,12 @@ $('vidFile').onchange = async ev => {
   notify((fcOpen() ? `Sending "${vTitle(v)}" to ${who()}.` : `Saved. It will send to ${who()} when their phone is back.`) + slow);
 };
 // a link to a video somewhere else: the file plays straight in our player; a site with its own player shows that player
+const FINDER = 'https://loveline-finder.shani2323.workers.dev';   // reads a web page and answers with the video inside it
+async function findVideo(page) {
+  try { const r = await fetch(`${FINDER}/?u=${encodeURIComponent(page)}`, { signal: AbortSignal.timeout(20000) }); return r.ok ? await r.json() : null; }
+  catch { return null; }
+}
+const playsHere = u => { const L = u && readLink(u); return L && (L[0] === 'file' || L[0] === 'stream') ? L : null; };
 function readLink(text) {   // [how it plays, what to load], worked out here, or null. Nothing else ever reaches the player.
   let u; try { u = new URL(String(text).trim()); } catch { return null; }
   if (u.protocol !== 'https:') return null;
@@ -1804,22 +1819,38 @@ function readLink(text) {   // [how it plays, what to load], worked out here, or
   if (h === 'vimeo.com' && (c = hit(/^\/(\d+)/))) return ['frame', `https://player.vimeo.com/video/${c}`];
   if (h === 'xvideos.com' && (c = hit(/^\/video\.?([\w-]+)/))) return ['frame', `https://www.xvideos.com/embedframe/${c}`];
   if (h === 'pornhub.com' && (c = hit(/^(\w+)$/, q('viewkey')))) return ['frame', `https://www.pornhub.com/embed/${c}`];
-  const homeNet = /^\[|^[\d.]+$|^[^.]+\.?$|\.(local|localhost|internal|lan|home|intranet)\.?$/i.test(u.hostname);   // never a device on someone's own network
+  const homeNet = /^\[|^[\d.]+$|^[^.]+\.?$|\.(local|localhost|localdomain|internal|lan|home|intranet|arpa|nip\.io|sslip\.io|xip\.io|plex\.direct)\.?$/i.test(u.hostname);   // best effort: it sees only the name, not where a name or a redirect really leads
   if (/\.(mp4|m4v|mov|webm)$/i.test(P) && !homeNet) return ['file', u.href];
+  if (/\.m3u8$/i.test(P) && !homeNet) return ['stream', u.href];
   return null;
 }
 function linkEntry(link, from) {
   const u = new URL(link), host = u.hostname.replace(/^(www|m)\./, '');
   return { id: from ? from.id : b64url(rand(9)), name: from ? String(from.name || host).replace(/[\u0000-\u001f]/g, '').slice(0, 120) : host === 'youtu.be' || host === 'youtube.com' ? 'YouTube video' : `Video from ${host}`,
-           size: 1, type: 'video/mp4', link: String(link).slice(0, 500), by: from ? String(from.by || '').slice(0, 24) : myName, from: from ? String(from.from || '').slice(0, 16) : me,
+           size: 1, type: 'video/mp4', link: String(link).slice(0, 2000), page: from && /^https:\/\//.test(from.page) ? String(from.page).slice(0, 1000) : '', by: from ? String(from.by || '').slice(0, 24) : myName, from: from ? String(from.from || '').slice(0, 16) : me,
            at: from && Number.isFinite(from.at) ? from.at : Date.now(), have: 1, ready: true, peer: from ? 1 : 1 };
 }
+const SHORTCUT = String.raw`javascript:(()=>{const t=document.documentElement.innerHTML.replace(/\\\//g,'/').replace(/&amp;/g,'&');const m=t.match(/setVideoHLS\(\s*['"](https:[^'"]+)/)||t.match(/https:\/\/[^\s"'<>\\]+?\.m3u8(?:\?[^\s"'<>\\]*)?/)||t.match(/setVideoUrlHigh\(\s*['"](https:[^'"]+)/)||t.match(/https:\/\/[^\s"'<>\\]+?\.(?:mp4|webm)(?:\?[^\s"'<>\\]*)?/);const v=document.querySelector('video');const u=m?(m[1]||m[0]):(v&&/^https:/.test(v.currentSrc)?v.currentSrc:'');if(!u){alert('No video address found on this page.');return}const done=()=>alert('Copied. Now paste it into Loveline: Watch, Add link.');navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(u).then(done,()=>prompt('Copy this, then paste it into Loveline',u)):prompt('Copy this, then paste it into Loveline',u)})()`;
+$('shortcutBtn').onclick = async () => {
+  tap();
+  const say = 'Shortcut copied. Set it up once: bookmark any page, edit that bookmark, name it love, and paste this as its address. To use it: on the video page, type love in the address bar and tap the bookmark. Then paste here.';
+  try { await navigator.clipboard.writeText(SHORTCUT); notify(say, 20000); } catch { prompt('Copy this, then see the steps', SHORTCUT); notify(say, 20000); }
+};
 $('linkBtn').onclick = () => { tap(); const f = $('linkForm'); f.hidden = !f.hidden; if (!f.hidden) $('linkText').focus(); };
 $('linkForm').onsubmit = async ev => {
   ev.preventDefault();
-  const text = $('linkText').value.trim(), L = readLink(text);
-  if (!L) { notify('This link cannot play inside Loveline. Save the video to your phone, then press Add video.', 9000); return; }
-  const v = Object.values(vidMap).find(x => x.link === text) || linkEntry(text);
+  const text = $('linkText').value.trim(); let L = readLink(text), link = text, got = null;
+  if (/^https:\/\//i.test(text) && !L) {
+    $('linkGo').disabled = true; notify('Looking for the video on that page…', 8000);
+    got = await findVideo(text);
+    $('linkGo').disabled = false;
+    if (got && playsHere(got.url)) { link = got.url; L = readLink(link); } else got = null;
+  }
+  if (!L) { notify('No video could be found on that page. Try the site shortcut, or save the video and press Add video.', 9000); return; }
+  if (L[0] === 'frame') notify('This plays in the site\'s own player, so each of you presses play. For one press on both, use the site shortcut.', 9000);
+  const old = Object.values(vidMap).find(x => x.link === link || (got && x.page === text));
+  const v = old || linkEntry(link, got ? { id: b64url(rand(9)), name: got.title, by: myName, from: me, at: Date.now(), page: text } : undefined);
+  if (old && got) { old.link = link; await saveMeta(old); }
   if (!vidMap[v.id]) { vidMap[v.id] = v; await saveMeta(v); }
   tap(); $('linkText').value = ''; $('linkForm').hidden = true; sendLib(); renderVids();
   act(L[0] !== 'frame', 0, v.id);
@@ -1827,7 +1858,7 @@ $('linkForm').onsubmit = async ev => {
 async function removeVid(id) {
   delete vidMap[id]; delete recv[id];
   for (let i = outQ.length - 1; i >= 0; i--) if (outQ[i].id === id) outQ.splice(i, 1);
-  if (wstate.id === id) { wstate = { ...wstate, id: null, playing: false }; applyState(); }
+  if (wstate.id === id) act(false, 0, null);   // a newer change, so both phones settle on it
   await tx(['meta', 'blobs', 'parts'], 'readwrite', s => { s('meta').delete(id); s('blobs').delete(id); s('parts').delete(partsOf(id)); }).catch(() => {});
   renderVids();
 }
@@ -2117,6 +2148,7 @@ function act(playing, pos, id = wstate.id, hold = false) {   // an action on thi
 function gotWplay(m) {   // an action from the other phone: applied here, never sent back
   if (!(m.id === null || validId(m.id)) || !Number.isFinite(m.v) || typeof m.from !== 'string') return;
   if (m.v < wstate.v || (m.v === wstate.v && m.from <= wstate.from)) return;
+  if (m.id && gone.has(m.id)) return;   // a late message about a video that was deleted
   const newId = m.id !== wstate.id;
   wstate = { id: m.id, playing: !!m.playing && !!m.id, pos: Math.max(0, +m.pos || 0), base: performance.now() - lag(m), v: m.v, from: m.from, hold: m.hold === true };
   if (m.hold !== true) holding = false;   // someone really pressed pause or play
@@ -2155,31 +2187,67 @@ vid.addEventListener('waiting', () => { stallAt = Date.now(); });
 vid.addEventListener('error', () => {   // 3 and 4: the phone cannot decode this file, waiting will not help
   const c = vid.error && vid.error.code; logLink(`video error ${c}`);
   const lk = wstate.id && vidMap[wstate.id] && vidMap[wstate.id].link;
-  if (lk) { renderPlayer(); return; }   // the player says this link did not play
+  if (lk) { linkFailed(wstate.id); return; }
   if (c === 3 || c === 4) { send({ t: 'cantplay', id: wstate.id }); notify(CANT_PLAY, 12000); }
 });
-vid.addEventListener('playing', () => { stallAt = 0; });
+vid.addEventListener('playing', () => { stallAt = 0; lookedAgain = null; });
 vid.addEventListener('loadedmetadata', () => applyState());
 const aheadOf = () => { for (let i = 0; i < vid.buffered.length; i++) if (vid.buffered.start(i) <= vid.currentTime + .1 && vid.buffered.end(i) >= vid.currentTime) return vid.buffered.end(i) - vid.currentTime; return 0; };
-function keepTogether() {   // the video is still arriving: when this phone runs out, both wait and carry on together
+function keepTogether() {   // the video is still arriving, or comes from a site: when this phone runs out, both wait and carry on together
   const v = wstate.id && vidMap[wstate.id];
   if (holding && (!v || wstate.playing)) holding = false;
   if (!v || panel !== 'watch' || loadedId !== v.id) return;
+  const whole = v.ready && !(v.link && vid === realVid && !linkFrame);
+  if (v.link && (linkBad || vid.error)) return;   // this phone cannot play it: it must not hold the other one back
   if (holding) {
-    if (v.ready || (here() && vid.readyState >= 3 && (aheadOf() >= holdAhead || vid.currentTime + aheadOf() >= vid.duration - .5))) { const at = here() ? vid.currentTime : wstate.pos; act(true, at); }
+    if (whole || (here() && vid.readyState >= 3 && (aheadOf() >= holdAhead || vid.currentTime + aheadOf() >= vid.duration - .5))) { const at = here() ? vid.currentTime : wstate.pos; act(true, at); }
     return;
   }
-  if (v.ready || !wstate.playing) return;
+  if (whole || !wstate.playing) return;
   if (here() && vid.readyState < 3 && !stallAt) stallAt = Date.now();
   if (!here() || (stallAt && vid.readyState < 3 && Date.now() - stallAt > 1500)) {
     act(false, here() ? vid.currentTime : wstate.pos, wstate.id, true); stallAt = 0;
-    if (holdId === v.id) holdAhead = Math.min(30, holdAhead * 2); else { holdId = v.id; holdAhead = 2; }
+    if (v.link) holdAhead = 3; else if (holdId === v.id) holdAhead = Math.min(30, holdAhead * 2); else { holdId = v.id; holdAhead = 2; }
     logLink(`video waits: ${Math.floor((recv[v.id] ? recv[v.id].have : v.have) / v.size * 100)}% here, by the ${fcDirect() ? 'direct' : 'backup'} route`);
     if (Date.now() - holdNoteAt > 60000) { holdNoteAt = Date.now(); notify('Waiting for the video to catch up. It carries on by itself.'); }
   }
 }
 let linkFrame = null;
+let hlsPlayer = null, linkBad = false, lookedAgain = null;
+const loadHls = () => new Promise((res, rej) => {
+  if (window.Hls) return res();
+  const s = document.createElement('script'); s.src = 'hls.light.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+});
+async function startStream(id, url) {
+  await loadHls().catch(() => {});
+  if (loadedId !== id) return;
+  if (window.Hls && Hls.isSupported()) {
+    let fixes = 0;
+    hlsPlayer = new Hls();
+    hlsPlayer.on(Hls.Events.ERROR, (_, d) => {
+      if (!d.fatal) return;
+      if (d.type === Hls.ErrorTypes.MEDIA_ERROR && fixes++ < 2) { hlsPlayer.recoverMediaError(); return; }
+      logLink(`stream error ${d.details}`); linkFailed(id);
+    });
+    hlsPlayer.loadSource(url); hlsPlayer.attachMedia(realVid);
+  } else realVid.src = url;   // iPhone plays these by itself
+}
+async function linkFailed(id) {   // a found address runs out after a while: look it up again, once; then the site's own small player, if it has one
+  const v = vidMap[id];
+  if (v && v.page && loadedId === id) {
+    if (lookedAgain !== id) {
+      lookedAgain = id;
+      const got = await findVideo(v.page);
+      if (got && playsHere(got.url) && vidMap[id] && loadedId === id) { v.link = got.url; await saveMeta(v); unload(); applyState(); return; }
+    }
+    const small = readLink(v.page);
+    if (small && small[0] === 'frame') { v.link = v.page; await saveMeta(v); unload(); applyState(); return; }
+  }
+  linkBad = true; renderPlayer();
+}
 function clearLinkPlayer() {
+  if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
+  linkBad = false;
   if (linkFrame) { linkFrame.remove(); linkFrame = null; }
   if (vid !== realVid) { vid.destroy(); vid = realVid; }
   realVid.style.display = ''; $('vidTogether').hidden = true; $('vidCount').hidden = true; $('player').classList.remove('isframe');
@@ -2214,7 +2282,7 @@ function ytStandIn(code) {   // a YouTube player that answers to the same questi
 const YT_NO = "YouTube won't play this video inside other apps. Age-limited videos and some others are blocked. Open it on YouTube, or save it and press Add video.";
 async function startLink(id, [how, what]) {
   loadedId = id;
-  if (how === 'file') { realVid.src = what; await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
+  if (how === 'file' || how === 'stream') { if (how === 'file') realVid.src = what; else await startStream(id, what); await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
   realVid.style.display = 'none';
   if (how === 'yt') {
     try { await loadYt(); vid = ytStandIn(what); await vid.ready; }
@@ -2281,7 +2349,7 @@ function renderPlayer() {
   $('vidName').textContent = v ? vTitle(v) : 'Video';
   $('vidWait').hidden = ok || !!linkFrame;
   $('vidNote').textContent = '';
-  if (!ok && v && v.link && vid.error) $('vidWait').textContent = vid === realVid ? 'This link did not play. The site may not allow it, or the file needs a login.' : YT_NO;
+  if (!ok && v && v.link && (vid.error || linkBad)) $('vidWait').textContent = vid === realVid ? 'This link did not play. The site may not allow it, or the file needs a login.' : YT_NO;
   else if (!ok) {
     const have = v ? (v.ready ? v.size : recv[id] ? recv[id].have : v.have) : 0;
     $('vidWait').textContent = loadedId === id && vid.error ? "This phone can't play this video. Try sharing it to the phone's own player." : v && v.ready ? 'Loading…' : `Waiting for the video to arrive${v ? ` (${Math.floor(have / v.size * 100)}%)` : ''}…` + (fcOpen() ? '' : ' It comes when your phones are in touch.');
@@ -2440,7 +2508,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'draw') gotDraw(m);
   if (m.t === 'game') gotGame(m);
   if (m.t === 'resync') resync();
-  if (m.t === 'stroke' && m.s && !strokes.some(x => x.id === m.s.id)) gotDraw(m.s);   // whole strokes, never twice
+  if (m.t === 'stroke' && m.s) gotWhole(m.s);
   if (m.t === 'mix') gotMix(m);
   if (m.t === 'vlib') gotLib(m);
   if (m.t === 'wplay') gotWplay(m);
@@ -2768,7 +2836,9 @@ async function begin() {
   const alreadyOpen = () => showPark('Loveline is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
   const steal = !!kept('steal'); keep('steal', false);
   if (navigator.locks) {
-    if (!await holdTab(steal)) { await wait(600); if (!await holdTab(false)) { alreadyOpen(); return; } }   // a refresh can still be letting go for a moment
+    let held = await holdTab(steal);
+    for (let i = 0; i < 10 && !held; i++) { await wait(500); held = await holdTab(false); }   // a refresh on a slow phone can take seconds to let go
+    if (!held) { alreadyOpen(); return; }
   } else if (bc) {   // is Loveline already running in another tab on this phone?
     let busy = false;
     const h = e => { if (e.data.t === 'here') busy = true; };
