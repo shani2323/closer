@@ -2835,7 +2835,8 @@ async function begin() {
     return;
   }
   if (ownLink) {
-    showPark('This is your own link', 'Send it to your partner. They open it on their phone to hold your remote.', 'Go to my eggs', () => location.replace(location.pathname));
+    showPark('This is your own link', 'This phone opened the egg link before, so it is set up as the phone with the eggs. If your partner has the eggs, make this phone the remote. Otherwise, send this link to your partner.', 'Go to my eggs', () => location.replace(location.pathname),
+      'Make this phone the remote', () => { store.set('hostRoom', null); location.reload(); });
     return;
   }
   const alreadyOpen = () => showPark('Loveline is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
