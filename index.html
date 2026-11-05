@@ -155,7 +155,7 @@
   .stop::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: currentColor; }
   .stop:active { background: rgba(255, 69, 58, .3); }
 
-  .toast { position: fixed; left: 12px; right: 12px; top: max(10px, env(safe-area-inset-top)); z-index: 6; max-width: 480px; margin: 0 auto;
+  .toast { pointer-events: none; position: fixed; left: 12px; right: 12px; top: max(10px, env(safe-area-inset-top)); z-index: 6; max-width: 480px; margin: 0 auto;
            padding: 12px 16px; border-radius: 18px; font-size: 15px; letter-spacing: -.01em; background: var(--glass-strong);
            transition: opacity .25s, transform .3s cubic-bezier(.3, .7, .4, 1); }
   .toast.hide { opacity: 0; transform: translateY(-16px) scale(.98); pointer-events: none; }
@@ -558,7 +558,7 @@ const blank = () => ({ level: 0, mode: 'steady', speed: .5, battery: null, conne
 const state = { vib: blank(), suc: blank() };
 let allow = true, partnerSeen = 0, online = false, blocked = false;
 let stoppedAt = 0, stopPending = 0, stopWarned = false, hostZeroAt = 0, partnerStopTs = 0, herStops = 0, sawHerStops = 0;
-let mayRun = false, moveN = 0, leadWant = null, mixAt = 0;
+let mayRun = false, moveN = 0, leadWant = null, mixAt = 0, heardLead = 0;
 const moving = {};   // his moves her phone has not confirmed yet
 const MOVE_TRIES_MS = 5000;   // a move is only worth repeating for a moment: later it could start an egg nobody expects; Stop never gives up
 let bt = navigator.bluetooth ? 'ok' : 'nochrome';   // ok, nochrome, off, blocked, notfound
@@ -649,7 +649,7 @@ function rename(kind, n, face) {
 function setLead(l) {
   if (!['both', 'host', 'remote'].includes(l)) return;
   lead = l;
-  if (isRemote) { leadWant = { l, at: Date.now(), sent: Date.now() }; send({ t: 'lead', lead: l }); } else publishStateSoon();
+  if (isRemote) { moveN = Math.max(Date.now(), moveN + 1); leadWant = { l, n: moveN, at: Date.now(), sent: Date.now() }; send({ t: 'lead', lead: l, n: moveN, sn: sawHerStops }); } else publishStateSoon();
   render();
 }
 document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { tap(); setLead(b.dataset.lead); });
@@ -707,7 +707,7 @@ function render() {
   }
   if (seenTogether !== null && together !== seenTogether) {   // partner mode switches on and off by itself
     if (together) { notify(`${who()} is here. You're together now 💞`); burst('💞'); }
-    else { if (panel !== 'play') openPanel('play', true); notify(`${who()} left. It's just you for now.`); }
+    else { if (panel !== 'play') { openPanel('play', true); panelV = 0; keep('panelV', 0); } notify(`${who()} left. It's just you for now.`); }   // only for now: when he is back his phone shows this one what is open
   }
   if (seenTrio !== null && trio && !seenTrio) { notify(`${label('vib')} and ${label('suc')} are both with you. Threesome on 🔥`); burst('🔥'); }
   seenTogether = together; seenTrio = trio;
@@ -868,9 +868,9 @@ let syncAsked = false;
 const keep = (k, v) => { try { sessionStorage.setItem('closer:' + k, JSON.stringify(v)); } catch {} };   // lasts through a refresh only
 const kept = k => { try { return JSON.parse(sessionStorage.getItem('closer:' + k)); } catch { return null; } };
 function restoreOwn() {   // after a refresh: what this phone had open, unless the partner already said otherwise
-  const g = kept('game'), p = kept('panel');
-  if (g && g.k && !lastTs.game) gotGame({ game: g });
-  if (p && p !== 'play' && panel === 'play' && !lastTs.panel) openPanel(p, true, true);
+  const g = kept('game'), p = kept('panel'), gv = kept('gameV') || 0, pv = kept('panelV') || 0;
+  if (g && gv > gameV) gotGame({ game: g, v: gv });
+  if (p && pv > panelV) { panelV = pv; openPanel(p, true, true); }
 }
 const seen = m => {
   if (!(m.ts > lastSeenTs)) return;
@@ -902,7 +902,7 @@ async function handle(txt) {
   }
   clockOff = 0;
   if (viaLink !== ['hello', 'welcome', 'busy', 'clock', 'here'].includes(m.t)) return;
-  if (['state', 'set', 'lead', 'game', 'panel', 'rename', 'mix', 'wplay', 'wbeat', 'vlib'].includes(m.t)) {   // a copy can arrive late by the slower route: never let it undo a newer change
+  if (['state', 'set', 'stop', 'lead', 'rename', 'mix', 'wplay', 'wbeat', 'vlib'].includes(m.t)) {   // a copy can arrive late by the slower route: never let it undo a newer change
     const slot = m.t + (m.egg || '');
     if (m.ts < (lastTs[slot] || 0)) return;
     lastTs[slot] = m.ts;
@@ -915,7 +915,6 @@ function send(obj, viaLink = false) {   // in order: sound setup messages must n
     const key = viaLink ? linkKey : pairKey;
     if (parked || (!online && !direct()) || !key) return false;
     obj.from = me; obj.ts = Date.now();
-    if (obj.t === 'panel' || obj.t === 'game') lastTs[obj.t] = obj.ts;
     const payload = (viaLink ? 'L.' : 'P.') + await seal(obj, key);
     if (!viaLink && direct()) dc.send(payload);
     for (const c of clients) if (c.connected) c.publish(isRemote ? topicFromRemote : topicFromHost, payload);
@@ -1256,6 +1255,10 @@ $('mixBtn').onclick = () => {
 
 // ---- shared tabs: whatever one phone opens, the other opens too; Leo and Max stay in view as a slim strip
 let panel = 'play';
+let panelV = 0, gameV = 0, libSentAt = 0;
+const myTie = Math.random();   // two changes in the same moment still have one winner
+const nextV = v => Math.max(Date.now(), Math.floor(v) + 1) + myTie;
+function gotPanel(m) { if (!(m.v > panelV)) return; panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); }
 function openPanel(p, fromPartner, quiet) {
   if (!['play', 'draw', 'game', 'watch'].includes(p)) return;
   const changed = p !== panel;
@@ -1268,7 +1271,7 @@ function openPanel(p, fromPartner, quiet) {
   if (p === 'draw') sizeBoard();
   if (p === 'watch') { renderVids(); renderPlayer(); }
   renderGame();
-  if (!fromPartner) send({ t: 'panel', p });
+  if (!fromPartner) { panelV = nextV(panelV); keep('panelV', panelV); send({ t: 'panel', p, v: panelV }); }
   else if (changed && p !== 'play' && !quiet) { tap(); notify(`${who()} opened ${{ draw: 'Draw', game: 'Truth or Dare', watch: 'Watch' }[p]}.`); }
 }
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { tap(); openPanel(b.dataset.p); });
@@ -1312,11 +1315,15 @@ function flushDraw() {   // send new points about 20 times a second while drawin
 }
 setInterval(flushDraw, 50);
 function resync() {   // the other phone came back: send what is open here so both screens match again
-  if (panel !== 'play') send({ t: 'panel', p: panel });
-  if (game.k) send({ t: 'game', game });
   if (lastClear && Date.now() - lastClear.at < 86400000) send({ t: 'clearchat', id: lastClear.id, ids: lastClear.ids });   // a phone that was away clears too
   for (const x of strokes) send({ t: 'stroke', s: { id: x.id, c: x.c, w: x.w, e: x.e, pts: x.pts } });
-  if (wstate.id) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold });
+}
+const libSize = () => Object.keys(vidMap).length + gone.size;
+function gotFacts(m) {   // the other phone says how new its copy is: if it missed something, send it again
+  if (m.pv < panelV) send({ t: 'panel', p: panel, v: panelV });
+  if (m.gv < gameV) send({ t: 'game', game, v: gameV });
+  if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold });
+  if (Number.isInteger(m.lc) && m.lc !== libSize() && Date.now() - libSentAt > 5000) { libSentAt = Date.now(); sendLib(); }
 }
 function gotDraw(m) {
   if (m.clear) { strokes = []; redraw(); return; }
@@ -1584,7 +1591,7 @@ function renderGame() {
   $('pick').hidden = !!card || !mineTurn;
   $('after').hidden = !card;
 }
-function setGame(g, fromPartner) { game = g; keep('game', g); renderGame(); if (!fromPartner) send({ t: 'game', game: g }); }
+function setGame(g, fromPartner) { game = g; keep('game', g); renderGame(); if (!fromPartner) { gameV = nextV(gameV); keep('gameV', gameV); send({ t: 'game', game: g, v: gameV }); } }
 function pickCard(k) {   // her turn: cards for her with the eggs; his turn: cards for him, far away
   const n = deck(game.turn, k).length, u = used(game.turn, k);
   if (u.size >= n) u.clear();
@@ -1598,6 +1605,8 @@ function gotGame(m) {
   if (!['host', 'remote'].includes(g.turn)) return;
   const list = g.k ? deck(g.turn, g.k) : null;
   if (g.k !== null && !(list && Number.isInteger(g.i) && g.i >= 0 && g.i < list.length)) return;
+  if (!(m.v > gameV)) return;
+  gameV = m.v; keep('gameV', gameV);
   if (g.k) used(g.turn, g.k).add(g.i);   // the partner's card is used up here too
   setGame({ turn: g.turn, k: g.k, i: g.k ? g.i : -1 }, true);
   if (g.k) tap();
@@ -1780,13 +1789,13 @@ const slowLine = {   // looks like the direct channel to the code that sends fil
   },
 };
 function slowIn(txt) {
-  const tag = txt.slice(0, 24);
-  if (slowSeen.has(tag)) return;
-  slowSeen.add(tag); if (slowSeen.size > 2000) slowSeen.delete(slowSeen.values().next().value);
   slowInQ = slowInQ.then(async () => {
     if (!pairKey) return;
     const b = unb64(txt);
     const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(0, 12) }, pairKey, b.slice(12)));
+    const tag = txt.slice(0, 24);   // the same request can arrive by both relays
+    if (slowSeen.has(tag)) return;
+    slowSeen.add(tag); if (slowSeen.size > 2000) slowSeen.delete(slowSeen.values().next().value);
     gotFile(plain[0] ? new TextDecoder().decode(plain.subarray(1)) : plain.slice(1).buffer, slowLine);
   }).catch(() => {});
 }
@@ -2135,7 +2144,7 @@ function retryMoves() {   // her phone did not confirm: send it again for a mome
     else if (now - moving[k].sent > 900) sendMove(k);
   }
   if (leadWant && now - leadWant.at > MOVE_TRIES_MS) { leadWant = null; notify('That did not reach her phone. Try again.'); }
-  else if (leadWant && now - leadWant.sent > 900) { leadWant.sent = now; send({ t: 'lead', lead: leadWant.l }); }
+  else if (leadWant && now - leadWant.sent > 900) { leadWant.sent = now; send({ t: 'lead', lead: leadWant.l, n: leadWant.n, sn: sawHerStops }); }
 }
 const setTimers = {};
 function queueSet(kind) {   // at most ~8 messages a second per egg while dragging
@@ -2197,8 +2206,8 @@ async function fromHost(m, viaLink) {
   if (m.t === 'state') {
     allow = !!m.allow;
     if (m.eggs && Object.values(m.eggs).every(s => !s.level)) hostZeroAt = Date.now();
-    if (['both', 'host', 'remote'].includes(m.lead)) { if (leadWant && leadWant.l === m.lead) leadWant = null; if (!leadWant) lead = m.lead; }
-    if (stopPending && m.stopAt >= stopPending) stopReached();
+    if (['both', 'host', 'remote'].includes(m.lead)) { if (leadWant && (leadWant.l === m.lead || m.leadN >= leadWant.n)) leadWant = null; if (!leadWant) lead = m.lead; }
+    if (stopPending && m.stopAt === stopPending) stopReached();
     if (Number.isInteger(m.stops)) { if (m.stops !== sawHerStops) dropMoves(); sawHerStops = m.stops; }
     if (m.mixing === false && (partnerMixing || (mixTimer && Date.now() - mixAt > 5000))) stopMix();   // the mix ended on her side and the note was lost
     if (m.names) for (const k in KINDS) if (typeof m.names[k] === 'string') names[k] = m.names[k].slice(0, 16);
@@ -2222,7 +2231,8 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'seen') gotSeen();
   if (m.t === 'typing') typingUntil = Date.now() + 3500;
   if (m.t === 'listening') partnerListening = !!m.on;
-  if (m.t === 'panel') openPanel(m.p, true);
+  if (m.t === 'panel') gotPanel(m);
+  if (m.t === 'facts') gotFacts(m);
   if (m.t === 'pdare') gotPadDare(m);
   if (m.t === 'combo' && Number.isInteger(m.n) && m.n > 0) { notify(`${who()} tapped ${Math.min(m.n, 999)} in a row 🔥`); m.n >= 20 ? burst('🔥') : tap(); }
   if (m.t === 'draw') gotDraw(m);
@@ -2244,6 +2254,8 @@ async function letIn(m) {
     pair = { id: m.from, pub: pubOnly(m.pub) }; store.set('pair:' + room, pair);
     pairKey = await derive(pair.pub);
     for (const k in KINDS) state[k].heardN = 0;
+    for (const k in lastTs) delete lastTs[k];   // a new phone has its own clock: nothing from the old one may count against it
+    lastSeenTs = 0; partnerStopTs = 0; heardLead = 0;
     logLink('phone paired');
     notify('Paired with your partner\'s phone.');
   }
@@ -2269,12 +2281,17 @@ async function fromRemote(m, viaLink) {
   seen(m);
   gotName(m.name);
   if (m.t === 'stop') {   // repeated until she confirms: acted on once per press; his own later moves still count
-    const at = Number.isFinite(m.at) ? m.at : m.ts;
-    if (at > partnerStopTs) { stopAll(`${who()} pressed stop`); stoppedAt = 0; partnerStopTs = at; }
+    const at = Number.isFinite(m.at) ? Math.min(m.at, m.ts) : m.ts;
+    if (at !== partnerStopTs) { stopAll(`${who()} pressed stop`); stoppedAt = 0; partnerStopTs = at; }
     publishStateSoon();
   }
   if (m.t === 'rtc') gotRtc(m);
-  if (m.t === 'lead') { if (allow && lead !== 'host') setLead(m.lead); else refuse(!allow ? 'paused' : 'leading'); }
+  if (m.t === 'lead') {
+    if (!allow || lead === 'host') refuse(!allow ? 'paused' : 'leading');
+    else if (m.sn < herStops) refuse('stopped');
+    else if (!(m.n <= heardLead)) { heardLead = m.n; setLead(m.lead); }
+    publishStateSoon();
+  }
   if (m.t === 'rename' && m.egg in KINDS && typeof m.label === 'string' && m.label.trim()) rename(m.egg, m.label.trim().slice(0, 16), m.face);
   if (m.t === 'set') {
     const e = state[m.egg];
@@ -2295,7 +2312,7 @@ function refuse(why, egg) {   // at most one note every 3 s
 function publishState() {
   const eggs = {};
   for (const kind in KINDS) { const e = state[kind]; eggs[kind] = { level: e.level, mode: e.mode, speed: e.speed, battery: e.battery, connected: e.connected, n: e.heardN }; }
-  send({ t: 'state', allow, eggs, name: myName, lead, names, faces, stops: herStops, stopAt: partnerStopTs, mixing: !!mixTimer || partnerMixing });
+  send({ t: 'state', allow, eggs, name: myName, lead, names, faces, stops: herStops, stopAt: partnerStopTs, mixing: !!mixTimer || partnerMixing, leadN: heardLead });
 }
 function publishStateSoon() { clearTimeout(publishStateSoon.t); publishStateSoon.t = setTimeout(publishState, 80); }
 
@@ -2431,6 +2448,7 @@ async function stopAll(why) {
   stoppedAt = Date.now();
   if (isRemote) {
     for (const k in moving) delete moving[k];
+    leadWant = null;
     for (const k in setTimers) { clearTimeout(setTimers[k]); setTimers[k] = null; }
     stopPending = Date.now(); stopWarned = false; keep('stopAt', stopPending);
     if (!(await send({ t: 'stop', at: stopPending }))) why = 'Stop has not reached her phone yet. Trying again';
@@ -2570,7 +2588,7 @@ steady(() => {   // every tick: animate orbs; on the egg phone also drive the eg
     if (key !== c.sent && !c.busy) { c.busy = true; c.sent = key; write(c, command(out.suc, out.vib)).finally(() => { c.busy = false; }); }
   }
 }, TICK_MS);
-let lastBeat = Date.now(), netWarned = false, hereAt = 0;
+let lastBeat = Date.now(), netWarned = false, hereAt = 0, factsAt = 0;
 function wokeUp(gap) {   // the phone or Chrome put this page to sleep: its connections may be dead without saying so
   logLink(`woke after ${Math.round(gap / 1000)} s asleep`);
   for (const c of clients) if (c.connected && c.stream) try { c.stream.destroy(); } catch {}
@@ -2584,6 +2602,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', pv: panelV, gv: gameV, wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
