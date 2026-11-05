@@ -2228,7 +2228,7 @@ async function startStream(id, url) {
   if (loadedId !== id) return;
   if (window.Hls && Hls.isSupported()) {
     let fixes = 0;
-    hlsPlayer = new Hls({ abrEwmaDefaultEstimate: 3e6, xhrSetup: (_, u) => { if (homeNet(new URL(u).hostname)) throw new Error('home network'); } });
+    hlsPlayer = new Hls({ abrEwmaDefaultEstimate: 1.5e6, capLevelToPlayerSize: true, xhrSetup: (_, u) => { if (homeNet(new URL(u).hostname)) throw new Error('home network'); } });
     hlsPlayer.on(Hls.Events.ERROR, (_, d) => {
       if (!d.fatal) return;
       if (d.type === Hls.ErrorTypes.MEDIA_ERROR && fixes++ < 2) { hlsPlayer.recoverMediaError(); return; }
