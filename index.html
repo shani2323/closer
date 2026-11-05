@@ -62,7 +62,7 @@
   .orb .face { font-size: 46px; line-height: 1; }
   .orb .num { position: absolute; right: -6px; bottom: -2px; min-width: 32px; height: 22px; padding: 0 6px; border-radius: 11px; background: #fff; color: #000;
               font-size: 13px; font-weight: 700; line-height: 22px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
-  .name { display: block; width: 100%; background: none; border: 0; padding: 0; font-size: 17px; font-weight: 600; }
+  .name { display: block; width: 100%; background: none; border: 0; padding: 7px 0; margin: -7px 0; font-size: 17px; font-weight: 600; }
   .sub { font-size: 13px; color: var(--label2); letter-spacing: -.005em; min-height: 18px; }
 
   input[type=range] { --p: 0%; -webkit-appearance: none; appearance: none; width: 100%; height: 30px; margin: 4px 0 0; background: transparent; }
@@ -155,7 +155,7 @@
   .stop::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: currentColor; }
   .stop:active { background: rgba(255, 69, 58, .3); }
 
-  .toast { pointer-events: none; position: fixed; left: 12px; right: 12px; top: max(10px, env(safe-area-inset-top)); z-index: 6; max-width: 480px; margin: 0 auto;
+  .toast { pointer-events: none; position: fixed; left: 12px; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 56px); z-index: 6; max-width: 480px; margin: 0 auto;
            padding: 12px 16px; border-radius: 18px; font-size: 15px; letter-spacing: -.01em; background: var(--glass-strong);
            transition: opacity .25s, transform .3s cubic-bezier(.3, .7, .4, 1); }
   .toast.hide { opacity: 0; transform: translateY(-16px) scale(.98); pointer-events: none; }
@@ -253,7 +253,8 @@
   .done { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--blue); font-size: 14px; font-weight: 600; }
   #board { display: block; width: 100%; aspect-ratio: 1; border-radius: 14px; background: #0b0b0d; touch-action: none; }
   .tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; margin-top: 10px; }
-  .sw { width: 26px; height: 26px; padding: 0; border: 2px solid transparent; border-radius: 50%; box-shadow: inset 0 0 0 2px #000; }
+  .sw::after { content: ''; position: absolute; inset: -9px -2px; }
+  .sw { position: relative; width: 26px; height: 26px; padding: 0; border: 2px solid transparent; border-radius: 50%; box-shadow: inset 0 0 0 2px #000; }
   .sw[aria-pressed=true] { border-color: #fff; }
   .tool { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--fill); }
   .tool svg { width: 19px; height: 19px; }
@@ -285,7 +286,20 @@
   .vnote:empty { display: none; }
   .vhead { display: flex; justify-content: space-between; align-items: center; margin: 14px 2px 8px; }
   .vhead b { font-size: 17px; letter-spacing: -.02em; }
-  .vadd { display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 22px; background: var(--blue); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .vadd { display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 22px; background: var(--blue); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .vadds { display: flex; gap: 8px; }
+  .vadd.quiet { background: var(--fill); color: var(--label); border: 0; }
+  .vadd:active { transform: scale(.97); transition: transform 100ms ease-out; }
+  .linkrow { display: flex; gap: 8px; margin: 0 2px 10px; }
+  .linkrow[hidden] { display: none; }
+  .linkrow input { flex: 1; min-width: 0; height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--fill); color: var(--label); font-size: 16px; }
+  .linkrow button { border: 0; }
+  .screen iframe, .screen .ytbox, .screen .ytbox iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .vcount { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: 72px; font-weight: 700; letter-spacing: -.02em; color: #fff; text-shadow: 0 2px 24px #000; }
+  .vcount.say { font-size: 28px; }
+  .vcount[hidden], #vidTogether[hidden] { display: none; }
+  #vidTogether { display: block; width: 100%; height: 44px; margin-top: 8px; border: 0; border-radius: 22px; background: var(--blue); color: #fff; font-size: 15px; font-weight: 600; }
+  #player.isframe #vidSeek, #player.isframe .vtime span, #player.isframe .vctl > :not(#vidClose) { display: none; }
   .vlist { margin: 0; padding: 0; list-style: none; border-radius: 14px; background: var(--fill); overflow: hidden; }
   .vlist:empty { display: none; }
   .vrow { position: relative; display: flex; align-items: center; padding: 2px 2px 2px 0; border-top: .5px solid var(--hair); }
@@ -364,7 +378,8 @@
   <section class="panelBox glass" id="watchPanel" hidden>
     <div class="panelHead"><b>Watch together</b><button class="done" data-close>Done</button></div>
     <div id="player" hidden>
-      <div class="screen"><video id="vid" playsinline muted preload="auto"></video><div class="vwait" id="vidWait" hidden></div></div>
+      <div class="screen"><video id="vid" playsinline muted preload="auto"></video><div class="vwait" id="vidWait" hidden></div><div class="vcount" id="vidCount" hidden></div></div>
+      <button id="vidTogether" hidden>Start together</button>
       <input type="range" id="vidSeek" min="0" max="1000" value="0" aria-label="Position in the video">
       <div class="vtime"><span id="vidNow">0:00</span><b id="vidName"></b><span id="vidLen">0:00</span></div>
       <div class="vctl">
@@ -376,13 +391,14 @@
       </div>
       <p class="vnote" id="vidNote"></p>
     </div>
-    <div class="vhead"><b>Your videos</b><label class="vadd">Add video<input type="file" id="vidFile" accept="video/*" hidden></label></div>
+    <div class="vhead"><b>Your videos</b><span class="vadds"><button class="vadd quiet" id="linkBtn">Add link</button><label class="vadd">Add video<input type="file" id="vidFile" accept="video/*" hidden></label></span></div>
+    <form class="linkrow" id="linkForm" hidden><input id="linkText" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a video link" aria-label="Video link"><button class="vadd" id="linkGo">Play</button></form>
     <p class="vnote" id="vidLine"></p>
     <ul class="vlist" id="vidList"></ul>
     <p class="vempty" id="vidEmpty">No videos yet. Add one and it is saved on both phones.</p>
   </section>
 
-  <button class="mix glass" id="mixBtn" aria-pressed="false"><span>🔀</span> Threesome mix<small>Leo and Max at different paces</small></button>
+  <button class="mix glass" id="mixBtn" aria-pressed="false"><span>🔀</span> Threesome mix<small>Leo and Max together, building up</small></button>
   <section class="touchCard glass" id="touchSheet" hidden>
     <div class="touchHead"><div class="tchips" id="touchWho"></div><button class="done" id="touchDone">Done</button></div>
     <div class="tdare"><button class="dareBtn" id="dareBtn">🎲 Dare</button><p id="dareText">Tap, hold or draw. Every tap is a pulse.</p></div>
@@ -411,6 +427,7 @@
     <p class="note" id="hostHint"></p>
     <button class="row action" id="connect">Connect an egg</button>
     <label class="row"><span id="allowLabel">Let your partner control</span><input type="checkbox" class="switch" id="allow" checked></label>
+    <button class="row" id="copyLink">Copy your partner's link</button>
     <button class="row danger" id="forget" hidden>Forget paired phone</button>
     <button class="row copyReport">Copy connection report</button>
   </section>
@@ -493,19 +510,27 @@
 // two phones talk with a key made from their own key pairs (ECDH), so a copied link alone cannot read or control.
 const BROKERS = [['wss://broker.emqx.io:8084/mqtt'], ['wss://broker.hivemq.com:8884/mqtt'], ['wss://public.cloud.shiftr.io:443', { username: 'public', password: 'public' }]];   // all used; first copy to arrive wins
 const FACES = ['🧔‍♂️', '👨‍🦱', '👱‍♂️', '👨', '🤴', '😈', '🦊', '🐺', '🍆', '🔥'];
-const KINDS = { vib: 'Vibrates', suc: 'Suction' };   // each egg's job
+const KINDS = { __proto__: null, vib: 'Vibrates', suc: 'Suction' };   // each egg's job
 const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
-const MODES = {   // name, base speed in beats per second (the speed slider scales it 0.5x to 1.5x)
+const MODES = { __proto__: null,   // name, base speed in beats per second (the speed slider scales it 0.5x to 1.5x)
   steady: ['Steady', 0], wave: ['Wave', .9], pulse: ['Pulse', 1.2], heart: ['Heartbeat', 1.1], rise: ['Rise', 1.2],
   nipple: ['Nipple suck', 1.2], suckle: ['Soft suckle', .9], clit: ['Clit flick', 4],
-  sex: ['Sex', 1.1], deep: ['Deep sex', .55], fast: ['Fast sex', 2.6],
+  sex: ['Strokes', 1.1], deep: ['Deep strokes', .5], fast: ['Fast strokes', 2.4], pound: ['Hard pounding', 1.7], shallow: ['Shallow then deep', 1.8], grind: ['Grinding', .6],
+  bob: ['Head bobbing', 1], deepsuck: ['Long deep sucks', .28], fastsuck: ['Fast sucks', 2.2], kiss: ['Kisses and a long suck', 1.6], lick: ['Licks and sucks', 2.4], licks: ['Slow licks', 1.1], flutter: ['Tongue flutter', 3.2], swirl: ['Circling tongue', 3],
   tease: ['Tease and edge', .04], climax: ['Build to climax', 0], storm: ['Storm', 4], touch: ['Finger', 1],
 };
-const GROUPS = [['Basics', ['steady', 'wave', 'pulse', 'heart', 'rise']], ['Sucking', ['nipple', 'suckle']], ['Clit', ['clit']],
-  ['Sex', ['sex', 'deep', 'fast']], ['Build up', ['tease', 'climax', 'storm']], ['Touch', ['touch']]];
-const SLOW = ['deep', 'suckle', 'nipple', 'wave'], FAST = ['fast', 'clit', 'sex', 'pulse'];
+const GROUPS = {   // what each egg can really do
+  vib: [['Basics', ['steady', 'wave', 'pulse', 'heart', 'rise']], ['Strokes', ['sex', 'deep', 'fast', 'pound', 'shallow', 'grind']], ['Clit', ['clit']], ['Build up', ['tease', 'climax', 'storm']], ['Touch', ['touch']]],
+  suc: [['Basics', ['steady', 'wave', 'pulse', 'rise']], ['Sucking', ['nipple', 'suckle', 'bob', 'deepsuck', 'fastsuck', 'kiss']], ['Licking', ['licks', 'flutter', 'swirl', 'lick']], ['Build up', ['tease', 'climax']], ['Touch', ['touch']]],
+};
+const SWAP = {   // a pattern meant for the other egg becomes this egg's closest one
+  vib: { nipple: 'clit', suckle: 'wave', bob: 'sex', deepsuck: 'deep', fastsuck: 'fast', kiss: 'pulse', lick: 'clit', licks: 'wave', flutter: 'clit', swirl: 'clit' },
+  suc: { clit: 'lick', sex: 'bob', deep: 'deepsuck', fast: 'fastsuck', pound: 'fastsuck', shallow: 'kiss', grind: 'bob', heart: 'pulse', storm: 'fastsuck' },
+};
+const fitMode = (kind, m) => SWAP[kind][m] || m;
+const HANDMADE = new Set(['sex', 'deep', 'fast', 'pound', 'shallow', 'grind', 'clit', 'nipple', 'suckle', 'bob', 'deepsuck', 'fastsuck', 'kiss', 'lick', 'licks', 'flutter', 'swirl']);   // these wander a little, the way a person does
 const EMOJI = ['🔥', '🥵', '😈', '💋', '🫦', '👅', '💦', '🍑', '🍆', '🍒', '🌶️', '😏', '🤤', '😍', '❤️‍🔥', '💞', '🙈', '🥂', '🌹', '⛓️', '👀', '🖤', '😘', '💑'];
-const TICK_MS = 125, PARTNER_TIMEOUT_MS = 5000, DROP_STOP_MS = 30000;   // his settings keep running 30 s after his phone goes quiet
+const MAX_BEATS = 3.5, TICK_MS = 125, PARTNER_TIMEOUT_MS = 5000, DROP_STOP_MS = 30000;   // his settings keep running 30 s after his phone goes quiet
 
 const $ = id => document.getElementById(id);
 const rand = n => crypto.getRandomValues(new Uint8Array(n));
@@ -525,7 +550,10 @@ const store = {
 // A hidden page's own timers slow to once a minute. A helper thread's do not, so whatever must keep going runs on one.
 const steadyThreads = [];
 function steady(fn, ms) {
-  try { const w = new Worker(URL.createObjectURL(new Blob([`setInterval(() => postMessage(0), ${ms})`]))); w.onmessage = () => fn(); steadyThreads.push(w); } catch { setInterval(fn, ms); }
+  let last = Date.now();
+  const run = () => { last = Date.now(); fn(); };
+  setInterval(() => { if (Date.now() - last > ms * 2 + 500) run(); }, ms);   // the background timer can stall while the page lives on: the page takes over
+  try { const w = new Worker(URL.createObjectURL(new Blob([`setInterval(() => postMessage(0), ${ms})`]))); w.onmessage = run; steadyThreads.push(w); } catch {}
 }
 const waits = new Set();
 const wait = ms => new Promise(r => waits.add([Date.now() + ms, r]));
@@ -556,7 +584,7 @@ let partnerName = store.get('partnerName:' + room, '');
 // ---- shared egg model
 const blank = () => ({ level: 0, mode: 'steady', speed: .5, battery: null, connected: false, by: '', t0: performance.now(), editUntil: 0 });
 const state = { vib: blank(), suc: blank() };
-let allow = true, partnerSeen = 0, online = false, blocked = false;
+let allow = store.get('allow:' + room, true), partnerSeen = 0, online = false, blocked = false;
 let stoppedAt = 0, stopPending = 0, stopWarned = false, hostZeroAt = 0, partnerStopTs = 0, herStops = 0, sawHerStops = 0;
 let mayRun = false, moveN = 0, leadWant = null, mixAt = 0, heardLead = 0;
 const moving = {};   // his moves her phone has not confirmed yet
@@ -574,9 +602,13 @@ const label = kind => names[kind] || KINDS[kind];
 
 function output(e, now) {   // strength the egg should run at right now, 0..100
   if (!e.level) return 0;
-  const k = .5 + e.speed, t = (now - e.t0) / 1000, p = t * MODES[e.mode][1] * k, x = p - Math.floor(p);
+  const k = .5 + e.speed, t = (now - e.t0) / 1000, human = HANDMADE.has(e.mode);
+  const p = Math.min(MAX_BEATS, MODES[e.mode][1] * k) * (human ? t + .3 * Math.sin(.00031 * now) + .15 * Math.sin(.00073 * now) : t), n = Math.floor(p), x = p - n;   // no two strokes last quite the same
   const swell = .5 - .5 * Math.cos(2 * Math.PI * x);
   const noise = n => { const h = Math.sin(n * 127.1 + 311.7) * 43758.5453; return h - Math.floor(h); };
+  const ease = u => u * u * (3 - 2 * u);
+  const stroke = (up, hold) => x < up ? ease(x / up) : x < up + hold ? 1 : 1 - ease((x - up - hold) / (1 - up - hold));   // in, stay, out
+  const pull = (u, top, low) => u < top ? low + (1 - low) * ease(u / top) : 1 - (1 - low) * (u - top) / (1 - top);   // a long suck across several beats
   let f = 1;
   switch (e.mode) {
     case 'wave': f = .15 + .85 * swell; break;
@@ -585,15 +617,27 @@ function output(e, now) {   // strength the egg should run at right now, 0..100
     case 'rise': f = [22, 32, 43, 53, 64, 74, 85, 95][Math.floor(x * 8)] / 95; break;
     case 'nipple': f = x < .45 ? .15 + .85 * Math.sin(Math.PI * x / .45) ** .6 : .15; break;   // pull, hold, release
     case 'suckle': f = x < .22 || (x > .3 && x < .52) ? 1 : .1; break;                          // suck, suck, pause
-    case 'clit': f = x < .35 ? 1 : .2; break;                                                     // quick flicks
-    case 'sex': f = .25 + .75 * swell; break;
-    case 'deep': f = x < .6 ? .1 + .9 * (x / .6) ** 1.5 : x < .8 ? 1 : 1 - (x - .8) / .2 * .9; break;   // slow in, hold, out
-    case 'fast': f = .35 + .65 * swell; break;
+    case 'clit': f = n % 8 < 5 ? (x < .4 ? 1 : .2) : .12; break;                                  // five quick flicks, a breath
+    case 'sex': f = .15 + .85 * stroke(.4, .1); break;                                             // quicker in, slower out
+    case 'deep': f = .08 + .92 * stroke(.55, .15); break;                                          // all the way in, stay, slowly out
+    case 'fast': f = (.3 + .7 * stroke(.25, .05)) * (n % 4 === 3 ? 1 : .85); break;                // sharp, every fourth one harder
+    case 'pound': f = x < .1 ? .4 + .6 * x / .1 : .12 + .88 * Math.exp(-5 * (x - .1)); break;      // a hit, then it dies away
+    case 'shallow': f = .1 + ((n % 4 === 3 ? 1 : .45) - .1) * stroke(.35, .05); break;             // three shallow, one deep
+    case 'grind': f = .55 + .3 * swell + .15 * Math.sin(2 * Math.PI * 4 * x); break;               // pressed in, rocking, never pulling out
+    case 'bob': { const top = .7 + .3 * noise(n); f = x < .5 ? .2 + (top - .2) * ease(x / .5) : x < .65 ? top : top - (top - .2) * ease((x - .65) / .35); break; }   // up and down, some deeper
+    case 'deepsuck': f = x < .55 ? .1 + .9 * ease(x / .55) : x < .8 ? 1 - .06 * (1 - Math.cos(2 * Math.PI * 3 * (x - .55) / .25)) : x < .85 ? 1 - .95 * (x - .8) / .05 : .05; break;   // long pull, hold, let go
+    case 'fastsuck': f = n % 14 >= 12 ? .12 : x < .55 ? 1 : .25; break;                            // a run of quick sucks, a breath
+    case 'kiss': f = n % 6 < 4 ? (x < .3 ? .55 : .05) : pull((n % 6 - 4 + x) / 2, .7, .2); break;  // four kisses, one long suck
+    case 'licks': { const top = .45 + .35 * noise(n); f = x < .6 ? .08 + (top - .08) * ease(x / .6) : x < .7 ? top : .08 + (top - .08) * (1 - (x - .7) / .3); break; }   // a long lick up, some firmer
+    case 'flutter': f = x < .45 ? .35 + .45 * (.5 + .5 * Math.sin(2 * Math.PI * t / 5)) : .1; break;   // the tip of the tongue, firmer and softer
+    case 'swirl': { const a = .3 + .6 * (.5 - .5 * Math.cos(2 * Math.PI * t / 3)); f = x < .5 ? a : a * .25; break; }   // round and round: soft on one side, firm on the other
+    case 'lick': f = n % 12 < 8 ? (x < .4 ? .45 : .12) : pull((n % 12 - 8 + x) / 4, .75, .25); break;   // eight licks, one long suck
     case 'tease': f = x < .85 ? .1 + .85 * (x / .85) ** 2 : .05; break;                       // build close to the top, then stop
     case 'climax': f = Math.min(1, .3 + .7 * t * k / 60) * (.85 + .15 * Math.sin(2 * Math.PI * 3 * t)); break;   // about a minute to full
-    case 'touch': f = e.speed < .08 ? 1 : .35 + .65 * (.5 - .5 * Math.cos(2 * Math.PI * t * (.6 + 7 * e.speed))); break;   // left smooth, right flutter
+    case 'touch': f = e.speed < .08 ? 1 : .35 + .65 * (.5 - .5 * Math.cos(2 * Math.PI * t * Math.min(MAX_BEATS, .6 + 7 * e.speed))); break;   // left smooth, right flutter
     case 'storm': { const a = noise(Math.floor(p)), b = noise(Math.floor(p) + 1); f = .2 + .8 * (a + (b - a) * x); break; }
   }
+  if (human) f *= (.82 + .18 * noise(n * 3 + 1)) * (.92 + .08 * Math.sin(2 * Math.PI * now / 17000));   // each stroke a little different, the whole thing breathing
   return Math.round(Math.min(e.level * f, batteryCap(e.battery)));
 }
 
@@ -609,7 +653,7 @@ for (const kind in KINDS) {
     <button class="name" aria-label="Rename this egg"></button><div class="sub"></div>
     <div class="controls">
       <label class="strength"><span class="cap">Strength</span><input type="range" class="level" min="0" max="100" value="0" aria-label="${KINDS[kind]} strength"></label>
-      <label class="mode"><select class="modeSel" aria-label="${KINDS[kind]} pattern">${GROUPS.map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m}">${MODES[m][0]}</option>`).join('')}</optgroup>`).join('')}</select>
+      <label class="mode"><select class="modeSel" aria-label="${KINDS[kind]} pattern">${GROUPS[kind].map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m}">${MODES[m][0]}</option>`).join('')}</optgroup>`).join('')}</select>
         <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></label>
       <label class="speed"><span class="cap">Speed</span><input type="range" class="spd" min="0" max="100" value="50" aria-label="${KINDS[kind]} speed"><span class="ends"><span>Slow</span><span>Fast</span></span></label>
     </div>`;
@@ -649,6 +693,7 @@ function rename(kind, n, face) {
 function setLead(l) {
   if (!['both', 'host', 'remote'].includes(l)) return;
   lead = l;
+  if (!isRemote) keep('lead', l);
   if (isRemote) { moveN = Math.max(Date.now(), moveN + 1); leadWant = { l, n: moveN, at: Date.now(), sent: Date.now() }; send({ t: 'lead', lead: l, n: moveN, sn: sawHerStops }); } else publishStateSoon();
   render();
 }
@@ -656,12 +701,21 @@ document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { tap();
 
 function apply(e, m) {
   if ('level' in m) e.level = clampLevel(m.level);
-  if ('speed' in m) e.speed = clampSpeed(m.speed);
-  if (m.mode in MODES && m.mode !== e.mode) { e.mode = m.mode; e.t0 = performance.now(); }
+  if ('speed' in m) {
+    const to = clampSpeed(m.speed), pace = s => Math.min(MAX_BEATS, e.mode === 'touch' ? .6 + 7 * s : MODES[e.mode][1] * (.5 + s));
+    if (pace(e.speed) && pace(to)) { const now = performance.now(); e.t0 = now - (now - e.t0) * pace(e.speed) / pace(to); }   // carry on from the same point in the stroke
+    e.speed = to;
+  }
+  const mode = m.mode in MODES && fitMode(e === state.suc ? 'suc' : 'vib', m.mode);
+  if (mode && mode !== e.mode) { e.mode = mode; e.t0 = performance.now(); }
 }
 
-function change(kind, m, fromMix) {   // a change made on this phone
-  if (lead === (isRemote ? 'host' : 'remote')) return;
+let fingerDown = false, deadFinger = false;   // she pressed Stop while his finger was on a control: it does nothing until it lifts
+addEventListener('pointerdown', () => { fingerDown = true; deadFinger = false; }, true);
+for (const t of ['pointerup', 'pointercancel']) addEventListener(t, () => { fingerDown = false; deadFinger = false; }, true);
+function change(kind, m, fromMix, always) {   // a change made on this phone
+  if (!always && lead === (isRemote ? 'host' : 'remote')) return;
+  if (deadFinger) return;
   if (!fromMix && (mixTimer || partnerMixing)) stopMix(true);
   const e = state[kind];
   if (!fromMix && m.mode && m.mode !== 'steady' && !e.level && !('level' in m)) m = { ...m, level: 40 };
@@ -732,7 +786,7 @@ function render() {
       el.querySelector('.spd').value = Math.round(e.speed * 100);
     }
     fillRange(el.querySelector('.level')); fillRange(el.querySelector('.spd'));
-    el.querySelector('.modeSel').value = e.mode;
+    el.querySelector('.modeSel').value = fitMode(kind, e.mode);
     el.querySelector('.speed').classList.toggle('idle', e.mode === 'steady');
   }
   const items = [
@@ -742,7 +796,7 @@ function render() {
   ];
   $('status').innerHTML = items.map(([n, on, extra]) => `<li class="${on ? 'on' : ''}"><span class="dot"></span>${esc(n)}${esc(extra)}</li>`).join('');
   $('meBtn').textContent = myName || 'Your name';
-  $('mixBtn').querySelector('small').textContent = `${label('vib')} and ${label('suc')} at different paces`;
+  $('mixBtn').querySelector('small').textContent = `${label('vib')} and ${label('suc')} together, building up`;
 
   const mine = isRemote ? 'remote' : 'host', theirs = isRemote ? 'host' : 'remote';
   document.querySelector(`.seg [data-lead=${mine}]`).textContent = 'I lead';
@@ -867,6 +921,13 @@ let lastSeenTs = 0;
 let syncAsked = false;
 const keep = (k, v) => { try { sessionStorage.setItem('closer:' + k, JSON.stringify(v)); } catch {} };   // lasts through a refresh only
 const kept = k => { try { return JSON.parse(sessionStorage.getItem('closer:' + k)); } catch { return null; } };
+if (!isRemote && kept('lead')) lead = kept('lead');
+{ // messages older than 5 minutes are refused anyway, so what she heard only has to last that long
+  const g = store.get('heard:' + room, null);
+  if (g && Date.now() - g.at < 360000) { Object.assign(lastTs, g.lastTs); lastSeenTs = g.lastSeenTs; heardLead = g.heardLead; partnerStopTs = g.partnerStopTs; for (const k in KINDS) state[k].heardN = g.n[k] || 0; }
+  herStops = (g && g.herStops) || 0;
+}
+steady(() => { if (!isRemote) store.set('heard:' + room, { at: Date.now(), lastTs, lastSeenTs, heardLead, partnerStopTs, herStops, n: { vib: state.vib.heardN, suc: state.suc.heardN } }); }, 1000);
 function restoreOwn() {   // after a refresh: what this phone had open, unless the partner already said otherwise
   const g = kept('game'), p = kept('panel'), gv = kept('gameV') || 0, pv = kept('panelV') || 0;
   if (g && gv > gameV) gotGame({ game: g, v: gv });
@@ -1203,7 +1264,7 @@ function padDrive(pt, from) {
 }
 function padUp() {   // finger lifted: they stop, and go back to the pattern they had
   if (!touchPrev) return;
-  for (const k in touchPrev) change(k, { level: 0, mode: touchPrev[k].mode, speed: touchPrev[k].speed });
+  for (const k in touchPrev) change(k, { level: 0, mode: touchPrev[k].mode, speed: touchPrev[k].speed }, false, true);
   touchPrev = null; fingers.clear();
   $('pad').classList.remove('on'); $('padRead').innerHTML = 'Touch, tap or draw.<br>Lift your finger and they stop.';
 }
@@ -1226,17 +1287,30 @@ $('touchBtn').onclick = () => { tap(); $('touchSheet').hidden = false; document.
 $('touchDone').onclick = closeTouch;
 addEventListener('resize', () => { if (!$('touchSheet').hidden) sizeInk(); });
 
-// ---- threesome mix: Leo and Max at different paces, reshuffled every 25 seconds until you touch anything
+// ---- threesome mix: a planned build-up, a new step every 25 seconds until you touch anything
 let mixTimer = null, partnerMixing = false;
-const pickOne = a => a[Math.floor(Math.random() * a.length)];
+const MIX = [   // Leo's pattern and speed, Max's pattern and speed, what to say. After the last it goes back to the third.
+  ['wave', .2, 'licks', .3, (a, b) => `${a} starts slow while ${b} licks.`],
+  ['deep', .3, 'swirl', .5, (a, b) => `${a} goes deep and slow while ${b} circles.`],
+  ['sex', .5, 'bob', .6, (a, b) => `${a} and ${b} move in the same rhythm.`],
+  ['shallow', .4, 'kiss', .5, (a, b) => `${a} teases while ${b} kisses and sucks.`],
+  ['deep', .5, 'deepsuck', .6, (a, b) => `${a} and ${b} both go long and deep.`],
+  ['fast', .5, 'nipple', .4, (a, b) => `${a} speeds up while ${b} sucks slowly.`],
+  ['grind', .4, 'flutter', .6, (a, b) => `${a} presses in while ${b} flutters.`],
+  ['pound', .7, 'fastsuck', .7, (a, b) => `${a} pounds while ${b} sucks fast.`],
+  ['fast', .9, 'lick', .8, (a, b) => `${a} and ${b} both at full pace.`],
+  ['wave', .2, 'licks', .2, (a, b) => `${a} and ${b} slow down for a moment.`],
+];
+let mixStep = 0;
 function mixOnce(first) {
   if (isRemote && !partnerOnline()) return;
-  const slowOne = Math.random() < .5 ? 'vib' : 'suc', fastOne = slowOne === 'vib' ? 'suc' : 'vib';
-  for (const [kind, list, lo] of [[slowOne, SLOW, .1], [fastOne, FAST, .65]]) {
-    const lvl = state[kind].level || (first === true ? 60 : 0);
-    change(kind, { mode: pickOne(list), speed: lo + Math.random() * .3, level: lvl }, true);
+  if (first === true) mixStep = 0;
+  const [vibMode, vibSpeed, sucMode, sucSpeed, say] = MIX[mixStep];
+  mixStep = mixStep + 1 < MIX.length ? mixStep + 1 : 2;
+  for (const [kind, mode, speed] of [['vib', vibMode, vibSpeed], ['suc', sucMode, sucSpeed]]) {
+    change(kind, { mode, speed, level: state[kind].level || (first === true ? 60 : 0) }, true);
   }
-  notify(`${label(slowOne)} goes slow, ${label(fastOne)} goes fast.`);
+  notify(say(label('vib'), label('suc')));
 }
 function stopMix(tell) {
   if (tell && (mixTimer || partnerMixing)) send({ t: 'mix', on: false });
@@ -1320,9 +1394,10 @@ function resync() {   // the other phone came back: send what is open here so bo
 }
 const libSize = () => Object.keys(vidMap).length + gone.size;
 function gotFacts(m) {   // the other phone says how new its copy is: if it missed something, send it again
+  gotName(m.nm);
   if (m.pv < panelV) send({ t: 'panel', p: panel, v: panelV });
   if (m.gv < gameV) send({ t: 'game', game, v: gameV });
-  if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold });
+  if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
   if (Number.isInteger(m.lc) && m.lc !== libSize() && Date.now() - libSentAt > 5000) { libSentAt = Date.now(); sendLib(); }
 }
 function gotDraw(m) {
@@ -1624,7 +1699,8 @@ renderGame();
 // nothing and the player can ask for whichever part it needs (sw.js). Play/pause/seek are small locked messages; the latest action wins on both phones.
 const PIECE = 1 << 20, BIG = 300 * PIECE, PART = 1 << 19, AT_ONCE = 10, START_BY_ITSELF = 5 * PIECE;
 const partsIn = v => Math.ceil(v.size / PART);
-const vid = $('vid'), vidMap = {}, recv = {};
+const realVid = $('vid'), vidMap = {}, recv = {};
+let vid = realVid;   // swapped for a YouTube stand-in while a YouTube link plays
 const gone = new Set(store.get('vidGone:' + room, []));   // deleted videos are remembered so they never come back
 const validId = id => typeof id === 'string' && /^[A-Za-z0-9_-]{12}$/.test(id);
 const vTitle = v => v.name.replace(/\.[a-z0-9]{2,4}$/i, '') || 'Video';
@@ -1664,7 +1740,7 @@ function rememberGone(id) { gone.add(id); store.set('vidGone:' + room, [...gone]
 let libAt = 0;
 function sendLib() {
   libAt = Date.now();
-  send({ t: 'vlib', vids: Object.values(vidMap).map(v => ({ id: v.id, name: v.name, size: v.size, type: v.type, by: v.by, from: v.from, at: v.at, ready: v.ready })), gone: [...gone].slice(-300) });
+  send({ t: 'vlib', vids: Object.values(vidMap).map(v => ({ id: v.id, name: v.name, size: v.size, type: v.type, by: v.by, from: v.from, at: v.at, ready: v.ready, link: v.link })), gone: [...gone].slice(-300) });
 }
 async function gotLib(m) {
   await libLoaded;
@@ -1680,7 +1756,12 @@ async function gotLib(m) {
     theirs.add(x.id);
     if (gone.has(x.id)) { reply = true; continue; }   // they still have one we deleted: tell them again
     let v = vidMap[x.id];
-    if (!v) {
+    if (!v && x.link) {   // a link: nothing to send, and only shapes this phone recognises are ever played
+      if (!readLink(x.link)) continue;
+      v = linkEntry(x.link, x);
+      vidMap[v.id] = v; await saveMeta(v);
+      notify(`${who()} added a video link: "${vTitle(v)}".`);
+    } else if (!v) {
       v = { id: x.id, name: String(x.name || 'Video').replace(/[\u0000-\u001f]/g, '').slice(0, 120), size: x.size,
             type: /^video\/[\w.+-]+$/.test(x.type) ? x.type : 'video/mp4', by: String(x.by || '').slice(0, 24),
             from: String(x.from || '').slice(0, 16), at: Number.isFinite(x.at) ? x.at : Date.now(), have: 0, done: [], ready: false, peer: x.ready ? x.size : 0 };
@@ -1710,6 +1791,37 @@ $('vidFile').onchange = async ev => {
   if (f.size >= START_BY_ITSELF && partnerOnline() && !wstate.playing) act(true, 0, v.id);
   const slow = f.size > BIG ? ` It is big (${fmtSize(f.size)}), so over phone data it can take a long time. Wi-Fi is better.` : '';
   notify((fcOpen() ? `Sending "${vTitle(v)}" to ${who()}.` : `Saved. It will send to ${who()} when their phone is back.`) + slow);
+};
+// a link to a video somewhere else: the file plays straight in our player; a site with its own player shows that player
+function readLink(text) {   // [how it plays, what to load], worked out here, or null. Nothing else ever reaches the player.
+  let u; try { u = new URL(String(text).trim()); } catch { return null; }
+  if (u.protocol !== 'https:') return null;
+  const h = u.hostname.replace(/^(www|m)\./, ''), P = u.pathname, q = n => u.searchParams.get(n) || '';
+  const hit = (re, str = P) => { const m = str.match(re); return m && m[1]; };
+  let c;
+  if (h === 'youtu.be' && (c = hit(/^\/([\w-]{11})/))) return ['yt', c];
+  if (h === 'youtube.com' && (c = hit(/^([\w-]{11})$/, q('v')) || hit(/^\/(?:shorts|embed|live)\/([\w-]{11})/))) return ['yt', c];
+  if (h === 'vimeo.com' && (c = hit(/^\/(\d+)/))) return ['frame', `https://player.vimeo.com/video/${c}`];
+  if (h === 'xvideos.com' && (c = hit(/^\/video\.?([\w-]+)/))) return ['frame', `https://www.xvideos.com/embedframe/${c}`];
+  if (h === 'pornhub.com' && (c = hit(/^(\w+)$/, q('viewkey')))) return ['frame', `https://www.pornhub.com/embed/${c}`];
+  if (/\.(mp4|m4v|mov|webm)$/i.test(P)) return ['file', u.href];
+  return null;
+}
+function linkEntry(link, from) {
+  const u = new URL(link), host = u.hostname.replace(/^(www|m)\./, '');
+  return { id: from ? from.id : b64url(rand(9)), name: from ? String(from.name || host).replace(/[\u0000-\u001f]/g, '').slice(0, 120) : host === 'youtu.be' || host === 'youtube.com' ? 'YouTube video' : `Video from ${host}`,
+           size: 1, type: 'video/mp4', link: String(link).slice(0, 500), by: from ? String(from.by || '').slice(0, 24) : myName, from: from ? String(from.from || '').slice(0, 16) : me,
+           at: from && Number.isFinite(from.at) ? from.at : Date.now(), have: 1, ready: true, peer: from ? 1 : 1 };
+}
+$('linkBtn').onclick = () => { tap(); const f = $('linkForm'); f.hidden = !f.hidden; if (!f.hidden) $('linkText').focus(); };
+$('linkForm').onsubmit = async ev => {
+  ev.preventDefault();
+  const text = $('linkText').value.trim(), L = readLink(text);
+  if (!L) { notify('This link cannot play inside Loveline. Save the video to your phone, then press Add video.', 9000); return; }
+  const v = Object.values(vidMap).find(x => x.link === text) || linkEntry(text);
+  if (!vidMap[v.id]) { vidMap[v.id] = v; await saveMeta(v); }
+  tap(); $('linkText').value = ''; $('linkForm').hidden = true; sendLib(); renderVids();
+  act(L[0] !== 'frame', 0, v.id);
 };
 async function removeVid(id) {
   delete vidMap[id]; delete recv[id];
@@ -1830,7 +1942,7 @@ async function sendPart(id, i, ch) {
   if (!v || !v.ready || ch.readyState !== 'open') return;
   const blob = await tx(['blobs'], 'readonly', s => s('blobs').get(id)).catch(() => null);
   if (!blob) return;
-  const head = new TextEncoder().encode(id), size = ch === slowLine ? SLOW_PIECE : Math.min(65536, (rtc.data && rtc.data.sctp && rtc.data.sctp.maxMessageSize) || 65536) - 20;
+  const head = new TextEncoder().encode(id), size = Math.min(SLOW_PIECE, ((rtc.data && rtc.data.sctp && rtc.data.sctp.maxMessageSize) || 65536) - 20);
   const start = i * PART, block = new Uint8Array(await blob.slice(start, Math.min(v.size, start + PART)).arrayBuffer());
   for (let at = 0; at < block.length; at += size) {
     while (tok === outTok && ch.readyState === 'open' && ch.bufferedAmount > 4 * PIECE && !(ch === slowLine && !partnerOnline())) await new Promise(r => { ch.addEventListener('bufferedamountlow', r, { once: true }); wait(250).then(r); });
@@ -1851,7 +1963,7 @@ function askNext() {
   const line = fileLine();
   if (!line) return;
   const now = Date.now(), first = wantFrom && vidMap[wantFrom.id] && !vidMap[wantFrom.id].ready ? vidMap[wantFrom.id] : null;
-  const v = first || Object.values(vidMap).filter(v => !v.ready).sort((a, b) => a.at - b.at)[0];
+  const v = first || Object.values(vidMap).filter(v => !v.ready && v.peer >= v.size).sort((a, b) => a.at - b.at)[0];
   if (!v) return;
   const r = rx(v.id), n = partsIn(v), start = first ? wantFrom.i : 0, ps = [];
   if (r.line !== line) { r.line = line; r.asked.clear(); r.open.clear(); }   // pieces are cut differently on each route
@@ -1918,8 +2030,13 @@ async function finishRecv(id) {
     await tx(['parts', 'meta'], 'readwrite', s => { s('parts').delete(partsOf(id)); s('meta').put(v); });
     return;
   }
+  try { await tx(['blobs', 'meta'], 'readwrite', s => { s('blobs').put(whole, id); s('meta').put({ ...v, ready: true, have: v.size }); }); }
+  catch {
+    notify(`There is not enough space on this phone to finish "${vTitle(v)}". Free some space and it finishes by itself.`, 9000);
+    setTimeout(() => { if (vidMap[id] && !vidMap[id].ready) finishRecv(id).catch(() => {}); }, 30000);
+    return;
+  }
   v.ready = true; v.have = v.size;
-  await tx(['blobs', 'meta'], 'readwrite', s => { s('blobs').put(whole, id); s('meta').put(v); });
   await tx(['parts'], 'readwrite', s => { s('parts').delete(partsOf(id)); }).catch(() => {});
   delete recv[id];
   sendFc({ op: 'got', id, have: v.size }); sendLib();
@@ -1951,13 +2068,13 @@ function renderVids() {
     vidsSig = sig;
     $('vidList').innerHTML = list.map(v => `<li class="vrow" data-id="${v.id}">
       <button class="vopen" data-open="${v.id}"><span class="vico">${v.ready ? ICON_PLAY : ICON_WAIT}</span><span class="vtxt"><b>${esc(vTitle(v))}</b><small></small></span></button>
-      <button class="vic" data-share="${v.id}" aria-label="Share ${esc(vTitle(v))}" ${v.ready ? '' : 'disabled'}>${ICON_SHARE}</button>
+      <button class="vic" data-share="${v.id}" aria-label="Share ${esc(vTitle(v))}" ${v.ready && !v.link ? '' : 'disabled'}>${ICON_SHARE}</button>
       <button class="vic danger" data-del="${v.id}" aria-label="Delete ${esc(vTitle(v))}">${ICON_BIN}</button>
       <div class="vbar" ${vidState(v)[1] === null ? 'hidden' : ''}><i></i></div></li>`).join('');
   }
   for (const v of list) {
     const row = $('vidList').querySelector(`[data-id="${v.id}"]`), [say, frac] = vidState(v);
-    row.querySelector('small').textContent = `${fmtSize(v.size)} · added by ${v.from === me ? 'you' : v.by || who()} · ${say}`;
+    row.querySelector('small').textContent = `${v.link ? 'Link' : fmtSize(v.size)} · added by ${v.from === me ? 'you' : v.by || who()} · ${say}`;
     if (frac !== null) row.querySelector('.vbar i').style.width = Math.floor(frac * 100) + '%';
   }
   $('vidEmpty').hidden = list.length > 0;
@@ -2002,7 +2119,7 @@ function gotWplay(m) {   // an action from the other phone: applied here, never 
   const newId = m.id !== wstate.id;
   wstate = { id: m.id, playing: !!m.playing && !!m.id, pos: Math.max(0, +m.pos || 0), base: performance.now() - lag(m), v: m.v, from: m.from, hold: m.hold === true };
   if (m.hold !== true) holding = false;   // someone really pressed pause or play
-  if (m.id && (newId || m.playing) && panel !== 'watch') openPanel('watch', true);
+  if (m.id && !m.re && (newId || m.playing) && panel !== 'watch') openPanel('watch', true);   // a catch-up copy never moves the section: the section has its own catch-up
   applyState();
 }
 function gotBeat(m) {   // the phone that acted last says where it is every 2 s; nudge this one if it is more than 1 s off
@@ -2036,6 +2153,8 @@ let holding = false, stallAt = 0, holdAhead = 2, holdNoteAt = 0, holdId = null;
 vid.addEventListener('waiting', () => { stallAt = Date.now(); });
 vid.addEventListener('error', () => {   // 3 and 4: the phone cannot decode this file, waiting will not help
   const c = vid.error && vid.error.code; logLink(`video error ${c}`);
+  const lk = wstate.id && vidMap[wstate.id] && vidMap[wstate.id].link;
+  if (lk) { renderPlayer(); return; }   // the player says this link did not play
   if (c === 3 || c === 4) { send({ t: 'cantplay', id: wstate.id }); notify(CANT_PLAY, 12000); }
 });
 vid.addEventListener('playing', () => { stallAt = 0; });
@@ -2050,6 +2169,7 @@ function keepTogether() {   // the video is still arriving: when this phone runs
     return;
   }
   if (v.ready || !wstate.playing) return;
+  if (here() && vid.readyState < 3 && !stallAt) stallAt = Date.now();
   if (!here() || (stallAt && vid.readyState < 3 && Date.now() - stallAt > 1500)) {
     act(false, here() ? vid.currentTime : wstate.pos, wstate.id, true); stallAt = 0;
     if (holdId === v.id) holdAhead = Math.min(30, holdAhead * 2); else { holdId = v.id; holdAhead = 2; }
@@ -2057,14 +2177,78 @@ function keepTogether() {   // the video is still arriving: when this phone runs
     if (Date.now() - holdNoteAt > 60000) { holdNoteAt = Date.now(); notify('Waiting for the video to catch up. It carries on by itself.'); }
   }
 }
-function unload() { vid.pause(); vid.removeAttribute('src'); vid.load(); if (vidUrl) URL.revokeObjectURL(vidUrl); vidUrl = null; loadedId = null; }
+let linkFrame = null;
+function clearLinkPlayer() {
+  if (linkFrame) { linkFrame.remove(); linkFrame = null; }
+  if (vid !== realVid) { vid.destroy(); vid = realVid; }
+  realVid.style.display = ''; $('vidTogether').hidden = true; $('vidCount').hidden = true; $('player').classList.remove('isframe');
+}
+let ytApi = null;
+const loadYt = () => ytApi || (ytApi = new Promise((res, rej) => {
+  window.onYouTubeIframeAPIReady = res; setTimeout(rej, 15000);
+  const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.onerror = rej; document.head.appendChild(s);
+}).catch(e => { ytApi = null; throw e; }));
+function ytStandIn(code) {   // a YouTube player that answers to the same questions as our own, so keeping both phones together works the same way
+  const box = document.createElement('div'); box.className = 'ytbox'; const spot = document.createElement('div'); box.appendChild(spot); $('vid').after(box);
+  let muted = realVid.muted, st = -1, pl = null;
+  const face = {
+    readyState: 0, seeking: false, error: null, buffered: { length: 0 },
+    get currentTime() { return pl && pl.getCurrentTime ? pl.getCurrentTime() : 0; }, set currentTime(t) { if (pl && pl.seekTo) pl.seekTo(t, true); },
+    get duration() { const d = pl && pl.getDuration ? pl.getDuration() : 0; return d > 0 ? d : NaN; },
+    get paused() { return st !== 1 && st !== 3; }, get ended() { return st === 0; },
+    get muted() { return muted; }, set muted(m) { muted = !!m; realVid.muted = muted; if (pl && pl.mute) m ? pl.mute() : pl.unMute(); renderPlayer(); },
+    play() { if (pl && pl.playVideo) { if (muted) pl.mute(); pl.playVideo(); } }, pause() { if (pl && pl.pauseVideo) pl.pauseVideo(); },
+    load() {}, removeAttribute() {}, destroy() { try { pl && pl.destroy(); } catch {} box.remove(); },
+  };
+  face.ready = new Promise(res => {
+    pl = new YT.Player(spot, { videoId: code, playerVars: { playsinline: 1, controls: 0, rel: 0, disablekb: 1, origin: location.origin }, events: {
+      onReady: () => { face.readyState = 4; if (muted) pl.mute(); res(); applyState(); },
+      onStateChange: e => { st = e.data; renderPlayer(); },
+      onError: e => { face.readyState = 0; face.error = { code: 1000 + e.data }; logLink(`youtube error ${e.data}`); notify(YT_NO, 12000); res(); renderPlayer(); },
+    } });
+    setTimeout(res, 8000);
+  });
+  return face;
+}
+const YT_NO = "YouTube won't play this video inside other apps. Age-limited videos and some others are blocked. Open it on YouTube, or save it and press Add video.";
+async function startLink(id, [how, what]) {
+  loadedId = id;
+  if (how === 'file') { realVid.src = what; await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
+  realVid.style.display = 'none';
+  if (how === 'yt') {
+    try { await loadYt(); vid = ytStandIn(what); await vid.ready; }
+    catch {
+      notify('YouTube did not load. Check the internet on this phone. It keeps trying.', 9000);
+      setTimeout(() => { if (loadedId === id && vid === realVid) { loadedId = null; applyState(); } }, 10000);
+    }
+    return;
+  }
+  linkFrame = document.createElement('iframe');
+  linkFrame.src = what; linkFrame.referrerPolicy = 'origin'; linkFrame.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture'; linkFrame.allowFullscreen = true;
+  linkFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation allow-forms');   // no pop-ups, and it can never move this page
+  $('vid').after(linkFrame);
+  $('player').classList.add('isframe'); $('vidTogether').hidden = false;
+}
+let countTimer = null;
+function showCount() {
+  const c = $('vidCount'); let n = 3; clearInterval(countTimer);
+  const step = () => {
+    c.hidden = false; c.classList.toggle('say', n === 0); c.textContent = n || 'Press play';
+    if (n-- < 0) { c.hidden = true; clearInterval(countTimer); }
+  };
+  step(); countTimer = setInterval(step, 1000);
+}
+$('vidTogether').onclick = () => { tap(); send({ t: 'vcount', id: wstate.id }); showCount(); };
+function unload() { clearLinkPlayer(); vid.pause(); vid.removeAttribute('src'); vid.load(); if (vidUrl) URL.revokeObjectURL(vidUrl); vidUrl = null; loadedId = null; }
 const applyState = () => (applyQ = applyQ.then(doApply).catch(() => {}));
 async function doApply() {   // make this phone's player match the shared state
   const id = wstate.id, v = id ? vidMap[id] : null;
   if (id !== loadedId) {
     if (loadedId) unload();
     const blob = v && v.ready && await tx(['blobs'], 'readonly', s => s('blobs').get(id)).catch(() => null);
-    if (blob && wstate.id === id) {
+    const link = v && v.link && readLink(v.link);
+    if (link && wstate.id === id) await startLink(id, link);
+    else if (blob && wstate.id === id) {
       vidUrl = URL.createObjectURL(blob); vid.src = vidUrl; loadedId = id;
       await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); });
     } else if (v && !v.ready && canStream() && wstate.id === id) {   // still arriving: play the part that is here
@@ -2084,6 +2268,7 @@ async function doApply() {   // make this phone's player match the shared state
   renderPlayer(); vidsSoon();
 }
 function leaveWatch() {   // either phone leaving Watch pauses the video on both, as a real action: a late message can never start it again
+  if (linkFrame) unload();   // another site's player cannot be paused from here, so it closes; coming back opens it again
   if (wstate.playing) act(false, curPos());
   if (!vid.paused) vid.pause();
 }
@@ -2093,8 +2278,10 @@ function renderPlayer() {
   $('player').hidden = !id;
   if (!id) return;
   $('vidName').textContent = v ? vTitle(v) : 'Video';
-  $('vidWait').hidden = ok;
-  if (!ok) {
+  $('vidWait').hidden = ok || !!linkFrame;
+  $('vidNote').textContent = '';
+  if (!ok && v && v.link && vid.error) $('vidWait').textContent = vid === realVid ? 'This link did not play. The site may not allow it, or the file needs a login.' : YT_NO;
+  else if (!ok) {
     const have = v ? (v.ready ? v.size : recv[id] ? recv[id].have : v.have) : 0;
     $('vidWait').textContent = loadedId === id && vid.error ? "This phone can't play this video. Try sharing it to the phone's own player." : v && v.ready ? 'Loading…' : `Waiting for the video to arrive${v ? ` (${Math.floor(have / v.size * 100)}%)` : ''}…` + (fcOpen() ? '' : ' It comes when your phones are in touch.');
   }
@@ -2109,7 +2296,7 @@ function renderPlayer() {
   setIcon($('vidSound'), vid.muted ? ICON_MUTED : ICON_SOUND);
   $('vidSound').setAttribute('aria-pressed', !vid.muted);
   $('vidSound').setAttribute('aria-label', vid.muted ? 'Turn the video sound on' : 'Turn the video sound off');
-  $('vidNote').textContent = v && v.ready && v.peer < v.size ? `${who()}'s phone is still getting this video (${Math.floor(v.peer / v.size * 100)}%). You can watch together already.` : '';
+  $('vidNote').textContent = linkFrame ? "This site's own player can't be kept in step. Press Start together, then both press play on the video. If the box stays empty, the site blocks it: save the video and press Add video." : v && v.ready && v.peer < v.size ? `${who()}'s phone is still getting this video (${Math.floor(v.peer / v.size * 100)}%). You can watch together already.` : '';
 }
 ['timeupdate', 'play', 'pause', 'loadedmetadata', 'volumechange', 'ended'].forEach(e => vid.addEventListener(e, renderPlayer));
 $('vidPlay').onclick = () => { tap(); act(!showsPlaying(), here() && vid.ended ? 0 : curPos()); };
@@ -2222,7 +2409,7 @@ async function fromHost(m, viaLink) {
     if (m.eggs && Object.values(m.eggs).every(s => !s.level)) hostZeroAt = Date.now();
     if (['both', 'host', 'remote'].includes(m.lead)) { if (leadWant && (leadWant.l === m.lead || m.leadN >= leadWant.n)) leadWant = null; if (!leadWant) lead = m.lead; }
     if (stopPending && m.stopAt === stopPending) stopReached();
-    if (Number.isInteger(m.stops)) { if (m.stops !== sawHerStops) dropMoves(); sawHerStops = m.stops; }
+    if (Number.isInteger(m.stops)) { if (m.stops !== sawHerStops) { dropMoves(); if (fingerDown) deadFinger = true; } sawHerStops = m.stops; }
     if (m.mixing === false && (partnerMixing || (mixTimer && Date.now() - mixAt > 5000))) stopMix();   // the mix ended on her side and the note was lost
     if (m.names) for (const k in KINDS) if (typeof m.names[k] === 'string') names[k] = m.names[k].slice(0, 16);
     if (m.faces) for (const k in KINDS) if (FACES.includes(m.faces[k])) faces[k] = m.faces[k];
@@ -2257,6 +2444,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'vlib') gotLib(m);
   if (m.t === 'wplay') gotWplay(m);
   if (m.t === 'wbeat') gotBeat(m);
+  if (m.t === 'vcount' && m.id === wstate.id && linkFrame) showCount();
   if (m.t === 'cantplay' && m.id === wstate.id) notify(`${who()}'s phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.`, 12000);
 }
 function gotName(n) {
@@ -2310,7 +2498,9 @@ async function fromRemote(m, viaLink) {
   if (m.t === 'rename' && m.egg in KINDS && typeof m.label === 'string' && m.label.trim()) rename(m.egg, m.label.trim().slice(0, 16), m.face);
   if (m.t === 'set') {
     const e = state[m.egg];
-    const why = !allow ? 'paused' : lead === 'host' ? 'leading' : Date.now() - stoppedAt <= 1500 || m.ts < partnerStopTs || m.sn < herStops ? 'stopped' : !(e && e.connected) ? 'off' : '';
+    const lowers = m.level === 0 && e && e.by === 'partner';   // his finger lifting always counts, or the egg would stay where he left it
+    const why = !allow && !lowers ? 'paused' : lead === 'host' && !lowers ? 'leading' : Date.now() - stoppedAt <= 1500 || m.ts < partnerStopTs || m.sn < herStops ? 'stopped' : !(e && e.connected) ? 'off' : '';
+    if (why === 'stopped' && e && m.n > e.heardN) { e.heardN = m.n; publishStateSoon(); }   // answered: its repeats change nothing
     if (why) refuse(why, m.egg);
     else {
       if (!(m.n <= e.heardN)) { apply(e, m); e.by = 'partner'; e.heardN = m.n; }   // a repeat changes nothing, so it can never undo what she did since
@@ -2499,7 +2689,7 @@ $('text').oninput = () => {
   if (Date.now() - typingSent > 2000) { typingSent = Date.now(); send({ t: 'typing' }); }
 };
 $('listenGo').onclick = () => {   // one tap covers whatever is waiting: the partner's live sound and/or the video sound
-  if (vidAsk) { vidAsk = false; vidGate = false; $('vid').muted = false; renderPlayer(); }
+  if (vidAsk) { vidAsk = false; vidGate = false; vid.muted = false; renderPlayer(); }
   if (hearing && listenGate) {
     listenGate = false; $('audio').muted = false; $('audio').play().catch(() => {});
     send({ t: 'listening', on: true });
@@ -2508,7 +2698,7 @@ $('listenGo').onclick = () => {   // one tap covers whatever is waiting: the par
 };
 if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => {   // headphones changed: never fall back to the speaker
   let muted = false;
-  if (!vidGate) { vidGate = true; $('vid').muted = true; muted = true; renderPlayer(); }
+  if (!vidGate) { vidGate = true; vid.muted = true; muted = true; renderPlayer(); }
   if (hearing && !listenGate) { listenGate = true; $('audio').muted = true; send({ t: 'listening', on: false }); muted = true; }
   if (muted) { notify('Your headphones changed, so the sound was muted. Put them back in to keep listening.'); render(); }
 });
@@ -2567,7 +2757,7 @@ async function begin() {
   if (firstVisit) {
     showPark('Who has the eggs?', 'Loveline runs on two phones: the one with the eggs, and the remote.', 'I have the eggs',
       () => { store.set('hostRoom', { r: room, k: hp.get('k') }); location.reload(); },
-      'My partner has them', () => { $('parkTitle').textContent = 'Open their link'; $('parkText').textContent = 'Ask your partner to tap "Share private link" and send it to you. Open that link on this phone.'; $('parkGo').hidden = true; $('parkAlt').hidden = true; });
+      'My partner has them', () => { $('parkTitle').textContent = 'Open their link'; $('parkText').textContent = 'Ask your partner to send you your link. Open that link on this phone.'; $('parkGo').hidden = true; $('parkAlt').hidden = true; });
     return;
   }
   if (ownLink) {
@@ -2617,7 +2807,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', pv: panelV, gv: gameV, wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', nm: myName, pv: panelV, gv: gameV, wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
@@ -2671,14 +2861,20 @@ else {
   };
   if (navigator.bluetooth && navigator.bluetooth.getAvailability) { btCheck(); navigator.bluetooth.addEventListener('availabilitychanged', btCheck); setInterval(btCheck, 5000); }
   $('allow').onchange = ev => {
-    allow = ev.target.checked;
+    allow = ev.target.checked; store.set('allow:' + room, allow);
     if (!allow) partnerLost(`You paused ${who()}`);
     publishState(); render();
   };
 
+  $('copyLink').onclick = async () => {
+    tap();
+    try { await navigator.clipboard.writeText(shareUrl); notify("Copied. Send it to your partner, and keep it private: anyone with it can join."); } catch { prompt("Your partner's link", shareUrl); }
+  };
   $('forget').onclick = async () => {
-    if (!confirm('Remove the paired phone? This makes a brand-new private link, and the old one stops working. Send the new link to your partner afterwards.')) return;
+    if (!confirm('Remove the paired phone? This makes a brand-new private link, and the old one stops working. The videos and chat on this phone are deleted too. Send the new link to your partner afterwards.')) return;
     await stopAll();
+    await tx(['meta', 'blobs', 'parts'], 'readwrite', t => { t('meta').clear(); t('blobs').clear(); t('parts').clear(); }).catch(() => {});
+    store.set('chat:' + room, null);
     store.set('pair:' + room, null);
     store.set('hostRoom', { r: b64url(rand(12)), k: b64url(rand(32)) });
     leaving = true; location.replace(location.pathname);
