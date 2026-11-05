@@ -1804,7 +1804,8 @@ function readLink(text) {   // [how it plays, what to load], worked out here, or
   if (h === 'vimeo.com' && (c = hit(/^\/(\d+)/))) return ['frame', `https://player.vimeo.com/video/${c}`];
   if (h === 'xvideos.com' && (c = hit(/^\/video\.?([\w-]+)/))) return ['frame', `https://www.xvideos.com/embedframe/${c}`];
   if (h === 'pornhub.com' && (c = hit(/^(\w+)$/, q('viewkey')))) return ['frame', `https://www.pornhub.com/embed/${c}`];
-  if (/\.(mp4|m4v|mov|webm)$/i.test(P)) return ['file', u.href];
+  const homeNet = /^\[|^[\d.]+$|^[^.]+\.?$|\.(local|localhost|internal|lan|home|intranet)\.?$/i.test(u.hostname);   // never a device on someone's own network
+  if (/\.(mp4|m4v|mov|webm)$/i.test(P) && !homeNet) return ['file', u.href];
   return null;
 }
 function linkEntry(link, from) {
