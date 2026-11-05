@@ -4,7 +4,7 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {
   const m = new URL(e.request.url).pathname.match(/\/stream\/([\w-]+)\/([\w-]{12})$/);
-  if (m) e.respondWith(serve(e.request, m[1], m[2]));
+  if (m && e.request.mode !== 'navigate') e.respondWith(serve(e.request, m[1], m[2]));
 });
 const openDb = room => new Promise((res, rej) => {
   const r = indexedDB.open('closer-videos:' + room);
@@ -15,7 +15,7 @@ const get = (db, store, key) => new Promise((res, rej) => {
   r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
 });
 const reply = (blob, start, end, v) => new Response(blob, { status: 206, headers: {
-  'Content-Type': v.type, 'Accept-Ranges': 'bytes', 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${v.size}` } });
+  'Content-Type': v.type, 'X-Content-Type-Options': 'nosniff', 'Accept-Ranges': 'bytes', 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${v.size}` } });
 async function serve(req, room, id) {
   const db = await openDb(room);
   try {

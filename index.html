@@ -174,7 +174,7 @@
   .hero h2 { margin: 0 0 6px; font-size: 24px; font-weight: 700; letter-spacing: -.025em; }
   .hero .note { margin: 0 auto; max-width: 300px; }
   .hero .primary { margin-top: 20px; }
-  body.noeggs #eggs, body.noeggs #mixBtn, body.noeggs #touchBtn, body.noeggs #stop { display: none !important; }
+  body.noeggs #eggs, body.noeggs #mixBtn, body.noeggs #touchBtn, body.noeggs:not(.mayrun) #stop { display: none !important; }
   body.panel #hero { display: none; }   /* Draw, Truth or Dare and Watch keep the full screen */
   .primary { width: 100%; height: 50px; margin-top: 12px; border: 0; border-radius: 14px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 600; }
 
@@ -557,7 +557,10 @@ let partnerName = store.get('partnerName:' + room, '');
 const blank = () => ({ level: 0, mode: 'steady', speed: .5, battery: null, connected: false, by: '', t0: performance.now(), editUntil: 0 });
 const state = { vib: blank(), suc: blank() };
 let allow = true, partnerSeen = 0, online = false, blocked = false;
-let stoppedAt = 0, stopPending = 0, hostZeroAt = 0, partnerStopTs = 0;
+let stoppedAt = 0, stopPending = 0, stopWarned = false, hostZeroAt = 0, partnerStopTs = 0, herStops = 0, sawHerStops = 0;
+let mayRun = false, moveN = 0, leadWant = null, mixAt = 0;
+const moving = {};   // his moves her phone has not confirmed yet
+const MOVE_TRIES_MS = 5000;   // a move is only worth repeating for a moment: later it could start an egg nobody expects; Stop never gives up
 let bt = navigator.bluetooth ? 'ok' : 'nochrome';   // ok, nochrome, off, blocked, notfound
 const tries = new Map();   // one record per egg she has picked; kept for the whole visit
 let mic = null, hearing = false;   // live sound: my microphone stream / partner's sound playing here
@@ -646,7 +649,7 @@ function rename(kind, n, face) {
 function setLead(l) {
   if (!['both', 'host', 'remote'].includes(l)) return;
   lead = l;
-  if (isRemote) send({ t: 'lead', lead: l }); else publishStateSoon();
+  if (isRemote) { leadWant = { l, at: Date.now(), sent: Date.now() }; send({ t: 'lead', lead: l }); } else publishStateSoon();
   render();
 }
 document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { tap(); setLead(b.dataset.lead); });
@@ -660,12 +663,11 @@ function apply(e, m) {
 function change(kind, m, fromMix) {   // a change made on this phone
   if (lead === (isRemote ? 'host' : 'remote')) return;
   if (!fromMix && (mixTimer || partnerMixing)) stopMix(true);
-  stopPending = 0;   // he chose a new strength after stopping
   const e = state[kind];
   if (!fromMix && m.mode && m.mode !== 'steady' && !e.level && !('level' in m)) m = { ...m, level: 40 };
   apply(e, m);
   e.editUntil = Date.now() + 1000;
-  if (isRemote) queueSet(kind);
+  if (isRemote) { if (e.level) { mayRun = true; keep('mayRun', true); } queueSet(kind); }
   else { e.by = 'me'; publishStateSoon(); }
   render();
 }
@@ -680,6 +682,7 @@ function render() {
   document.body.classList.toggle('trio', trio);
   const noEggs = !onKinds.length, btn = $('connect');   // nothing on yet: one clear first step, no Stop, no empty controls
   document.body.classList.toggle('noeggs', noEggs);
+  document.body.classList.toggle('mayrun', isRemote && mayRun && !partnerOnline());
   $('hero').hidden = !noEggs;
   if (noEggs) {
     $('heroF1').textContent = faces.vib; $('heroF2').textContent = faces.suc;
@@ -692,7 +695,7 @@ function render() {
       notfound: ['No egg showed up', 'Hold the button on the egg until its light blinks. Close the official app. Keep the egg next to the phone, then tap below.'],
     }[bt];
     if (!isRemote && guide && !looking) $('heroTitle').textContent = guide[0];
-    $('heroText').textContent = isRemote ? `${label('vib')} and ${label('suc')} join as soon as she switches them on.`
+    $('heroText').textContent = isRemote ? (mayRun && !partnerOnline() ? 'Her phone is out of reach, so they may still be running. Press Stop to switch them off.' : `${label('vib')} and ${label('suc')} join as soon as she switches them on.`)
       : looking ? 'Looking for them now. Switch them on and they join by themselves.'
       : guide ? guide[1]
       : store.get('eggsSeen') && !(navigator.bluetooth && navigator.bluetooth.getDevices) ? 'Chrome forgets them when the page reloads. Keep them switched on, tap below and pick each one again.'
@@ -819,12 +822,15 @@ const topicFromHost = `closer-v2/${room}/h`, topicFromRemote = `closer-v2/${room
 async function startNet() {
   linkKey = await crypto.subtle.importKey('raw', unb64url(hp.get('k')), 'AES-GCM', false, ['encrypt', 'decrypt']);
   keys = await loadKeys();
+  if (isRemote) { stopPending = kept('stopAt') || 0; mayRun = !!kept('mayRun'); }
   if (isRemote) { hostPair = store.get('hostPair:' + room); if (hostPair) pairKey = await derive(hostPair.pub); }
   else { pair = store.get('pair:' + room); if (pair) pairKey = await derive(pair.pub); }
   BROKERS.forEach(([url, login], i) => {
     const c = mqtt.connect(url, { clientId: `closer_${me}_${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 2000, connectTimeout: 8000, ...login });
     clients.push(c);
     c.on('connect', () => {
+      c.heardAt = Date.now(); c.pingAt = 0; c.lag = 0;
+      c.subscribe(echoTopic(i));
       c.subscribe(isRemote ? topicFromHost : topicFromRemote);
       if (i < 2) c.subscribe(fileIn);
       const first = !online; online = true;
@@ -835,9 +841,25 @@ async function startNet() {
       if (!online || clients.some(x => x.connected)) return;
       online = false; logLink('all relays lost'); render();
     });
-    c.on('message', (topic, payload) => topic === fileIn ? slowIn(payload.toString()) : incoming(payload.toString()));
+    c.on('message', (topic, payload) => {
+      if (topic === echoTopic(i)) { c.echoes = true; c.heardAt = Date.now(); c.lag = c.heardAt - +payload.toString(); return; }
+      topic === fileIn ? slowIn(payload.toString()) : incoming(payload.toString());
+    });
   });
 }
+const echoTopic = i => `closer-v2/${room}/e${me}${i}`;
+function checkRelays() {   // each relay sends this phone's own note back: if it stops, the relay has gone quiet even though it looks connected
+  const now = Date.now();
+  clients.forEach((c, i) => {
+    if (!c.connected) return;
+    if (c.echoes && now - c.heardAt > 9000) { logLink(`relay ${i + 1} went quiet, restarting it`); c.heardAt = now; try { c.stream.destroy(); } catch {} return; }
+    if (now - c.pingAt >= (lanes ? 1000 : 3000)) { c.pingAt = now; c.publish(echoTopic(i), String(now)); }
+  });
+}
+const controlLag = () => {   // how long a message takes right now on the best relay
+  const now = Date.now(), up = clients.filter(c => c.connected && c.echoes);
+  return up.length ? Math.min(...up.map(c => Math.max(c.lag, c.heardAt < c.pingAt ? now - c.pingAt : 0))) : 0;
+};
 const clients = [], seenPayloads = new Set(), lastTs = {}, startedAt = Date.now(), refused = new Set();
 let asking = null;
 let clockOff = 0;
@@ -1208,10 +1230,11 @@ addEventListener('resize', () => { if (!$('touchSheet').hidden) sizeInk(); });
 // ---- threesome mix: Leo and Max at different paces, reshuffled every 25 seconds until you touch anything
 let mixTimer = null, partnerMixing = false;
 const pickOne = a => a[Math.floor(Math.random() * a.length)];
-function mixOnce() {
+function mixOnce(first) {
+  if (isRemote && !partnerOnline()) return;
   const slowOne = Math.random() < .5 ? 'vib' : 'suc', fastOne = slowOne === 'vib' ? 'suc' : 'vib';
   for (const [kind, list, lo] of [[slowOne, SLOW, .1], [fastOne, FAST, .65]]) {
-    const lvl = state[kind].level || 60;
+    const lvl = state[kind].level || (first === true ? 60 : 0);
     change(kind, { mode: pickOne(list), speed: lo + Math.random() * .3, level: lvl }, true);
   }
   notify(`${label(slowOne)} goes slow, ${label(fastOne)} goes fast.`);
@@ -1227,8 +1250,8 @@ function gotMix(m) {
 $('mixBtn').onclick = () => {
   tap();
   if (mixTimer || partnerMixing) { stopMix(true); return; }
-  send({ t: 'mix', on: true });
-  mixOnce(); mixTimer = setInterval(mixOnce, 25000); $('mixBtn').setAttribute('aria-pressed', true);
+  send({ t: 'mix', on: true }); mixAt = Date.now();
+  mixOnce(true); mixTimer = setInterval(mixOnce, 25000); $('mixBtn').setAttribute('aria-pressed', true);
 };
 
 // ---- shared tabs: whatever one phone opens, the other opens too; Leo and Max stay in view as a slim strip
@@ -1293,7 +1316,7 @@ function resync() {   // the other phone came back: send what is open here so bo
   if (game.k) send({ t: 'game', game });
   if (lastClear && Date.now() - lastClear.at < 86400000) send({ t: 'clearchat', id: lastClear.id, ids: lastClear.ids });   // a phone that was away clears too
   for (const x of strokes) send({ t: 'stroke', s: { id: x.id, c: x.c, w: x.w, e: x.e, pts: x.pts } });
-  if (wstate.id) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v });
+  if (wstate.id) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold });
 }
 function gotDraw(m) {
   if (m.clear) { strokes = []; redraw(); return; }
@@ -1708,8 +1731,10 @@ async function shareVid(id) {
 // frame = 12-byte video id + 8-byte position + data; anything not exactly at the next expected byte is dropped, never stored
 const fileIn = `closer-v2/${room}/f${isRemote ? 'h' : 'c'}`, fileOut = `closer-v2/${room}/f${isRemote ? 'c' : 'h'}`;
 const dataIn = `closer-v2/${room}/d${isRemote ? 'h' : 'c'}`, dataOut = `closer-v2/${room}/d${isRemote ? 'c' : 'h'}`;
-let noDirectSince = window.RTCPeerConnection ? Date.now() : 0, slowInQ = Promise.resolve(), lanes = null, lanesAt = 0, slowWake = [];
-const LANE_ROOM = 8, SLOW_PIECE = 48000;   // pieces waiting for an answer per connection; the third relay refuses pieces this big
+let noDirectSince = window.RTCPeerConnection ? Date.now() : 0, slowInQ = Promise.resolve(), lanes = null, lanesAt = 0, slowWake = [], peerLanes = null;
+const slowSeen = new Set();
+const LANE_ROOM = 8, SLOW_PIECE = 48000;
+let laneRoom = 2, laneGrew = 0;   // pieces waiting for an answer per connection; the third relay refuses pieces this big
 const slowClient = () => clients.find(c => c && c.connected);
 function fileLine() {
   if (fcDirect()) { noDirectSince = Date.now(); return fc; }
@@ -1728,7 +1753,12 @@ function ensureLanes() {   // two connections only for video, so slider moves an
     return c;
   });
 }
-const freeLane = () => (lanes || []).filter(c => c.connected && c.left < LANE_ROOM).sort((a, b) => a.left - b.left)[0];
+const freeLane = () => (lanes || []).filter((c, i) => c.connected && c.left < laneRoom && !(peerLanes && peerLanes[i] === false)).sort((a, b) => a.left - b.left)[0];
+function paceVideo() {   // when slider moves and Stop start to crawl, video backs off so they stay fast
+  const lag = controlLag();
+  if (lag > 1500) laneRoom = Math.max(1, laneRoom >> 1);
+  else if (lag < 800 && Date.now() - laneGrew > 3000) { laneGrew = Date.now(); laneRoom = Math.min(LANE_ROOM, laneRoom + 1); }
+}
 const slowLine = {   // looks like the direct channel to the code that sends files
   readyState: 'open',
   get bufferedAmount() { ensureLanes(); return freeLane() ? 0 : Infinity; },
@@ -1742,13 +1772,17 @@ const slowLine = {   // looks like the direct channel to the code that sends fil
     const iv = rand(12);
     crypto.subtle.encrypt({ name: 'AES-GCM', iv }, pairKey, plain).then(ct => {
       const out = new Uint8Array(12 + ct.byteLength); out.set(iv); out.set(new Uint8Array(ct), 12);
-      const c = lane || slowClient();
-      if (!c || !c.connected) { done(); return; }
-      c.publish(lane ? dataOut : fileOut, b64(out), { qos: lane ? 1 : 0 }, done);
+      const to = lane ? [lane] : clients.slice(0, 2).filter(c => c.connected);   // requests go on both relays: the other phone may only hear one
+      if (!to.length) { done(); return; }
+      const txt = b64(out);
+      to.forEach(c => c.publish(lane ? dataOut : fileOut, txt, { qos: lane ? 1 : 0 }, done));
     }).catch(done);
   },
 };
 function slowIn(txt) {
+  const tag = txt.slice(0, 24);
+  if (slowSeen.has(tag)) return;
+  slowSeen.add(tag); if (slowSeen.size > 2000) slowSeen.delete(slowSeen.values().next().value);
   slowInQ = slowInQ.then(async () => {
     if (!pairKey) return;
     const b = unb64(txt);
@@ -1758,11 +1792,11 @@ function slowIn(txt) {
 }
 function setupFc(ch) {
   fc = ch; ch.binaryType = 'arraybuffer'; ch.bufferedAmountLowThreshold = PIECE;
-  ch.onopen = () => { if (fc !== ch) return; sendLib(); askNext(); renderVids(); };
+  ch.onopen = () => { ch.wasOpen = true; if (fc !== ch) return; sendLib(); askNext(); renderVids(); };
   ch.onmessage = e => gotFile(e.data, ch);
-  ch.onclose = () => { if (fc === ch) dropFc(); };
+  ch.onclose = () => { if (fc === ch) dropFc(ch.wasOpen); };
 }
-function dropFc() { fc = null; outTok++; outQ.length = 0; renderVids(); }
+function dropFc(wasOpen) { fc = null; if (wasOpen) { outTok++; outQ.length = 0; } renderVids(); }
 const sendFc = obj => { const l = fileLine(); if (l) try { l.send(JSON.stringify(obj)); } catch {} };
 
 // sending: the other phone names the parts it wants; frame = 12-byte video id + 8-byte position + data
@@ -1772,6 +1806,7 @@ function gotWant(m, via) {
   const v = validId(m.id) && vidMap[m.id];
   if (!v || !v.ready || !Array.isArray(m.ps)) return;
   if (m.now) { outQ.length = 0; outTok++; }   // the player jumped: what it needs now goes first
+  if (Array.isArray(m.ln) && m.ln.some(Boolean)) peerLanes = m.ln;
   const n = partsIn(v);
   for (const i of m.ps.slice(0, 64)) if (Number.isInteger(i) && i >= 0 && i < n && !outQ.some(q => q.id === m.id && q.i === i)) outQ.push({ id: m.id, i, via });
   pump();
@@ -1801,7 +1836,7 @@ async function sendPart(id, i, ch) {
 let wantFrom = null;
 function rx(id) {
   const v = vidMap[id];
-  return recv[id] || (recv[id] = { have: v.have || 0, done: new Set(v.done || []), open: new Map(), asked: new Map(), lastAt: 0, q: Promise.resolve(), line: null, urgent: false });
+  return recv[id] || (recv[id] = { have: v.have || 0, done: new Set(v.done || []), saved: new Set(v.done || []), open: new Map(), asked: new Map(), lastAt: 0, q: Promise.resolve(), line: null, urgent: false });
 }
 function askNext() {
   const line = fileLine();
@@ -1816,7 +1851,7 @@ function askNext() {
   if (!ps.length) return;
   if (line === slowLine) ensureLanes();
   for (const i of ps) r.asked.set(i, now);
-  sendFc({ op: 'want', id: v.id, ps, now: r.urgent });
+  sendFc({ op: 'want', id: v.id, ps, now: r.urgent, ln: lanes ? lanes.map(c => c.connected) : undefined });
   r.urgent = false;
 }
 function gotFile(data, via) {
@@ -1850,14 +1885,15 @@ function savePart(id, r, i, blob) {   // the part and the new count are saved in
   r.done.add(i); r.have += blob.size; v.have = r.have; v.done = [...r.done];
   r.q = r.q.then(async () => {
     if (recv[id] !== r || !vidMap[id]) return;
-    await tx(['parts', 'meta'], 'readwrite', s => { s('parts').put(blob, [id, i]); s('meta').put(v); });
+    r.saved.add(i);   // only what is really saved counts, or a fast line finishes too early and starts the video over
+    await tx(['parts', 'meta'], 'readwrite', s => { s('parts').put(blob, [id, i]); s('meta').put({ ...v, done: [...r.saved], have: [...r.saved].reduce((a, k) => a + Math.min(PART, v.size - k * PART), 0) }); });
     r.asked.delete(i);
     sendFc({ op: 'got', id, have: v.have });
-    if (r.done.size >= partsIn(v)) await finishRecv(id);
+    if (r.saved.size >= partsIn(v)) await finishRecv(id);
     else askNext();
   }).catch(() => {
     if (recv[id] !== r) return;
-    r.done.delete(i); r.have -= blob.size; v.have = r.have; v.done = [...r.done]; r.asked.delete(i); saveMeta(v);
+    r.done.delete(i); r.saved.delete(i); r.have -= blob.size; v.have = r.have; v.done = [...r.done]; r.asked.delete(i); saveMeta(v);
     notify('There is not enough space on this phone for the video. Free some space and it carries on.');
   });
 }
@@ -1942,19 +1978,20 @@ const clampT = t => Math.max(0, isFinite(vid.duration) ? Math.min(t, vid.duratio
 const here = () => !!wstate.id && loadedId === wstate.id && vid.readyState >= 1;
 const curPos = () => here() ? vid.currentTime : target();
 const showsPlaying = () => wstate.playing && !(here() && vid.ended);   // a video that reached its end shows Play again
-function act(playing, pos, id = wstate.id) {   // an action on this phone: apply it, then tell the other phone once
-  holding = false;
+function act(playing, pos, id = wstate.id, hold = false) {   // an action on this phone: apply it, then tell the other phone once
+  holding = hold;
   const v = Math.max(Date.now(), wstate.v + 1);
-  wstate = { id, playing: !!playing && !!id, pos: Math.max(0, pos || 0), base: performance.now(), v, from: me };
+  wstate = { id, playing: !!playing && !!id, pos: Math.max(0, pos || 0), base: performance.now(), v, from: me, hold };
   beatAt = Date.now();
   applyState();
-  send({ t: 'wplay', id, playing: wstate.playing, pos: wstate.pos, v });
+  send({ t: 'wplay', id, playing: wstate.playing, pos: wstate.pos, v, hold });
 }
 function gotWplay(m) {   // an action from the other phone: applied here, never sent back
   if (!(m.id === null || validId(m.id)) || !Number.isFinite(m.v) || typeof m.from !== 'string') return;
   if (m.v < wstate.v || (m.v === wstate.v && m.from <= wstate.from)) return;
   const newId = m.id !== wstate.id;
-  wstate = { id: m.id, playing: !!m.playing && !!m.id, pos: Math.max(0, +m.pos || 0), base: performance.now() - lag(m), v: m.v, from: m.from };
+  wstate = { id: m.id, playing: !!m.playing && !!m.id, pos: Math.max(0, +m.pos || 0), base: performance.now() - lag(m), v: m.v, from: m.from, hold: m.hold === true };
+  if (m.hold !== true) holding = false;   // someone really pressed pause or play
   if (m.id && (newId || m.playing) && panel !== 'watch') openPanel('watch', true);
   applyState();
 }
@@ -1989,7 +2026,7 @@ vid.addEventListener('loadedmetadata', () => applyState());
 const aheadOf = () => { for (let i = 0; i < vid.buffered.length; i++) if (vid.buffered.start(i) <= vid.currentTime + .1 && vid.buffered.end(i) >= vid.currentTime) return vid.buffered.end(i) - vid.currentTime; return 0; };
 function keepTogether() {   // the video is still arriving: when this phone runs out, both wait and carry on together
   const v = wstate.id && vidMap[wstate.id];
-  if (holding && (!v || wstate.from !== me || wstate.playing)) holding = false;
+  if (holding && (!v || wstate.playing)) holding = false;
   if (!v || panel !== 'watch' || loadedId !== v.id) return;
   if (holding) {
     if (v.ready || (here() && (vid.readyState >= 4 || (vid.readyState >= 3 && aheadOf() >= 2)))) { const at = here() ? vid.currentTime : wstate.pos; act(true, at); }
@@ -1997,7 +2034,7 @@ function keepTogether() {   // the video is still arriving: when this phone runs
   }
   if (v.ready || !wstate.playing) return;
   if (!here() || (stallAt && vid.readyState < 3 && Date.now() - stallAt > 1500)) {
-    act(false, here() ? vid.currentTime : wstate.pos); holding = true; stallAt = 0;
+    act(false, here() ? vid.currentTime : wstate.pos, wstate.id, true); stallAt = 0;
     notify('Waiting for the video to catch up. It carries on by itself.');
   }
 }
@@ -2089,14 +2126,31 @@ steady(() => {   // once a second: keep the library in step, fetch missing video
 // ---- remote side
 let helloAt = 0;
 function hello() { if (!keys) return; helloAt = Date.now(); send({ t: 'hello', pub: keys.pub, name: myName }, true); }
+function stopReached() { if (stopWarned) notify('Stop reached her phone.'); stopPending = 0; stopWarned = false; keep('stopAt', 0); }
+function dropMoves() { for (const k in moving) { delete moving[k]; state[k].editUntil = 0; } leadWant = null; }
+function retryMoves() {   // her phone did not confirm: send it again for a moment, then say so
+  const now = Date.now();
+  for (const k in moving) {
+    if (now - moving[k].at > MOVE_TRIES_MS) { delete moving[k]; state[k].editUntil = 0; notify('That move did not reach her phone. Try again.'); }
+    else if (now - moving[k].sent > 900) sendMove(k);
+  }
+  if (leadWant && now - leadWant.at > MOVE_TRIES_MS) { leadWant = null; notify('That did not reach her phone. Try again.'); }
+  else if (leadWant && now - leadWant.sent > 900) { leadWant.sent = now; send({ t: 'lead', lead: leadWant.l }); }
+}
 const setTimers = {};
 function queueSet(kind) {   // at most ~8 messages a second per egg while dragging
   if (setTimers[kind]) return;
   setTimers[kind] = setTimeout(() => {
     setTimers[kind] = null;
-    const e = state[kind];
-    send({ t: 'set', egg: kind, level: e.level, mode: e.mode, speed: e.speed });
+    moveN = Math.max(Date.now(), moveN + 1);
+    moving[kind] = { n: moveN, at: Date.now() };
+    sendMove(kind);
   }, TICK_MS);
+}
+function sendMove(kind) {
+  const e = state[kind], w = moving[kind];
+  w.sent = Date.now();
+  send({ t: 'set', egg: kind, level: e.level, mode: e.mode, speed: e.speed, n: w.n, sn: sawHerStops });
 }
 const eggsOn = () => Object.values(state).filter(e => e.connected).length;
 const eggCount = m => Number.isInteger(m.eggs) ? Math.min(Math.max(m.eggs, 0), 2) : 0;   // only a hint from whoever has the link: never trusted on its own
@@ -2133,6 +2187,7 @@ async function fromHost(m, viaLink) {
   seen(m);
   gotName(m.name);
   if (m.t === 'rtc') gotRtc(m);
+  if (m.t === 'nope') dropMoves();
   if (m.t === 'nope') notify({
     paused: `${who()} paused your control. Ask her to switch it back on.`,
     leading: `${who()} is leading right now. Ask her to tap Shared.`,
@@ -2142,15 +2197,20 @@ async function fromHost(m, viaLink) {
   if (m.t === 'state') {
     allow = !!m.allow;
     if (m.eggs && Object.values(m.eggs).every(s => !s.level)) hostZeroAt = Date.now();
-    if (['both', 'host', 'remote'].includes(m.lead)) lead = m.lead;
+    if (['both', 'host', 'remote'].includes(m.lead)) { if (leadWant && leadWant.l === m.lead) leadWant = null; if (!leadWant) lead = m.lead; }
+    if (stopPending && m.stopAt >= stopPending) stopReached();
+    if (Number.isInteger(m.stops)) { if (m.stops !== sawHerStops) dropMoves(); sawHerStops = m.stops; }
+    if (m.mixing === false && (partnerMixing || (mixTimer && Date.now() - mixAt > 5000))) stopMix();   // the mix ended on her side and the note was lost
     if (m.names) for (const k in KINDS) if (typeof m.names[k] === 'string') names[k] = m.names[k].slice(0, 16);
     if (m.faces) for (const k in KINDS) if (FACES.includes(m.faces[k])) faces[k] = m.faces[k];
     for (const kind in KINDS) {
       const s = m.eggs && m.eggs[kind], e = state[kind];
       if (!s) continue;
       e.connected = !!s.connected; e.battery = s.battery;
-      if (Date.now() > e.editUntil) apply(e, s);
+      if (moving[kind] && s.n >= moving[kind].n) delete moving[kind];
+      if (Date.now() > e.editUntil && !moving[kind]) apply(e, s);
     }
+    mayRun = Object.keys(moving).length > 0 || (!!m.eggs && Object.values(m.eggs).some(s => s && s.connected && s.level)); keep('mayRun', mayRun);
   }
   common(m);
   render();
@@ -2183,6 +2243,7 @@ async function letIn(m) {
   if (!pair || pair.id !== m.from || !sameKey(pair.pub, m.pub)) {
     pair = { id: m.from, pub: pubOnly(m.pub) }; store.set('pair:' + room, pair);
     pairKey = await derive(pair.pub);
+    for (const k in KINDS) state[k].heardN = 0;
     logLink('phone paired');
     notify('Paired with your partner\'s phone.');
   }
@@ -2207,18 +2268,22 @@ async function fromRemote(m, viaLink) {
   if (!pair || m.from !== pair.id) return;
   seen(m);
   gotName(m.name);
-  if (m.t === 'stop') { stopAll(`${who()} pressed stop`); stoppedAt = 0; partnerStopTs = m.ts; }   // his own later moves still count
+  if (m.t === 'stop') {   // repeated until she confirms: acted on once per press; his own later moves still count
+    const at = Number.isFinite(m.at) ? m.at : m.ts;
+    if (at > partnerStopTs) { stopAll(`${who()} pressed stop`); stoppedAt = 0; partnerStopTs = at; }
+    publishStateSoon();
+  }
   if (m.t === 'rtc') gotRtc(m);
   if (m.t === 'lead') { if (allow && lead !== 'host') setLead(m.lead); else refuse(!allow ? 'paused' : 'leading'); }
   if (m.t === 'rename' && m.egg in KINDS && typeof m.label === 'string' && m.label.trim()) rename(m.egg, m.label.trim().slice(0, 16), m.face);
   if (m.t === 'set') {
-    const why = !allow ? 'paused' : lead === 'host' ? 'leading' : Date.now() - stoppedAt <= 1500 || m.ts < partnerStopTs ? 'stopped' : !(state[m.egg] && state[m.egg].connected) ? 'off' : '';
-    if (why) refuse(why, m.egg);
-  }
-  if (m.t === 'set' && allow && lead !== 'host' && Date.now() - stoppedAt > 1500 && m.ts >= partnerStopTs && state[m.egg] && state[m.egg].connected) {
     const e = state[m.egg];
-    apply(e, m); e.by = 'partner';
-    publishStateSoon();
+    const why = !allow ? 'paused' : lead === 'host' ? 'leading' : Date.now() - stoppedAt <= 1500 || m.ts < partnerStopTs || m.sn < herStops ? 'stopped' : !(e && e.connected) ? 'off' : '';
+    if (why) refuse(why, m.egg);
+    else {
+      if (!(m.n <= e.heardN)) { apply(e, m); e.by = 'partner'; e.heardN = m.n; }   // a repeat changes nothing, so it can never undo what she did since
+      publishStateSoon();
+    }
   }
   common(m);
   render();
@@ -2229,8 +2294,8 @@ function refuse(why, egg) {   // at most one note every 3 s
 }
 function publishState() {
   const eggs = {};
-  for (const kind in KINDS) { const e = state[kind]; eggs[kind] = { level: e.level, mode: e.mode, speed: e.speed, battery: e.battery, connected: e.connected }; }
-  send({ t: 'state', allow, eggs, name: myName, lead, names, faces });
+  for (const kind in KINDS) { const e = state[kind]; eggs[kind] = { level: e.level, mode: e.mode, speed: e.speed, battery: e.battery, connected: e.connected, n: e.heardN }; }
+  send({ t: 'state', allow, eggs, name: myName, lead, names, faces, stops: herStops, stopAt: partnerStopTs, mixing: !!mixTimer || partnerMixing });
 }
 function publishStateSoon() { clearTimeout(publishStateSoon.t); publishStateSoon.t = setTimeout(publishState, 80); }
 
@@ -2314,7 +2379,7 @@ async function linkOnce(c) {
     throw new Error('Bluetooth took too long');
   })]).finally(() => { over = true; });
   c.up = true; c.sent = '';
-  await write(c, [0x55, 0x04]);   // the answer says which eggs this connection reaches
+  write(c, [0x55, 0x04]);   // the answer says which eggs this connection reaches; never wait on it, a dying link can leave it hanging
   write(c, [0x55, 0x0b]);   // the official app sends this after connecting too
   logLink('egg link up');
   store.set('eggsSeen', true);
@@ -2364,7 +2429,12 @@ async function stopAll(why) {
   tap(); stopMix(true);
   for (const kind in KINDS) { state[kind].level = 0; state[kind].by = 'me'; }
   stoppedAt = Date.now();
-  if (isRemote) { stopPending = Date.now(); if (!(await send({ t: 'stop' }))) why = 'Stop has not reached her phone yet. Trying again'; }
+  if (isRemote) {
+    for (const k in moving) delete moving[k];
+    for (const k in setTimers) { clearTimeout(setTimers[k]); setTimers[k] = null; }
+    stopPending = Date.now(); stopWarned = false; keep('stopAt', stopPending);
+    if (!(await send({ t: 'stop', at: stopPending }))) why = 'Stop has not reached her phone yet. Trying again';
+  }
   else {
     await Promise.all(ups().map(c => { c.sent = '0,0'; return write(c, command(0, 0)); }));
     publishStateSoon();
@@ -2449,7 +2519,12 @@ async function parkHere() {   // another tab took over: let go of everything on 
   endRtc('send', true); endRtc('recv', true); endRtc('data');
   showPark('Loveline moved to another tab', 'It is now open in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
 }
-function takeOver() { if (bc) bc.postMessage({ t: 'takeover' }); setTimeout(() => location.reload(), 400); }
+function takeOver() { keep('steal', true); if (bc) bc.postMessage({ t: 'takeover' }); setTimeout(() => location.reload(), 400); }
+let tabHeld = false;
+const holdTab = steal => new Promise(res => {   // the browser lets only one tab hold this; it goes when the tab goes
+  navigator.locks.request('closer-tab', steal ? { steal: true } : { ifAvailable: true }, lock => { tabHeld = !!lock; res(tabHeld); return lock && new Promise(() => {}); })
+    .catch(() => { res(true); if (tabHeld) parkHere(); });   // another tab took over
+});
 if (bc) bc.onmessage = e => {
   if (parked) return;
   if (e.data.t === 'who') bc.postMessage({ t: 'here' });
@@ -2466,13 +2541,17 @@ async function begin() {
     showPark('This is your own link', 'Send it to your partner. They open it on their phone to hold your remote.', 'Go to my eggs', () => location.replace(location.pathname));
     return;
   }
-  if (bc) {   // is Loveline already running in another tab on this phone?
+  const alreadyOpen = () => showPark('Loveline is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
+  const steal = !!kept('steal'); keep('steal', false);
+  if (navigator.locks) {
+    if (!await holdTab(steal)) { await wait(600); if (!await holdTab(false)) { alreadyOpen(); return; } }   // a refresh can still be letting go for a moment
+  } else if (bc) {   // is Loveline already running in another tab on this phone?
     let busy = false;
     const h = e => { if (e.data.t === 'here') busy = true; };
     bc.addEventListener('message', h); bc.postMessage({ t: 'who' });
     await new Promise(r => setTimeout(r, 400));
     bc.removeEventListener('message', h);
-    if (busy) { showPark('Loveline is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver); return; }
+    if (busy) { alreadyOpen(); return; }
   }
   startNet().catch(() => notify('Could not start the secure connection. Reload the page.'));
   if (!isRemote) { autoJoin(); addEventListener('pointerdown', startKeepAlive, { once: true }); }   // eggs from an earlier visit: sound may start only after her first touch
@@ -2503,12 +2582,17 @@ steady(() => {   // once a second: presence, safety check, status ask
   if (parked) return;
   if (Date.now() - lastBeat > 10000) wokeUp(Date.now() - lastBeat);
   lastBeat = Date.now();
+  checkRelays();
+  if (lanes) paceVideo();
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
-    if (stopPending && hostZeroAt > stopPending) stopPending = 0;
-    else if (stopPending && Date.now() - stopPending > 10000) { stopPending = 0; notify('Stop could not reach her phone. Ask her to press Stop.'); }
-    else if (stopPending) send({ t: 'stop' });
+    if (stopPending && hostZeroAt > stopPending) stopReached();
+    else if (stopPending) {
+      send({ t: 'stop', at: stopPending });
+      if (!stopWarned && Date.now() - stopPending > 10000) { stopWarned = true; notify('Stop has not reached her phone yet. It keeps trying. Ask her to press Stop.', 9000); }
+    }
+    retryMoves();
   } else {
     if (Date.now() - partnerSeen > DROP_STOP_MS) partnerLost(`${who()}'s connection dropped for 30 seconds`);
     else if (pairKey && (!direct() || !fcDirect()) && Date.now() - dataAt > 10000) startData().catch(() => {});
@@ -2532,7 +2616,11 @@ $('muteBtn').onclick = () => { $('audio').muted = !$('audio').muted; send({ t: '
 document.addEventListener('click', () => { if (hearing && $('audio').paused) $('audio').play().catch(() => {}); });
 window.addEventListener('pagehide', () => { endRtc('send', true); endRtc('recv', true); });
 
-if (isRemote) $('remotePanel').hidden = false;
+if (isRemote) {
+  $('remotePanel').hidden = false;
+  keepScreenOn();   // a locked phone goes quiet and her phone stops his settings 30 s later
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) keepScreenOn(); });
+}
 else {
   $('hostPanel').hidden = false;
   $('connect').onclick = async () => {
@@ -2571,7 +2659,7 @@ else {
 let leaving = false;
 addEventListener('beforeunload', e => { if (!isRemote && !leaving && Object.values(state).some(x => x.connected)) { e.preventDefault(); e.returnValue = ''; } });
 addEventListener('scroll', () => document.querySelector('header').classList.toggle('small', scrollY > 24), { passive: true });   // large title shrinks into a bar
-$('stop').onclick = () => stopAll(isRemote ? 'You stopped both eggs' : 'Both eggs stopped');
+$('stop').onclick = () => { if (!isRemote) herStops++; stopAll(isRemote ? 'You stopped both eggs' : 'Both eggs stopped'); };
 </script>
 </body>
 </html>
