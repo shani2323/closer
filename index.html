@@ -1802,10 +1802,16 @@ $('vidFile').onchange = async ev => {
   notify((fcOpen() ? `Sending "${vTitle(v)}" to ${who()}.` : `Saved. It will send to ${who()} when their phone is back.`) + slow);
 };
 // a link to a video somewhere else: the file plays straight in our player; a site with its own player shows that player
-const FINDER = 'https://loveline-finder.shani2323.workers.dev';   // reads a web page and answers with the video inside it
+const FINDER = 'https://loveline-finder.kaka.deno.net';   // reads a web page and answers with the video inside it
+const homeNet = h => /^\[|^[\d.]+$|^[^.]+\.?$|\.(local|localhost|localdomain|internal|lan|home|intranet|arpa|nip\.io|sslip\.io|xip\.io|plex\.direct)\.?$/i.test(h);   // best effort: it sees only the name, not where a name or a redirect really leads
 async function findVideo(page) {
-  try { const r = await fetch(`${FINDER}/?u=${encodeURIComponent(page)}`, { signal: AbortSignal.timeout(20000) }); return r.ok ? await r.json() : null; }
-  catch { return null; }
+  try {
+    const u = new URL(page);
+    if (homeNet(u.hostname)) return null;
+    u.hash = ''; u.username = ''; u.password = '';
+    const r = await fetch(`${FINDER}/?u=${encodeURIComponent(u.href)}`, { signal: AbortSignal.timeout(20000) });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
 }
 const playsHere = u => { const L = u && readLink(u); return L && (L[0] === 'file' || L[0] === 'stream') ? L : null; };
 function readLink(text) {   // [how it plays, what to load], worked out here, or null. Nothing else ever reaches the player.
@@ -1819,9 +1825,8 @@ function readLink(text) {   // [how it plays, what to load], worked out here, or
   if (h === 'vimeo.com' && (c = hit(/^\/(\d+)/))) return ['frame', `https://player.vimeo.com/video/${c}`];
   if (h === 'xvideos.com' && (c = hit(/^\/video\.?([\w-]+)/))) return ['frame', `https://www.xvideos.com/embedframe/${c}`];
   if (h === 'pornhub.com' && (c = hit(/^(\w+)$/, q('viewkey')))) return ['frame', `https://www.pornhub.com/embed/${c}`];
-  const homeNet = /^\[|^[\d.]+$|^[^.]+\.?$|\.(local|localhost|localdomain|internal|lan|home|intranet|arpa|nip\.io|sslip\.io|xip\.io|plex\.direct)\.?$/i.test(u.hostname);   // best effort: it sees only the name, not where a name or a redirect really leads
-  if (/\.(mp4|m4v|mov|webm)$/i.test(P) && !homeNet) return ['file', u.href];
-  if (/\.m3u8$/i.test(P) && !homeNet) return ['stream', u.href];
+  if (/\.(mp4|m4v|mov|webm)$/i.test(P) && !homeNet(u.hostname)) return ['file', u.href];
+  if (/\.m3u8$/i.test(P) && !homeNet(u.hostname)) return ['stream', u.href];
   return null;
 }
 function linkEntry(link, from) {
@@ -1840,7 +1845,7 @@ $('linkBtn').onclick = () => { tap(); const f = $('linkForm'); f.hidden = !f.hid
 $('linkForm').onsubmit = async ev => {
   ev.preventDefault();
   const text = $('linkText').value.trim(); let L = readLink(text), link = text, got = null;
-  if (/^https:\/\//i.test(text) && !L) {
+  if (/^https:\/\//i.test(text) && (!L || L[0] === 'frame')) {
     $('linkGo').disabled = true; notify('Looking for the video on that page…', 8000);
     got = await findVideo(text);
     $('linkGo').disabled = false;
@@ -2223,7 +2228,7 @@ async function startStream(id, url) {
   if (loadedId !== id) return;
   if (window.Hls && Hls.isSupported()) {
     let fixes = 0;
-    hlsPlayer = new Hls();
+    hlsPlayer = new Hls({ xhrSetup: (_, u) => { if (homeNet(new URL(u).hostname)) throw new Error('home network'); } });
     hlsPlayer.on(Hls.Events.ERROR, (_, d) => {
       if (!d.fatal) return;
       if (d.type === Hls.ErrorTypes.MEDIA_ERROR && fixes++ < 2) { hlsPlayer.recoverMediaError(); return; }
