@@ -2,6 +2,15 @@
 const PART = 1 << 19, MOST = 8, WAIT_MS = 120000;
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of you, with the app closed. The message is fixed here, so no words travel through the helper.
+  const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  if (open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) return;   // the open page shows its own heart; an iPhone must always be shown something
+  await self.registration.showNotification('Loveline', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
+})()));
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => l.length ? l[0].focus() : self.clients.openWindow('./')));
+});
 self.addEventListener('fetch', e => {
   const m = new URL(e.request.url).pathname.match(/\/stream\/([\w-]+)\/([\w-]{12})$/);
   if (m && e.request.mode !== 'navigate') e.respondWith(serve(e.request, m[1], m[2]));

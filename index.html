@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#000000">
 <title>Loveline</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loveline">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -125,6 +129,10 @@
   .msgs::-webkit-scrollbar { display: none; }
   .msgs:empty { display: none; }
   .dock.open .msgs { max-height: 55dvh; }
+  .chatTop { display: none; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .dock.open .chatTop { display: flex; }
+  .closeChat { height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: var(--fill); font-size: 14px; font-weight: 600; }
+  .chatTop .clearChat { margin: 0; }
   .clearChat { display: none; margin: 0 auto 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--red); font-size: 13px; font-weight: 600; }
   .dock.open .clearChat { display: block; }
   #clearSheet, #askSheet { z-index: 12; }
@@ -139,8 +147,8 @@
   .tick { margin-left: 3px; letter-spacing: -3px; }
   .tick.st3 { color: #53bdeb; }
   .typing { font-size: 13px; color: var(--label2); padding: 0 8px 6px; }
-  .quick { display: flex; gap: 2px; overflow-x: auto; margin-bottom: 8px; padding: 6px; border-radius: 26px; scrollbar-width: none; }
-  .quick button { flex: none; width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; font-size: 26px; line-height: 1; }
+  .quick { display: grid; grid-template-rows: repeat(2, 44px); grid-auto-flow: column; grid-auto-columns: 44px; gap: 2px; overflow-x: auto; margin-bottom: 8px; padding: 6px; border-radius: 26px; scrollbar-width: none; }
+  .quick button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; font-size: 26px; line-height: 1; }
   .bar { display: flex; gap: 8px; align-items: center; }
   .compose { flex: 1; min-width: 0; display: flex; align-items: center; height: 52px; padding: 0 5px 0 4px; border-radius: 26px; }
   .compose input { flex: 1; min-width: 0; height: 44px; border: 0; background: none; padding: 0 6px; font-size: 17px; outline: none; }
@@ -236,7 +244,7 @@
   .parkBox h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -.025em; }
   .parkBox p { margin: 0 0 14px; color: var(--label2); font-size: 15px; }
   .primary.alt { background: var(--fill2); }
-  .tabs { display: grid; grid-template-columns: repeat(4, auto); gap: 2px; margin: 0 0 12px; padding: 2px; border-radius: 10px; background: var(--fill); }
+  .tabs { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; margin: 0 0 12px; padding: 2px; border-radius: 10px; background: var(--fill); }
   .tabs button { height: 34px; border: 0; border-radius: 8px; background: none; font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
   .tabs button[aria-selected=true] { background: #636366; font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .25); }
   body.panel .egg { display: grid; grid-template-columns: 44px 1fr; column-gap: 10px; align-items: center; text-align: left; padding: 8px 12px 8px 8px; border-radius: 16px; }
@@ -262,17 +270,51 @@
   .tool[aria-pressed=true] { background: #fff; color: #000; }
   .tools .tool:first-of-type { margin-left: auto; }
   .turn { margin: 0 2px 8px; font-size: 15px; color: var(--label2); }
+  .score { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .score > div { padding: 8px 10px; border-radius: 12px; background: var(--fill); text-align: center; }
+  .score b { display: block; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .score strong { display: block; font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .score small { display: block; font-size: 12px; color: var(--label2); font-variant-numeric: tabular-nums; }
+  .score .ahead strong { color: var(--pink, #ff5c93); }
+  .towerWrap { position: relative; overflow: hidden; border-radius: 16px; background: #241645; }
+  #towerCanvas { display: block; width: 100%; height: clamp(220px, calc(100vh - 490px), 460px); height: clamp(220px, calc(100dvh - 490px), 460px); touch-action: manipulation; }
+  .towerHud { position: absolute; left: 10px; right: 10px; top: 8px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, .55); }
+  .towerHud b { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .towerHud small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; }
+  #towerHearts { font-size: 17px; letter-spacing: 1px; }
+  .towerDrop:active:not(:disabled) { transform: scale(.97); transition: transform 100ms ease-out; }
+  .towerDrop:disabled { opacity: 1; background: var(--fill); color: var(--label2); }
+  .hleft { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  #buzzBtn { flex: none; padding: 0; font-size: 19px; line-height: 1; }
+  #buzzBtn:active { transform: scale(.92); transition: transform 100ms ease-out; }
+  .alertHelp { margin: 0; padding: 2px 16px 10px; font-size: 13px; line-height: 1.35; color: var(--label2); }
+  .pasteLink { display: grid; gap: 12px; max-width: 420px; margin: 0 auto; padding: 72px 20px; color: #fff; }
+  .pasteLink input { height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: #2c2c2e; color: #fff; font-size: 16px; }
+  .towerRight { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .towerChips { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .towerChips span { max-width: 130px; overflow: hidden; padding: 2px 8px; border-radius: 10px; font-size: 13px; font-weight: 700; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; text-shadow: none; font-variant-numeric: tabular-nums; }
+  .towerChips .her { background: #c2185b; }
+  .towerChips .him { background: #3b3fc4; }
+  .gameEnd { display: block; margin: 10px auto 0; height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: var(--fill); font-size: 14px; font-weight: 600; }
+  .turnFx { position: fixed; left: 24px; right: 24px; top: 58%; z-index: 8; pointer-events: none; text-align: center; font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; color: #fff;
+    padding: 16px 18px; border-radius: 20px; background: rgba(20, 8, 30, .84); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); animation: turnFx 3.6s cubic-bezier(.2, .8, .2, 1) both; }
+  .turnFx small { display: block; margin-top: 6px; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+  @keyframes turnFx { 0% { opacity: 0; transform: translateY(14px) scale(.92); filter: blur(8px); } 12% { opacity: 1; transform: none; filter: none; } 82% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-8px); } }
+  @media (prefers-reduced-motion: reduce) { .turnFx { animation-name: turnFxCalm; } @keyframes turnFxCalm { 0%, 100% { opacity: 0; } 12%, 82% { opacity: 1; } } }
   .card { display: grid; place-items: center; min-height: 160px; padding: 20px; border-radius: 16px; text-align: center;
           background: linear-gradient(160deg, rgba(94, 92, 230, .35), rgba(255, 55, 95, .18)); font-size: 20px; font-weight: 600; line-height: 1.35; letter-spacing: -.02em; }
   .card small { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--label2); letter-spacing: -.005em; }
   .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
   .pick button { height: 50px; border: 0; border-radius: 14px; background: var(--fill2); font-size: 17px; font-weight: 600; }
   .pick .truth { background: #5e5ce6; }
+  .pick .truth:disabled { background: var(--fill); color: var(--label2); }
+  .gameRules { margin: 10px 2px 0; font-size: 13px; line-height: 1.35; color: var(--label2); }
   .pick .dare { background: #ff375f; }
   .screen { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000; }
   .screen video { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; }
   .vwait { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; font-size: 15px; color: var(--label2); background: rgba(0, 0, 0, .65); }
-  #vidSeek { margin-top: 6px; }
+  .seekBox { padding: 12px 0 8px; touch-action: pan-y; }
+  #vidSeek { display: block; width: 100%; margin: 0; pointer-events: none; }
   #vidSeek:disabled { opacity: .4; }
   .vtime { display: flex; gap: 8px; margin: 0 2px; font-size: 13px; color: var(--label2); font-variant-numeric: tabular-nums; }
   .vtime b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-weight: 500; color: var(--label); }
@@ -300,7 +342,7 @@
   .vcount.say { font-size: 28px; }
   .vcount[hidden], #vidTogether[hidden] { display: none; }
   #vidTogether { display: block; width: 100%; height: 44px; margin-top: 8px; border: 0; border-radius: 22px; background: var(--blue); color: #fff; font-size: 15px; font-weight: 600; }
-  #player.isframe #vidSeek, #player.isframe .vtime span, #player.isframe .vctl > :not(#vidClose) { display: none; }
+  #player.isframe .seekBox, #player.isframe .vtime span, #player.isframe .vctl > :not(#vidClose) { display: none; }
   .vlist { margin: 0; padding: 0; list-style: none; border-radius: 14px; background: var(--fill); overflow: hidden; }
   .vlist:empty { display: none; }
   .vrow { position: relative; display: flex; align-items: center; padding: 2px 2px 2px 0; border-top: .5px solid var(--hair); }
@@ -339,9 +381,9 @@
 <body>
 <main>
   <header>
-    <h1>Loveline</h1>
+    <div class="hleft"><h1>Loveline</h1><button class="me glass" id="buzzBtn" aria-label="Send Thinking of you" hidden>💗</button></div>
     <div class="hdr">
-      <button class="stop" id="stop" aria-label="Stop both eggs">Stop</button>
+      <button class="stop" id="stop" aria-label="Stop everything">Stop</button>
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
     </div>
   </header>
@@ -352,7 +394,7 @@
     <p class="note" id="heroText"></p>
     <div id="heroSlot"></div>
   </section>
-  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game">Truth or Dare</button><button role="tab" data-p="watch">Watch</button></nav>
+  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game">Truth or Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="watch">Watch</button></nav>
   <p class="warn" id="batWarn" role="alert" hidden></p>
   <section class="ask glass" id="listenAsk" hidden>
     <b id="askTitle">🎧 Your partner wants you to listen</b>
@@ -371,9 +413,27 @@
   <section class="panelBox glass" id="gamePanel" hidden>
     <div class="panelHead"><b>Truth or Dare</b><button class="done" data-close>Done</button></div>
     <p class="turn" id="turnText"></p>
+    <div class="score" id="gameScore"></div>
     <div class="card" id="card"></div>
     <div class="pick" id="pick"><button class="truth" id="pickTruth">Truth</button><button class="dare" id="pickDare">Dare</button></div>
     <div class="pick" id="after" hidden><button id="cardDone">Done ✓</button><button id="cardSkip">Skip</button></div>
+    <div class="pick" id="penBtns" hidden><button id="penDone">I sent it ✓</button><button id="penOther">Choose another</button></div>
+    <div class="pick" id="penCheck" hidden><button id="penGot">Got it ✓</button><button id="penNot">Not yet</button></div>
+    <button class="gameEnd" id="gameEnd" hidden>Finish and see who won</button>
+    <p class="gameRules">After 3 truths in a row, the next pick must be a dare. Skip a dare and you get a penalty. The game waits until your partner confirms it arrived. You can always choose another penalty.</p>
+    <label class="row"><span>Nude photo penalties for me</span><input type="checkbox" class="switch" id="spicyPen"></label>
+  </section>
+
+  <section class="panelBox glass" id="towerPanel" hidden>
+    <div class="panelHead"><b>Our Tower</b><button class="done" data-close>Done</button></div>
+    <p class="turn" id="towerTurn"></p>
+    <div class="towerWrap">
+      <canvas id="towerCanvas" aria-label="Our tower"></canvas>
+      <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
+    </div>
+    <button class="primary towerDrop" id="towerDrop">Drop</button>
+    <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
+    <p class="gameRules">Take turns. A perfect drop gives back a heart. After 3 misses the top 3 floors fall, and you carry on building.</p>
   </section>
 
   <section class="panelBox glass" id="watchPanel" hidden>
@@ -381,7 +441,7 @@
     <div id="player" hidden>
       <div class="screen"><video id="vid" playsinline muted preload="auto"></video><div class="vwait" id="vidWait" hidden></div><div class="vcount" id="vidCount" hidden></div></div>
       <button id="vidTogether" hidden>Start together</button>
-      <input type="range" id="vidSeek" min="0" max="1000" value="0" aria-label="Position in the video">
+      <div class="seekBox" id="seekBox"><input type="range" id="vidSeek" min="0" max="1000" value="0" aria-label="Position in the video"></div>
       <div class="vtime"><span id="vidNow">0:00</span><b id="vidName"></b><span id="vidLen">0:00</span></div>
       <div class="vctl">
         <button class="vbtn" id="vidSound" aria-pressed="false" aria-label="Turn the video sound on"></button>
@@ -424,11 +484,12 @@
   </section>
 
   <section class="group glass" id="hostPanel" hidden>
-    <h2>Your eggs</h2>
+    <h2>Connect</h2>
     <p class="note" id="hostHint"></p>
-    <button class="row action" id="connect">Connect an egg</button>
+    <button class="row action" id="connect">Connect</button>
     <label class="row"><span id="allowLabel">Let your partner control</span><input type="checkbox" class="switch" id="allow" checked></label>
     <button class="row" id="copyLink">Copy your partner's link</button>
+    <button class="row switchSide" hidden>Switch this phone to his side</button>
     <button class="row danger" id="forget" hidden>Forget paired phone</button>
     <button class="row copyReport">Copy connection report</button>
   </section>
@@ -436,12 +497,13 @@
   <section class="group glass" id="remotePanel" hidden>
     <h2 id="remoteTitle">Holding the remote</h2>
     <p class="note" id="remoteText"></p>
+    <button class="row switchSide" hidden>Switch this phone to her side</button>
     <button class="row copyReport">Copy connection report</button>
   </section>
 </main>
 
 <div class="dock" id="dock"><div class="dock-in">
-  <button class="clearChat" id="clearChat" hidden>Clear chat</button>
+  <div class="chatTop"><button class="clearChat" id="clearChat" hidden>Clear chat</button><button class="closeChat" id="closeChat">Close</button></div>
   <div class="msgs" id="msgs" aria-live="polite" title="Tap to see more"></div>
   <div class="typing" id="typing" hidden></div>
   <div class="quick glass" id="quick" hidden></div>
@@ -530,7 +592,7 @@ const SWAP = {   // a pattern meant for the other egg becomes this egg's closest
 };
 const fitMode = (kind, m) => SWAP[kind][m] || m;
 const HANDMADE = new Set(['sex', 'deep', 'fast', 'pound', 'shallow', 'grind', 'clit', 'nipple', 'suckle', 'bob', 'deepsuck', 'fastsuck', 'kiss', 'lick', 'licks', 'flutter', 'swirl']);   // these wander a little, the way a person does
-const EMOJI = ['🔥', '🥵', '😈', '💋', '🫦', '👅', '💦', '🍑', '🍆', '🍒', '🌶️', '😏', '🤤', '😍', '❤️‍🔥', '💞', '🙈', '🥂', '🌹', '⛓️', '👀', '🖤', '😘', '💑'];
+const EMOJI = ['😘', '😚', '😗', '😙', '🥰', '😊', '😄', '😂', '🤣', '🥲', '😢', '😭', '🥺', '😔', '💔', '🤗', '🫶', '❤️', '🔥', '🥵', '😈', '💋', '🫦', '👅', '💦', '🍑', '🍆', '🍒', '🌶️', '😏', '🤤', '😍', '❤️‍🔥', '💞', '🙈', '🥂', '🌹', '⛓️', '👀', '🖤', '💑'];
 const MAX_BEATS = 3.5, TICK_MS = 125, PARTNER_TIMEOUT_MS = 5000, DROP_STOP_MS = 30000;   // his settings keep running 30 s after his phone goes quiet
 
 const $ = id => document.getElementById(id);
@@ -564,7 +626,19 @@ function logLink(t) { linkLog.push(new Date().toISOString().slice(5, 19).replace
 const linkReport = () => [`Loveline report, ${navigator.userAgent}`, ...linkLog].join('\n');
 
 // ---- room
-if (!location.hash && !store.get('hostRoom') && store.get('lastRemote')) location.replace(store.get('lastRemote'));
+const lastSide = store.get('role') || (store.get('hostRoom') ? 'host' : store.get('lastRemote') ? 'remote' : null);
+const roomOf = link => new URLSearchParams(String(link || '').split('#')[1]).get('r');
+if ((navigator.standalone === true || matchMedia('(display-mode: standalone)').matches) && !location.hash && !lastSide) {   // an iPhone Home Screen app keeps its own storage, so it must be given the private link once
+  document.body.innerHTML = '<form class="pasteLink"><h1>Loveline</h1><p>Paste your private link to open your side here. It stays on this phone.</p><input id="pasteIn" autocomplete="off" aria-label="Your private link" placeholder="Your private link"><p id="pasteErr" role="alert"></p><button class="primary">Open</button></form>';
+  document.querySelector('.pasteLink').onsubmit = ev => {
+    ev.preventDefault();
+    const part = document.getElementById('pasteIn').value.trim().split('#')[1] || '', q = new URLSearchParams(part);
+    if (!q.get('r') || !q.get('k')) { document.getElementById('pasteErr').textContent = 'That is not a Loveline link. Copy the whole link and try again.'; return; }
+    location.hash = part; location.reload();
+  };
+  throw new Error('waiting for the private link');   // nothing else may start, or this phone would make a new private room
+}
+if (!location.hash && lastSide === 'remote' && store.get('lastRemote')) location.replace(store.get('lastRemote'));
 const firstVisit = !location.hash && !store.get('hostRoom') && !store.get('lastRemote');
 let hp = new URLSearchParams(location.hash.slice(1));
 const isRemote = hp.has('r') && hp.has('k') && !hp.has('h');
@@ -574,9 +648,14 @@ if (!hp.has('r') || !hp.has('k')) {
   history.replaceState(null, '', '#' + hp);
 }
 const room = hp.get('r');
-const ownLink = isRemote && (store.get('hostRoom') || {}).r === room;   // her own link opened on her own phone
-if (!isRemote && !firstVisit) store.set('hostRoom', { r: room, k: hp.get('k') });
-if (isRemote && !ownLink) store.set('lastRemote', location.href);
+let partnerPush = store.get('partnerPush:' + room) || null, myPush = store.get('myPush:' + room) || null;
+// Her link always opens her side and his link his. A link for the other side of this couple asks first, so a mistake costs one press.
+const askSide = !firstVisit && lastSide && lastSide !== (isRemote ? 'remote' : 'host') && ((store.get('hostRoom') || {}).r === room || roomOf(store.get('lastRemote')) === room);
+if (!isRemote && !firstVisit && !askSide) store.set('hostRoom', { r: room, k: hp.get('k') });
+if (isRemote && !askSide) store.set('lastRemote', location.href);
+if (!firstVisit && !askSide) store.set('role', isRemote ? 'remote' : 'host');
+const startHash = location.hash;
+addEventListener('hashchange', () => { if (location.hash !== startHash) { leaving = true; location.reload(); } });   // a different link pasted into this same tab
 const shareUrl = location.origin + location.pathname + '#r=' + room + '&k=' + hp.get('k');
 const me = store.get('me') || b64url(rand(8)); store.set('me', me);
 let myName = store.get('name', '');
@@ -651,7 +730,7 @@ for (const kind in KINDS) {
   const el = document.createElement('section');
   el.className = 'egg glass off';
   el.innerHTML = `<button class="orb" aria-label="Change his look"><span class="face"></span><span class="num">0</span></button>
-    <button class="name" aria-label="Rename this egg"></button><div class="sub"></div>
+    <button class="name" aria-label="Rename"></button><div class="sub"></div>
     <div class="controls">
       <label class="strength"><span class="cap">Strength</span><input type="range" class="level" min="0" max="100" value="0" aria-label="${KINDS[kind]} strength"></label>
       <label class="mode"><select class="modeSel" aria-label="${KINDS[kind]} pattern">${GROUPS[kind].map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m}">${MODES[m][0]}</option>`).join('')}</optgroup>`).join('')}</select>
@@ -734,6 +813,7 @@ function render() {
   const onKinds = Object.keys(KINDS).filter(k => state[k].connected), solo = onKinds.length === 1;
   const together = isRemote || partnerOnline(), trio = onKinds.length === 2;
   document.body.classList.toggle('alone', !together);
+  $('buzzBtn').hidden = !isRemote && !partnerOnline() && !partnerName && !partnerPush;
   document.body.classList.toggle('trio', trio);
   const noEggs = !onKinds.length, btn = $('connect');   // nothing on yet: one clear first step, no Stop, no empty controls
   document.body.classList.toggle('noeggs', noEggs);
@@ -747,7 +827,7 @@ function render() {
       nochrome: ['Open this page in Chrome', 'Bluetooth only works in Chrome on Android. Copy this address, open Chrome and paste it there.'],
       off: ['Turn Bluetooth on', 'Swipe down from the top of the screen and tap Bluetooth. This page notices by itself.'],
       blocked: ['Allow Bluetooth for Chrome', 'Open Settings, then Apps, then Chrome, then Permissions. Set "Nearby devices" to Allow. Then come back and tap below.'],
-      notfound: ['No egg showed up', 'Hold the button on the egg until its light blinks. Close the official app. Keep the egg next to the phone, then tap below.'],
+      notfound: ['Nothing showed up', 'Hold its button until the light blinks. Close the official app. Keep it next to the phone, then tap below.'],
     }[bt];
     if (!isRemote && guide && !looking) $('heroTitle').textContent = guide[0];
     $('heroText').textContent = isRemote ? (mayRun && !partnerOnline() ? 'Her phone is out of reach, so they may still be running. Press Stop to switch them off.' : `${label('vib')} and ${label('suc')} join as soon as she switches them on.`)
@@ -762,7 +842,8 @@ function render() {
   }
   if (seenTogether !== null && together !== seenTogether) {   // partner mode switches on and off by itself
     if (together) { notify(`${who()} is here. You're together now 💞`); burst('💞'); }
-    else { if (panel !== 'play') { openPanel('play', true); panelV = 0; keep('panelV', 0); } notify(`${who()} left. It's just you for now.`); }   // only for now: when he is back his phone shows this one what is open
+    else if (panel === 'watch') notify(`${who()}'s connection dropped. Your video keeps going.`);   // a lost connection never ends what is on screen
+    else { if (panel !== 'play') { openPanel('play', true, true); panelV = 0; keep('panelV', 0); } notify(`${who()} left. It's just you for now.`); }   // only for now: when he is back his phone shows this one what is open
   }
   if (seenTrio !== null && trio && !seenTrio) { notify(`${label('vib')} and ${label('suc')} are both with you. Threesome on 🔥`); burst('🔥'); }
   seenTogether = together; seenTrio = trio;
@@ -826,14 +907,14 @@ function render() {
       : !partnerOnline() ? ["Waiting for your partner's phone", 'Loveline is closed or asleep on the other phone. Ask your partner to open it. You will connect by yourself.']
       : !allow ? ['Paused', `${who()} has paused your control for now.`]
       : lead === 'host' ? [`${who()} is leading`, 'Your controls wake up when she taps Shared or lets you lead.']
-      : ['Holding the remote', `Your moves reach the eggs live. ${who()} can stop at any time.`];
+      : ['Holding the remote', `Your moves reach ${label('vib')} and ${label('suc')} live. ${who()} can stop at any time.`];
     $('remoteTitle').textContent = t; $('remoteText').textContent = p;
   } else {
     const n = Object.values(state).filter(e => e.connected).length;
     $('connect').hidden = n === 2 || (n === 0 && bt === 'off');   // Bluetooth off: the guide says what to do first
     const inK = Object.keys(KINDS).find(k => state[k].connected), outK = inK === 'vib' ? 'suc' : 'vib', who2 = k => `${faces[k]} ${label(k)}`;
     $('connect').textContent = n === 0 ? (bt === 'nochrome' ? 'Copy address' : bt === 'notfound' || bt === 'blocked' ? 'Try again' : store.get('eggsSeen') ? `Bring ${label('vib')} and ${label('suc')} back` : `Connect ${label('vib')} and ${label('suc')}`) : n === 1 ? `Make it a threesome: bring ${who2(outK)} in` : `Bring ${who2('vib')} or ${who2('suc')} in`;
-    $('hostHint').textContent = n === 2 ? `${label('vib')} and ${label('suc')} are both here.` : n === 1 ? `${label(inK)} is here. Switch ${label(outK)} on to join you both.` : 'Switch the eggs on and close the official app.';
+    $('hostHint').textContent = n === 2 ? `${label('vib')} and ${label('suc')} are both here.` : n === 1 ? `${label(inK)} is here. Switch ${label(outK)} on to join you both.` : `Switch ${label('vib')} and ${label('suc')} on and close the official app.`;
     $('allowLabel').textContent = `Let ${partnerName || 'your partner'} control`;
     $('forget').hidden = !pair;
     $('allow').checked = allow;
@@ -1335,22 +1416,25 @@ const myTie = Math.random();   // two changes in the same moment still have one 
 const nextV = v => Math.max(Date.now(), Math.floor(v) + 1) + myTie;
 function gotPanel(m) { if (!(m.v > panelV)) return; panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); }
 function openPanel(p, fromPartner, quiet) {
-  if (!['play', 'draw', 'game', 'watch'].includes(p)) return;
-  const changed = p !== panel;
+  if (!['play', 'draw', 'game', 'tower', 'watch'].includes(p)) return;
+  const changed = p !== panel, was = panel;
   if (panel === 'watch' && p !== 'watch') leaveWatch();
   if (p !== 'play' && !$('touchSheet').hidden) closeTouch();
   panel = p; keep('panel', p);
   document.body.classList.toggle('panel', p !== 'play');
-  $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('watchPanel').hidden = p !== 'watch';
+  $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('towerPanel').hidden = p !== 'tower'; $('watchPanel').hidden = p !== 'watch';
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p));
   if (p === 'draw') sizeBoard();
+  if (p === 'tower') towerOpen();
   if (p === 'watch') { renderVids(); renderPlayer(); }
   renderGame();
   if (!fromPartner) { panelV = nextV(panelV); keep('panelV', panelV); send({ t: 'panel', p, v: panelV }); }
-  else if (changed && p !== 'play' && !quiet) { tap(); notify(`${who()} opened ${{ draw: 'Draw', game: 'Truth or Dare', watch: 'Watch' }[p]}.`); }
+  else if (changed && !quiet) { tap(); notify(p === 'play' ? `${who()} left ${PANELS[was]}.${was === 'watch' ? ' The video paused.' : ''}` : `${who()} opened ${PANELS[p]}.`); }
 }
-document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { tap(); openPanel(b.dataset.p); });
-document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => openPanel('play'));
+const PANELS = { __proto__: null, draw: 'Draw', game: 'Truth or Dare', tower: 'Tower', watch: 'Watch' };
+const okToLeave = p => panel !== 'watch' || p === 'watch' || !wstate.playing || confirm('Leave Watch? The video pauses on both phones.');
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { if (!okToLeave(b.dataset.p)) return; tap(); openPanel(b.dataset.p); });
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (okToLeave('play')) openPanel('play'); });
 
 // ---- drawing: both draw and erase on the same board at once; points are 0..1 so any screen size matches
 const board = $('board'), bctx = board.getContext('2d');
@@ -1401,6 +1485,8 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   gotName(m.nm);
   if (m.pv < panelV) send({ t: 'panel', p: panel, v: panelV });
   if (m.gv < gameV) send({ t: 'game', game, v: gameV });
+  if (m.tv < towerV) send({ t: 'tower', tower, v: towerV });
+  if ((myPush || '').slice(-16) !== (m.pu || '')) send({ t: 'pushsub', endpoint: myPush });
   if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
   if (Number.isInteger(m.lc) && m.lc !== libSize() && Date.now() - libSentAt > 5000) { libSentAt = Date.now(); sendLib(); }
 }
@@ -1472,87 +1558,136 @@ const CARDS = {
       'Aap ne akele mein sab se zyada kis cheez ke baare mein socha hai?',
       'Aap ko {A} ki vibration zyada achi lagti hai ya {X} ki awaaz?',
       'Aap ki pasandeeda position kaunsi hai jo hum ne abhi tak nahi ki?',
-      'Agar hum doosre mard ko shamil karein, to woh kaisa ho? Shakal, jism, andaaz.',
+      'Agar hum doosre mard ko shamil karein, to woh kaisa ho? Face, body, style.',
       'Kya aap ko yeh soch kar maza aata hai ke koi doosra dekh raha ho?',
-      'Aap ko sab se zyada kis lafz se garmi chadhti hai jab {X} bolta hai?',
+      'Aap ko sab se zyada kis lafz se turn on hoti hain jab {X} bolta hai?',
       'Kabhi {X} ke baare mein soch kar khud ko chhua hai? Kab aur kahan?',
       'Ek sexy kapra jo aap {X} ke liye pehnna chahti hain, kaunsa hai?',
       'Aap ko neck par choomna zyada pasand hai ya kamar par?',
-      'Agar aap ek din ke liye {X} ko apna ghulam bana saktin, to kya kya karwatin?',
+      'Agar aap ek din ke liye {X} ko apna slave bana saktin, to kya kya karwatin?',
       'Aap ki sab se kinky khwahish kaunsi hai jo aap ne kisi ko nahi batayi?',
       'Kya aap ko {X} ka aap ke baal kheenchna pasand aayega?',
-      'Aap ko orgasm ke waqt {X} kya bole, aap ki marzi ka ek jumla batayein.',
-      '{A} aur {B} ko insaan maan lein: kaun zyada romantic hai aur kaun zyada jungli?',
-      'Aap ko sab se pehle kis umar mein apni sexual khwahish ka pata chala?',
+      'Aap ko orgasm ke waqt {X} kya bole? Ek jumla batayein.',
+      '{A} aur {B} ko insaan maan lein: kaun zyada romantic hai aur kaun zyada wild?',
       'Kya aap ko video call par sab kuch dikhana pasand aayega?',
-      'Aap ko {X} ka kaunsa jism ka hissa sab se zyada pasand hai?',
+      'Aap ko {X} ki body ka kaunsa hissa sab se zyada pasand hai?',
       'Doosri larki ke saath threesome mein aap usay choomna pasand karengi?',
       'Aap ki woh kaunsi aadat hai jo {X} ko bed par pata honi chahiye?',
       'Jab {X} aap ko pad se control karta hai, aap ko kaisa mehsoos hota hai?',
       'Kya aap ne kabhi kisi ki awaaz sun kar maza liya hai?',
       'Aap ko jaldi wala sex pasand hai ya lamba, dheema romance?',
-      'Agar aaj raat aap ko ek naya tajurba chunna ho, to kya hoga?',
-      'Aap ki sab se sharmindagi wali sexy yaad kaunsi hai?',
+      'Agar aaj raat aap ko ek naya experience chunna ho, to kya hoga?',
+      'Aap ki sab se embarrassing sexy yaad kaunsi hai?',
       'Aap ko {X} ki kaun si baat sab se zyada miss hoti hai jab woh door ho?',
       'Aap ko apne aap ko chhoote waqt kya sochna sab se zyada pasand hai?',
-      'Kya aap ko role play pasand hai? Kaunsa kirdaar aap banna chahengi?',
+      'Kya aap ko role play pasand hai? Kaunsa character aap banna chahengi?',
+      'Aap ko kab pata chala ke aap {X} se pyar karti hain?',
+      '{X} ki kaunsi chhoti si baat aap ko pyar mehsoos karwati hai?',
+      'Hamari woh kaunsi yaad sab se pyari hai jis ka sex se koi talluq nahi?',
+      'Raat ko {X} ke door hone par aap sab se zyada kya miss karti hain?',
+      'Kaunsa gaana sun kar aap ko foran {X} yaad aata hai?',
+      'Ek perfect weekend ke liye aap {X} ko kahan le jayengi?',
+      'Pehli dafa {X} ko dekh kar aap ne kya socha tha?',
+      '{X} ki kis baat ka shukriya aap ne abhi tak theek se ada nahi kiya?',
+      'Paanch saal baad aap {X} ke saath apni zindagi kaisi dekhna chahti hain?',
+      'Aap ko {X} ki baahon mein kis tarah rehna sab se zyada pasand hai?',
+      'Agli mulaqat par pehle soft kiss chahiye ya deep kiss?',
+      '{X} ke saath aap khud ko sab se zyada khoobsurat kab mehsoos karti hain?',
+      'Aap ko kis tarah ka foreplay aur zyada chahiye?',
+      'Love making ke waqt lights on ya off? Aur kyun?',
+      'Aap ko subah pyar karna zyada pasand hai ya raat ko?',
+      'Hamari agli raat shuru se aakhir tak perfect kaise hogi?',
+      'Agli mulaqat par aap {X} ke honth sab se pehle kahan chahti hain?',
+      '{X} ne bed par kya kiya tha jo aap dobara chahti hain?',
+      'Love making mein woh nayi cheez kya hai jo aap try karna chahti hain magar kehne mein sharam aati hai?',
+      'Love making ke baad aap ko kaise touch kiya jana pasand hai?',
+      'Door hote hue aap {X} ke sab se qareeb kab mehsoos karti hain?',
+      'Aap {X} se kaunse lafz aur zyada sunna chahti hain?',
+      '{X} ke saath aap khud ko sab se zyada safe kab mehsoos karti hain?',
+      'Aap ko {X} kis outfit mein sab se acha lagta hai?',
+      'Aap kya chahti hain jo {X} zyada dafa kare, bed par ya bed se bahar?',
     ],
     dare: [
       '{A} ko 40 par rakhwayein aur 1 minute tak bilkul hile baghair leti rahein.',
       'Mic on karein aur 30 second tak sirf {X} ka naam lein, har dafa dheere.',
-      'Takiye ko apne darmiyan dabayein aur {X} ko batayein kaisa lag raha hai.',
+      'Takiye ko apne darmiyan dabayein aur mic on karke 20 second {X} ko apni awaaz sunwayein.',
       'Aankhein band karein, {X} {B} ko 20 second chalayega. Awaaz rokni mana hai.',
-      'Ek voice note bhejein jis mein aap {X} ko batayein aap use kahan chahti hain.',
-      'Let kar apni ungliyon se apne honth chhuyein aur {X} ko batayein kya socha.',
+      '{X} ko voice note bhejein: "mujhe tum yahan chahiye", aur us jagah ka naam lein.',
+      'Let kar apni ungliyon se apne honth chhuyein aur 20 second {X} ka naam lete rahein.',
       '{X} ke liye ek sexy line type karein jab {A} 60 par ho.',
-      'Apni pasandeeda fantasy 5 jumlon mein sunayein, mic on.',
+      'Mic on karein aur apni pasandeeda fantasy 5 jumlon mein bolein.',
       'Pait ke bal let jayein. {X} 30 second sirf {B} chalayega.',
       'Jab tak {X} 10 tak gine, apne dono haath sar ke upar rakhein.',
       '{X} ko 3 dafa "please" kahein, har dafa pehle se zyada tadap kar.',
-      'Apna sab se sexy selfie angle {X} ko bayan karein, bina tasveer bheje.',
+      'Apne sab se sexy selfie angle mein pose karein, 20 second rukein, phir {X} ko 3 lafz type karein.',
       'Mic on rakhein, {X} {A} aur {B} ko full karega 10 second. Jo nikle, nikle.',
-      'Batayein ke threesome mein doosre mard ko aap kya karne dengi, aahista se.',
-      'Apni gardan par dheere se ungli phirayein aur {X} ko har second ka hal batayein.',
-      '{X} ko ek kahani sunayein jis mein ek larki aur hum dono hon.',
+      'Mic on karein aur aahista se 4 jumle bolein: threesome mein doosra mard aap ke saath yeh karta hai.',
+      'Apni gardan par dheere se ungli phirayein, mic on, aur 30 second har touch par {X} ka naam lein.',
+      'Mic on karke ek kahani bolein jis mein ek larki aur hum dono hon.',
       '1 minute tak {X} jo bhi speed rakhe, aap shukriya kehti rahein.',
       'Kamar uthayein jab {A} tez ho, neeche rakhein jab dheema ho. 30 second.',
-      'Leti leti apna ek kapra utaarein aur {X} ko batayein ab kya bacha hai.',
+      'Leti leti apna ek kapra utaarein aur {X} ko type karein: "ek gaya".',
       'Ek dirty lafz bolein jo aap ne kabhi {X} ke saamne nahi bola.',
-      '{X} ko batayein ke {B} ki suction aap ko kis cheez ki yaad dilati hai.',
+      'Jab {B} chal raha ho, {X} ko voice note bhejein: is suction se aap ko jo yaad aaya.',
       'Pad ka control 30 second ke liye apne paas lein aur {X} ko dikhayein aap ko kaisa chahiye.',
       'Takiye ko kas ke pakrein aur 20 second tak {X} ki marzi par chhor dein.',
-      'Ek voice note mein dheere se siskari bhejein.',
-      '{X} ko 3 cheezein batayein jo aap us ke saath bed par karna chahti hain.',
-      'Aankhein band karke socho {X} aap ke kaan mein bol raha hai. Woh jumla type karein.',
-      'Apni jangh par ungliyan phirayein jab {X} {A} ko 50 par rakhe.',
-      '{X} ko batayein do mard ek saath hon to aap kis ko pehle choomengi.',
+      'Ek voice note mein dheere se ek moan bhejein.',
+      '{X} ko 3 lines type karein: woh 3 cheezein jo aap us ke saath bed par karengi.',
+      'Aankhein band karke imagine karein {X} aap ke kaan mein bol raha hai, phir woh jumla type karein.',
+      'Apni thigh par ungliyan phirayein jab {X} {A} ko 50 par rakhe.',
+      'Mic on karke do mardon ke saath pehli kiss ka scene 3 jumlon mein bolein.',
       '1 minute tak sirf "aur" ya "bas" bolein. {X} usi hisaab se chalayega.',
       'Mic on karke {X} ko apni saans sunwayein jab {B} chal raha ho.',
       '{X} ke liye ek chhoti si poem banayein jis mein {A} aur {B} hon.',
-      'Batayein ke aap ki body ka kaunsa hissa abhi sab se garam hai.',
-      'Apne baal kholein aur {X} ko batayein ke woh unhe kaise pakre.',
-      '{X} ko ek kinky hukam dein jo woh agle 5 minute maane.',
-      'Ek larki ke saath threesome ki ek scene bayan karein, 4 jumle.',
-      'Let kar apni kamar par haath rakhein aur {X} ko batayein woh kahan chhuta.',
-      '30 second tak {X} ko mat batayein kaisa lag raha hai, sirf awaaz.',
-      'Apne honth kaat kar {X} ko batayein ke kis ka sochte hue kaata.',
+      'Apni body ke sab se garam hissay par haath rakhein aur {X} ko us ka naam type karein.',
+      'Apne baal kholein, unhe khud pakrein aur {X} ko voice note bhejein: "aise pakro".',
+      '{X} ko ek kinky order dein jo woh agle 5 minute maane.',
+      'Ek larki ke saath threesome ka scene 4 jumlon mein type karein.',
+      'Let kar apni kamar par haath rakhein aur usay wahan le jayein jahan {X} chhuta. 20 second.',
+      '30 second tak ek lafz nahi: sirf awaaz, jab {X} pad chalaye.',
+      'Apne honth kaatein aur {X} ko us ka naam type karein jis ka soch rahi thin.',
       '{X} se kahein ke woh pad par aap ka naam likhe, aur har harf mehsoos karein.',
       'Takiye ko {X} samjh kar gale lagayein aur us se ek baat kahein.',
-      'Batayein ke agar {X} abhi kamre mein aaye to aap kis haal mein milengi.',
+      'Woh pose banayein jis mein aap {X} ko milengi agar woh abhi kamre mein aaye, aur 30 second rukein.',
       '{A} 30 par, {B} 70 par: 40 second tak sirf {X} ka shukriya ada karein.',
       'Ek sexy emoji ki kahani banayein aur {X} ko bhejein.',
-      'Apni pasandeeda position mein let jayein aur {X} ko bayan karein.',
-      '{X} ko batayein ke aap oral ke dauran kya sunna chahti hain.',
-      'Ek lamhe ke liye socho do mard aap ko pyar kar rahe hain. Kya mehsoos hua, batayein.',
+      'Apni pasandeeda position mein let jayein aur 30 second mic par {X} ko apni saans sunwayein.',
+      '{X} ko voice note bhejein: woh jumla jo aap oral ke dauran sunna chahti hain.',
+      'Aankhein band karke imagine karein do mard aap ko pyar kar rahe hain, aur 30 second mic on rakhein.',
       '20 second tak dheere dheere "{X}" kahein jab {A} upar ja raha ho.',
-      'Apne kandhe se kapra sarkayein aur {X} ko batayein.',
+      'Apne kandhe se kapra sarkayein aur {X} ko type karein: "ab tumhari baari".',
       'Aakhri 10 second tak sabr karein jab {X} ulti gintee kare aur zero par full ho.',
       '{X} ko ek wada karein jo aap agli mulaqat mein poora karengi.',
+      '{X} ko voice note bhejein: 3 baatein jo aap ko us mein sab se zyada pasand hain.',
+      '{X} ko voice note bhejein: woh lamha jab aap ko us se pyar hua.',
+      'Aankhein band karein, mic on karein aur dheere dheere {X} ke saath apni perfect kiss bolein.',
+      'Mic on karke {X} ke liye love song ki ek line gayein.',
+      '{X} ke liye abhi chat mein 3 line ka love letter likhein.',
+      'Draw par dil banayein aur us mein woh jagah likhein jahan {X} aap ko kiss kare.',
+      'Takiye ko 1 minute gale lagayein, jaise woh {X} ho, phir voice note mein "miss you" kahein.',
+      'Voice note record karein jaise chhutti ki subah aap {X} ko jaga rahi hon.',
+      '3 jumlon mein {X} ke saath apni agli date plan karein.',
+      'Voice note record karein: aap {X} ke kapre ek ek karke utaar rahi hain.',
+      'Agli mulaqat ke pehle 5 minute 3 lines mein type karein.',
+      'Candle light wali shaam 4 lines mein likh kar bhejein, dinner se bed tak.',
+      '{X} ko 3 alag andaaz mein "I love you" kahein.',
+      '{X} ki body ki woh cheez type karein jo aap ko bohat pasand hai, ek kiss emoji ke saath.',
+      '{X} ko aise goodnight kahein jaise woh aap ke saath leta ho.',
+      'Mic on rakhein. {X} {A} ko dheema karega jab tak aap "bas" na kahein.',
+      'Apni collarbone par ungli phirayein aur {X} ko voice note bhejein: "yahan kiss karo".',
+      'Voice note record karein: {X} ko massage dena, shuru se aakhir tak.',
+      '5 jumlon mein {X} ke saath slow love making type karein, pehli kiss se aakhir tak.',
+      '{X} ko voice note bhejein: love making ke baad aap us par yahan sar rakh kar soyengi.',
+      '{X} ki tasveer dekhein aur usay apna pehla khayal type karein.',
+      '1 minute tak mic on rakh kar {X} ke saath saans lein, bina kuch bole.',
+      '{X} ko ek naya pyar ka naam type karein, ek dil ke saath.',
+      'Apne future ke baare mein {X} ko ek khwahish likh kar bhejein.',
+      '{X} ko kiss emoji bhejein aur us jagah ka naam likhein jahan woh lagi.',
     ],
   },
   remote: {
     truth: [
-      '{S} ke jism ka kaunsa hissa aap sab se pehle choomna chahenge?',
+      '{S} ki body ka kaunsa hissa aap sab se pehle choomna chahenge?',
       'Jab aap {A} ko tez karte hain, aap {S} ka kaunsa chehra sochte hain?',
       'Aap ki woh fantasy kaunsi hai jo {S} ke saath poori karni hai magar kabhi kahi nahi?',
       '{S} ke saath ek aur mard: aap dekhna pasand karenge ya shamil hona?',
@@ -1586,12 +1721,12 @@ const CARDS = {
       'Aap {S} ko kis tarah ke kapdon mein dekhna chahte hain?',
       'Dirty talk mein aap {S} se kya sunna chahte hain? Ek misaal.',
       'Doosri larki ke saath, aap pehle kis ko choomenge?',
-      'Aap ko {S} ki kaunsi siskari sab se zyada yaad hai?',
+      'Aap ko {S} ki kaunsi moan sab se zyada yaad hai?',
       'Kya aap ne kabhi {S} ko video call par dekh kar khud ko chhua hai?',
       'Aap ko jaldi wala pyar pasand hai ya lamba, dheema?',
-      '{S} ke saath ek naya tajurba jo aaj raat karna chahenge, kya hai?',
+      '{S} ke saath ek naya experience jo aaj raat karna chahenge, kya hai?',
       'Aap {S} ko kis lafz se pukarna chahte hain jab woh aap ki ho?',
-      'Aap ki sab se sharmindagi wali sexy yaad kaunsi hai?',
+      'Aap ki sab se embarrassing sexy yaad kaunsi hai?',
       'Pad par aap {S} ko sab se zyada kis tarah tadpana pasand karte hain?',
       '{A} aur {B} ko insaan maan lein: kaun aap jaisa hai?',
       'Kya aap ko yeh soch kar maza aata hai ke {S} sirf aap ki awaaz se pighal rahi hai?',
@@ -1600,65 +1735,405 @@ const CARDS = {
       'Aap ko orgasm ke waqt {S} se kya sunna hai?',
       'Kabhi kisi mard ki taraf attraction mehsoos kiya hai? Sach batayein.',
       'Aap {S} ko kis cheez ka wada karna chahte hain agli mulaqat ke liye?',
-      'Aap ko sab se pehle kis umar mein apni khwahish ka pata chala?',
       '{S} ke liye aap ki sab se romantic khwahish kya hai?',
+      'Aap ko kab pata chala ke aap {S} se pyar karte hain?',
+      '{S} ki kaunsi chhoti si baat aap ko pyar mehsoos karwati hai?',
+      'Hamari woh kaunsi yaad sab se pyari hai jis ka sex se koi talluq nahi?',
+      'Raat ko {S} ke door hone par aap sab se zyada kya miss karte hain?',
+      'Kaunsa gaana sun kar aap ko foran {S} yaad aati hai?',
+      'Ek perfect weekend ke liye aap {S} ko kahan le jayenge?',
+      '{S} ki kis baat ka shukriya aap ne abhi tak theek se ada nahi kiya?',
+      'Paanch saal baad aap {S} ke saath apni zindagi kaisi dekhna chahte hain?',
+      'Aap ko {S} ko baahon mein kis tarah rakhna sab se zyada pasand hai?',
+      'Agli mulaqat par pehle forehead kiss ya lambi deep kiss?',
+      '{S} aap ko sab se zyada khoobsurat kab lagti hai?',
+      '{S} ki smile mein aap ko sab se zyada kya pagal karta hai?',
+      'Aap {S} ko kis tarah ka foreplay sab se zyada dena chahte hain?',
+      'Love making ke waqt lights on ya off? Aur kyun?',
+      'Aap ko {S} se subah pyar karna zyada pasand hai ya raat ko?',
+      '{S} ke saath agli raat shuru se aakhir tak perfect kaise hogi?',
+      '{S} ne bed par kya kiya tha jo aap dobara chahte hain?',
+      'Love making mein woh nayi cheez kya hai jo aap try karna chahte hain magar kehne mein sharam aati hai?',
+      'Love making ke baad aap {S} ke saath kya karna pasand karte hain?',
+      'Door hote hue aap {S} ke sab se qareeb kab mehsoos karte hain?',
+      'Aap {S} se kaunse lafz aur zyada sunna chahte hain?',
+      'Aap ko {S} par sab se zyada fakhr kab hota hai?',
+      'Aap {S} ke liye kya karna chahte hain jo kisi ne us ke liye nahi kiya?',
+      'Aap pehle kis cheez par fida huay: us ki ankhein, awaaz ya hansi?',
+      'Aap kya chahte hain jo {S} zyada dafa kare, bed par ya bed se bahar?',
     ],
     dare: [
       '{S} ko ek voice note bhejein: aap use abhi kahan choomna chahte hain.',
       'Pad par {S} ka naam likhein, har harf ek lehar ki tarah.',
       '{A} ko 10 second top par rakhein, phir achanak ruk jayein. {S} ki awaaz suno.',
       '{S} ke liye 5 jumlon ki ek garam kahani type karein jis mein hum dono hon.',
-      '30 second tak sirf neeche wale hissay mein khelein. {S} ko minnat karne dein.',
+      '30 second tak sirf neeche wale hissay mein khelein. {S} ko beg karne dein.',
       'Mic on karke {S} ke kaan mein dheere se ek dirty baat kahein.',
-      '{S} ko batayein ke aap is waqt kya pehne hue hain, sach sach.',
+      '{S} ko abhi apne kapron ki photo bhejein, sach sach, WhatsApp par.',
       '{B} ko dheere se upar le jayein jab tak {S} "please" na kahe.',
-      'Ek threesome scene bayan karein jis mein {S} aur do mard hon, 4 jumle.',
+      'Ek threesome scene 4 jumlon mein type karein jis mein {S} aur do mard hon.',
       '{S} ki saans ke saath pad chalayein: saans andar upar, bahar neeche. 1 minute.',
-      '{S} ko 3 cheezein batayein jo aap us ke jism ke saath karna chahte hain.',
-      'Ek larki ke saath {S} ka scene bayan karein jo aap dekhna chahenge.',
-      '20 taps karein. Har 5 par {S} se ek raaz poochein.',
-      '{S} ko ek kinky hukam dein jo woh agle 5 minute maane.',
-      '{A} tez aur {B} dheema 20 second, phir ulta. {S} se poochein kaun behtar tha.',
+      '{S} ko 3 lines type karein: woh 3 cheezein jo aap us ki body ke saath karenge.',
+      'Mic on karke ek larki ke saath {S} ka scene 3 jumlon mein bolein.',
+      'Pad par 20 taps karein. Har 5th tap par {S} ko ek raaz kholna hoga.',
+      '{S} ko ek kinky order dein jo woh agle 5 minute maane.',
+      '{A} tez aur {B} dheema 20 second, phir ulta. {S} ko jeetne wale ka naam type karna hoga.',
       'Apni awaaz mein {S} ka naam 5 dafa lein, har dafa gehra.',
-      '{S} ko batayein ke aap us ke liye kya kar rahe hote agar paas hote.',
+      '{S} ko voice note bhejein: agar paas hote to is waqt aap yeh kar rahe hote.',
       '45 second tak beech mein rakhein, na upar na neeche. {S} ko tadpayein.',
       '{S} ki pasandeeda speed dhoondein. Woh sirf "garam" ya "thanda" bolegi.',
-      'Pad par dil banayein aur {S} se poochein kya mehsoos hua.',
+      'Pad par dil banayein, phir {S} ko ek emoji bhejna hoga jo us ka haal bataye.',
       '{S} ko ek wada likhein jo aap agli mulaqat mein poora karenge.',
       'Teen dafa top tak le jayein aur ain waqt par ruk jayein. Chauthi dafa {S} ki marzi.',
-      '{S} ko batayein aap ko oral mein us se kya chahiye.',
+      '{S} ko voice note bhejein: oral mein aap ko us se yeh chahiye.',
       '10 second sab se tez flutter, phir 10 second khamoshi. Teen dafa.',
       '{S} ke liye ek sexy poem banayein, 4 line.',
-      '{S} ko woh lafz sunayein jo aap ne kabhi bola nahi magar sochte hain.',
+      'Mic on karke woh lafz bolein jo aap ne kabhi bola nahi magar sochte hain.',
       '{S} jo lafz bole, usi rhythm mein tap karein, 30 second.',
-      'Batayein ke do mard ho to aap {S} ko kaise share karenge, ya nahi karenge.',
+      'Mic on karke 4 jumle bolein: do mard hon to {S} ke saath aap ka scene.',
       '{S} se kahein woh apni pasandeeda position mein le jaye. Phir pad se usay rule karein.',
       'Ek voice note mein {S} ke liye dheere se "meri ho" kahein.',
       '{S} ko 1 minute ka kaam dein: sirf aap ka naam lena jab tak aap ruk na jayein.',
       '{A} ko {S} ki dhadkan ki tarah chalayein: dhak-dhak, 30 second.',
-      '{S} ko batayein us ki kaunsi tasveer aap ne sab se zyada dekhi hai.',
-      'Apni pasandeeda fantasy {S} ko sunayein, mic on, ankhein band.',
-      '{S} se poochein woh kya pehne hue hai, aur usay ek cheez hatane ko kahein.',
+      '{S} ko us ki woh tasveer WhatsApp par bhejein jo aap ne sab se zyada dekhi hai.',
+      'Mic on karein, aankhein band karein aur apni pasandeeda fantasy 5 jumlon mein bolein.',
+      '{S} ko kahein ke woh ek kapra hataye, aur pad 20 second chalate rahein.',
       '{S} ko 3 dafa tadpayein: upar le jayein, ruk jayein, aur "abhi nahi" kahein.',
-      'Ek larki aur {S}: un dono ke liye aap kya plan karenge, batayein.',
-      '{S} ki kamar par haath ka socho aur pad par wahi line kheenchein.',
+      'Ek larki aur {S} ka scene 4 jumlon mein type karein, jo aap plan karenge.',
+      '{S} ki kamar par haath imagine karein aur pad par wahi line kheenchein.',
       'Mic on karke {S} ko apni saans sunwayein jab woh {B} mehsoos kar rahi ho.',
-      '{S} ko batayein ke aap us ke kaun se hissay ko sab se zyada miss karte hain.',
+      '{S} ko voice note bhejein: us ka woh hissa jo aap sab se zyada miss karte hain.',
       '{S} ko 30 second ke liye control de dein aur dekhein woh kya chahti hai.',
       'Ek sexy emoji ki kahani {S} ko bhejein, 5 emoji.',
       'Har 10 taps par {S} ko ek naya naam dein.',
-      '{S} ko batayein aap us ke saath shower mein kya karenge.',
+      '{S} ko voice note bhejein: shower mein aap us ke saath yeh karenge.',
       'Ulti gintee karein 10 se 0 aur zero par dono full karein.',
-      '{S} ko ek chhupi hui khwahish batayein jo aap ne aaj tak nahi batayi.',
+      '{S} ko ek chhupi hui khwahish type karein jo aap ne aaj tak nahi kahi.',
       'Pad par lehron mein khelein 1 minute bina ruke, {S} ko sunte hue.',
-      '{S} se kahein woh apni gardan chhue, aur aap batayein kaise.',
-      '{S} ko ek date plan sunayein jo bed par khatam ho.',
+      '{S} ko kahein woh apni gardan chhue, aur aap mic par har move bolte rahein.',
+      '{S} ko ek date plan type karein jo bed par khatam ho.',
       '{S} ko sirf apni awaaz se 1 minute tak garam rakhein.',
+      '{S} ko voice note bhejein: 3 baatein jo aap ko us mein sab se zyada pasand hain.',
+      '{S} ko voice note bhejein: woh lamha jab aap ko us se pyar hua.',
+      'Aankhein band karein, mic on karein aur dheere dheere {S} ke saath apni perfect kiss bolein.',
+      'Mic on karke {S} ke liye love song ki ek line gayein.',
+      '{S} ke liye abhi chat mein 3 line ka love letter likhein.',
+      'Draw par dil banayein aur us mein woh jagah likhein jahan aap {S} ko kiss karenge.',
+      '{S} ko voice note bhejein jaise woh abhi aap ki baahon mein ho.',
+      'Voice note record karein jaise chhutti ki subah aap {S} ko jaga rahe hon.',
+      '3 jumlon mein {S} ke saath apni agli date plan karein.',
+      'Voice note record karein: aap {S} ke kapre ek ek karke utaar rahe hain.',
+      'Agli mulaqat ke pehle 5 minute 3 lines mein type karein.',
+      'Candle light wali shaam 4 lines mein likh kar bhejein, dinner se bed tak.',
+      '{S} ko 3 alag andaaz mein "I love you" kahein.',
+      '{S} ki body ki woh cheez type karein jo aap ko bohat pasand hai, ek kiss emoji ke saath.',
+      '{S} ko aise goodnight kahein jaise woh aap ke saath leti ho.',
+      '{A} ko 1 minute sab se dheema chalayein aur saath {S} ko "kiss" type karte rahein.',
+      'Voice note record karein: {S} ko massage dena, shuru se aakhir tak.',
+      '5 jumlon mein {S} ke saath slow love making type karein, pehli kiss se aakhir tak.',
+      '{S} ko voice note bhejein: love making ke baad aap usay aise baahon mein rakhenge.',
+      '{S} ki tasveer dekhein aur usay apna pehla khayal type karein.',
+      '1 minute tak mic on rakh kar {S} ke saath saans lein, bina kuch bole.',
+      '{S} ko ek naya pyar ka naam type karein, ek dil ke saath.',
+      'Apne future ke baare mein {S} ko ek khwahish likh kar bhejein.',
+      '{S} ko kiss emoji bhejein aur us jagah ka naam likhein jahan woh lagi.',
+      '{S} ko 3 baatein type karein jin par aap ko us par fakhr hai.',
     ],
   },
 };
 const myRole = isRemote ? 'remote' : 'host';
-let game = { turn: 'host', k: null, i: -1 };
+// ---- Our Tower: we take turns dropping a floor. It stays saved on both phones and keeps growing.
+const TW = 34, TH = 17, TFALL = .42, TKEEP = 24, TPERFECT = 2.2, TGROUND = 12;
+const TCOL = [['#ff6b9d', '#c2185b'], ['#7c86ff', '#3b3fc4']];   // her floors, his floors
+const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [] });
+function cleanFloors(list, most) {
+  if (!Array.isArray(list) || list.length > most) return null;
+  const out = [];
+  for (const k of list) { if (!Array.isArray(k) || !Number.isFinite(k[0]) || Math.abs(k[0]) > 1e6) return null; out.push([k[0], k[1] ? 1 : 0, k[2] ? 1 : 0]); }
+  return out;
+}
+function cleanTower(t) {
+  if (!t || typeof t !== 'object' || !['host', 'remote'].includes(t.turn)) return null;
+  const n = (x, top) => Number.isInteger(x) && x >= 0 && x <= top ? x : null, f = n(t.f, 1e6), hearts = n(t.hearts, 3), best = n(t.best, 1e6), b = cleanFloors(t.b, TKEEP);
+  if (f === null || hearts === null || best === null || !b || b.length > f) return null;
+  return { f, hearts, turn: t.turn, best: Math.max(best, f), n: { host: n(t.n && t.n.host, 1e6) || 0, remote: n(t.n && t.n.remote, 1e6) || 0 }, b };
+}
+const savedTower = store.get('tower:' + room) || {};
+let tower = cleanTower(savedTower.t) || blankTower(), towerV = Number.isFinite(savedTower.v) ? savedTower.v : 0;
+let tanim = null, tlanded = 0, trun = 0, tlast = 0, tcamX = 50, tcamY = 0, tshake = 0, twob = { at: 0, amp: 0 }, tsquash = -9, tbits = [], tdrops = [];
+const tcalm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const towerNow = () => performance.now() / 1000;
+const towerBase = () => { const top = tower.b[tower.b.length - 1]; return top ? top[0] : 50; };
+const towerSway = t => Math.min(6, tower.f * .05) * Math.sin(.9 * t);
+const towerWob = t => t < twob.at ? 0 : twob.amp * Math.exp(-2.6 * (t - twob.at)) * Math.sin(7 * (t - twob.at));
+const towerTopX = t => towerBase() + towerSway(t) + towerWob(t);
+const towerPace = () => 1.35 + Math.min(tower.f, 80) * .02;
+const towerSwingX = t => towerBase() + 28 * Math.sin(towerPace() * t);
+const towerSwingV = t => 28 * towerPace() * Math.cos(towerPace() * t);
+const towerBump = (el, big) => { if (!tcalm && el.animate) el.animate([{ transform: `scale(${big})` }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' }); };
+function renderTower() {
+  if (tanim) { $('towerDrop').disabled = true; return; }   // the numbers change when the box lands, not when it is let go
+  const me = tower.turn === myRole, floors = tower.f, hearts = Math.max(0, Math.min(3, tower.hearts));
+  $('towerFloors').textContent = floors;
+  $('towerUnit').textContent = floors === 1 ? 'floor' : 'floors';
+  $('towerBest').textContent = tower.best > floors ? `Best ${tower.best}` : '';
+  $('towerHearts').textContent = '❤️'.repeat(hearts) + '🤍'.repeat(3 - hearts);
+  $('towerTurn').textContent = (me ? 'Your turn. Tap when the box is over the tower.' : `${who()} is building…`);
+  const chip = (role, name) => `<span class="${role === 'host' ? 'her' : 'him'}">${esc(name)} ${tower.n[role]}</span>`, otherRole = myRole === 'host' ? 'remote' : 'host';
+  $('towerCount').innerHTML = chip(myRole, 'You') + chip(otherRole, who());
+  $('towerDrop').disabled = !me || !!tanim;
+  $('towerDrop').textContent = me ? 'Drop' : `${who()}'s turn`;
+  $('towerNew').hidden = !floors;
+}
+function saveTower() { store.set('tower:' + room, { t: tower, v: towerV }); }
+function towerBit(x, y, o) { if (tbits.length < 90) tbits.push({ x, y, vx: 0, vy: 0, life: 1, fade: 1, r: 1, col: '#fff', g: 0, ...o }); }
+function towerLand() {
+  const a = tanim; if (!a) return;
+  tanim = null; tlanded = towerNow();
+  const y = a.idx * TH, side = Math.sign(a.rel) || 1;
+  if (a.kind === 'miss') {
+    tdrops.push({ x: a.xLand + a.rel, y, o: a.o, p: 0, vx: side * (10 + Math.min(30, Math.abs(a.rel))), vy: 8, rot: 0, vr: side * (Math.abs(a.rel) < TW ? 3.4 : 1) });
+    towerBit(a.xLand + a.rel, y + TH + 8, { txt: 'Missed', col: '#ff8a8a', vy: 12, fade: 1.2 });
+    if (navigator.vibrate) navigator.vibrate(60);
+    a.fell.forEach((k, i) => tdrops.push({ x: a.base + towerSway(tlanded), y: (a.idx - 1 - i) * TH, o: k[1], p: k[2], vx: (i % 2 ? 1 : -1) * (14 + i * 9), vy: 18 - i * 4, rot: 0, vr: (i % 2 ? 1 : -1) * 2.2 }));
+    if (a.fell.length) { towerBit(a.base, a.idx * TH - 6, { txt: `Top ${a.fell.length} ${a.fell.length === 1 ? 'floor' : 'floors'} fell`, col: '#ffd0d0', vy: 9, fade: .7, size: 6 }); if (!tcalm) tshake = 3; if (navigator.vibrate) navigator.vibrate([90, 50, 90]); }
+  } else {
+    if (!tcalm) tsquash = tlanded;
+    twob = { at: tlanded, amp: tcalm ? 0 : Math.min(5, .7 + Math.abs(a.rel) * .2) };
+    if (!tcalm) tshake = a.kind === 'perfect' ? 1.2 : .7 + Math.abs(a.rel) * .05;
+    for (let i = 0; i < 14; i++) { const s = i % 2 ? 1 : -1; towerBit(a.land + s * (TW / 2 - 2), y, { vx: s * (8 + Math.random() * 18), vy: 3 + Math.random() * 9, r: .9 + Math.random() * 1.5, col: 'rgba(255,255,255,.75)', fade: 1.4 }); }
+    if (a.kind === 'perfect') {
+      towerBit(a.land, y + TH / 2, { ring: 1, col: '#ffe08a', fade: 1.5 });
+      towerBit(a.land, y + TH + 7, { txt: 'Perfect!', col: '#ffe08a', vy: 13, fade: .9, size: 8 });
+      for (let i = 0; i < 18; i++) towerBit(a.land, y + TH, { vx: (Math.random() - .5) * 60, vy: 12 + Math.random() * 34, g: 55, r: .7 + Math.random(), col: i % 2 ? '#ffe08a' : '#ff9ec4', fade: .9 });
+      if (navigator.vibrate) navigator.vibrate([20, 40, 20]); else tap();
+    } else tap();
+    if (tower.f && tower.f % 10 === 0) { burst('🏙️'); towerBit(a.land, y + TH + 16, { txt: `${tower.f} floors!`, col: '#fff', vy: 8, fade: .45, size: 9 }); }
+  }
+  if (tower.turn === myRole && a.o !== (myRole === 'host' ? 0 : 1)) { towerBit(tcamX, tcamY + 44, { txt: 'Your turn', col: '#fff', vy: 3, fade: .55, size: 8 }); tap(); }
+  renderTower();
+  if (a.kind === 'miss') towerBump($('towerHearts'), 1.3); else { towerBump($('towerFloors'), 1.3); towerBump($('towerCount').children[a.o === (myRole === 'host' ? 0 : 1) ? 0 : 1], 1.18); }
+}
+function applyTower(t, v, drop) {
+  if (tanim) towerLand();
+  const was = tower.b.length;
+  tower = t; towerV = v; saveTower();
+  if (drop && panel === 'tower' && !document.hidden) {
+    const kept = drop.kind !== 'miss', now = towerNow(), tl = now + TFALL;
+    const below = kept ? tower.b[tower.b.length - 2] : drop.fell.length ? drop.fell[drop.fell.length - 1] : tower.b[tower.b.length - 1];
+    const base = below ? below[0] : 50, xLand = base + towerSway(tl) + towerWob(tl);
+    const idx = kept ? tower.f - 1 : tower.f + drop.fell.length;
+    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, base, xLand, idx, land: xLand + (drop.kind === 'good' ? drop.rel : 0) };
+  }
+  renderTower();
+  return was;
+}
+function towerTap(force, swing) {
+  if (tower.turn !== myRole || tanim) return;
+  const now = towerNow(), v0 = Number.isFinite(swing) ? swing : Number.isFinite(force) ? 0 : towerSwingV(now), x0 = Number.isFinite(force) ? force : towerSwingX(now), rel = x0 - towerTopX(now + TFALL), far = Math.abs(rel);
+  const me = myRole === 'host' ? 0 : 1, t = JSON.parse(JSON.stringify(tower));
+  const kind = far <= TPERFECT ? 'perfect' : (!tower.f || far <= TW * .62) ? 'good' : 'miss';
+  let fell = [];
+  if (kind === 'miss') {
+    t.hearts--;
+    if (t.hearts <= 0) { fell = t.b.splice(-3); t.f = Math.max(0, t.f - 3); t.hearts = 3; }
+  } else {
+    t.f++; t.n[myRole]++;
+    t.b.push([Math.round((towerBase() + (kind === 'perfect' ? 0 : rel)) * 10) / 10, me, kind === 'perfect' ? 1 : 0]);
+    if (t.b.length > TKEEP) t.b.shift();
+    if (kind === 'perfect') t.hearts = Math.min(3, t.hearts + 1);
+  }
+  t.best = Math.max(t.best, t.f); t.turn = myRole === 'host' ? 'remote' : 'host';
+  const drop = { rel: Math.round(rel * 10) / 10, v: Math.round(v0), kind, o: me, fell }, v = nextV(towerV);
+  applyTower(t, v, drop);
+  send({ t: 'tower', tower: t, v, drop });
+}
+function gotTower(m) {
+  if (!(m.v > towerV)) return;
+  const t = cleanTower(m.tower); if (!t) return;
+  const d = m.drop, fell = d && cleanFloors(d.fell, 3);
+  const drop = d && ['perfect', 'good', 'miss'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell } : null;
+  applyTower(t, m.v, drop);
+  if (!drop) renderTower();
+}
+function towerRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function towerHeart(c, x, y, s, col) { c.fillStyle = col; c.beginPath(); c.moveTo(x, y + s * .9); c.bezierCurveTo(x - s * 1.5, y - s * .1, x - s * .7, y - s * 1.05, x, y - s * .35); c.bezierCurveTo(x + s * .7, y - s * 1.05, x + s * 1.5, y - s * .1, x, y + s * .9); c.fill(); }
+function towerFloor(c, sx, sy, o, perfect, n, sq, rot) {   // sx, sy: the middle of the floor's bottom edge on screen
+  const col = TCOL[o], h = TH * (sq || 1), w = TW * (1 + (1 - (sq || 1)) * .35);
+  c.save(); c.translate(sx, sy); if (rot) { c.translate(0, -h / 2); c.rotate(rot); c.translate(0, h / 2); }
+  const g = c.createLinearGradient(0, -h, 0, 0); g.addColorStop(0, col[0]); g.addColorStop(1, col[1]);
+  towerRect(c, -w / 2, -h, w, h, 1.5); c.fillStyle = g; c.fill();
+  c.fillStyle = perfect ? '#ffe08a' : 'rgba(255,255,255,.28)'; c.fillRect(-w / 2 + 1, -h, w - 2, 1.1);
+  for (let row = 0; row < 2; row++) for (let i = 0; i < 4; i++) {
+    const lit = ((n + 3) * 31 + i * 17 + row * 7 + ((n * i) % 5)) % 5 > 1;
+    c.fillStyle = lit ? '#ffedb3' : 'rgba(10,6,30,.55)';
+    towerRect(c, -w / 2 + 3 + i * ((w - 6) / 4) + .4, -h + 3.2 + row * (h * .4), (w - 6) / 4 - .8, h * .27, .5); c.fill();
+  }
+  if (perfect) towerHeart(c, 0, -h * .52, 2.6, '#ff4d7e');
+  if ((n + 1) % 10 === 0) { c.fillStyle = '#fff'; c.font = '700 6px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; towerRect(c, -6, -h * .78, 12, 8, 2); c.fillStyle = 'rgba(0,0,0,.55)'; c.fill(); c.fillStyle = '#fff'; c.fillText(n + 1, 0, -h * .78 + 4.3); }
+  c.restore();
+}
+const TSKY = [[0, [255, 170, 150], [124, 77, 187]], [12, [255, 120, 170], [70, 42, 140]], [30, [58, 42, 140], [22, 15, 61]], [60, [15, 17, 64], [5, 6, 29]], [100, [4, 4, 15], [0, 0, 0]]];
+function towerSky(f, i) {
+  let a = TSKY[0], b = TSKY[0];
+  for (let k = 0; k < TSKY.length; k++) { if (TSKY[k][0] <= f) { a = TSKY[k]; b = TSKY[k + 1] || TSKY[k]; } }
+  const p = b === a ? 0 : (f - a[0]) / (b[0] - a[0]);
+  return `rgb(${a[i].map((v, n) => Math.round(v + (b[i][n] - v) * p)).join(',')})`;
+}
+const TPEAKS = Array.from({ length: 26 }, (_, i) => ({ x: i * 9 - 16 + (i * 53 % 7), w: 7 + (i * 37 % 9), h: 12 + (i * 71 % 34), far: i % 2 }));
+const TSTARS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 97) % 100, y: (i * 61) % 100 / 100, s: .2 + (i % 4) * .13 }));
+function drawTower() {
+  const cv = $('towerCanvas'), W = cv.clientWidth; if (!W) return;
+  const dpr = Math.min(2, devicePixelRatio || 1), H = cv.clientHeight;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const c = cv.getContext('2d'), s = cv.width / 100, Hu = cv.height / s, now = towerNow(), dt = Math.min(.05, now - tlast || 0); tlast = now;
+  if (tanim && now - tanim.t0 >= TFALL) towerLand();
+  const a = tanim, kept = !!a && a.kind !== 'miss';
+  const shown = kept ? tower.b.slice(0, -1) : tower.b.concat(a ? a.fell : []);
+  const under = tower.f - tower.b.length, count = under + shown.length, topY = count * TH;
+  const roomAbove = 44, targetY = Math.max(0, topY + 8 - (Hu - TGROUND - roomAbove));
+  tcamY += (targetY - tcamY) * Math.min(1, dt * 5);
+  const baseX = a ? a.base : towerBase();
+  tcamX += (baseX - tcamX) * Math.min(1, dt * 5);
+  const sx = x => x - tcamX + 50, sy = y => Hu - TGROUND - (y - tcamY);
+  tshake = Math.max(0, tshake - dt * 7);
+  c.setTransform(s, 0, 0, s, 0, 0);
+  const sky = c.createLinearGradient(0, 0, 0, Hu), lvl = tower.f;
+  sky.addColorStop(0, towerSky(lvl, 2)); sky.addColorStop(1, towerSky(lvl, 1)); c.fillStyle = sky; c.fillRect(0, 0, 100, Hu);
+  const starA = Math.min(1, Math.max(0, (lvl - 16) / 30));
+  if (starA > 0) for (const t of TSTARS) { c.globalAlpha = starA * (.45 + .55 * Math.abs(Math.sin(now * .7 + t.x))); c.fillStyle = '#fff'; c.beginPath(); c.arc(t.x, t.y * Hu, t.s, 0, 7); c.fill(); }
+  c.globalAlpha = 1;
+  if (lvl >= 40) { c.fillStyle = '#fff4d6'; c.beginPath(); c.arc(80, 24, 8, 0, 7); c.fill(); c.fillStyle = towerSky(lvl, 2); c.beginPath(); c.arc(83, 22, 7, 0, 7); c.fill(); }
+  for (let j = 0; j < 6; j++) {   // clouds drift past as the tower climbs
+    const cy = sy(46 + j * 62) + tcamY * .25, cx = ((j * 41 + now * (1.2 + j * .3)) % 150) - 25;
+    if (cy < -12 || cy > Hu + 12) continue;
+    c.fillStyle = `rgba(255,255,255,${lvl > 45 ? .07 : .3})`;
+    for (const [dx, dy, r] of [[0, 0, 6], [7, 1, 5], [-7, 1.5, 4.5], [13, 2.5, 3.2]]) { c.beginPath(); c.arc(cx + dx, cy + dy, r, 0, 7); c.fill(); }
+  }
+  for (const far of [1, 0]) for (const p of TPEAKS) if (p.far === far) {   // the city behind our tower
+    const par = far ? .55 : .8, top = Hu - TGROUND + tcamY * par - p.h * (far ? 1.1 : .8);
+    if (top > Hu) continue;
+    c.fillStyle = far ? 'rgba(45,25,95,.55)' : 'rgba(25,14,62,.9)';
+    c.fillRect(p.x - (tcamX - 50) * .3, top, p.w, p.h * 1.2 + TGROUND);
+  }
+  c.save();
+  if (tshake > 0) c.translate((Math.sin(now * 80) * tshake) / 2, (Math.cos(now * 67) * tshake) / 2);
+  const gy = sy(0);
+  if (gy < Hu + 2) { c.fillStyle = '#160d33'; c.fillRect(-6, gy, 112, Hu - gy + 6); c.fillStyle = '#ff6b9d'; c.fillRect(-6, gy, 112, .6); }
+  const swing = towerSway(now) + towerWob(now), lean = i => swing * Math.pow((i + 1) / Math.max(1, count), 1.6);
+  const from = Math.max(0, Math.floor((tcamY - 6) / TH));
+  const fillX = shown[0] ? shown[0][0] : baseX;
+  for (let i = from; i < count; i++) {
+    const k = i >= under ? shown[i - under] : null;
+    const last = i === count - 1 && !a, sq = last ? 1 - .14 * Math.exp(-8 * (now - tsquash)) * Math.cos(18 * (now - tsquash)) : 1;
+    towerFloor(c, sx((k ? k[0] : fillX) + lean(i)), sy(i * TH), k ? k[1] : i % 2, k ? k[2] : 0, i, sq);
+  }
+  if (a) {   // the box on its way down
+    const p = Math.min(1, (now - a.t0) / TFALL), startY = tcamY + Hu - TGROUND - 40, y = startY + (a.idx * TH - startY) * p * p;
+    const rest = (1 - p) * (1 - p), off = (a.kind === 'perfect' ? a.rel * (1 - p * p) : a.rel) + a.v * TFALL * p * rest;
+    towerFloor(c, sx(a.xLand + off), sy(y), a.o, a.kind === 'perfect', a.idx, 1, a.v * .0028 * rest);
+    const fly = sy(startY) - 26 - (now - a.t0) * 60;
+    towerHeart(c, sx(a.xLand + a.rel), fly, 6 * (1 + p * .3), TCOL[a.o][0]);
+  } else if (now - tlanded > .3) {   // the next box hangs from a heart balloon
+    const age = Math.min(1, (now - tlanded - .3) / .35), ease = 1 - (1 - age) * (1 - age), hx = towerSwingX(now), speed = towerSwingV(now);
+    const mine = tower.turn === myRole, o = tower.turn === 'host' ? 0 : 1, by = tcamY + Hu - TGROUND - 40 + (1 - ease) * 42;
+    if (mine) {
+      const far = Math.abs(hx - towerTopX(now + TFALL)), good = !count || far <= TW * .62, aim = far <= TPERFECT ? '255,224,138' : good ? '255,255,255' : '255,120,120';
+      const beam = c.createLinearGradient(0, sy(by), 0, sy(topY));
+      beam.addColorStop(0, `rgba(${aim},0)`); beam.addColorStop(1, `rgba(${aim},${far <= TPERFECT ? .34 : .16})`);
+      c.globalAlpha = ease; c.fillStyle = beam; c.fillRect(sx(hx) - TW / 2, sy(by), TW, sy(topY) - sy(by));
+      c.fillStyle = `rgba(${aim},.9)`; c.fillRect(sx(hx) - TW / 2, sy(topY) - .8, TW, .8);
+    }
+    c.globalAlpha = (mine ? 1 : .62) * ease;
+    towerFloor(c, sx(hx), sy(by), o, 0, count, 1, speed * .0028);
+    c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = .4; c.beginPath(); c.moveTo(sx(hx), sy(by + TH)); c.lineTo(sx(hx) - speed * .02, sy(by + TH + 8)); c.stroke();
+    towerHeart(c, sx(hx) - speed * .02, sy(by + TH + 13), 6, TCOL[o][0]);
+    c.globalAlpha = 1;
+  }
+  tdrops = tdrops.filter(d => { d.vy -= 150 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.rot += d.vr * dt; towerFloor(c, sx(d.x), sy(d.y), d.o, d.p, 0, 1, d.rot); return sy(d.y) < Hu + 40; });
+  tbits = tbits.filter(b => {
+    b.life -= dt * b.fade; if (b.life <= 0) return false;
+    b.vy -= b.g * dt; b.x += b.vx * dt; b.y += b.vy * dt; c.globalAlpha = Math.min(1, b.life * 1.6);
+    if (b.txt) { const tx = Math.max(16, Math.min(84, sx(b.x))); c.font = `700 ${b.size || 7}px system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = 1.6; c.strokeStyle = 'rgba(25,8,55,.9)'; c.strokeText(b.txt, tx, sy(b.y)); c.fillStyle = b.col; c.fillText(b.txt, tx, sy(b.y)); }
+    else if (b.ring) { c.strokeStyle = b.col; c.lineWidth = 1.1 * b.life; c.beginPath(); c.arc(sx(b.x), sy(b.y), (1 - b.life) * 38 + 8, 0, 7); c.stroke(); }
+    else { c.fillStyle = b.col; c.beginPath(); c.arc(sx(b.x), sy(b.y), b.r * b.life + .2, 0, 7); c.fill(); }
+    c.globalAlpha = 1; return true;
+  });
+  c.restore();
+  if (!a && !$('towerDrop').disabled !== (tower.turn === myRole)) renderTower();
+}
+function towerLoop() { if (panel !== 'tower') { trun = 0; return; } trun = requestAnimationFrame(towerLoop); drawTower(); }
+function towerOpen() { renderTower(); tlast = towerNow(); tcamX = towerBase(); if (!trun) trun = requestAnimationFrame(towerLoop); }
+const towerReady = () => towerNow() - tlanded > .3;
+let tpress = null;
+$('towerDrop').onpointerdown = () => { if (towerReady()) towerTap(); };
+$('towerDrop').onclick = ev => { if (!ev.detail && towerReady()) towerTap(); };   // a keyboard press has no finger
+$('towerCanvas').onpointerdown = () => { const now = towerNow(); tpress = { at: now, x: towerSwingX(now), v: towerSwingV(now) }; };
+$('towerCanvas').onclick = () => {   // a scroll that starts here never reaches this line, so it cannot drop a box
+  const p = tpress; tpress = null;
+  if (!towerReady()) return;
+  if (p && towerNow() - p.at < .6) towerTap(p.x, p.v); else towerTap();
+};
+$('towerNew').onclick = () => {
+  if (!confirm('Start a new tower? This one goes away on both phones. Your best height stays.')) return;
+  const t = blankTower(tower.best), v = nextV(towerV);
+  t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v });
+};
+
+// Skipping a dare costs a penalty, sent outside Loveline. Nude photo penalties are on unless that person switched them off, on their own phone.
+const PENALTIES = {
+  host: {
+    sweet: [
+      '{X} ko WhatsApp par apni smile wali selfie bhejein.',
+      '{X} ko WhatsApp par voice note bhejein: 3 dafa dheere se "I love you".',
+      '{X} ko WhatsApp ya Snapchat par apne honthon ki kiss wali photo bhejein.',
+      '{X} ko Snapchat par apni gardan ki photo bhejein.',
+      '{X} ko WhatsApp par ek moan wali voice note bhejein.',
+      '{X} ko 1 minute ki sexy voice note bhejein: aap us ke saath kya karna chahti hain.',
+      '{X} ko Snapchat par apne kandhe ya collarbone ki photo bhejein.',
+      '{X} ko WhatsApp par apni kamar ki photo bhejein, kapron ke saath.',
+      '{X} ko Snapchat par woh outfit dikhayein jo aap us ke liye pehnna chahti hain.',
+      'Agle 2 minute {A} ka poora control {X} ko de dein.',
+    ],
+    spicy: [
+      '{X} ko Snapchat ya WhatsApp view once par apni nipple ki photo bhejein.',
+      '{X} ko Snapchat ya WhatsApp view once par apni breasts ki photo bhejein.',
+      '{X} ko Snapchat ya WhatsApp view once par apni down there ki photo bhejein.',
+      '{X} ko Snapchat par apni body ki sab se sexy photo bhejein. Kya dikhana hai, aap chunein.',
+    ],
+  },
+  remote: {
+    sweet: [
+      '{S} ko WhatsApp par apni smile wali selfie bhejein.',
+      '{S} ko WhatsApp par voice note bhejein: 3 dafa dheere se "I love you".',
+      '{S} ko WhatsApp ya Snapchat par apne honthon ki kiss wali photo bhejein.',
+      '{S} ko Snapchat par apni chest ki photo bhejein.',
+      '{S} ko WhatsApp par gehri awaaz mein voice note bhejein: aap us ke baare mein kya soch rahe hain.',
+      '{S} ko 1 minute ki sexy voice note bhejein: aap us ke saath kya karna chahte hain.',
+      '{S} ko Snapchat par apne haathon ki photo bhejein aur batayein woh kahan hote.',
+      '{S} ko WhatsApp par apni body ki woh photo bhejein jo usay sab se pasand hai, kapron ke saath.',
+      '{S} ko Snapchat par woh outfit dikhayein jo aap us ke liye pehnna chahte hain.',
+      'Agle 2 minute {A} ka poora control {S} ko de dein.',
+    ],
+    spicy: [
+      '{S} ko Snapchat ya WhatsApp view once par apni bare chest ki photo bhejein.',
+      '{S} ko Snapchat ya WhatsApp view once par apni down there ki photo bhejein.',
+      '{S} ko Snapchat par apni body ki sab se sexy photo bhejein. Kya dikhana hai, aap chunein.',
+    ],
+  },
+};
+const MAX_TRUTHS = 3;
+const penText = g => { const p = g.pen, list = p && PENALTIES[g.turn] && PENALTIES[g.turn][p.l]; return list && list[p.i] ? fillCard(list[p.i]) : null; };
+const newPen = old => {   // never the same one twice in a row
+  const mine = PENALTIES[myRole], all = [...mine.sweet.map((_, i) => ({ l: 'sweet', i })), ...(store.get('spicyPen', true) ? mine.spicy.map((_, i) => ({ l: 'spicy', i })) : [])];
+  const left = all.filter(x => !old || x.l !== old.l || x.i !== old.i);
+  return left[Math.floor(Math.random() * left.length)];
+};
+const blankScore = () => ({ host: { t: 0, d: 0, s: 0, p: 0, r: 0 }, remote: { t: 0, d: 0, s: 0, p: 0, r: 0 } });
+const cleanScore = s => { const n = x => Number.isInteger(x) && x >= 0 && x < 10000 ? x : 0, one = o => ({ t: n(o && o.t), d: n(o && o.d), s: n(o && o.s), p: n(o && o.p), r: n(o && o.r) }); return s && typeof s === 'object' ? { host: one(s.host), remote: one(s.remote) } : null; };
+const points = o => o.t + o.d;   // a done truth or dare is one point; a skip is none
+const many = (n, one, more) => `${n} ${n === 1 ? one : more}`;
+let game = { turn: 'host', k: null, i: -1, score: cleanScore(store.get('gameScore:' + room)) || blankScore() };
 const usedCards = {};   // a fresh shuffled deck each session per player and kind; no repeats until every card is used
 const deck = (turn, k) => ['host', 'remote'].includes(turn) && ['truth', 'dare'].includes(k) ? CARDS[turn][k] : null;   // only real decks
 const used = (turn, k) => usedCards[turn + k] || (usedCards[turn + k] = new Set());
@@ -1669,20 +2144,43 @@ function fillCard(t) {   // names instead of placeholders: her, him, and each eg
 function renderGame() {
   const mineTurn = game.turn === myRole, list = deck(game.turn, game.k), card = list ? fillCard(list[game.i]) : null;
   $('turnText').textContent = mineTurn ? 'Your turn' : `${who()}'s turn`;
+  const over = game.over && !card ? game.over : null, otherRole = myRole === 'host' ? 'remote' : 'host', pen = !card && penText(game);
+  const mustDare = game.score[game.turn].r >= MAX_TRUTHS;
   $('card').innerHTML = card
     ? `<div><small>${game.k === 'truth' ? 'Truth' : 'Dare'} for ${mineTurn ? 'you' : esc(who())}</small>${esc(card)}</div>`
-    : `<div><small>${mineTurn ? 'Your pick' : 'Waiting'}</small>${mineTurn ? 'Truth or dare?' : esc(who()) + ' is choosing…'}</div>`;
-  $('pick').hidden = !!card || !mineTurn;
-  $('after').hidden = !card;
+    : pen ? `<div><small>${game.pen.sent ? (mineTurn ? `Waiting for ${esc(who())} to check` : `${esc(who())} says it is sent`) : `Penalty for ${mineTurn ? 'you' : esc(who())}`}</small>${esc(pen)}</div>`
+    : `<div><small>${over ? 'Game over' : mustDare ? '3 truths in a row' : mineTurn ? 'Your pick' : 'Waiting'}</small>${over ? esc(winnerText(over)) + '<br>' : ''}${mustDare ? (mineTurn ? 'This one must be a dare.' : esc(who()) + ' must pick a dare.') : mineTurn ? 'Truth or dare?' : esc(who()) + ' is choosing…'}</div>`;
+  $('pick').hidden = !!card || !!pen || !mineTurn;
+  $('after').hidden = !card || !mineTurn;   // only the person whose card it is can finish it
+  const sent = !!(pen && game.pen.sent);
+  $('penBtns').hidden = !pen || !mineTurn || sent;
+  $('penCheck').hidden = !pen || mineTurn || !sent;   // the other phone confirms; the game waits until it does
+  $('pickTruth').disabled = mustDare; $('pickTruth').textContent = mustDare ? 'Truth 🔒' : 'Truth';
+  $('spicyPen').checked = store.get('spicyPen', true);
+  const side = (name, o, ahead) => `<div class="${ahead ? 'ahead' : ''}"><b>${esc(name)}</b><strong>${points(o)}</strong><small>${many(o.t, 'truth', 'truths')}, ${many(o.d, 'dare', 'dares')}, ${many(o.s, 'skip', 'skips')}${o.p ? `, ${many(o.p, 'penalty', 'penalties')}` : ''}</small></div>`;
+  const a = game.score[myRole], b = game.score[otherRole];
+  $('gameScore').innerHTML = side('You', a, points(a) > points(b)) + side(who(), b, points(b) > points(a));
+  $('gameEnd').hidden = !(points(a) + points(b) + a.s + b.s);
 }
-function setGame(g, fromPartner) { game = g; keep('game', g); renderGame(); if (!fromPartner) { gameV = nextV(gameV); keep('gameV', gameV); send({ t: 'game', game: g, v: gameV }); } }
+function winnerText(o) {
+  const mine = o[myRole], theirs = o[myRole === 'host' ? 'remote' : 'host'];
+  return mine === theirs ? `It's a tie, ${mine} each 💞` : mine > theirs ? `You win, ${mine} to ${theirs} 🏆` : `${who()} wins, ${theirs} to ${mine} 🏆`;
+}
+function turnFx(title, line) {   // the other phone must feel that it is now their turn
+  burst(title);
+  const n = document.createElement('div'); n.className = 'turnFx'; n.textContent = title.replace(/\s*\p{Extended_Pictographic}.*$/u, '');
+  if (line) { const s = document.createElement('small'); s.textContent = line; n.appendChild(s); }
+  document.body.appendChild(n); setTimeout(() => n.remove(), 3700);
+}
+function setGame(g, fromPartner) { game = { ...g, score: g.score || game.score }; store.set('gameScore:' + room, game.score); keep('game', game); renderGame(); g = game; if (!fromPartner) { gameV = nextV(gameV); keep('gameV', gameV); send({ t: 'game', game: g, v: gameV }); } }
 function pickCard(k) {   // her turn: cards for her with the eggs; his turn: cards for him, far away
+  if (game.pen || (k === 'truth' && game.score[game.turn].r >= MAX_TRUTHS)) return;
   const n = deck(game.turn, k).length, u = used(game.turn, k);
   if (u.size >= n) u.clear();
   const left = [...Array(n).keys()].filter(x => !u.has(x));
   const i = left[Math.floor(Math.random() * left.length)];
   u.add(i);
-  tap(); setGame({ turn: game.turn, k, i });
+  tap(); setGame({ turn: game.turn, k, i, score: game.score });
 }
 function gotGame(m) {
   const g = m.game || {};
@@ -1692,14 +2190,43 @@ function gotGame(m) {
   if (!(m.v > gameV)) return;
   gameV = m.v; keep('gameV', gameV);
   if (g.k) used(g.turn, g.k).add(g.i);   // the partner's card is used up here too
-  setGame({ turn: g.turn, k: g.k, i: g.k ? g.i : -1 }, true);
+  const did = ['done', 'skip', 'skipdare', 'pensent', 'pennot', 'penalty'].includes(g.did) ? g.did : null, kind = g.kind === 'truth' ? 'truth' : 'dare', pen = !g.k && g.pen && ['sweet', 'spicy'].includes(g.pen.l) && Number.isInteger(g.pen.i) && g.pen.i >= 0 ? { l: g.pen.l, i: g.pen.i, sent: !!g.pen.sent } : undefined, over = g.over && cleanScore({ host: { t: g.over.host }, remote: { t: g.over.remote } });
+  setGame({ turn: g.turn, k: g.k, i: g.k ? g.i : -1, score: cleanScore(g.score) || game.score, pen, over: over ? { host: over.host.t, remote: over.remote.t } : undefined }, true);
   if (g.k) tap();
+  if (over && !g.k) burst('🏆');
+  else if (did === 'skipdare' && g.turn !== myRole) turnFx(`${who()} skipped the dare 😈`, 'Penalty time');
+  else if (did === 'pensent' && g.turn !== myRole) turnFx(`${who()} sent the penalty 📸`, 'Check it, then press Got it');
+  else if (did === 'pennot' && g.turn === myRole) turnFx(`${who()} has not got it yet 🙈`, 'Send it, then press I sent it');
+  else if (did === 'penalty' && g.turn !== myRole) turnFx(`${who()} got it 🔥`, `${who()}'s turn`);
+  else if ((did === 'done' || did === 'skip') && !g.k && g.turn === myRole) turnFx(did === 'done' ? `${who()} ${kind === 'truth' ? 'told the truth' : 'did the dare'} 🔥` : `${who()} skipped 🙈`, 'Your turn');
 }
-const nextTurn = () => setGame({ turn: game.turn === 'host' ? 'remote' : 'host', k: null, i: -1 });
+const nextTurn = did => {
+  if (game.turn !== myRole || !game.k) return;
+  const score = cleanScore(game.score), me = score[myRole];
+  if (did === 'skip') me.s++; else if (game.k === 'truth') me.t++; else me.d++;
+  me.r = game.k === 'truth' ? me.r + 1 : 0;   // a skipped truth still counts toward the 3
+  tap();
+  if (did === 'skip' && game.k === 'dare') { setGame({ turn: myRole, k: null, i: -1, score, did: 'skipdare', pen: newPen() }); return; }
+  setGame({ turn: myRole === 'host' ? 'remote' : 'host', k: null, i: -1, score, did, kind: game.k });
+};
+$('penDone').onclick = () => { if (game.turn === myRole && game.pen && !game.pen.sent) { tap(); setGame({ ...game, did: 'pensent', pen: { ...game.pen, sent: true } }); } };
+$('penGot').onclick = () => {
+  if (game.turn === myRole || !game.pen || !game.pen.sent) return;
+  const score = cleanScore(game.score); score[game.turn].p++;
+  tap(); setGame({ turn: myRole, k: null, i: -1, score, did: 'penalty' });
+};
+$('penNot').onclick = () => { if (game.turn !== myRole && game.pen && game.pen.sent) { tap(); setGame({ ...game, did: 'pennot', pen: { ...game.pen, sent: false } }); } };
+$('penOther').onclick = () => { if (game.turn === myRole && game.pen && !game.pen.sent) { tap(); setGame({ ...game, did: undefined, pen: newPen(game.pen) }); } };
+$('spicyPen').onchange = ev => { store.set('spicyPen', ev.target.checked); if (game.turn === myRole && game.pen && game.pen.l === 'spicy' && !ev.target.checked) setGame({ ...game, did: undefined, pen: newPen() }); };
 $('pickTruth').onclick = () => pickCard('truth');
 $('pickDare').onclick = () => pickCard('dare');
-$('cardDone').onclick = nextTurn;
-$('cardSkip').onclick = nextTurn;
+$('cardDone').onclick = () => nextTurn('done');
+$('cardSkip').onclick = () => nextTurn('skip');
+$('gameEnd').onclick = () => {
+  if (!confirm('Finish this game and show who won? The score starts again.')) return;
+  const over = { host: points(game.score.host), remote: points(game.score.remote) };
+  burst('🏆'); setGame({ turn: game.turn, k: null, i: -1, score: blankScore(), over });
+};
 renderGame();
 
 // ---- watch together: a video library saved on both phones, played in step
@@ -1787,9 +2314,11 @@ async function gotLib(m) {
 }
 
 // adding, deleting, sharing
-$('vidFile').onchange = async ev => {
+$('vidFile').onchange = ev => {
   const f = ev.target.files[0]; ev.target.value = '';
-  if (!f) return;
+  if (f) addVideoFile(f);
+};
+async function addVideoFile(f) {
   if (!f.size || !(/^video\//.test(f.type) || /\.(mp4|m4v|mov|webm|mkv|3gp)$/i.test(f.name))) { notify('That file is not a video.'); return; }
   const v = { id: b64url(rand(9)), name: f.name.replace(/[\u0000-\u001f]/g, '').slice(0, 120) || 'Video', size: f.size, type: /^video\//.test(f.type) ? f.type : 'video/mp4',
               by: myName, from: me, at: Date.now(), have: f.size, ready: true, peer: 0 };
@@ -1800,7 +2329,32 @@ $('vidFile').onchange = async ev => {
   if (f.size >= START_BY_ITSELF && partnerOnline() && !wstate.playing) act(true, 0, v.id);
   const slow = f.size > BIG ? ` It is big (${fmtSize(f.size)}), so over phone data it can take a long time. Wi-Fi is better.` : '';
   notify((fcOpen() ? `Sending "${vTitle(v)}" to ${who()}.` : `Saved. It will send to ${who()} when their phone is back.`) + slow);
-};
+  return v;
+}
+// One phone's internet blocks a site: the other phone fetches the whole video and sends it over, like any added video.
+const carried = new Set(), carryAnswer = new Map();
+async function carryFor(id) {
+  const v = typeof id === 'string' && Object.hasOwn(vidMap, id) ? vidMap[id] : null;
+  if (!v || carried.has(id)) return;
+  carried.add(id);
+  const got = v.page ? await findVideo(v.page) : null;
+  if (!(got && got.file && playsHere(got.file))) {
+    send({ t: 'vidcarry', id, yes: false });
+    notify(`The video could not play on ${who()}'s phone. Their internet may block that site.`, 15000);
+    return;
+  }
+  send({ t: 'vidcarry', id, yes: true });
+  notify(`${who()}'s internet blocks that site. Your phone is fetching the video to send it. Keep Loveline open.`, 15000);
+  try {
+    const r = await fetch(got.file);
+    if (!r.ok) throw new Error('refused');
+    const blob = await r.blob();
+    const nv = await addVideoFile(new File([blob], `${vTitle(v)}.mp4`, { type: blob.type || 'video/mp4' }));
+    if (!nv) return;
+    act(true, 0, nv.id);
+    rememberGone(id); await removeVid(id); sendLib();
+  } catch { notify('Your phone could not fetch that video. Save it to your phone, then press Add video.', 15000); }
+}
 // a link to a video somewhere else: the file plays straight in our player; a site with its own player shows that player
 const FINDER = 'https://loveline-finder.kaka.deno.net';   // reads a web page and answers with the video inside it
 const homeNet = h => /^\[|^[\d.]+$|^[^.]+\.?$|\.(local|localhost|localdomain|internal|lan|home|intranet|arpa|nip\.io|sslip\.io|xip\.io|plex\.direct)\.?$/i.test(h);   // best effort: it sees only the name, not where a name or a redirect really leads
@@ -2219,6 +2773,8 @@ function keepTogether() {   // the video is still arriving, or comes from a site
 }
 let linkFrame = null;
 let hlsPlayer = null, linkBad = false, lookedAgain = null;
+const CARRIER = 'https://loveline-carry.shani2323.workers.dev', viaCarrier = new Set();   // for a phone whose internet blocks the video site
+const carrierCan = u => /(^|\.)(xvideos-cdn\.com|xnxx-cdn\.com|xhcdn\.com)$/i.test(new URL(u).hostname) && /\.m3u8$/i.test(new URL(u).pathname) && window.Hls && Hls.isSupported();
 const loadHls = () => new Promise((res, rej) => {
   if (window.Hls) return res();
   const s = document.createElement('script'); s.src = 'hls.light.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
@@ -2232,23 +2788,33 @@ async function startStream(id, url) {
     hlsPlayer.on(Hls.Events.ERROR, (_, d) => {
       if (!d.fatal) return;
       if (d.type === Hls.ErrorTypes.MEDIA_ERROR && fixes++ < 2) { hlsPlayer.recoverMediaError(); return; }
-      logLink(`stream error ${d.details}`); linkFailed(id);
+      logLink(`stream error ${d.details}`); linkFailed(id, d.response && d.response.code === 0);
     });
     hlsPlayer.loadSource(url); hlsPlayer.attachMedia(realVid);
   } else realVid.src = url;   // iPhone plays these by itself
 }
-async function linkFailed(id) {   // a found address runs out after a while: look it up again, once; then the site's own small player, if it has one
+async function linkFailed(id, noAnswer) {   // a found address runs out after a while: look it up again, once; then the site's own small player, if it has one
   const v = vidMap[id];
   if (v && v.page && loadedId === id) {
-    if (lookedAgain !== id) {
+    if (lookedAgain !== id && !noAnswer) {
       lookedAgain = id;
       const got = await findVideo(v.page);
       if (got && playsHere(got.url) && vidMap[id] && loadedId === id) { v.link = got.url; await saveMeta(v); unload(); applyState(); return; }
     }
+    if (!viaCarrier.has(id) && carrierCan(v.link)) { viaCarrier.add(id); store.set('blockedHere', true); logLink('video goes through the carrier'); unload(); applyState(); return; }
+    store.set('blockedHere', false);
+    send({ t: 'vidfail', id });
+    for (let i = 0; partnerOnline() && !carryAnswer.has(id) && i < 16; i++) await wait(500);
+    if (carryAnswer.get(id)) { linkBad = true; renderPlayer(); return; }   // it is on its way from the other phone
+    if (!vidMap[id] || loadedId !== id) return;
+    sayNoPlay();
     const small = readLink(v.page);
     if (small && small[0] === 'frame') { v.link = v.page; await saveMeta(v); unload(); applyState(); return; }
-  }
+  } else sayNoPlay();
   linkBad = true; renderPlayer();
+}
+function sayNoPlay() {   // both phones must know, or one keeps watching while the other sees nothing
+  notify('The video could not play on this phone. Its internet may block that site. Save the video and press Add video instead.', 15000);
 }
 function clearLinkPlayer() {
   if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
@@ -2287,7 +2853,7 @@ function ytStandIn(code) {   // a YouTube player that answers to the same questi
 const YT_NO = "YouTube won't play this video inside other apps. Age-limited videos and some others are blocked. Open it on YouTube, or save it and press Add video.";
 async function startLink(id, [how, what]) {
   loadedId = id;
-  if (how === 'file' || how === 'stream') { if (how === 'file') realVid.src = what; else await startStream(id, what); await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
+  if (how === 'file' || how === 'stream') { if (how === 'file') realVid.src = what; else { await loadHls().catch(() => {}); if (store.get('blockedHere') && carrierCan(what)) viaCarrier.add(id); await startStream(id, viaCarrier.has(id) ? `${CARRIER}/?u=${encodeURIComponent(what)}` : what); } await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
   realVid.style.display = 'none';
   if (how === 'yt') {
     try { await loadYt(); vid = ytStandIn(what); await vid.ready; }
@@ -2377,6 +2943,25 @@ $('vidPlay').onclick = () => { tap(); act(!showsPlaying(), here() && vid.ended ?
 $('vidBack').onclick = () => { tap(); act(wstate.playing, clampT(curPos() - 10)); };
 $('vidFwd').onclick = () => { tap(); act(wstate.playing, clampT(curPos() + 10)); };
 $('vidClose').onclick = () => { tap(); act(false, 0, null); };
+// Like a phone's own player: the finger moves the position from where it is, only after a clear sideways drag, and never past what has arrived.
+let grab = null;
+const arrivedTo = () => { const v = vidMap[wstate.id], far = v && !v.link ? vidState(v)[1] : null; return far === null ? 1000 : Math.max(+$('vidSeek').value, far * 1000 - 15); };
+$('seekBox').onpointerdown = e => { if (!$('vidSeek').disabled) grab = { x: e.clientX, y: e.clientY, from: +$('vidSeek').value, on: false }; };
+$('seekBox').onpointermove = e => {
+  if (!grab) return;
+  const dx = e.clientX - grab.x, dy = e.clientY - grab.y;
+  if (!grab.on) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { grab = null; return; }   // that was a scroll
+    if (Math.abs(dx) < 10) return;
+    grab.on = true; grab.x = e.clientX; grab.top = arrivedTo(); $('seekBox').setPointerCapture(e.pointerId); tap();
+  }
+  const want = grab.from + (e.clientX - grab.x) / $('seekBox').clientWidth * 1000;
+  if (want > grab.top && grab.top < 1000 && !grab.said) { grab.said = true; notify('That part has not arrived yet.'); }
+  $('vidSeek').value = Math.min(Math.max(want, 0), grab.top);
+  $('vidSeek').dispatchEvent(new Event('input'));
+};
+$('seekBox').onpointerup = () => { const g = grab; grab = null; if (g && g.on) $('vidSeek').dispatchEvent(new Event('change')); };
+$('seekBox').onpointercancel = () => { if (grab && grab.on) { scrubbing = false; renderPlayer(); } grab = null; };
 $('vidSeek').oninput = () => { scrubbing = true; renderPlayer(); };
 $('vidSeek').onchange = () => { scrubbing = false; if (isFinite(vid.duration)) act(wstate.playing, $('vidSeek').value / 1000 * vid.duration); };
 $('vidSound').onclick = () => {   // muted until this phone says the headphones are in, using the same card as live sound
@@ -2451,7 +3036,7 @@ function newHost(m) {   // her page has a key this phone has not seen: only he c
     if (asking !== m || (partnerOnline() && !(eggCount(m) > eggsOn()))) { if (asking === m) asking = null; return; }
     logLink('a new page of hers asked to connect'); tap();
     $('askTitle').textContent = 'Connect to this page?';
-    $('askText').textContent = `${typeof m.name === 'string' && m.name ? m.name.slice(0, 24) : 'Someone with your link'} opened Loveline on a new phone or tab${eggCount(m) ? ' and has the eggs there' : ''}. Connect only if this is really your partner.`;
+    $('askText').textContent = `${typeof m.name === 'string' && m.name ? m.name.slice(0, 24) : 'Someone with your link'} opened Loveline on a new phone or tab${eggCount(m) ? ` and has ${label('vib')} and ${label('suc')} there` : ''}. Connect only if this is really your partner.`;
     $('askSheet').hidden = false;
   });
 }
@@ -2477,7 +3062,7 @@ async function fromHost(m, viaLink) {
     leading: `${who()} is leading right now. Ask her to tap Shared.`,
     stopped: `${who()} just pressed Stop. Try again in a moment.`,
     off: `${label(m.egg in KINDS ? m.egg : 'vib')} is not connected on her phone right now.`,
-  }[m.why] || 'That move did not reach her eggs. Try again.');
+  }[m.why] || 'That move did not go through. Try again.');
   if (m.t === 'state') {
     allow = !!m.allow;
     if (m.eggs && Object.values(m.eggs).every(s => !s.level)) hostZeroAt = Date.now();
@@ -2512,8 +3097,17 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'combo' && Number.isInteger(m.n) && m.n > 0) { notify(`${who()} tapped ${Math.min(m.n, 999)} in a row 🔥`); m.n >= 20 ? burst('🔥') : tap(); }
   if (m.t === 'draw') gotDraw(m);
   if (m.t === 'game') gotGame(m);
+  if (m.t === 'tower') gotTower(m);
+  if (m.t === 'buzz') gotBuzz();
+  if (m.t === 'buzzgot') notify(`${who()} got your 💗`);
+  if (m.t === 'pushsub') gotPushSub(m);
   if (m.t === 'resync') resync();
   if (m.t === 'stroke' && m.s) gotWhole(m.s);
+  if (m.t === 'vidfail') carryFor(m.id);
+  if (m.t === 'vidcarry') {
+    carryAnswer.set(m.id, !!m.yes);
+    if (m.yes) notify(`This phone's internet blocks that site, so ${who()}'s phone is sending the video. It starts by itself.`, 15000);
+  }
   if (m.t === 'mix') gotMix(m);
   if (m.t === 'vlib') gotLib(m);
   if (m.t === 'wplay') gotWplay(m);
@@ -2754,10 +3348,88 @@ function startKeepAlive() {   // Chrome does not put a tab to sleep while it pla
 let wakeLock = null;
 async function keepScreenOn() { try { wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
 
+// ---- Thinking of you: a heart and chime if the app is open, a phone notification if it is closed.
+// No web page can get past silent mode or vibration off: the notification follows that phone's own settings.
+const BUZZ = 'https://loveline-buzz.shani2323.workers.dev', BUZZ_KEY = 'BCs48HNSCwBFX4GZijT0ybur-uYk_WKo84e5xn6QJLGLhr9fjMBpINXHKBDoAuDR2wZCUfDHy0XIhirwNKT5aVs';
+const okEndpoint = e => typeof e === 'string' && e.length < 800 && /^https:\/\/[^\s]+$/.test(e);
+let buzzAt = 0, chime = null;
+function makeChime() {
+  const sr = 22050, n = Math.floor(sr * .9), b = new ArrayBuffer(44 + n * 2), v = new DataView(b), w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) { const t = i / sr, late = t >= .28; v.setInt16(44 + i * 2, Math.sin(2 * Math.PI * (late ? 1318.5 : 880) * t) * Math.exp(-5 * (late ? t - .28 : t)) * 26000, true); }
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+}
+addEventListener('pointerdown', () => {   // phones only let a page play sound after a first touch
+  if (chime) return;
+  chime = new Audio(makeChime()); chime.muted = true;
+  chime.play().then(() => { chime.pause(); chime.currentTime = 0; chime.muted = false; }).catch(() => { chime.muted = false; });
+}, true);
+function gotBuzz() {
+  burst('💗'); notify(`${who()} is thinking of you 💗`);
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+  if (chime && store.get('buzzSound', true)) { chime.muted = false; chime.currentTime = 0; chime.play().catch(() => {}); }
+  send({ t: 'buzzgot' });
+  if (!document.hidden && navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.getNotifications({ tag: 'buzz' })).then(l => l.forEach(n => n.close())).catch(() => {});
+}
+async function sendBuzz() {
+  const now = Date.now();
+  if (now - buzzAt < 3000) return;
+  buzzAt = now; tap();
+  const btn = $('buzzBtn'), on = partnerOnline();
+  if (btn.animate) btn.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  if (on) send({ t: 'buzz' });
+  let woke = false;
+  if (partnerPush) {
+    try {
+      const r = await fetch(BUZZ, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: partnerPush }) }), a = await r.json();
+      woke = a.status >= 200 && a.status < 300;
+      if (a.status === 404 || a.status === 410) { partnerPush = null; store.set('partnerPush:' + room, null); }
+    } catch {}
+  }
+  notify(on || woke ? 'Sent 💗' : `${who()} is away and has not turned on alerts, so this did not reach them.`);
+}
+function gotPushSub(m) {
+  if (m.endpoint !== null && !okEndpoint(m.endpoint)) return;
+  partnerPush = m.endpoint; store.set('partnerPush:' + room, partnerPush);
+  render();
+}
+const fromB64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
+function alertHelp(text) { document.querySelectorAll('.alertHelp').forEach(p => { p.textContent = text || ''; p.hidden = !text; }); }
+function showAlerts() { document.querySelectorAll('.alertsOn').forEach(i => { i.checked = !!myPush; }); document.querySelectorAll('.buzzSound').forEach(i => { i.checked = store.get('buzzSound', true); }); }
+async function alertsOn() {
+  if (!('Notification' in window) || !('PushManager' in window) || !navigator.serviceWorker) {
+    alertHelp(/iPhone|iPad/.test(navigator.userAgent) ? 'On iPhone, open Loveline in Safari, press Share, then Add to Home Screen. Open Loveline from your Home Screen, paste your private link, and turn this on there.' : 'This browser cannot show alerts when Loveline is closed. Use Chrome.');
+    return showAlerts();
+  }
+  if (await Notification.requestPermission() !== 'granted') { alertHelp('Alerts are blocked for this site. Allow notifications for it in your phone settings, then try again.'); return showAlerts(); }
+  try {
+    const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(BUZZ_KEY) });
+    myPush = sub.endpoint; store.set('myPush:' + room, myPush); alertHelp('');
+    send({ t: 'pushsub', endpoint: myPush });
+    notify(`Alerts are on. ${who()} can now reach you when Loveline is closed.`);
+  } catch { alertHelp('Alerts could not be turned on just now. Check your internet and try again.'); }
+  showAlerts();
+}
+async function alertsOff() {
+  try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch {}
+  myPush = null; store.set('myPush:' + room, null); send({ t: 'pushsub', endpoint: null }); alertHelp(''); showAlerts();
+}
+document.querySelectorAll('.switchSide').forEach(b => b.insertAdjacentHTML('beforebegin', `<label class="row"><span>Alerts when Loveline is closed</span><input type="checkbox" class="switch alertsOn"></label><p class="alertHelp" hidden></p><label class="row"><span>Chime for Thinking of you</span><input type="checkbox" class="switch buzzSound" checked></label>`));
+document.querySelectorAll('.alertsOn').forEach(i => i.onchange = () => { i.checked ? alertsOn() : alertsOff(); });
+document.querySelectorAll('.buzzSound').forEach(i => i.onchange = () => { store.set('buzzSound', i.checked); showAlerts(); });
+showAlerts();
+$('buzzBtn').onclick = () => sendBuzz();
+
 // ---- start
 $('quick').innerHTML = EMOJI.map(e => `<button type="button" aria-label="Send ${e}">${e}</button>`).join('');
-$('quick').querySelectorAll('button').forEach(b => b.onclick = () => sendChat(b.textContent));
-$('emojiBtn').onclick = () => { $('quick').hidden = !$('quick').hidden; fitDock(); };
+// Pressing Send or an emoji must not take the cursor out of the message box, or the phone closes its keyboard.
+const KEEPS_KEYBOARD = '#sendBtn, #emojiBtn, #quick button, #buzzBtn';
+let wasTyping = false;
+document.addEventListener('pointerdown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) wasTyping = document.activeElement === $('text'); }, true);
+document.addEventListener('mousedown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) ev.preventDefault(); }, true);
+const backToTyping = () => { if (wasTyping) $('text').focus(); };
+$('quick').querySelectorAll('button').forEach(b => b.onclick = () => { sendChat(b.textContent); backToTyping(); });
+$('emojiBtn').onclick = () => { $('quick').hidden = !$('quick').hidden; fitDock(); backToTyping(); };
 $('text').oninput = () => {
   $('sendBtn').disabled = !$('text').value.trim();
   if (Date.now() - typingSent > 2000) { typingSent = Date.now(); send({ t: 'typing' }); }
@@ -2777,7 +3449,7 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
   if (muted) { notify('Your headphones changed, so the sound was muted. Put them back in to keep listening.'); render(); }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
-$('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
+$('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; $('text').focus(); };
 $('clearChat').onclick = ev => { ev.stopPropagation(); tap(); $('clearSheet').hidden = false; };
 $('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
 $('askNo').onclick = () => { $('askSheet').hidden = true; if (asking) { refused.add(asking.from); if (!isRemote) send({ t: 'busy', to: asking.from, no: true }, true); logLink('a new phone or page was refused'); } asking = null; };
@@ -2786,6 +3458,21 @@ $('clearNo').onclick = () => { $('clearSheet').hidden = true; };
 $('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
 $('clearForm').onsubmit = ev => { ev.preventDefault(); $('clearSheet').hidden = true; clearChat(); };
 $('msgs').onclick = () => { $('dock').classList.toggle('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
+const chatIsOpen = () => $('dock').classList.contains('open');
+const closeChat = () => { $('dock').classList.remove('open'); fitDock(); };
+$('closeChat').onclick = () => { tap(); closeChat(); };
+addEventListener('pointerdown', ev => { if (chatIsOpen() && !ev.target.closest('#dock, .sheet')) closeChat(); });
+// The phone's Back button stays inside the app first: it closes the chat, then leaves the section, and only then leaves Loveline.
+const holdBack = () => addEventListener('pointerdown', () => history.pushState(null, ''), { once: true });   // browsers ignore this unless the person has touched the page
+holdBack();
+addEventListener('popstate', () => {
+  if (location.hash !== startHash) return;
+  if (chatIsOpen()) closeChat();
+  else if (panel !== 'play') { if (okToLeave('play')) openPanel('play'); }
+  else if (outQ.length) { if (confirm('Your video is still sending. Leave Loveline?')) { leaving = true; history.back(); return; } }
+  else { holdBack(); return; }
+  history.pushState(null, '');
+});
 $('meBtn').onclick = () => { $('nameInput').value = myName; $('nameSheet').hidden = false; $('nameInput').focus(); };
 $('nameForm').onsubmit = ev => {
   ev.preventDefault();
@@ -2829,14 +3516,16 @@ if (bc) bc.onmessage = e => {
 };
 async function begin() {
   if (firstVisit) {
-    showPark('Who has the eggs?', 'Loveline runs on two phones: the one with the eggs, and the remote.', 'I have the eggs',
+    showPark(`Who has ${label('vib')} and ${label('suc')}?`, 'Loveline runs on two phones: hers, and the remote.', 'I have them',
       () => { store.set('hostRoom', { r: room, k: hp.get('k') }); location.reload(); },
       'My partner has them', () => { $('parkTitle').textContent = 'Open their link'; $('parkText').textContent = 'Ask your partner to send you your link. Open that link on this phone.'; $('parkGo').hidden = true; $('parkAlt').hidden = true; });
     return;
   }
-  if (ownLink) {
-    showPark('This is your own link', 'This phone opened the egg link before, so it is set up as the phone with the eggs. If your partner has the eggs, make this phone the remote. Otherwise, send this link to your partner.', 'Go to my eggs', () => location.replace(location.pathname),
-      'Make this phone the remote', () => { store.set('hostRoom', null); location.reload(); });
+  if (askSide) {
+    const side = isRemote ? 'his' : 'her';
+    showPark(`This is ${side} link`, `This phone was last used on the other side. Open ${side} side here only if this is ${side} phone.`, 'Go back to my side',
+      () => location.replace(lastSide === 'remote' ? store.get('lastRemote') : location.pathname),
+      `Yes, open ${side} side`, () => { store.set('role', isRemote ? 'remote' : 'host'); location.reload(); });
     return;
   }
   const alreadyOpen = () => showPark('Loveline is already open', 'It is running in another tab on this phone. Only one tab can run at a time.', 'Use this tab instead', takeOver);
@@ -2884,7 +3573,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', nm: myName, pv: panelV, gv: gameV, wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', nm: myName, pv: panelV, gv: gameV, tv: towerV, pu: (partnerPush || '').slice(-16), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
@@ -2952,6 +3641,10 @@ else {
     await stopAll();
     await tx(['meta', 'blobs', 'parts'], 'readwrite', t => { t('meta').clear(); t('blobs').clear(); t('parts').clear(); }).catch(() => {});
     store.set('chat:' + room, null);
+    store.set('tower:' + room, null);
+    store.set('gameScore:' + room, null);
+    store.set('partnerPush:' + room, null);
+    if (myPush) await alertsOff();
     store.set('pair:' + room, null);
     store.set('hostRoom', { r: b64url(rand(12)), k: b64url(rand(32)) });
     leaving = true; location.replace(location.pathname);
@@ -2964,9 +3657,19 @@ else {
   window.addEventListener('pagehide', () => stopAll());
 }
 let leaving = false;
-addEventListener('beforeunload', e => { if (!isRemote && !leaving && Object.values(state).some(x => x.connected)) { e.preventDefault(); e.returnValue = ''; } });
+const otherSide = isRemote ? ((store.get('hostRoom') || {}).r === room ? location.pathname : '') : (roomOf(store.get('lastRemote')) === room ? store.get('lastRemote') : '');
+document.querySelectorAll('.switchSide').forEach(b => {
+  b.hidden = !otherSide;
+  b.onclick = () => {
+    if (!confirm(`Switch this phone to ${isRemote ? 'her' : 'his'} side?`)) return;
+    if (!isRemote) stopAll();
+    store.set('role', isRemote ? 'host' : 'remote');
+    leaving = true; setTimeout(() => location.replace(otherSide), 400);
+  };
+});
+addEventListener('beforeunload', e => { if (!leaving && (outQ.length || (!isRemote && Object.values(state).some(x => x.connected)))) { e.preventDefault(); e.returnValue = ''; } });
 addEventListener('scroll', () => document.querySelector('header').classList.toggle('small', scrollY > 24), { passive: true });   // large title shrinks into a bar
-$('stop').onclick = () => { if (!isRemote) herStops++; stopAll(isRemote ? 'You stopped both eggs' : 'Both eggs stopped'); };
+$('stop').onclick = () => { if (!isRemote) herStops++; stopAll(isRemote ? 'You stopped everything' : 'Everything stopped'); };
 </script>
 </body>
 </html>
