@@ -134,6 +134,10 @@
   .dock.open .chatTop { display: flex; }
   .closeChat { height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: var(--fill); font-size: 14px; font-weight: 600; }
   .chatTop .clearChat { margin: 0; }
+  .chatWho { flex: 1; min-width: 0; text-align: center; line-height: 1.15; }
+  .chatWho b { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chatWho small { display: block; font-size: 12px; color: var(--label2); }
+  .chatWho small.live { color: var(--green); }
   .clearChat { display: none; margin: 0 auto 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--red); font-size: 13px; font-weight: 600; }
   .dock.open .clearChat { display: block; }
   #clearSheet, #askSheet { z-index: 12; }
@@ -631,7 +635,7 @@
 </main>
 
 <div class="dock" id="dock"><div class="dock-in">
-  <div class="chatTop"><button class="clearChat" id="clearChat" hidden>Clear chat</button><button class="closeChat" id="closeChat">Close</button></div>
+  <div class="chatTop"><button class="clearChat" id="clearChat" hidden>Clear chat</button><div class="chatWho"><b id="chatName"></b><small id="chatSeen"></small></div><button class="closeChat" id="closeChat">Close</button></div>
   <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
   <div class="msgs" id="msgs" aria-live="polite" title="Tap a message to answer it. Double tap to make the chat small."></div>
   <div class="typing" id="typing" hidden></div>
@@ -973,6 +977,24 @@ function change(kind, m, fromMix, always) {   // a change made on this phone
 }
 
 const partnerOnline = () => Date.now() - partnerSeen < PARTNER_TIMEOUT_MS;
+let seenSaved = 0;
+const seenAt = () => partnerSeen || store.get('seenAt:' + room, 0);
+function seenText(t, short) {   // WhatsApp style: "last seen today at 10:15 PM"; short for the small chip: "5 min ago"
+  if (!t) return '';
+  const d = new Date(t), mins = Math.floor((Date.now() - t) / 60000), now = new Date();
+  const days = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), date = d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  if (short) return mins < 1 ? 'just now' : mins < 60 ? `${mins} min ago` : days === 0 ? time : days === 1 ? 'yesterday' : date;
+  return 'last seen ' + (mins < 1 ? 'just now' : days === 0 ? `today at ${time}` : days === 1 ? `yesterday at ${time}` : `${date} at ${time}`);
+}
+function renderSeen() {   // the chat header: her name, and online or when she was last here
+  $('chatName').textContent = who();
+  $('chatSeen').textContent = partnerOnline() ? 'online' : seenText(seenAt()) || (isRemote ? 'waiting' : 'not here yet');
+  $('chatSeen').classList.toggle('live', partnerOnline());
+}
+const toySeen = store.get('toySeen:' + room, {}) || {};   // when each toy was last switched on and talking to us
+function noteToys() { let ch = false; for (const k in KINDS) if (state[k] && state[k].connected) { toySeen[k] = Date.now(); ch = true; } if (ch && Date.now() - (noteToys.at || 0) > 10000) { noteToys.at = Date.now(); store.set('toySeen:' + room, toySeen); } }   // saved at most every 10 s
+steady(() => { noteToys(); if (!partnerOnline() || Object.keys(KINDS).some(k => state[k] && !state[k].connected)) render(); }, 20000);   // keeps "5 min ago" fresh while she or a toy is away
 const who = () => partnerName || 'Your partner';
 
 function render() {
@@ -1040,9 +1062,10 @@ function render() {
   renderWatchCtl(canControl);
   const items = [
     [myName || 'You', online, online ? '' : ', offline'],
-    [who(), partnerOnline(), partnerOnline() ? '' : isRemote ? ', waiting' : ', not here'],
-    ...(solo ? onKinds : Object.keys(KINDS)).map(k => [faces[k] + ' ' + label(k), state[k].connected, state[k].connected ? (state[k].battery != null ? ` ${state[k].battery}%` : '') : ', off']),
+    [who(), partnerOnline(), partnerOnline() ? '' : seenAt() ? `, seen ${seenText(seenAt(), true)}` : isRemote ? ', waiting' : ', not here'],
+    ...(solo ? onKinds : Object.keys(KINDS)).map(k => [faces[k] + ' ' + label(k), state[k].connected, state[k].connected ? (state[k].battery != null ? ` ${state[k].battery}%` : '') : toySeen[k] ? `, off, seen ${seenText(toySeen[k], true)}` : ', off']),
   ];
+  renderSeen(); noteToys();
   $('status').innerHTML = items.map(([n, on, extra]) => `<li class="${on ? 'on' : ''}"><span class="dot"></span>${esc(n)}${esc(extra)}</li>`).join('');
   $('meBtn').textContent = myName || 'Your name';
   $('mixBtn').querySelector('small').textContent = `${label('vib')} and ${label('suc')} together, building up`;
@@ -1186,6 +1209,7 @@ const seen = m => {
   if (!(m.ts > lastSeenTs)) return;
   const back = !partnerOnline(), first = !syncAsked;
   lastSeenTs = m.ts; partnerSeen = Date.now();
+  if (partnerSeen - seenSaved > 15000) { seenSaved = partnerSeen; store.set('seenAt:' + room, partnerSeen); }   // kept for "last seen" after a reload
   if (back || first) { syncAsked = true; setTimeout(() => { if (first) restoreOwn(); send({ t: 'resync' }); }, 800); }   // ask what is open over there
 };   // only newer messages count as the partner being here
 let dc = null, dataAt = 0;   // direct line between the two phones once paired; relays stay as backup
@@ -2214,7 +2238,12 @@ function towerTip(b) {   // how close the stack is to tipping: 0 balanced, 1 its
   }
   return { risk: Math.min(1.5, risk), gives, lean };
 }
-let ttip = towerTip(tower.b);
+function towerCrook(b) {   // how crooked the top of the stack is: 0 straight, 1 every floor half off the one below; newer floors count most
+  let sum = 0, wt = 0;
+  for (let j = 0, w = 1; j < 14 && b.length - 2 - j >= 0; j++, w *= .82) { sum += w * Math.min(1, Math.abs(b[b.length - 1 - j][0] - b[b.length - 2 - j][0]) / (TW * TOVER)); wt += w; }
+  return wt ? sum / wt : 0;
+}
+let ttip = towerTip(tower.b), tcrook = towerCrook(tower.b);
 // The tower is one rigid stack rocking on its base: it never bends. Taller rocks slower; weight hanging to one side
 // tilts it that way and lets the wind rock it; an off-centre landing knocks it. A straight tower of perfect drops stands still.
 let tAmp = 0;   // how far the top swings now; it eases toward the shared swing level
@@ -2223,7 +2252,8 @@ const towerSway = t => tA + towerRock(t), towerWob = () => 0;
 const towerTopX = t => towerBase() + tA + towerRock(t);
 function towerStep(dt, count, now) {
   const k = Math.max(2.5, 16 - count * .25), eq = 7 * Math.max(-1.2, Math.min(1.2, ttip.lean)), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
-  tAmp += (tower.sw * 22 - tAmp) * Math.min(1, dt * 1.5);   // a perfect drop calms it over a second or two
+  const want = 22 * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25)));   // the shared swing level, plus how crooked the top is, more for a taller tower
+  tAmp += (want - tAmp) * Math.min(1, dt * 1.5);   // a perfect drop calms it over a second or two
   if (tcalm) { tA = eq; tV = 0; tAmp = 0; return; }
   for (let n = 0; n < 4; n++) { const h = dt / 4; tV += (-k * (tA - eq) - 1.3 * tV + wind) * h; tA += tV * h; }
 }
@@ -2325,7 +2355,7 @@ function towerLand() {
 function applyTower(t, v, drop) {
   if (tanim) towerLand();
   const was = tower.b.length;
-  tower = t; towerV = v; saveTower(); ttip = towerTip(tower.b);
+  tower = t; towerV = v; saveTower(); ttip = towerTip(tower.b); tcrook = towerCrook(tower.b);
   if (drop && panel === 'tower' && !document.hidden) {
     const kept = drop.kind === 'good' || drop.kind === 'perfect', top = drop.kind === 'topple' || drop.kind === 'collapse', now = towerNow(), tl = now + TFALL;
     const below = kept ? tower.b[tower.b.length - 2] : top ? (drop.fell.length > 1 ? drop.fell[drop.fell.length - 2] : tower.b[tower.b.length - 1]) : drop.fell.length ? drop.fell[drop.fell.length - 1] : tower.b[tower.b.length - 1];
@@ -2892,7 +2922,8 @@ function towerTap(force, swing) {
     t.b.push([Math.round((towerBase() + (kind === 'perfect' ? 0 : rel)) * 10) / 10, me, kind === 'perfect' ? 1 : 0]);
     if (t.b.length > TKEEP) t.b.shift();
     if (kind === 'perfect') t.hearts = Math.min(3, t.hearts + 1);
-    t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 : (t.sw || 0) + .06 + far / (TW * TOVER) * .3) * 100) / 100;   // off-centre adds swing, worse adds more; perfect calms it
+    const ck = towerCrook(t.b), tall = .4 + .6 * Math.min(1, t.f / 30);   // how crooked the top is now, and how tall
+    t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 * (1 - .5 * ck) : (t.sw || 0) + (.06 + far / (TW * TOVER) * .3) * (1 + ck * 1.5 * tall)) * 100) / 100;   // off-centre adds swing, more on a crooked tall tower; perfect calms it, less when crooked
     t.c = kind === 'perfect' ? (t.c || 0) + 1 : 0;
     if (t.c >= 3) { t.sw = 0; t.c = 0; combo = true; }   // three perfect drops in a row: the tower stands completely still again
     const tip = towerTip(t.b);
@@ -2962,7 +2993,7 @@ function drawTower() {
   tcamY += (targetY - tcamY) * Math.min(1, dt * (tdrag || tlv ? 30 : 5));
   const baseX = a ? a.base : towerBase();
   tcamX += (baseX - tcamX) * Math.min(1, dt * 5);
-  const sx = x => (x - tcamX) * tz + 50, sy = y => Hu - TGROUND - (y - tcamY) * tz, hang = tcamY + (Hu - TGROUND - (R - 18 * tz)) / tz;
+  const sx = x => (x - tcamX) * tz + 50, sy = y => Hu - TGROUND - (y - tcamY) * tz, hang = topY + 18;   // the next box always hangs just above the top floor, never beside lower ones
   tshake = Math.max(0, tshake - dt * 7);
   c.setTransform(s, 0, 0, s, 0, 0);
   const sky = c.createLinearGradient(0, 0, 0, Hu), lvl = tower.f;
@@ -2989,7 +3020,7 @@ function drawTower() {
   if (gy < Hu + 2) { c.fillStyle = '#160d33'; c.fillRect(-6, gy, 112, Hu - gy + 6); c.fillStyle = '#ff6b9d'; c.fillRect(-6, gy, 112, .6); }
   towerStep(dt, count, now);
   const top = towerSway(now), lean = i => top * (i + 1) / Math.max(1, count), tilt = top / Math.max(1, count) / TH * .9;   // a rigid stack: every floor moves with its height and tilts by the same angle
-  const from = Math.max(0, Math.floor((tcamY - 6) / TH));
+  const from = Math.max(0, Math.floor((tcamY - (TGROUND + 4) / tz) / TH) - 1);   // every floor still on screen, down to the bottom edge
   const fillX = shown[0] ? shown[0][0] : baseX;
   for (let i = from; i < count; i++) {
     const k = i >= under ? shown[i - under] : null;
