@@ -2,9 +2,11 @@
 const PART = 1 << 19, MOST = 8, WAIT_MS = 120000;
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+let testUntil = 0;   // her own test alert must show even while Loveline is open
+self.addEventListener('message', e => { if (e.data && e.data.t === 'testAlert') testUntil = Date.now() + 30000; });
 self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of you, with the app closed. The message is fixed here, so no words travel through the helper.
   const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  if (open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) return;   // the open page shows its own heart; an iPhone must always be shown something
+  if (Date.now() > testUntil && open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) return;   // the open page shows its own heart; an iPhone must always be shown something
   await self.registration.showNotification('Loveline', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
 })()));
 self.addEventListener('notificationclick', e => {

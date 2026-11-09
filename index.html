@@ -184,7 +184,8 @@
   .hero .note { margin: 0 auto; max-width: 300px; }
   .hero .primary { margin-top: 20px; }
   body.noeggs #eggs, body.noeggs #mixBtn, body.noeggs #touchBtn, body.noeggs:not(.mayrun) #stop { display: none !important; }
-  body.panel #hero { display: none; }   /* Draw, Truth or Dare and Watch keep the full screen */
+  body.panel #hero, body.panel #alertAsk, body.touching #alertAsk { display: none; }
+  body.watching #watchPanel > :not(#player) { scroll-margin-top: calc(var(--pin, 380px) + 12px); }   /* anything brought into view lands below the video, never under it */   /* Draw, Truth or Dare and Watch keep the full screen */
   .primary { width: 100%; height: 50px; margin-top: 12px; border: 0; border-radius: 14px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 600; }
 
   body::after { content: ""; position: fixed; inset: 0; z-index: 9; pointer-events: none; transition: box-shadow .5s; }
@@ -260,6 +261,14 @@
   .panelHead { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 10px; }
   .panelHead b { font-size: 17px; letter-spacing: -.02em; }
   .done { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--blue); font-size: 14px; font-weight: 600; }
+  .boardWrap { position: relative; }
+  .theirDot { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; pointer-events: none;
+              background: radial-gradient(circle, #fff 0 25%, rgba(255, 122, 184, .9) 45%, rgba(255, 122, 184, 0) 70%); transition: left 60ms linear, top 60ms linear; }
+  .brushes { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
+  .brushes::-webkit-scrollbar { display: none; }
+  .brushes button { flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font: 600 14px/34px inherit; }
+  .brushes button[aria-pressed=true] { background: #fff; color: #000; }
+  .brushes button:active { transform: scale(.96); transition: transform 100ms ease-out; }
   #board { display: block; width: 100%; aspect-ratio: 1; border-radius: 14px; background: #0b0b0d; touch-action: none; }
   .tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; margin-top: 10px; }
   .sw::after { content: ''; position: absolute; inset: -9px -2px; }
@@ -277,16 +286,21 @@
   .score small { display: block; font-size: 12px; color: var(--label2); font-variant-numeric: tabular-nums; }
   .score .ahead strong { color: var(--pink, #ff5c93); }
   .towerWrap { position: relative; overflow: hidden; border-radius: 16px; background: #241645; }
-  #towerCanvas { display: block; width: 100%; height: clamp(220px, calc(100vh - 490px), 460px); height: clamp(220px, calc(100dvh - 490px), 460px); touch-action: manipulation; }
+  #towerCanvas { display: block; width: 100%; height: clamp(260px, calc(100vh - 430px), 520px); height: clamp(260px, calc(100dvh - 430px), 520px); touch-action: none; }
   .towerHud { position: absolute; left: 10px; right: 10px; top: 8px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, .55); }
   .towerHud b { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .towerHud small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; }
   #towerHearts { font-size: 17px; letter-spacing: 1px; }
+  .towerView { position: absolute; left: 10px; bottom: 10px; height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: rgba(20, 10, 40, .55); color: #fff; font: 600 13px/30px inherit;
+               -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  .towerView[aria-pressed=true] { background: #fff; color: #000; }
+  .towerView:active { transform: scale(.96); transition: transform 100ms ease-out; }
   .towerDrop:active:not(:disabled) { transform: scale(.97); transition: transform 100ms ease-out; }
   .towerDrop:disabled { opacity: 1; background: var(--fill); color: var(--label2); }
   .hleft { display: flex; align-items: center; gap: 8px; min-width: 0; }
   #buzzBtn { flex: none; padding: 0; font-size: 19px; line-height: 1; }
   #buzzBtn:active { transform: scale(.92); transition: transform 100ms ease-out; }
+  .alertNote { margin: 0; padding: 2px 16px 8px; font-size: 12px; line-height: 1.35; color: var(--label3, rgba(235, 235, 245, .45)); }
   .alertHelp { margin: 0; padding: 2px 16px 10px; font-size: 13px; line-height: 1.35; color: var(--label2); }
   .pasteLink { display: grid; gap: 12px; max-width: 420px; margin: 0 auto; padding: 72px 20px; color: #fff; }
   .pasteLink input { height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: #2c2c2e; color: #fff; font-size: 16px; }
@@ -343,6 +357,63 @@
   .vcount[hidden], #vidTogether[hidden] { display: none; }
   #vidTogether { display: block; width: 100%; height: 44px; margin-top: 8px; border: 0; border-radius: 22px; background: var(--blue); color: #fff; font-size: 15px; font-weight: 600; }
   #player.isframe .seekBox, #player.isframe .vtime span, #player.isframe .vctl > :not(#vidClose) { display: none; }
+  .wctl { margin-top: 8px; }
+  .wegg { display: grid; grid-template-columns: 30px 1fr; column-gap: 8px; align-items: center; padding: 6px 0; }
+  .wface { font-size: 22px; line-height: 1; text-align: center; }
+  .wpill { display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 2px; border-radius: 19px; background: var(--fill); touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+  .wpill:active { transform: scale(.985); transition: transform 100ms ease-out; }
+  .wstep { flex: none; width: 34px; height: 34px; padding: 0 0 2px; border: 0; border-radius: 50%; background: none; color: var(--label); font-size: 22px; line-height: 1; }
+  .wstep:active { background: var(--fill2); }
+  .wwave { flex: none; width: 60px; height: 18px; }
+  .wmode { flex: 1; min-width: 0; overflow: hidden; font-size: 15px; font-weight: 600; letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
+  .wgrid { grid-column: 1 / 3; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; animation: wgridIn .28s cubic-bezier(.2, .8, .2, 1); }
+  .wgrid[hidden] { display: none; }
+  .wgrid button { display: grid; justify-items: center; gap: 1px; min-width: 0; padding: 4px 3px; border: 0; border-radius: 10px; background: var(--fill); color: var(--label); font: 500 10px/1.15 inherit; }
+  .wgrid button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wgrid button canvas { width: 100%; height: 13px; }
+  .wgrid button[aria-pressed=true] { background: #fff; color: #000; }
+  .wgrid button:active { transform: scale(.96); transition: transform 100ms ease-out; }
+  @keyframes wgridIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .wgrid { animation: none; } }
+  .wsl { grid-column: 1 / 3; display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+  .wsl .wrow, .wsl .wspd { margin-top: 4px; font-size: 12px; color: var(--label2); }
+  body.watching #eggs, body.watching #status, body.watching #batWarn { display: none; }   /* strength lives in the controls under the video */
+  body.watching #player { position: sticky; top: 58px; z-index: 3; margin: -12px -12px 0; padding: 12px 12px 6px; border-radius: 20px 20px 0 0; background: rgba(18, 12, 26, .92);
+                          -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+  body.watching .pop { top: auto; bottom: calc(var(--dock, 80px) + 40px); font-size: 96px; transform: translateX(-50%); animation-name: popLow; }
+  @keyframes popLow { 0% { opacity: 0; transform: translateX(-50%) scale(.3); } 12% { opacity: 1; transform: translateX(-50%) scale(1.1); } 80% { opacity: 1; transform: translateX(-50%) scale(1); } to { opacity: 0; transform: translateX(-50%) translateY(-30px); } }
+  body.watching .ring, body.watching .veil { display: none; }
+  body.watching .toast { top: auto; bottom: calc(var(--dock, 80px) + 12px); }
+  body.watching.scrolled #vidNote, body.watching.scrolled #vidTogether { display: none; }   /* scrolled down: only the video and its buttons stay pinned */
+  body.watching .dock.open .msgs { max-height: 30vh; }
+  body.watching .dock:not(.open) .msgs { max-height: 40px; overflow: hidden; }   /* only the newest message peeks out; tap it to open the chat */
+  body.watching .dock { padding-top: 8px; }
+  body.watching main { padding-bottom: calc(var(--dock, 80px) + 16px); }
+  body.watching .seekBox { padding: 8px 0 4px; }
+  body.watching .vctl { margin-top: 4px; }
+  body.watching .vbtn { width: 42px; height: 42px; }
+  body.watching .vbtn.big { width: 50px; height: 50px; }
+  .wrow { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .wrow input { flex: 1; min-width: 0; }
+  .wrow b { width: 30px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .wtabs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .wtabs button { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font: 600 13px/30px inherit; }
+  .wtabs button[aria-pressed=true] { background: linear-gradient(120deg, #ff5e9a, #a65bff); color: #fff; }
+  .wtabs button:active, .wchips button:active { transform: scale(.96); transition: transform 100ms ease-out; }
+  #wMix { margin-left: auto; }
+  .wegg { padding: 8px 0; border-top: .5px solid var(--hair); }
+  .wegg:first-child { border-top: 0; }
+  .wegg.off { opacity: .45; pointer-events: none; }
+  .wname { margin: 0 2px 6px; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .wchips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .wchips::-webkit-scrollbar { display: none; }
+  .wchips button { flex: none; height: 30px; padding: 0 11px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font: 500 13px/30px inherit; }
+  .wchips button[aria-pressed=true] { background: #fff; color: #000; font-weight: 600; }
+  .wspd { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--label2); }
+  .wspd input { flex: 1; min-width: 0; }
+  #wtouch .touchCard { margin-top: 0; padding: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  #wtouch .tdare { display: none; }
+  #wtouch .pad { height: clamp(180px, 30vh, 260px); }
   .vlist { margin: 0; padding: 0; list-style: none; border-radius: 14px; background: var(--fill); overflow: hidden; }
   .vlist:empty { display: none; }
   .vrow { position: relative; display: flex; align-items: center; padding: 2px 2px 2px 0; border-top: .5px solid var(--hair); }
@@ -361,7 +432,7 @@
   .vbar i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .3s; }
   .vempty { margin: 0 2px; font-size: 15px; color: var(--label2); }
   .pop { position: fixed; left: 50%; top: 42%; z-index: 8; font-size: 150px; line-height: 1; pointer-events: none; transform: translate(-50%, -50%) scale(.2);
-         filter: drop-shadow(0 0 36px rgba(255, 80, 150, .65)); animation: pop 3.8s cubic-bezier(.2, .9, .3, 1.1) forwards; }
+         filter: drop-shadow(0 0 36px rgba(255, 80, 150, .65)); animation: pop 2.4s cubic-bezier(.2, .9, .3, 1.1) forwards; }
   @keyframes pop { 0% { opacity: 0; } 10% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; } 20% { transform: translate(-50%, -50%) scale(1); }
                    30% { transform: translate(-50%, -50%) scale(1.18); } 40% { transform: translate(-50%, -50%) scale(1); }
                    80% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; } to { transform: translate(-50%, -50%) scale(1.7); opacity: 0; } }
@@ -369,11 +440,26 @@
           border: 3px solid rgba(255, 120, 180, .75); box-shadow: 0 0 30px rgba(255, 80, 150, .5); transform: scale(.3); animation: ring 1.8s cubic-bezier(.1, .7, .3, 1) forwards; }
   @keyframes ring { 15% { opacity: 1; } to { transform: scale(7); opacity: 0; } }
   .veil { position: fixed; inset: 0; z-index: 7; pointer-events: none; background: radial-gradient(circle at 50% 42%, rgba(255, 55, 120, .5), rgba(150, 70, 230, .25) 45%, rgba(20, 0, 30, .35) 100%);
-          animation: veil 4.6s ease-out forwards; }
+          animation: veil 2.7s ease-out forwards; }
   @keyframes veil { from { opacity: 0; } 10% { opacity: 1; } 20% { opacity: .65; } 30% { opacity: 1; } 75% { opacity: .85; } to { opacity: 0; } }
   .float { position: fixed; bottom: -60px; z-index: 8; font-size: 34px; pointer-events: none; animation: rise 2.4s cubic-bezier(.2, .6, .3, 1) both; }
   @keyframes rise { from { transform: none; opacity: 0; } 12% { opacity: 1; } to { transform: translate(var(--dx, 0), -95vh) rotate(var(--r, 0deg)) scale(1.3); opacity: 0; } }
   [hidden] { display: none !important; }
+  .splash { position: fixed; inset: 0; z-index: 20; display: grid; place-content: center; gap: 6px; text-align: center; pointer-events: none; background: #000;
+            animation: splash 1.1s cubic-bezier(.2, .8, .2, 1) forwards; }
+  .splash b { font-size: 40px; font-weight: 700; letter-spacing: -.03em; }
+  .splash span { font-size: 17px; color: var(--label2); }
+  @keyframes splash { 0%, 55% { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+  .sideNow { margin: 14px 0 0; font-size: 14px; color: var(--label2); }
+  .replyBar { display: flex; align-items: center; gap: 8px; margin: 0 4px 6px; padding: 6px 6px 6px 10px; border-left: 3px solid var(--pink, #ff5c93); border-radius: 10px; background: var(--fill); }
+  .replyBar div { flex: 1; min-width: 0; font-size: 13px; line-height: 1.3; }
+  .replyBar b { display: block; color: var(--pink, #ff5c93); }
+  .replyBar span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--label2); }
+  .replyBar button { flex: none; width: 30px; height: 30px; border: 0; border-radius: 50%; background: none; color: var(--label2); font-size: 15px; }
+  .quote { display: block; margin: 0 0 4px; padding: 3px 8px; border-left: 3px solid rgba(255, 255, 255, .6); border-radius: 6px; background: rgba(0, 0, 0, .22); font-size: 13px; line-height: 1.3; }
+  .quote b { display: block; font-size: 12px; }
+  .quote span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .85; }
+  .dock.open .bubble { cursor: pointer; }
   @media (prefers-reduced-motion: reduce) { .orb, .toast, .switch::after { transition: none; } .float, .pop, .veil, .ring { display: none; } }
   @media (prefers-reduced-transparency: reduce) { .glass, .toast, .sheet form, .bubble { background: #1c1c1e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
 </style>
@@ -396,6 +482,12 @@
   </section>
   <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game">Truth or Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="watch">Watch</button></nav>
   <p class="warn" id="batWarn" role="alert" hidden></p>
+  <section class="ask glass" id="alertAsk" hidden>
+    <b>💗 Get Thinking of you alerts</b>
+    <p>Your partner can reach you even when Loveline is closed.</p>
+    <p class="alertHelp" hidden></p>
+    <div class="pick"><button class="primary" id="alertAskGo">Turn on alerts</button><button id="alertAskNo">Not now</button></div>
+  </section>
   <section class="ask glass" id="listenAsk" hidden>
     <b id="askTitle">🎧 Your partner wants you to listen</b>
     <p>Put your AirPods or headphones in first. The sound stays silent until you tap.</p>
@@ -406,7 +498,8 @@
 
   <section class="panelBox glass" id="drawPanel" hidden>
     <div class="panelHead"><b>Draw together</b><button class="done" data-close>Done</button></div>
-    <canvas id="board" aria-label="Shared drawing board"></canvas>
+    <div class="boardWrap"><canvas id="board" aria-label="Shared drawing board"></canvas><span class="theirDot" id="theirDot" hidden></span></div>
+    <div class="brushes" id="brushes"></div>
     <div class="tools" id="tools"><button class="tool" id="eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21h10M5.5 13.5l6-6 6 6-5 5H9z"/></svg></button><button class="tool" id="clearBtn" aria-label="Clear both boards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button><button class="tool" id="saveBtn" aria-label="Save drawing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>
   </section>
 
@@ -429,11 +522,12 @@
     <p class="turn" id="towerTurn"></p>
     <div class="towerWrap">
       <canvas id="towerCanvas" aria-label="Our tower"></canvas>
+      <button class="towerView" id="towerView" aria-pressed="false">Whole tower</button>
       <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
-    <p class="gameRules">Take turns. A perfect drop gives back a heart. After 3 misses the top 3 floors fall, and you carry on building.</p>
+    <p class="gameRules">Take turns. A perfect drop gives back a heart and keeps the tower still. Off-centre drops make it sway, and if the top hangs too far out it topples. After 3 misses the top 3 floors fall. Drag the tower to look up and down.</p>
   </section>
 
   <section class="panelBox glass" id="watchPanel" hidden>
@@ -451,6 +545,11 @@
         <button class="vbtn" id="vidClose" aria-label="Close the video"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <p class="vnote" id="vidNote"></p>
+    </div>
+    <div class="wctl" id="wctl" hidden>
+      <div class="wtabs"><button type="button" data-w="pat" aria-pressed="true">Patterns</button><button type="button" data-w="touch" aria-pressed="false">✋ Touch</button><button type="button" id="wMix" aria-pressed="false">🔀 Mix</button></div>
+      <div id="wpat"></div>
+      <div id="wtouch"></div>
     </div>
     <div class="vhead"><b>Your videos</b><span class="vadds"><button class="vadd quiet" id="linkBtn">Add link</button><label class="vadd">Add video<input type="file" id="vidFile" accept="video/*" hidden></label></span></div>
     <form class="linkrow" id="linkForm" hidden><input id="linkText" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a video link" aria-label="Video link"><button class="vadd" id="linkGo">Play</button><button type="button" class="vadd quiet" id="shortcutBtn">Site shortcut</button></form>
@@ -488,6 +587,8 @@
     <p class="note" id="hostHint"></p>
     <button class="row action" id="connect">Connect</button>
     <label class="row"><span id="allowLabel">Let your partner control</span><input type="checkbox" class="switch" id="allow" checked></label>
+    <button class="row" id="feelBtn">Feel test, so every pattern is felt</button>
+    <button class="row" id="rejoinBtn">Reconnect Leo and Max</button>
     <button class="row" id="copyLink">Copy your partner's link</button>
     <button class="row switchSide" hidden>Switch this phone to his side</button>
     <button class="row danger" id="forget" hidden>Forget paired phone</button>
@@ -507,6 +608,7 @@
   <div class="msgs" id="msgs" aria-live="polite" title="Tap to see more"></div>
   <div class="typing" id="typing" hidden></div>
   <div class="quick glass" id="quick" hidden></div>
+  <div class="replyBar" id="replyBar" hidden><div><b id="replyWho"></b><span id="replyText"></span></div><button type="button" id="replyX" aria-label="Cancel the reply">✕</button></div>
   <div class="bar">
     <form class="compose glass" id="compose">
       <button type="button" class="icon" id="emojiBtn" aria-label="Emoji">
@@ -519,11 +621,19 @@
 </div></div>
 
 <div class="toast glass hide" id="toast" role="status"></div>
+<div class="splash" id="splash" aria-hidden="true"><b>Loveline</b><span id="splashSide"></span></div>
 
 <div class="park" id="park" hidden><div class="parkBox glass">
   <h2 id="parkTitle"></h2><p id="parkText"></p>
   <button class="primary" id="parkGo"></button><button class="primary alt" id="parkAlt" hidden></button>
 </div></div>
+
+<div class="sheet" id="feelSheet" hidden><form id="feelForm" class="glass" onsubmit="return false">
+  <h2 id="feelTitle">Feel test</h2>
+  <p id="feelText"></p>
+  <div class="tchips feelBtns" id="feelBtns"></div>
+  <button type="button" class="primary alt" id="feelQuit">Stop the test</button>
+</form></div>
 
 <div class="sheet" id="askSheet" hidden>
   <form id="askForm" class="glass">
@@ -550,6 +660,8 @@
     <p>Your partner sees this next to your messages.</p>
     <input class="field" id="nameInput" maxlength="24" autocomplete="off" aria-label="Your name" required>
     <button class="primary">Save</button>
+    <p class="sideNow" id="sideNow"></p>
+    <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
   </form>
 </div>
 
@@ -680,10 +792,19 @@ let names = store.get('eggNames:' + room, { vib: 'Leo', suc: 'Max' });
 let faces = store.get('eggFaces:' + room, { vib: '🧔‍♂️', suc: '👨‍🦱' });
 const label = kind => names[kind] || KINDS[kind];
 
+// What each egg can really be felt doing. A motor needs time to spin up and down, so beats faster than this blur into one buzz;
+// below its weakest strength it does not move at all. Her feel test on her phone replaces these first guesses.
+const FEEL_DEFAULT = { vib: { min: 18, fast: 3 }, suc: { min: 25, fast: 1.6 } };
+let feel = store.get('feel', {});
+const feelOf = kind => ({ ...FEEL_DEFAULT[kind], ...(feel[kind] || {}) });
+const kindOf = e => e === state.suc ? 'suc' : 'vib';
+const beatsCap = kind => Math.min(MAX_BEATS, feelOf(kind).fast);
 function output(e, now) {   // strength the egg should run at right now, 0..100
   if (!e.level) return 0;
+  const kind = kindOf(e), cap = beatsCap(kind), top = Math.min(e.level, batteryCap(e.battery));
+  if (e.mode === 'steady') return Math.round(top);
   const k = .5 + e.speed, t = (now - e.t0) / 1000, human = HANDMADE.has(e.mode);
-  const p = Math.min(MAX_BEATS, MODES[e.mode][1] * k) * (human ? t + .3 * Math.sin(.00031 * now) + .15 * Math.sin(.00073 * now) : t), n = Math.floor(p), x = p - n;   // no two strokes last quite the same
+  const p = Math.min(cap, MODES[e.mode][1] * k) * (human ? t + .3 * Math.sin(.00031 * now) + .15 * Math.sin(.00073 * now) : t), n = Math.floor(p), x = p - n;   // no two strokes last quite the same
   const swell = .5 - .5 * Math.cos(2 * Math.PI * x);
   const noise = n => { const h = Math.sin(n * 127.1 + 311.7) * 43758.5453; return h - Math.floor(h); };
   const ease = u => u * u * (3 - 2 * u);
@@ -714,11 +835,13 @@ function output(e, now) {   // strength the egg should run at right now, 0..100
     case 'lick': f = n % 12 < 8 ? (x < .4 ? .45 : .12) : pull((n % 12 - 8 + x) / 4, .75, .25); break;   // eight licks, one long suck
     case 'tease': f = x < .85 ? .1 + .85 * (x / .85) ** 2 : .05; break;                       // build close to the top, then stop
     case 'climax': f = Math.min(1, .3 + .7 * t * k / 60) * (.85 + .15 * Math.sin(2 * Math.PI * 3 * t)); break;   // about a minute to full
-    case 'touch': f = e.speed < .08 ? 1 : .35 + .65 * (.5 - .5 * Math.cos(2 * Math.PI * t * Math.min(MAX_BEATS, .6 + 7 * e.speed))); break;   // left smooth, right flutter
+    case 'touch': f = e.speed < .08 ? 1 : .2 + .8 * (.5 - .5 * Math.cos(2 * Math.PI * t * Math.min(cap, .6 + 7 * e.speed))); break;   // left smooth, right flutter
     case 'storm': { const a = noise(Math.floor(p)), b = noise(Math.floor(p) + 1); f = .2 + .8 * (a + (b - a) * x); break; }
   }
   if (human) f *= (.82 + .18 * noise(n * 3 + 1)) * (.92 + .08 * Math.sin(2 * Math.PI * now / 17000));   // each stroke a little different, the whole thing breathing
-  return Math.round(Math.min(e.level * f, batteryCap(e.battery)));
+  // Low parts sit at the weakest strength the egg still moves at, so she feels them; near zero is a real pause.
+  const lo = Math.min(top, feelOf(kind).min);
+  return f < .08 ? 0 : Math.round(lo + (top - lo) * Math.min(1, f));
 }
 
 const batteryCap = b => b == null ? 100 : b <= 10 ? 50 : b <= 20 ? 70 : 100;   // keep a low egg going longer
@@ -782,7 +905,7 @@ document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { tap();
 function apply(e, m) {
   if ('level' in m) e.level = clampLevel(m.level);
   if ('speed' in m) {
-    const to = clampSpeed(m.speed), pace = s => Math.min(MAX_BEATS, e.mode === 'touch' ? .6 + 7 * s : MODES[e.mode][1] * (.5 + s));
+    const to = clampSpeed(m.speed), pace = s => Math.min(beatsCap(kindOf(e)), e.mode === 'touch' ? .6 + 7 * s : MODES[e.mode][1] * (.5 + s));
     if (pace(e.speed) && pace(to)) { const now = performance.now(); e.t0 = now - (now - e.t0) * pace(e.speed) / pace(to); }   // carry on from the same point in the stroke
     e.speed = to;
   }
@@ -871,6 +994,7 @@ function render() {
     el.querySelector('.modeSel').value = fitMode(kind, e.mode);
     el.querySelector('.speed').classList.toggle('idle', e.mode === 'steady');
   }
+  renderWatchCtl(canControl);
   const items = [
     [myName || 'You', online, online ? '' : ', offline'],
     [who(), partnerOnline(), partnerOnline() ? '' : isRemote ? ', waiting' : ', not here'],
@@ -1167,20 +1291,35 @@ function gotClear(m) {
 }
 const saveChat = () => { chat = chat.slice(-200); store.set('chat:' + room, chat); };
 const emojiOnly = t => t.length <= 16 && /^(\p{Extended_Pictographic}|\p{Emoji_Modifier}|️|‍|\s)+$/u.test(t);
+let replyTo = null;   // the message being answered, shown above the box until sent or cancelled
+function setReply(c) {
+  replyTo = c ? { id: c.id, x: c.text.slice(0, 100), w: c.who } : null;
+  $('replyBar').hidden = !replyTo;
+  if (replyTo) { $('replyWho').textContent = c.who === 'me' ? 'You' : who(); $('replyText').textContent = replyTo.x; }
+  fitDock();
+}
+const reOut = r => r && { id: r.id, x: r.x, w: r.w };   // sent as the sender sees it; the other phone swaps me and them
 function sendChat(text) {
   text = text.trim().slice(0, 500);
   if (!text) return;
   tap();
-  const c = { id: b64url(rand(8)), who: 'me', text, at: Date.now(), st: 0 };   // st: 0 waiting, 1 sent, 2 delivered, 3 seen
+  const c = { id: b64url(rand(8)), who: 'me', text, at: Date.now(), st: 0, re: reOut(replyTo) };   // st: 0 waiting, 1 sent, 2 delivered, 3 seen
+  if (!c.re) delete c.re;
+  setReply(null);
   chat.push(c); saveChat(); renderChat();
-  send({ t: 'msg', id: c.id, text, at: c.at }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
+  send({ t: 'msg', id: c.id, text, at: c.at, re: c.re }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
+}
+function cleanRe(r) {
+  if (!r || typeof r.id !== 'string' || r.id.length > 24 || typeof r.x !== 'string' || !['me', 'them'].includes(r.w)) return null;
+  return { id: r.id, x: r.x.slice(0, 100), w: r.w === 'me' ? 'them' : 'me' };
 }
 function gotChat(m) {
   if (typeof m.text !== 'string' || typeof m.id !== 'string') return;
   if (cleared.has(m.id)) { send({ t: 'ack', id: m.id }); return; }   // cleared: just stop the resending
   typingUntil = 0;
   if (!chat.some(c => c.id === m.id && c.who === 'them')) {
-    chat.push({ id: m.id, who: 'them', text: m.text.slice(0, 500), at: +m.at || Date.now(), st: 2 });
+    const re = cleanRe(m.re);
+    chat.push({ id: m.id, who: 'them', text: m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}) });
     saveChat(); renderChat(); tap();
     if (emojiOnly(m.text)) burst(m.text);
   }
@@ -1198,12 +1337,13 @@ function gotSeen() {
 }
 function resendChat() {
   if (!partnerOnline()) return;
-  for (const c of chat) if (c.who === 'me' && (c.st || 0) < 2 && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at });
+  for (const c of chat) if (c.who === 'me' && (c.st || 0) < 2 && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re });
 }
 function renderChat() {
   const time = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
-  $('msgs').innerHTML = chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) ? 'big' : ''}">${esc(c.text)}<span class="meta">${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
+  const quote = r => r ? `<span class="quote"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${esc(r.x)}</span></span>` : '';
+  $('msgs').innerHTML = chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) && !c.re ? 'big' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${esc(c.text)}<span class="meta">${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
   $('msgs').scrollTop = $('msgs').scrollHeight;
   $('clearChat').hidden = !chat.length;
   fitDock();
@@ -1211,14 +1351,14 @@ function renderChat() {
 function burst(text) {   // full-screen moment: the emoji pops big in the middle, then a shower rises
   const e = (text.match(/\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/u) || ['❤️'])[0];
   const add = (cls, txt, life) => { const n = document.createElement('div'); n.className = cls; n.textContent = txt; document.body.appendChild(n); setTimeout(() => n.remove(), life); return n; };
-  add('veil', '', 4800);
-  add('pop', e, 4000);
-  for (const d of [0, .45, 1.1]) add('ring', '', 3200).style.animationDelay = d + 's';   // heartbeat rings
+  add('veil', '', 2900);
+  add('pop', e, 2600);
+  for (const d of [0, .4]) add('ring', '', 2300).style.animationDelay = d + 's';   // heartbeat rings
   if (navigator.vibrate) navigator.vibrate([70, 90, 140]);
-  for (let i = 0; i < 46; i++) {
-    const s = add('float', e, 7000);
+  for (let i = 0; i < 30; i++) {
+    const s = add('float', e, 4200);
     s.style.left = (2 + Math.random() * 92) + 'vw'; s.style.fontSize = (20 + Math.random() * 40) + 'px';
-    s.style.animationDelay = (.2 + i * .07) + 's'; s.style.animationDuration = (2.6 + Math.random() * 1.8) + 's';
+    s.style.animationDelay = (.15 + i * .04) + 's'; s.style.animationDuration = (1.7 + Math.random() * 1.0) + 's';
     s.style.setProperty('--dx', (Math.random() * 30 - 15) + 'vw'); s.style.setProperty('--r', (Math.random() * 60 - 30) + 'deg');
   }
 }
@@ -1364,7 +1504,69 @@ for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) $('pad').a
   if (fingers.size) { padDrive([...fingers.values()].pop()); return; }   // another finger is still down: it leads
   padRelease = setTimeout(padUp, Math.max(0, 220 - (Date.now() - padDownAt)));   // a quick tap still makes a full pulse
 });
-function closeTouch() { clearTimeout(padRelease); padUp(); $('touchSheet').hidden = true; document.body.classList.remove('touching'); }
+function closeTouch() {
+  clearTimeout(padRelease); padUp(); $('touchSheet').hidden = true; document.body.classList.remove('touching');
+  if ($('touchSheet').parentNode === $('wtouch')) { $('touchBtn').before($('touchSheet')); setWmode('pat'); }   // back to its own place under Play
+}
+// ---- Watch: patterns, touch and the mix under the video, so nobody has to leave the film to change anything
+function setWmode(m) {
+  document.querySelectorAll('#wctl [data-w]').forEach(b => b.setAttribute('aria-pressed', b.dataset.w === m));
+  $('wpat').hidden = m !== 'pat';
+  if (m === 'touch') { $('wtouch').append($('touchSheet')); $('touchSheet').hidden = false; renderTouch(); sizeInk(); requestAnimationFrame(fadeInk); }
+  else if ($('touchSheet').parentNode === $('wtouch')) closeTouch();
+}
+function setMixPressed(v) { $('mixBtn').setAttribute('aria-pressed', v); $('wMix').setAttribute('aria-pressed', v); }
+$('wpat').innerHTML = Object.keys(KINDS).map(k => `<div class="wegg" data-k="${k}"><span class="wface"></span><div class="wpill" aria-label="${KINDS[k]} pattern: tap for all, swipe to change"><button type="button" class="wstep" data-d="-1" aria-label="Previous pattern">‹</button><canvas class="wwave" width="120" height="36"></canvas><b class="wmode"></b><button type="button" class="wstep" data-d="1" aria-label="Next pattern">›</button></div><div class="wgrid" hidden></div><div class="wsl"><label class="wrow"><span>Strength</span><input type="range" class="wlevel" min="0" max="100" value="0" aria-label="${KINDS[k]} strength"><b class="wnum">0</b></label><label class="wspd"><span>Speed</span><input type="range" class="wspeed" min="0" max="100" value="50" aria-label="${KINDS[k]} speed"></label></div></div>`).join('');
+$('wpat').querySelectorAll('.wegg').forEach(row => {
+  const k = row.dataset.k;
+  const list = GROUPS[k].flatMap(g => g[1]), pill = row.querySelector('.wpill'), grid = row.querySelector('.wgrid');
+  const step = d => { const i = list.indexOf(fitMode(k, state[k].mode)); tap(); change(k, { mode: list[(i + d + list.length) % list.length] }); };
+  row.querySelectorAll('.wstep').forEach(b => b.onclick = ev => { ev.stopPropagation(); step(+b.dataset.d); });
+  let sx = null;
+  pill.addEventListener('pointerdown', ev => { sx = ev.clientX; });
+  pill.addEventListener('pointerup', ev => {   // a sideways swipe steps; a tap opens every pattern
+    if (sx === null || ev.target.closest('.wstep')) return;
+    const dx = ev.clientX - sx; sx = null;
+    if (Math.abs(dx) > 28) { step(dx < 0 ? 1 : -1); return; }
+    tap(); grid.hidden = !grid.hidden;
+    if (!grid.hidden) {
+      grid.innerHTML = list.map(m => `<button type="button" data-m="${m}"><canvas width="96" height="28"></canvas><span>${MODES[m][0]}</span></button>`).join('');
+      grid.querySelectorAll('button').forEach(b => { drawWave(b.querySelector('canvas'), b.dataset.m, state[k].speed); b.onclick = () => { tap(); change(k, { mode: b.dataset.m }); grid.hidden = true; }; });
+      renderWatchCtl(true);
+    }
+  });
+  row.querySelector('.wspeed').addEventListener('input', ev => { fillRange(ev.target); change(k, { speed: clampSpeed(ev.target.value / 100) }); });
+  row.querySelector('.wlevel').addEventListener('input', ev => { fillRange(ev.target); change(k, { level: clampLevel(ev.target.value) }); });
+});
+document.querySelectorAll('#wctl [data-w]').forEach(b => b.onclick = () => { tap(); setWmode(b.dataset.w); });
+$('wMix').onclick = () => $('mixBtn').click();
+function drawWave(cv, mode, speed) {   // a few seconds of the pattern's real rhythm, drawn as a line
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height, e = { level: 100, mode, speed, battery: null, t0: 0 }, pad = H * .12;
+  g.clearRect(0, 0, W, H);
+  const line = g.createLinearGradient(0, 0, W, 0); line.addColorStop(0, '#ff5e9a'); line.addColorStop(1, '#a65bff');
+  g.beginPath();
+  for (let i = 0; i <= W; i += 2) { const v = output(e, i / W * 3500) / 100; g.lineTo(i, H - pad - v * (H - 2 * pad)); }
+  g.lineWidth = W / 60; g.lineJoin = 'round'; g.strokeStyle = line; g.stroke();
+  g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.globalAlpha = .18; g.fillStyle = line; g.fill(); g.globalAlpha = 1;
+}
+function renderWatchCtl(canControl) {
+  const on = Object.keys(KINDS).filter(k => state[k].connected);
+  $('wctl').hidden = !on.length;
+  $('wMix').hidden = on.length < 2;
+  $('wpat').querySelectorAll('.wegg').forEach(row => {
+    const k = row.dataset.k, e = state[k], cur = fitMode(k, e.mode), sp = row.querySelector('.wspeed');
+    row.hidden = !e.connected; row.classList.toggle('off', !canControl);
+    row.querySelector('.wface').textContent = faces[k];
+    row.querySelector('.wmode').textContent = MODES[cur][0];
+    const wave = row.querySelector('.wwave'), key = cur + Math.round(e.speed * 20);
+    if (wave.dataset.key !== key) { wave.dataset.key = key; drawWave(wave, cur, e.speed); }
+    row.querySelectorAll('.wgrid button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === cur));
+    const lv = row.querySelector('.wlevel');
+    if (Date.now() > e.editUntil) { sp.value = Math.round(e.speed * 100); lv.value = e.level; }
+    row.querySelector('.wnum').textContent = e.level;
+    fillRange(sp); fillRange(lv);
+  });
+}
 $('touchBtn').onclick = () => { tap(); $('touchSheet').hidden = false; document.body.classList.add('touching'); renderTouch(); sizeInk(); requestAnimationFrame(fadeInk); scrollTo({ top: 0 }); };
 $('touchDone').onclick = closeTouch;
 addEventListener('resize', () => { if (!$('touchSheet').hidden) sizeInk(); });
@@ -1396,17 +1598,66 @@ function mixOnce(first) {
 }
 function stopMix(tell) {
   if (tell && (mixTimer || partnerMixing)) send({ t: 'mix', on: false });
-  clearInterval(mixTimer); mixTimer = null; partnerMixing = false; $('mixBtn').setAttribute('aria-pressed', false);
+  clearInterval(mixTimer); mixTimer = null; partnerMixing = false; setMixPressed(false);
 }
+// ---- feel test, on her phone: how fast and how soft each egg can still be felt. Every pattern then uses those numbers.
+let feelRun = null;   // while the test runs: { kind, at(now) } drives one egg, or { raw } sends one fixed message
+const feelBeat = (hz, v) => now => (now / 1000 * hz) % 1 < .5 ? v : 0;
+function feelAsk(title, text, answers) {
+  $('feelTitle').textContent = title; $('feelText').textContent = text;
+  const box = $('feelBtns'); box.textContent = '';
+  for (const [name, fn] of answers) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tchip'; b.textContent = name; b.onclick = () => { tap(); fn(); }; box.appendChild(b); }
+}
+function feelSave(kind, part) { feel = { ...feel, [kind]: { ...feelOf(kind), ...part } }; store.set('feel', feel); logLink(`feel ${kind} ${JSON.stringify(feel[kind])}`); }
+function feelEnd(say) { feelRun = null; $('feelSheet').hidden = true; if (say) notify(say); }
+const feelOn = () => Object.keys(KINDS).filter(k => state[k].connected);
+function feelStart() {
+  if (!feelOn().length) { notify(`Connect ${label('vib')} or ${label('suc')} first.`); return; }
+  stopMix(true);
+  for (const k of feelOn()) change(k, { level: 0 }, false, true);
+  $('feelSheet').hidden = false;
+  feelAsk('Feel test', 'About a minute for each one. Hold him where you can feel him. Stop always works.', feelOn().map(k => [`${faces[k]} ${label(k)}`, () => feelGaps(k)]));
+}
+function feelGaps(kind) {
+  feelRun = { kind, at: feelBeat(.5, 60) };
+  feelAsk(`${label(kind)}: pauses`, 'He runs for 1 second, then rests for 1 second. Do you feel him stop and start?', [['Yes', () => feelFast(kind, 0)], ['No, it feels the same', () => { feelSave(kind, { fast: .6 }); feelSoft(kind); }]]);
+}
+const FEEL_FAST = [3, 1.5, .8];
+function feelFast(kind, i) {
+  const hz = FEEL_FAST[i];
+  feelRun = { kind, at: feelBeat(hz, 60) };
+  feelAsk(`${label(kind)}: quick beats`, `Now ${hz} beats a second. Can you still feel separate beats?`, [
+    ['Yes', () => { feelSave(kind, { fast: hz }); feelSoft(kind); }],
+    ['No, one long buzz', () => { if (i + 1 < FEEL_FAST.length) feelFast(kind, i + 1); else { feelSave(kind, { fast: .6 }); feelSoft(kind); } }]]);
+}
+function feelSoft(kind) {
+  const t0 = performance.now(), level = now => Math.min(60, 5 + 5 * Math.floor((now - t0) / 1200));
+  feelRun = { kind, at: level };
+  feelAsk(`${label(kind)}: softest`, 'He starts very soft and gets a little stronger every second. Tap the moment you first feel him.', [['I feel him now', () => { feelSave(kind, { min: Math.max(5, level(performance.now()) - 5) }); kind === 'suc' && !feel.probe ? feelProbe() : feelDone(kind); }]]);
+}
+function feelProbe() {   // the strength message has an unused place between the two eggs: maybe a second motor in Max
+  feelRun = { kind: 'suc', raw: [0x55, 0x03, 0x05, 0x00, 60, 0x00] };
+  feelAsk('One more check', `This tries a setting the official app never uses, to find out if ${label('suc')} has a second motor. What happens?`, [[`${label('suc')} vibrates`, () => probeSaid('suction egg vibrates')], [`${label('vib')} does something`, () => probeSaid('vibrating egg reacts')], ['Nothing', () => probeSaid('nothing')]]);
+}
+function probeSaid(what) { feel = { ...feel, probe: what }; store.set('feel', feel); logLink('second motor check: ' + what); feelDone('suc'); }
+function feelDone(kind) {
+  feelRun = null;
+  const f = feelOf(kind), next = feelOn().find(k => k !== kind && !feel[k]);
+  feelAsk('Saved', `${label(kind)} now beats up to ${f.fast} times a second and never runs softer than ${f.min} while a pattern is on.`, [...(next ? [[`Test ${label(next)}`, () => feelGaps(next)]] : []), ['Done', () => feelEnd('Patterns now use what you felt.')]]);
+}
+$('feelBtn').onclick = () => { tap(); feelStart(); };
+$('rejoinBtn').onclick = () => { tap(); rejoinAll(); };
+$('feelQuit').onclick = () => feelEnd('Feel test stopped.');
+
 function gotMix(m) {
   clearInterval(mixTimer); mixTimer = null;   // only one phone runs the mix
-  partnerMixing = !!m.on; $('mixBtn').setAttribute('aria-pressed', partnerMixing);
+  partnerMixing = !!m.on; setMixPressed(partnerMixing);
 }
 $('mixBtn').onclick = () => {
   tap();
   if (mixTimer || partnerMixing) { stopMix(true); return; }
   send({ t: 'mix', on: true }); mixAt = Date.now();
-  mixOnce(true); mixTimer = setInterval(mixOnce, 25000); $('mixBtn').setAttribute('aria-pressed', true);
+  mixOnce(true); mixTimer = setInterval(mixOnce, 25000); setMixPressed(true);
 };
 
 // ---- shared tabs: whatever one phone opens, the other opens too; Leo and Max stay in view as a slim strip
@@ -1419,9 +1670,11 @@ function openPanel(p, fromPartner, quiet) {
   if (!['play', 'draw', 'game', 'tower', 'watch'].includes(p)) return;
   const changed = p !== panel, was = panel;
   if (panel === 'watch' && p !== 'watch') leaveWatch();
-  if (p !== 'play' && !$('touchSheet').hidden) closeTouch();
+  if (p !== panel && !$('touchSheet').hidden) closeTouch();
   panel = p; keep('panel', p);
+  if (changed) scrollTo({ top: 0 });   // a section always opens at its top, never half hidden under the title bar
   document.body.classList.toggle('panel', p !== 'play');
+  document.body.classList.toggle('watching', p === 'watch');
   $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('towerPanel').hidden = p !== 'tower'; $('watchPanel').hidden = p !== 'watch';
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p));
   if (p === 'draw') sizeBoard();
@@ -1439,46 +1692,75 @@ document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (o
 // ---- drawing: both draw and erase on the same board at once; points are 0..1 so any screen size matches
 const board = $('board'), bctx = board.getContext('2d');
 const COLORS = ['#ffffff', '#ff7ab8', '#bf5af2', '#ff453a', '#0a84ff', '#30d158'];
-let strokes = [], pen = { c: '#ff7ab8', w: 4, e: false }, drawing = null;
+let strokes = [], pen = { c: '#ff7ab8', w: 4, e: false, b: 'pen', m: false }, drawing = null;
+const BRUSHES = { __proto__: null, pen: '✏️ Pen', neon: '✨ Neon', rainbow: '🌈 Rainbow', hearts: '❤️ Hearts', stars: '⭐ Stars' };
+const STAMP = { __proto__: null, hearts: '❤️', stars: '⭐' };
+const SIZES = [2, 4, 8];
 function sizeBoard() {
   const w = Math.round(board.getBoundingClientRect().width * (devicePixelRatio || 1));
   if (w && w !== board.width) { board.width = board.height = w; }
   redraw();
 }
-function seg(s, from) {
+function seg(s, from) {   // draws the new part of a line; both phones place stamps and colours the same way, by distance along it
   const W = board.width, p = s.pts;
   if (!W || !p.length) return;
+  s.d = s.d && from ? s.d.slice(0, from) : [0];
+  for (let i = s.d.length; i < p.length; i++) s.d.push(s.d[i - 1] + Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]));
+  paint(s, from, false);
+  if (s.m && !s.e) paint(s, from, true);
+}
+function paint(s, from, mirror) {
+  const W = board.width, p = s.pts, d = s.d, X = q => (mirror ? 1 - q[0] : q[0]) * W, Y = q => q[1] * W, lw = s.w * W / 360, b = s.e ? 'pen' : s.b;
+  bctx.save();
   bctx.globalCompositeOperation = s.e ? 'destination-out' : 'source-over';
-  bctx.strokeStyle = s.c; bctx.lineWidth = s.w * W / 360 * (s.e ? 5 : 1); bctx.lineCap = bctx.lineJoin = 'round';
-  bctx.beginPath();
-  const a = p[Math.max(0, from - 1)];
-  bctx.moveTo(a[0] * W, a[1] * W);
-  for (let i = from; i < p.length; i++) bctx.lineTo(p[i][0] * W, p[i][1] * W);
-  if (p.length === 1) bctx.lineTo(a[0] * W + .1, a[1] * W);
-  bctx.stroke();
+  bctx.lineCap = bctx.lineJoin = 'round';
+  if (STAMP[b]) {
+    const gap = (s.w * 4 + 10) / 360;
+    bctx.font = `${Math.round(lw * 3.4 + W / 30)}px system-ui, sans-serif`; bctx.textAlign = 'center'; bctx.textBaseline = 'middle';
+    for (let i = from; i < p.length; i++) if (!i || Math.floor(d[i] / gap) > Math.floor(d[i - 1] / gap)) bctx.fillText(STAMP[b], X(p[i]), Y(p[i]));
+  } else {
+    const a = Math.max(0, from - 1);
+    const line = (width, col) => {
+      bctx.lineWidth = width;
+      if (b === 'rainbow') { for (let i = Math.max(1, from); i < p.length; i++) { bctx.strokeStyle = `hsl(${Math.round(d[i] * 900) % 360}, 100%, 62%)`; bctx.beginPath(); bctx.moveTo(X(p[i - 1]), Y(p[i - 1])); bctx.lineTo(X(p[i]), Y(p[i])); bctx.stroke(); } if (p.length > 1) return; }
+      bctx.strokeStyle = col; bctx.beginPath(); bctx.moveTo(X(p[a]), Y(p[a]));
+      for (let i = from; i < p.length; i++) bctx.lineTo(X(p[i]), Y(p[i]));
+      if (p.length === 1) bctx.lineTo(X(p[0]) + .1, Y(p[0]));
+      bctx.stroke();
+    };
+    if (b === 'neon') { bctx.shadowColor = s.c; bctx.shadowBlur = lw * 4; line(lw * 1.4, s.c); bctx.shadowBlur = 0; line(lw * .5, 'rgba(255,255,255,.9)'); }
+    else line(lw * (s.e ? 5 : 1), s.c);
+  }
+  bctx.restore();
+}
+function theirFinger(m) {   // a glowing dot where the other person is drawing right now
+  const q = m.pts && m.pts[m.pts.length - 1], dot = $('theirDot');
+  if (!q || panel !== 'draw') return;
+  dot.style.left = q[0] * 100 + '%'; dot.style.top = q[1] * 100 + '%'; dot.hidden = false;
+  clearTimeout(theirFinger.t); theirFinger.t = setTimeout(() => { dot.hidden = true; }, 700);
 }
 function redraw() { bctx.clearRect(0, 0, board.width, board.height); strokes.forEach(s => seg(s, 0)); }
 const point = e => { const r = board.getBoundingClientRect(); return [+((e.clientX - r.left) / r.width).toFixed(4), +((e.clientY - r.top) / r.height).toFixed(4)]; };
 board.onpointerdown = e => {
   board.setPointerCapture(e.pointerId);
-  drawing = { id: b64url(rand(6)), c: pen.c, w: pen.w, e: pen.e, pts: [point(e)], sent: 0 };
+  drawing = { id: b64url(rand(6)), c: pen.c, w: pen.w, e: pen.e, b: pen.b, m: pen.m, pts: [point(e)], sent: 0 };
   strokes.push(drawing); seg(drawing, 0);
 };
 board.onpointermove = e => { if (!drawing) return; drawing.pts.push(point(e)); seg(drawing, drawing.pts.length - 1); };
 board.onpointerup = board.onpointercancel = () => { flushDraw(); if (drawing) resendLine(drawing); drawing = null; };
 function resendLine(s) {   // the other phone may have dropped out half way through this line
-  for (const ms of [3000, 10000, 30000, 60000]) setTimeout(() => { if (strokes.includes(s)) send({ t: 'stroke', s: { id: s.id, c: s.c, w: s.w, e: s.e, pts: s.pts } }); }, ms);
+  for (const ms of [3000, 10000, 30000, 60000]) setTimeout(() => { if (strokes.includes(s)) send({ t: 'stroke', s: { id: s.id, c: s.c, w: s.w, e: s.e, b: s.b, m: s.m, pts: s.pts } }); }, ms);
 }
 function flushDraw() {   // send new points about 20 times a second while drawing
   const d = drawing;
   if (!d || d.sent >= d.pts.length) return;
-  send({ t: 'draw', id: d.id, c: d.c, w: d.w, e: d.e, pts: d.pts.slice(d.sent) });
+  send({ t: 'draw', id: d.id, c: d.c, w: d.w, e: d.e, b: d.b, m: d.m, pts: d.pts.slice(d.sent) });
   d.sent = d.pts.length;
 }
 setInterval(flushDraw, 50);
 function resync() {   // the other phone came back: send what is open here so both screens match again
   if (lastClear && Date.now() - lastClear.at < 86400000) send({ t: 'clearchat', id: lastClear.id, ids: lastClear.ids });   // a phone that was away clears too
-  for (const x of strokes) send({ t: 'stroke', s: { id: x.id, c: x.c, w: x.w, e: x.e, pts: x.pts } });
+  for (const x of strokes) send({ t: 'stroke', s: { id: x.id, c: x.c, w: x.w, e: x.e, b: x.b, m: x.m, pts: x.pts } });
 }
 const libSize = () => Object.keys(vidMap).length + gone.size;
 function gotFacts(m) {   // the other phone says how new its copy is: if it missed something, send it again
@@ -1500,7 +1782,7 @@ function gotDraw(m) {
   if (typeof m.id !== 'string' || !Array.isArray(m.pts)) return;
   let s = strokes.find(x => x.id === m.id);
   if (!s) {
-    s = { id: m.id, c: /^#[0-9a-f]{6}$/i.test(m.c) ? m.c : '#ffffff', w: Math.max(1, Math.min(12, +m.w || 4)), e: !!m.e, pts: [] };
+    s = { id: m.id, c: /^#[0-9a-f]{6}$/i.test(m.c) ? m.c : '#ffffff', w: Math.max(1, Math.min(12, +m.w || 4)), e: !!m.e, b: m.b in BRUSHES ? m.b : 'pen', m: m.m === true, pts: [] };
     strokes.push(s);
   }
   const from = s.pts.length;
@@ -1508,10 +1790,18 @@ function gotDraw(m) {
   if (panel === 'draw') seg(s, from);
 }
 $('tools').insertAdjacentHTML('afterbegin', COLORS.map(c => `<button class="sw" style="background:${c}" data-c="${c}" aria-label="Colour ${c}"></button>`).join(''));
+$('brushes').innerHTML = Object.keys(BRUSHES).map(b => `<button type="button" data-b="${b}">${BRUSHES[b]}</button>`).join('')
+  + '<button type="button" id="mirrorBtn">🪞 Mirror</button><button type="button" id="sizeBtn" aria-label="Brush size"></button>';
 function renderTools() {
   document.querySelectorAll('.sw').forEach(b => b.setAttribute('aria-pressed', !pen.e && b.dataset.c === pen.c));
   $('eraser').setAttribute('aria-pressed', pen.e);
+  document.querySelectorAll('#brushes [data-b]').forEach(b => b.setAttribute('aria-pressed', !pen.e && b.dataset.b === pen.b));
+  $('mirrorBtn').setAttribute('aria-pressed', pen.m);
+  $('sizeBtn').textContent = ['● Thin', '● Medium', '● Thick'][SIZES.indexOf(pen.w)];
 }
+document.querySelectorAll('#brushes [data-b]').forEach(b => b.onclick = () => { tap(); pen.b = b.dataset.b; pen.e = false; renderTools(); });
+$('mirrorBtn').onclick = () => { tap(); pen.m = !pen.m; renderTools(); };
+$('sizeBtn').onclick = () => { tap(); pen.w = SIZES[(SIZES.indexOf(pen.w) + 1) % SIZES.length]; renderTools(); };
 document.querySelectorAll('.sw').forEach(b => b.onclick = () => { pen.c = b.dataset.c; pen.e = false; renderTools(); });
 $('eraser').onclick = () => { pen.e = !pen.e; renderTools(); };
 $('clearBtn').onclick = () => { strokes = []; redraw(); send({ t: 'draw', clear: true }); };
@@ -1843,7 +2133,7 @@ const CARDS = {
 };
 const myRole = isRemote ? 'remote' : 'host';
 // ---- Our Tower: we take turns dropping a floor. It stays saved on both phones and keeps growing.
-const TW = 34, TH = 17, TFALL = .42, TKEEP = 24, TPERFECT = 2.2, TGROUND = 12;
+const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 2.2, TGROUND = 12, TOVER = .5, TCHECK = 10;   // a box more than half off its floor falls; balance is checked over the top 10 floors
 const TCOL = [['#ff6b9d', '#c2185b'], ['#7c86ff', '#3b3fc4']];   // her floors, his floors
 const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [] });
 function cleanFloors(list, most) {
@@ -1860,13 +2150,30 @@ function cleanTower(t) {
 }
 const savedTower = store.get('tower:' + room) || {};
 let tower = cleanTower(savedTower.t) || blankTower(), towerV = Number.isFinite(savedTower.v) ? savedTower.v : 0;
-let tanim = null, tlanded = 0, trun = 0, tlast = 0, tcamX = 50, tcamY = 0, tshake = 0, twob = { at: 0, amp: 0 }, tsquash = -9, tbits = [], tdrops = [];
+let tanim = null, tlanded = 0, trun = 0, tlast = 0, tcamX = 50, tcamY = 0, tz = 1, twhole = false, tlook = 0, tlv = 0, tdrag = null, tback = false, tshake = 0, tA = 0, tV = 0, tHist = [], tsquash = -9, tbits = [], tdrops = [];
 const tcalm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const towerNow = () => performance.now() / 1000;
 const towerBase = () => { const top = tower.b[tower.b.length - 1]; return top ? top[0] : 50; };
-const towerSway = t => Math.min(6, tower.f * .05) * Math.sin(.9 * t);
-const towerWob = t => t < twob.at ? 0 : twob.amp * Math.exp(-2.6 * (t - twob.at)) * Math.sin(7 * (t - twob.at));
-const towerTopX = t => towerBase() + towerSway(t) + towerWob(t);
+function towerTip(b) {   // how close the stack is to tipping: 0 balanced, 1 its weight hangs over an edge; and which floor gives way first
+  let risk = 0, gives = -1, lean = 0;
+  for (let i = b.length - 2, sum = 0, n = 0; i >= Math.max(0, b.length - 1 - TCHECK); i--) {
+    sum += b[i + 1][0]; n++;
+    const sg = (sum / n - b[i][0]) / (TW * TOVER), off = Math.abs(sg);
+    if (off > risk) { risk = off; lean = sg; }
+    if (off > 1) gives = i;
+  }
+  return { risk: Math.min(1.5, risk), gives, lean };
+}
+let ttip = towerTip(tower.b);
+// The tower is a spring. Taller is softer and swings slower; weight hanging to one side bends it that way and lets the wind
+// rock it; an off-centre landing kicks it. A straight tower built from perfect drops stands still.
+const towerSway = () => tA, towerWob = () => 0;
+const towerTopX = () => towerBase() + tA;
+function towerStep(dt, count, now) {
+  const k = Math.max(2.5, 16 - count * .25), eq = 7 * Math.max(-1.2, Math.min(1.2, ttip.lean)), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
+  if (tcalm) { tA = eq; tV = 0; return; }
+  for (let n = 0; n < 4; n++) { const h = dt / 4; tV += (-k * (tA - eq) - 1.3 * tV + wind) * h; tA += tV * h; }
+}
 const towerPace = () => 1.35 + Math.min(tower.f, 80) * .02;
 const towerSwingX = t => towerBase() + 28 * Math.sin(towerPace() * t);
 const towerSwingV = t => 28 * towerPace() * Math.cos(towerPace() * t);
@@ -1891,7 +2198,14 @@ function towerLand() {
   const a = tanim; if (!a) return;
   tanim = null; tlanded = towerNow();
   const y = a.idx * TH, side = Math.sign(a.rel) || 1;
-  if (a.kind === 'miss') {
+  if (a.kind === 'topple') {   // it landed, the stack leaned, and the top slid off sideways
+    const dir = Math.sign(a.rel) || 1, from = a.idx - a.fell.length + 1;
+    a.fell.forEach((k, i) => tdrops.push({ x: k[0] + towerSway(tlanded), y: (from + i) * TH, o: k[1], p: k[2], vx: dir * (12 + i * 7), vy: 6 + i * 2, rot: 0, vr: dir * (1.6 + i * .5) }));
+    towerBit(a.base, a.idx * TH - 4, { txt: `Too far out! ${a.fell.length} ${a.fell.length === 1 ? 'floor' : 'floors'} toppled`, col: '#ffd0d0', vy: 9, fade: .6, size: 6 });
+    if (!tcalm) tshake = 3.5;
+    tV -= dir * 18;   // losing the top flings the rest back the other way
+    if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
+  } else if (a.kind === 'miss') {
     tdrops.push({ x: a.xLand + a.rel, y, o: a.o, p: 0, vx: side * (10 + Math.min(30, Math.abs(a.rel))), vy: 8, rot: 0, vr: side * (Math.abs(a.rel) < TW ? 3.4 : 1) });
     towerBit(a.xLand + a.rel, y + TH + 8, { txt: 'Missed', col: '#ff8a8a', vy: 12, fade: 1.2 });
     if (navigator.vibrate) navigator.vibrate(60);
@@ -1899,7 +2213,7 @@ function towerLand() {
     if (a.fell.length) { towerBit(a.base, a.idx * TH - 6, { txt: `Top ${a.fell.length} ${a.fell.length === 1 ? 'floor' : 'floors'} fell`, col: '#ffd0d0', vy: 9, fade: .7, size: 6 }); if (!tcalm) tshake = 3; if (navigator.vibrate) navigator.vibrate([90, 50, 90]); }
   } else {
     if (!tcalm) tsquash = tlanded;
-    twob = { at: tlanded, amp: tcalm ? 0 : Math.min(5, .7 + Math.abs(a.rel) * .2) };
+    if (a.kind !== 'perfect') tV += Math.sign(a.rel) * Math.min(30, Math.abs(a.rel) * 1.6) + a.v * .04;   // an off-centre box knocks the tower sideways; a perfect one does not
     if (!tcalm) tshake = a.kind === 'perfect' ? 1.2 : .7 + Math.abs(a.rel) * .05;
     for (let i = 0; i < 14; i++) { const s = i % 2 ? 1 : -1; towerBit(a.land + s * (TW / 2 - 2), y, { vx: s * (8 + Math.random() * 18), vy: 3 + Math.random() * 9, r: .9 + Math.random() * 1.5, col: 'rgba(255,255,255,.75)', fade: 1.4 }); }
     if (a.kind === 'perfect') {
@@ -1912,18 +2226,18 @@ function towerLand() {
   }
   if (tower.turn === myRole && a.o !== (myRole === 'host' ? 0 : 1)) { towerBit(tcamX, tcamY + 44, { txt: 'Your turn', col: '#fff', vy: 3, fade: .55, size: 8 }); tap(); }
   renderTower();
-  if (a.kind === 'miss') towerBump($('towerHearts'), 1.3); else { towerBump($('towerFloors'), 1.3); towerBump($('towerCount').children[a.o === (myRole === 'host' ? 0 : 1) ? 0 : 1], 1.18); }
+  if (a.kind === 'miss' || a.kind === 'topple') towerBump($(a.kind === 'miss' ? 'towerHearts' : 'towerFloors'), 1.3); else { towerBump($('towerFloors'), 1.3); towerBump($('towerCount').children[a.o === (myRole === 'host' ? 0 : 1) ? 0 : 1], 1.18); }
 }
 function applyTower(t, v, drop) {
   if (tanim) towerLand();
   const was = tower.b.length;
-  tower = t; towerV = v; saveTower();
+  tower = t; towerV = v; saveTower(); ttip = towerTip(tower.b);
   if (drop && panel === 'tower' && !document.hidden) {
-    const kept = drop.kind !== 'miss', now = towerNow(), tl = now + TFALL;
-    const below = kept ? tower.b[tower.b.length - 2] : drop.fell.length ? drop.fell[drop.fell.length - 1] : tower.b[tower.b.length - 1];
+    const kept = drop.kind === 'good' || drop.kind === 'perfect', top = drop.kind === 'topple', now = towerNow(), tl = now + TFALL;
+    const below = kept ? tower.b[tower.b.length - 2] : top ? (drop.fell.length > 1 ? drop.fell[drop.fell.length - 2] : tower.b[tower.b.length - 1]) : drop.fell.length ? drop.fell[drop.fell.length - 1] : tower.b[tower.b.length - 1];
     const base = below ? below[0] : 50, xLand = base + towerSway(tl) + towerWob(tl);
-    const idx = kept ? tower.f - 1 : tower.f + drop.fell.length;
-    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, base, xLand, idx, land: xLand + (drop.kind === 'good' ? drop.rel : 0) };
+    const idx = kept ? tower.f - 1 : top ? tower.f + drop.fell.length - 1 : tower.f + drop.fell.length;
+    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, base, xLand, idx, land: xLand + (drop.kind === 'good' || top ? drop.rel : 0) };
   }
   renderTower();
   return was;
@@ -1932,7 +2246,7 @@ function towerTap(force, swing) {
   if (tower.turn !== myRole || tanim) return;
   const now = towerNow(), v0 = Number.isFinite(swing) ? swing : Number.isFinite(force) ? 0 : towerSwingV(now), x0 = Number.isFinite(force) ? force : towerSwingX(now), rel = x0 - towerTopX(now + TFALL), far = Math.abs(rel);
   const me = myRole === 'host' ? 0 : 1, t = JSON.parse(JSON.stringify(tower));
-  const kind = far <= TPERFECT ? 'perfect' : (!tower.f || far <= TW * .62) ? 'good' : 'miss';
+  let kind = far <= TPERFECT ? 'perfect' : (!tower.f || far <= TW * TOVER) ? 'good' : 'miss';
   let fell = [];
   if (kind === 'miss') {
     t.hearts--;
@@ -1942,17 +2256,20 @@ function towerTap(force, swing) {
     t.b.push([Math.round((towerBase() + (kind === 'perfect' ? 0 : rel)) * 10) / 10, me, kind === 'perfect' ? 1 : 0]);
     if (t.b.length > TKEEP) t.b.shift();
     if (kind === 'perfect') t.hearts = Math.min(3, t.hearts + 1);
+    const tip = towerTip(t.b);
+    if (tip.gives >= 0) { kind = 'topple'; fell = t.b.splice(tip.gives + 1); t.f -= fell.length; t.n[myRole]--; }   // the weight above a floor hangs over its edge: all of it slides off, the new box too
   }
   t.best = Math.max(t.best, t.f); t.turn = myRole === 'host' ? 'remote' : 'host';
   const drop = { rel: Math.round(rel * 10) / 10, v: Math.round(v0), kind, o: me, fell }, v = nextV(towerV);
+  tback = true;   // dropping a box brings the camera back to the top
   applyTower(t, v, drop);
   send({ t: 'tower', tower: t, v, drop });
 }
 function gotTower(m) {
   if (!(m.v > towerV)) return;
   const t = cleanTower(m.tower); if (!t) return;
-  const d = m.drop, fell = d && cleanFloors(d.fell, 3);
-  const drop = d && ['perfect', 'good', 'miss'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell } : null;
+  const d = m.drop, fell = d && cleanFloors(d.fell, TCHECK + 1);
+  const drop = d && ['perfect', 'good', 'miss', 'topple'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell } : null;
   applyTower(t, m.v, drop);
   if (!drop) renderTower();
 }
@@ -1960,7 +2277,7 @@ function towerRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcT
 function towerHeart(c, x, y, s, col) { c.fillStyle = col; c.beginPath(); c.moveTo(x, y + s * .9); c.bezierCurveTo(x - s * 1.5, y - s * .1, x - s * .7, y - s * 1.05, x, y - s * .35); c.bezierCurveTo(x + s * .7, y - s * 1.05, x + s * 1.5, y - s * .1, x, y + s * .9); c.fill(); }
 function towerFloor(c, sx, sy, o, perfect, n, sq, rot) {   // sx, sy: the middle of the floor's bottom edge on screen
   const col = TCOL[o], h = TH * (sq || 1), w = TW * (1 + (1 - (sq || 1)) * .35);
-  c.save(); c.translate(sx, sy); if (rot) { c.translate(0, -h / 2); c.rotate(rot); c.translate(0, h / 2); }
+  c.save(); c.translate(sx, sy); c.scale(tz, tz); if (rot) { c.translate(0, -h / 2); c.rotate(rot); c.translate(0, h / 2); }
   const g = c.createLinearGradient(0, -h, 0, 0); g.addColorStop(0, col[0]); g.addColorStop(1, col[1]);
   towerRect(c, -w / 2, -h, w, h, 1.5); c.fillStyle = g; c.fill();
   c.fillStyle = perfect ? '#ffe08a' : 'rgba(255,255,255,.28)'; c.fillRect(-w / 2 + 1, -h, w - 2, 1.1);
@@ -1988,14 +2305,23 @@ function drawTower() {
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   const c = cv.getContext('2d'), s = cv.width / 100, Hu = cv.height / s, now = towerNow(), dt = Math.min(.05, now - tlast || 0); tlast = now;
   if (tanim && now - tanim.t0 >= TFALL) towerLand();
-  const a = tanim, kept = !!a && a.kind !== 'miss';
-  const shown = kept ? tower.b.slice(0, -1) : tower.b.concat(a ? a.fell : []);
+  const a = tanim, kept = !!a && (a.kind === 'good' || a.kind === 'perfect');
+  const shown = kept ? tower.b.slice(0, -1) : a && a.kind === 'topple' ? tower.b.concat(a.fell.slice(0, -1)) : tower.b.concat(a ? a.fell : []);
   const under = tower.f - tower.b.length, count = under + shown.length, topY = count * TH;
-  const roomAbove = 44, targetY = Math.max(0, topY + 8 - (Hu - TGROUND - roomAbove));
-  tcamY += (targetY - tcamY) * Math.min(1, dt * 5);
+  const R = 20 + 38 * tz, room = Hu - TGROUND - R;   // the sky kept above the tower for the swinging box shrinks as the camera steps back
+  tz += (Math.max(twhole ? .03 : .5, Math.min(1, room / Math.max(1, topY + 6))) - tz) * Math.min(1, dt * 4);   // the camera steps back as the tower grows
+  const followY = tfollow = Math.max(0, topY - room / tz);   // the camera follows the top; a finger can pull it down the tower
+  if (!tdrag) {
+    if (tback) { tlook *= Math.max(0, 1 - dt * 7); tlv = 0; if (Math.abs(tlook) < .5) { tlook = 0; tback = false; } }
+    else { tlook += tlv * dt; tlv *= Math.exp(-dt * 3.2); }   // a flick keeps going and slows down
+    const over = tlook > 0 ? tlook : tlook < -followY ? tlook + followY : 0;
+    if (over) { tlook -= over * Math.min(1, dt * 9); tlv *= .8; }   // past either end it springs back
+  }
+  const targetY = followY + tlook;
+  tcamY += (targetY - tcamY) * Math.min(1, dt * (tdrag || tlv ? 30 : 5));
   const baseX = a ? a.base : towerBase();
   tcamX += (baseX - tcamX) * Math.min(1, dt * 5);
-  const sx = x => x - tcamX + 50, sy = y => Hu - TGROUND - (y - tcamY);
+  const sx = x => (x - tcamX) * tz + 50, sy = y => Hu - TGROUND - (y - tcamY) * tz, hang = tcamY + (Hu - TGROUND - (R - 18 * tz)) / tz;
   tshake = Math.max(0, tshake - dt * 7);
   c.setTransform(s, 0, 0, s, 0, 0);
   const sky = c.createLinearGradient(0, 0, 0, Hu), lvl = tower.f;
@@ -2020,34 +2346,37 @@ function drawTower() {
   if (tshake > 0) c.translate((Math.sin(now * 80) * tshake) / 2, (Math.cos(now * 67) * tshake) / 2);
   const gy = sy(0);
   if (gy < Hu + 2) { c.fillStyle = '#160d33'; c.fillRect(-6, gy, 112, Hu - gy + 6); c.fillStyle = '#ff6b9d'; c.fillRect(-6, gy, 112, .6); }
-  const swing = towerSway(now) + towerWob(now), lean = i => swing * Math.pow((i + 1) / Math.max(1, count), 1.6);
+  towerStep(dt, count, now);
+  tHist.push([now, tA]); while (tHist.length > 2 && now - tHist[0][0] > 1) tHist.shift();
+  const past = t => { for (let j = tHist.length - 1; j >= 0; j--) if (tHist[j][0] <= t) return tHist[j][1]; return tHist[0][1]; };
+  const lean = i => { const h = (i + 1) / Math.max(1, count); return past(now - (count - 1 - i) * .02) * Math.pow(h, 1.5); };   // it bends like a pole; a knock at the top takes a moment to reach the bottom
   const from = Math.max(0, Math.floor((tcamY - 6) / TH));
   const fillX = shown[0] ? shown[0][0] : baseX;
   for (let i = from; i < count; i++) {
     const k = i >= under ? shown[i - under] : null;
     const last = i === count - 1 && !a, sq = last ? 1 - .14 * Math.exp(-8 * (now - tsquash)) * Math.cos(18 * (now - tsquash)) : 1;
-    towerFloor(c, sx((k ? k[0] : fillX) + lean(i)), sy(i * TH), k ? k[1] : i % 2, k ? k[2] : 0, i, sq);
+    towerFloor(c, sx((k ? k[0] : fillX) + lean(i)), sy(i * TH), k ? k[1] : i % 2, k ? k[2] : 0, i, sq, (lean(i + 1) - lean(i)) / TH * .9);
   }
   if (a) {   // the box on its way down
-    const p = Math.min(1, (now - a.t0) / TFALL), startY = tcamY + Hu - TGROUND - 40, y = startY + (a.idx * TH - startY) * p * p;
+    const p = Math.min(1, (now - a.t0) / TFALL), startY = hang, y = startY + (a.idx * TH - startY) * p * p;
     const rest = (1 - p) * (1 - p), off = (a.kind === 'perfect' ? a.rel * (1 - p * p) : a.rel) + a.v * TFALL * p * rest;
     towerFloor(c, sx(a.xLand + off), sy(y), a.o, a.kind === 'perfect', a.idx, 1, a.v * .0028 * rest);
     const fly = sy(startY) - 26 - (now - a.t0) * 60;
     towerHeart(c, sx(a.xLand + a.rel), fly, 6 * (1 + p * .3), TCOL[a.o][0]);
   } else if (now - tlanded > .3) {   // the next box hangs from a heart balloon
     const age = Math.min(1, (now - tlanded - .3) / .35), ease = 1 - (1 - age) * (1 - age), hx = towerSwingX(now), speed = towerSwingV(now);
-    const mine = tower.turn === myRole, o = tower.turn === 'host' ? 0 : 1, by = tcamY + Hu - TGROUND - 40 + (1 - ease) * 42;
+    const mine = tower.turn === myRole, o = tower.turn === 'host' ? 0 : 1, by = hang + (1 - ease) * 42 / tz;
     if (mine) {
       const far = Math.abs(hx - towerTopX(now + TFALL)), good = !count || far <= TW * .62, aim = far <= TPERFECT ? '255,224,138' : good ? '255,255,255' : '255,120,120';
       const beam = c.createLinearGradient(0, sy(by), 0, sy(topY));
       beam.addColorStop(0, `rgba(${aim},0)`); beam.addColorStop(1, `rgba(${aim},${far <= TPERFECT ? .34 : .16})`);
-      c.globalAlpha = ease; c.fillStyle = beam; c.fillRect(sx(hx) - TW / 2, sy(by), TW, sy(topY) - sy(by));
-      c.fillStyle = `rgba(${aim},.9)`; c.fillRect(sx(hx) - TW / 2, sy(topY) - .8, TW, .8);
+      c.globalAlpha = ease; c.fillStyle = beam; c.fillRect(sx(hx) - TW * tz / 2, sy(by), TW * tz, sy(topY) - sy(by));
+      c.fillStyle = `rgba(${aim},.9)`; c.fillRect(sx(hx) - TW * tz / 2, sy(topY) - .8, TW * tz, .8);
     }
     c.globalAlpha = (mine ? 1 : .62) * ease;
     towerFloor(c, sx(hx), sy(by), o, 0, count, 1, speed * .0028);
-    c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = .4; c.beginPath(); c.moveTo(sx(hx), sy(by + TH)); c.lineTo(sx(hx) - speed * .02, sy(by + TH + 8)); c.stroke();
-    towerHeart(c, sx(hx) - speed * .02, sy(by + TH + 13), 6, TCOL[o][0]);
+    c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = .4; c.beginPath(); c.moveTo(sx(hx), sy(by + TH)); c.lineTo(sx(hx) - speed * .02 * tz, sy(by + TH + 8)); c.stroke();
+    towerHeart(c, sx(hx) - speed * .02 * tz, sy(by + TH + 13), 6 * Math.max(.6, tz), TCOL[o][0]);
     c.globalAlpha = 1;
   }
   tdrops = tdrops.filter(d => { d.vy -= 150 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.rot += d.vr * dt; towerFloor(c, sx(d.x), sy(d.y), d.o, d.p, 0, 1, d.rot); return sy(d.y) < Hu + 40; });
@@ -2068,12 +2397,34 @@ const towerReady = () => towerNow() - tlanded > .3;
 let tpress = null;
 $('towerDrop').onpointerdown = () => { if (towerReady()) towerTap(); };
 $('towerDrop').onclick = ev => { if (!ev.detail && towerReady()) towerTap(); };   // a keyboard press has no finger
-$('towerCanvas').onpointerdown = () => { const now = towerNow(); tpress = { at: now, x: towerSwingX(now), v: towerSwingV(now) }; };
-$('towerCanvas').onclick = () => {   // a scroll that starts here never reaches this line, so it cannot drop a box
+const towerUnit = () => $('towerCanvas').clientWidth / 100 * tz;   // screen pixels in one tower unit
+const rubber = (x, d) => x * d * .55 / (d + .55 * Math.abs(x));
+$('towerCanvas').onpointerdown = ev => {
+  const now = towerNow(); tpress = { at: now, x: towerSwingX(now), v: towerSwingV(now) };
+  tdrag = { id: ev.pointerId, y: ev.clientY, look: tlook, moved: false, hist: [[performance.now(), ev.clientY]] }; tback = false; tlv = 0;
+};
+$('towerCanvas').onpointermove = ev => {
+  const d = tdrag; if (!d || d.id !== ev.pointerId) return;
+  if (!d.moved && Math.abs(ev.clientY - d.y) < 10) return;
+  if (!d.moved) { d.moved = true; $('towerCanvas').setPointerCapture(ev.pointerId); }
+  const want = d.look + (ev.clientY - d.y) / towerUnit(), low = -tfollow;
+  tlook = want > 0 ? rubber(want, 40) : want < low ? low + rubber(want - low, 40) : want;   // follows the finger, with soft ends
+  d.hist.push([performance.now(), ev.clientY]); if (d.hist.length > 5) d.hist.shift();
+};
+const towerLetGo = ev => {
+  const d = tdrag; if (!d || d.id !== ev.pointerId) return;
+  tdrag = null;
+  if (d.moved) { const [a, b] = [d.hist[0], d.hist[d.hist.length - 1]]; tlv = b[0] > a[0] ? (b[1] - a[1]) / (b[0] - a[0]) * 1000 / towerUnit() : 0; tpress = null; d.dragged = true; towerDragged = Date.now(); }
+};
+let towerDragged = 0, tfollow = 0;
+$('towerCanvas').onpointerup = $('towerCanvas').onpointercancel = towerLetGo;
+$('towerCanvas').onclick = () => {   // a drag to look around never drops a box
   const p = tpress; tpress = null;
+  if (Date.now() - towerDragged < 400) return;
   if (!towerReady()) return;
   if (p && towerNow() - p.at < .6) towerTap(p.x, p.v); else towerTap();
 };
+$('towerView').onclick = () => { tap(); twhole = !twhole; $('towerView').setAttribute('aria-pressed', twhole); };
 $('towerNew').onclick = () => {
   if (!confirm('Start a new tower? This one goes away on both phones. Your best height stays.')) return;
   const t = blankTower(tower.best), v = nextV(towerV);
@@ -2395,7 +2746,7 @@ $('shortcutBtn').onclick = async () => {
   const say = 'Shortcut copied. Set it up once: bookmark any page, edit that bookmark, name it love, and paste this as its address. To use it: on the video page, type love in the address bar and tap the bookmark. Then paste here.';
   try { await navigator.clipboard.writeText(SHORTCUT); notify(say, 20000); } catch { prompt('Copy this, then see the steps', SHORTCUT); notify(say, 20000); }
 };
-$('linkBtn').onclick = () => { tap(); const f = $('linkForm'); f.hidden = !f.hidden; if (!f.hidden) $('linkText').focus(); };
+$('linkBtn').onclick = () => { tap(); const f = $('linkForm'); f.hidden = !f.hidden; };
 $('linkForm').onsubmit = async ev => {
   ev.preventDefault();
   const text = $('linkText').value.trim(); let L = readLink(text), link = text, got = null;
@@ -3095,7 +3446,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'facts') gotFacts(m);
   if (m.t === 'pdare') gotPadDare(m);
   if (m.t === 'combo' && Number.isInteger(m.n) && m.n > 0) { notify(`${who()} tapped ${Math.min(m.n, 999)} in a row 🔥`); m.n >= 20 ? burst('🔥') : tap(); }
-  if (m.t === 'draw') gotDraw(m);
+  if (m.t === 'draw') { gotDraw(m); theirFinger(m); }
   if (m.t === 'game') gotGame(m);
   if (m.t === 'tower') gotTower(m);
   if (m.t === 'buzz') gotBuzz();
@@ -3210,7 +3561,9 @@ async function connectEgg() {
   startKeepAlive();
   const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'Fancy' }], optionalServices: [0xffe0] });
   const c = eggFor(device);
-  if (c.up) { notify('That one is already connected. Pick the other one.'); return; }
+  const answering = c.up && Object.keys(c.seen).some(k => Date.now() - c.seen[k] < 4000);
+  if (answering) { notify('That one is already connected. Pick the other one.'); return; }
+  if (c.up) { logLink('picked a silent egg again: starting it fresh'); c.up = false; c.linking = null; c.q = null; c.busy = false; try { c.device.gatt.disconnect(); } catch {} await wait(800); }
   for (let i = 0; i < 3 && !c.up; i++) {   // the first try often fails on Android
     try { await linkUp(c); } catch (e) { logLink(`connect failed: ${e.message}`); await wait(1200); }
   }
@@ -3315,8 +3668,19 @@ function letGo(c) {   // the link is dead but nobody said so: the phone still ho
   keepTrying(c);
 }
 
+async function rejoinAll() {   // a stuck link: drop every connection, forget its state, and join again by itself
+  logLink('reconnect pressed');
+  const all = [...tries.values()];
+  for (const c of all) { c.up = false; c.linking = null; c.q = null; c.busy = false; try { c.device.gatt.disconnect(); } catch {} }
+  for (const kind in KINDS) eggGone(kind);
+  if (!all.length) { await autoJoin(); if (!tries.size) { connectEgg().catch(() => {}); return; } }
+  notify(`Reconnecting ${label('vib')} and ${label('suc')}. Keep them switched on and close to the phone.`, 7000);
+  await wait(1500);
+  for (const c of tries.values()) keepTrying(c);
+}
 async function stopAll(why) {
   tap(); stopMix(true);
+  if (feelRun || !$('feelSheet').hidden) feelEnd();
   for (const kind in KINDS) { state[kind].level = 0; state[kind].by = 'me'; }
   stoppedAt = Date.now();
   if (isRemote) {
@@ -3391,22 +3755,46 @@ async function sendBuzz() {
 function gotPushSub(m) {
   if (m.endpoint !== null && !okEndpoint(m.endpoint)) return;
   partnerPush = m.endpoint; store.set('partnerPush:' + room, partnerPush);
-  render();
+  render(); showAlerts();
 }
 const fromB64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
+const blockedText = () => /iPhone|iPad/.test(navigator.userAgent) ? 'Alerts are off for Loveline. Open Settings, then Notifications, then Loveline, and turn on Allow Notifications. Then turn alerts on again here.'
+  : 'Chrome is blocking alerts for Loveline. Tap the icon left of the address at the top, then Permissions, then Notifications, and choose Allow. If that is already on: open your phone Settings, then Apps, then Chrome, then Notifications, and turn them on. Then tap Turn on alerts again.';
+let alertAskLater = false;   // "Not now" lasts until Loveline is opened again
 function alertHelp(text) { document.querySelectorAll('.alertHelp').forEach(p => { p.textContent = text || ''; p.hidden = !text; }); }
-function showAlerts() { document.querySelectorAll('.alertsOn').forEach(i => { i.checked = !!myPush; }); document.querySelectorAll('.buzzSound').forEach(i => { i.checked = store.get('buzzSound', true); }); }
+function showAlerts() {
+  document.querySelectorAll('.alertsOn').forEach(i => { i.checked = !!myPush; });
+  document.querySelectorAll('.alertTest').forEach(b => { b.hidden = !myPush; });
+  document.querySelectorAll('.buzzSound').forEach(i => { i.checked = store.get('buzzSound', true); });
+  const can = 'Notification' in window;
+  $('alertAsk').hidden = !!myPush || alertAskLater || !can;
+  if (can && !myPush && Notification.permission === 'denied') alertHelp(blockedText());
+  document.querySelectorAll('.pAlerts').forEach(p => { p.textContent = partnerPush ? `${who()} gets your Thinking of you alerts even when Loveline is closed.` : `${who()} has not turned on alerts yet, so a Thinking of you only reaches them while Loveline is open.`; });
+}
+async function testAlert() {   // the alert comes back through the same road his would take; the phone shows it even with Loveline open
+  if (!myPush) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (reg.active) reg.active.postMessage({ t: 'testAlert' });
+    const r = await fetch(BUZZ, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: myPush }) }), a = await r.json();
+    if (a.status === 404 || a.status === 410) { myPush = null; store.set('myPush:' + room, null); showAlerts(); alertHelp('This phone forgot its alert address. Turn alerts on again.'); return; }
+    notify(a.status >= 200 && a.status < 300 ? 'Test sent. An alert should appear in a few seconds. If nothing comes, check that Chrome is allowed to show notifications in your phone settings.' : 'The alert service refused the test. Turn alerts off and on again.', 9000);
+  } catch { notify('Could not send the test. Check your internet and try again.'); }
+}
 async function alertsOn() {
   if (!('Notification' in window) || !('PushManager' in window) || !navigator.serviceWorker) {
     alertHelp(/iPhone|iPad/.test(navigator.userAgent) ? 'On iPhone, open Loveline in Safari, press Share, then Add to Home Screen. Open Loveline from your Home Screen, paste your private link, and turn this on there.' : 'This browser cannot show alerts when Loveline is closed. Use Chrome.');
     return showAlerts();
   }
-  if (await Notification.requestPermission() !== 'granted') { alertHelp('Alerts are blocked for this site. Allow notifications for it in your phone settings, then try again.'); return showAlerts(); }
+  const blockedHelp = blockedText();
+  if (Notification.permission === 'denied') { alertHelp(blockedHelp); return showAlerts(); }
+  const answer = await Notification.requestPermission();
+  if (answer !== 'granted') { alertHelp(answer === 'default' ? 'Chrome did not get an answer. Turn this on again and tap Allow when Chrome asks. If Chrome shows only a small bell in the address bar, tap the bell and choose Allow.' : blockedHelp); return showAlerts(); }
   try {
     const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(BUZZ_KEY) });
     myPush = sub.endpoint; store.set('myPush:' + room, myPush); alertHelp('');
     send({ t: 'pushsub', endpoint: myPush });
-    notify(`Alerts are on. ${who()} can now reach you when Loveline is closed.`);
+    notify(`Alerts are on. ${who()} can now reach you when Loveline is closed. Tap Send me a test alert to check.`);
   } catch { alertHelp('Alerts could not be turned on just now. Check your internet and try again.'); }
   showAlerts();
 }
@@ -3414,18 +3802,24 @@ async function alertsOff() {
   try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch {}
   myPush = null; store.set('myPush:' + room, null); send({ t: 'pushsub', endpoint: null }); alertHelp(''); showAlerts();
 }
-document.querySelectorAll('.switchSide').forEach(b => b.insertAdjacentHTML('beforebegin', `<label class="row"><span>Alerts when Loveline is closed</span><input type="checkbox" class="switch alertsOn"></label><p class="alertHelp" hidden></p><label class="row"><span>Chime for Thinking of you</span><input type="checkbox" class="switch buzzSound" checked></label>`));
+document.querySelectorAll('.group .switchSide').forEach(b => b.insertAdjacentHTML('beforebegin', `<label class="row"><span>Alerts when Loveline is closed</span><input type="checkbox" class="switch alertsOn"></label><p class="alertHelp" hidden></p><button class="row alertTest" hidden>Send me a test alert</button><p class="alertNote">A phone on silent keeps alerts quiet; no website can change that. To let them through Do Not Disturb, open phone Settings, then Do Not Disturb, then Apps, and add Chrome.</p><p class="alertNote pAlerts"></p><label class="row"><span>Chime for Thinking of you</span><input type="checkbox" class="switch buzzSound" checked></label>`));
 document.querySelectorAll('.alertsOn').forEach(i => i.onchange = () => { i.checked ? alertsOn() : alertsOff(); });
 document.querySelectorAll('.buzzSound').forEach(i => i.onchange = () => { store.set('buzzSound', i.checked); showAlerts(); });
+document.querySelectorAll('.alertTest').forEach(b => b.onclick = () => { tap(); testAlert(); });
+$('alertAskGo').onclick = () => { tap(); alertsOn(); };
+$('alertAskNo').onclick = () => { alertAskLater = true; showAlerts(); };
 showAlerts();
 $('buzzBtn').onclick = () => sendBuzz();
 
 // ---- start
 $('quick').innerHTML = EMOJI.map(e => `<button type="button" aria-label="Send ${e}">${e}</button>`).join('');
 // Pressing Send or an emoji must not take the cursor out of the message box, or the phone closes its keyboard.
-const KEEPS_KEYBOARD = '#sendBtn, #emojiBtn, #quick button, #buzzBtn';
+const KEEPS_KEYBOARD = '#sendBtn, #emojiBtn, #quick button, #buzzBtn, .bubble, #replyX';
 let wasTyping = false;
-document.addEventListener('pointerdown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) wasTyping = document.activeElement === $('text'); }, true);
+// The keyboard opens only when the message box itself is tapped. Android can hide the keyboard and leave the box selected,
+// so "typing" also needs the keyboard to be taking up the screen.
+const keyboardUp = () => !window.visualViewport || innerHeight - visualViewport.height > 120;
+document.addEventListener('pointerdown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) wasTyping = document.activeElement === $('text') && keyboardUp(); }, true);
 document.addEventListener('mousedown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) ev.preventDefault(); }, true);
 const backToTyping = () => { if (wasTyping) $('text').focus(); };
 $('quick').querySelectorAll('button').forEach(b => b.onclick = () => { sendChat(b.textContent); backToTyping(); });
@@ -3449,7 +3843,7 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
   if (muted) { notify('Your headphones changed, so the sound was muted. Put them back in to keep listening.'); render(); }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
-$('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; $('text').focus(); };
+$('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };   // Send keeps the box selected by itself, so an open keyboard stays open and a closed one stays closed
 $('clearChat').onclick = ev => { ev.stopPropagation(); tap(); $('clearSheet').hidden = false; };
 $('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
 $('askNo').onclick = () => { $('askSheet').hidden = true; if (asking) { refused.add(asking.from); if (!isRemote) send({ t: 'busy', to: asking.from, no: true }, true); logLink('a new phone or page was refused'); } asking = null; };
@@ -3457,7 +3851,12 @@ for (const b of document.querySelectorAll('.copyReport')) b.onclick = async () =
 $('clearNo').onclick = () => { $('clearSheet').hidden = true; };
 $('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
 $('clearForm').onsubmit = ev => { ev.preventDefault(); $('clearSheet').hidden = true; clearChat(); };
-$('msgs').onclick = () => { $('dock').classList.toggle('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
+$('msgs').onclick = ev => {   // closed: opens the chat. Open: tapping a message answers it
+  const b = ev.target.closest('.bubble');
+  if ($('dock').classList.contains('open') && b) { const c = chat.find(x => x.id === b.dataset.id); if (c) { tap(); setReply(c); backToTyping(); } return; }
+  $('dock').classList.toggle('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock();
+};
+$('replyX').onclick = () => { setReply(null); backToTyping(); };
 const chatIsOpen = () => $('dock').classList.contains('open');
 const closeChat = () => { $('dock').classList.remove('open'); fitDock(); };
 $('closeChat').onclick = () => { tap(); closeChat(); };
@@ -3473,7 +3872,9 @@ addEventListener('popstate', () => {
   else { holdBack(); return; }
   history.pushState(null, '');
 });
-$('meBtn').onclick = () => { $('nameInput').value = myName; $('nameSheet').hidden = false; $('nameInput').focus(); };
+$('splashSide').textContent = isRemote ? 'His side' : 'Her side';
+setTimeout(() => $('splash').remove(), 1300);
+$('meBtn').onclick = () => { $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
 $('nameForm').onsubmit = ev => {
   ev.preventDefault();
   myName = $('nameInput').value.trim().slice(0, 24); store.set('name', myName);
@@ -3483,6 +3884,7 @@ $('nameForm').onsubmit = ev => {
 };
 if (!myName) $('nameSheet').hidden = false;
 new ResizeObserver(fitDock).observe($('dock'));
+new ResizeObserver(() => document.body.style.setProperty('--pin', 58 + $('player').offsetHeight + 'px')).observe($('player'));   // how much of the screen the pinned video takes
 
 render(); renderChat();
 let parked = false;
@@ -3551,12 +3953,12 @@ steady(() => {   // every tick: animate orbs; on the egg phone also drive the eg
   const now = performance.now();
   const out = {};
   for (const kind in KINDS) {
-    out[kind] = state[kind].connected ? output(state[kind], now) : 0;   // keeps running with her screen off: he can still play
+    out[kind] = !state[kind].connected || (feelRun && (feelRun.raw || feelRun.kind !== kind)) ? 0 : feelRun ? feelRun.at(now) : output(state[kind], now);   // keeps running with her screen off: he can still play
     cards[kind].querySelector('.orb').style.setProperty('--g', out[kind] / 100);
   }
   if (!isRemote) for (const c of ups()) {   // every connection gets both strengths; each egg takes its own
-    const key = out.suc + ',' + out.vib;
-    if (key !== c.sent && !c.busy) { c.busy = true; c.sent = key; write(c, command(out.suc, out.vib)).finally(() => { c.busy = false; }); }
+    const bytes = feelRun && feelRun.raw || command(out.suc, out.vib), key = bytes.join();
+    if (key !== c.sent && !c.busy) { c.busy = true; c.sent = key; write(c, bytes).finally(() => { c.busy = false; }); }
   }
 }, TICK_MS);
 let lastBeat = Date.now(), netWarned = false, hereAt = 0, factsAt = 0;
@@ -3657,18 +4059,19 @@ else {
   window.addEventListener('pagehide', () => stopAll());
 }
 let leaving = false;
-const otherSide = isRemote ? ((store.get('hostRoom') || {}).r === room ? location.pathname : '') : (roomOf(store.get('lastRemote')) === room ? store.get('lastRemote') : '');
+const otherSide = isRemote ? location.pathname + '#h=1&r=' + room + '&k=' + hp.get('k') : shareUrl;   // either side can always become the other one
 document.querySelectorAll('.switchSide').forEach(b => {
-  b.hidden = !otherSide;
+  b.hidden = false; b.textContent = `Switch this phone to ${isRemote ? 'her' : 'his'} side`;
   b.onclick = () => {
     if (!confirm(`Switch this phone to ${isRemote ? 'her' : 'his'} side?`)) return;
     if (!isRemote) stopAll();
     store.set('role', isRemote ? 'host' : 'remote');
-    leaving = true; setTimeout(() => location.replace(otherSide), 400);
+    if (isRemote) store.set('hostRoom', { r: room, k: hp.get('k') }); else store.set('lastRemote', otherSide);
+    leaving = true; setTimeout(() => { location.replace(otherSide); location.reload(); }, 400);
   };
 });
 addEventListener('beforeunload', e => { if (!leaving && (outQ.length || (!isRemote && Object.values(state).some(x => x.connected)))) { e.preventDefault(); e.returnValue = ''; } });
-addEventListener('scroll', () => document.querySelector('header').classList.toggle('small', scrollY > 24), { passive: true });   // large title shrinks into a bar
+addEventListener('scroll', () => { document.querySelector('header').classList.toggle('small', scrollY > 24); document.body.classList.toggle('scrolled', scrollY > 24); }, { passive: true });   // large title shrinks into a bar
 $('stop').onclick = () => { if (!isRemote) herStops++; stopAll(isRemote ? 'You stopped everything' : 'Everything stopped'); };
 </script>
 </body>
