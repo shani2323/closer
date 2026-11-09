@@ -565,7 +565,7 @@
     <canvas id="ludoBoard" aria-label="Ludo board"></canvas>
     <div class="ludoDock"><button class="primary" id="ludoRoll">Roll</button><div class="lreact" id="lreact" aria-label="Reactions"><button type="button" data-e="😈" aria-label="Send 😈">😈</button><button type="button" data-e="😂" aria-label="Send 😂">😂</button><button type="button" data-e="😘" aria-label="Send 😘">😘</button><button type="button" data-e="🙈" aria-label="Send 🙈">🙈</button><button type="button" data-e="🔥" aria-label="Send 🔥">🔥</button></div></div>
     <button class="gameEnd" id="ludoNew" hidden>New game</button>
-    <details class="ludoHelp"><summary>How to play</summary><p class="gameRules">Two pieces each, a queen and a rook. Each waits in your base until you roll a 6 for it, only the first time: after that any number brings it out again. Throw the die across the board with your finger, shake your phone, or tap Roll. Then tap a glowing piece. There are three 🚀 and two 💀. A 🚀 jumps you 3 ahead, then flies to a new random square. Land on a 💀 and that piece goes back to base. The rockets and the skulls jump to new random squares at random moments: never next to each other, never under a piece, never on the paths to the heart. Land on the other's piece and you flick yours into it (pull back, let go: harder pull, harder hit) to send it back to base; stars and start squares are safe. A 6 or a catch rolls again. The die is fair but helpful: a number that catches a piece within 6 squares, or a 6 for a piece's first start, comes up a little more often. Every square counts, stars and starts too. Go once round the ring (the arrows show the way), then turn into your own coloured path to the heart. That path stays locked 🔒 until you catch one of the other's pieces, or a 💀 hits you twice. Until then your pieces wait in front of it: a number too big for every piece passes the turn. If all the other's pieces are already on their heart path while yours is still locked, they win. Bring both pieces onto the heart with an exact roll to win. The loser gets a dare.</p></details>
+    <details class="ludoHelp"><summary>How to play</summary><p class="gameRules">Two pieces each, a queen and a rook. Each waits in your base until you roll a 6 for it, only the first time: after that any number brings it out again. Throw the die across the board with your finger, shake your phone, or tap Roll. Then tap a glowing piece. There are three 🚀 and two 💀. A 🚀 jumps you 3 ahead, then flies to a new random square. Land on a 💀 and that piece goes back to base. The rockets and the skulls jump to new random squares at random moments: never next to each other, never under a piece, never on the paths to the heart. Land on the other's piece and you flick yours into it (pull back, let go: harder pull, harder hit) to send it back to base; stars and start squares are safe. A 6 or a catch rolls again. The die is fair but helpful: a number that catches a piece within 6 squares, or a 6 for a piece's first start, comes up a little more often. Every square counts, stars and starts too. Go once round the ring (the arrows show the way), then turn into your own coloured path to the heart. That path stays locked 🔒 until you catch one of the other's pieces, or a 💀 hits you twice. Until then your pieces wait in front of it, unless that roll catches a piece just past it: a number too big for every piece passes the turn. If all the other's pieces are already on their heart path while yours is still locked, they win. Bring both pieces onto the heart with an exact roll to win. The loser gets a dare.</p></details>
   </section>
 
   <section class="panelBox glass" id="watchPanel" hidden>
@@ -2341,11 +2341,11 @@ const LG = 9, LN = 32, LRING = (() => {   // a 9 x 9 board: 32 squares round the
   for (let x = e - 1; x > m; x--) r.push([x, e]);
   return r;
 })();
-const LLANE = { host: [[4, 7], [4, 6], [4, 5]], remote: [[4, 1], [4, 2], [4, 3]] }, LOFF = { host: 0, remote: 16 }, LEND = 35, LSAFE = new Set([0, 8, 16, 24]), LMID = [4, 4];
+const LLANE = { host: [[4, 7], [4, 6], [4, 5]], remote: [[4, 1], [4, 2], [4, 3]] }, LOFF = { host: 0, remote: 16 }, LEND = 36, LSAFE = new Set([0, 8, 16, 24]), LMID = [4, 4];
 const LCOL = { host: ['#ff7aa8', '#e8336f'], remote: ['#7fb0ff', '#3a6df0'] }, LYARD = { host: [[3, 7], [5, 7]], remote: [[3, 1], [5, 1]] };
 const other = r => r === 'host' ? 'remote' : 'host';
 const lAbs = (r, p) => p < LN ? (LOFF[r] + p) % LN : -1;
-const lCell = (r, p) => p < LN ? LRING[lAbs(r, p)] : p < LEND ? LLANE[r][p - LN] : LMID;
+const lCell = (r, p) => p < LN ? LRING[lAbs(r, p)] : p === LN ? LRING[LOFF[r]] : p < LEND ? LLANE[r][p - LN - 1] : LMID;   // home: over your own start square, up your coloured path, then the heart
 function lSpot(l) {   // a random empty ring square for a rocket or the skull: never a star, a start, another special or a piece
   const busy = new Set();
   for (const a of [...l.bo, ...l.kl]) if (a >= 0) [a - 1, a, a + 1].forEach(b => busy.add((b + LN) % LN));   // keep one empty square between specials
@@ -2374,7 +2374,7 @@ function cleanLudo(l) {
 const savedLudo = store.get('ludo:' + room) || {};
 let lrings = [], lflash = null, lhome = null, lwin = null, lkl = null, ludo = cleanLudo(savedLudo.l) || blankLudo(), ludoV = Number.isFinite(savedLudo.v) ? savedLudo.v : 0, lrun = 0, lhop = null, ldie = null, ltaps = [], lfly = null, lfx = [], lland = {}, lpops = [];
 const lMax = (l, r) => l.cap[r] ? LEND : LN - 1;   // locked: a piece waits on the last ring square before its heart path
-const ludoMoves = (l, r) => !l.rolled || l.win ? [] : [0, 1].filter(i => l.out[r][i] ? l.pc[r][i] < LEND && l.pc[r][i] + l.die <= lMax(l, r) : l.die === 6 || l.ev[r][i]);   // in the base: a 6 brings it out the first time; after that any number does
+const ludoMoves = (l, r) => !l.rolled || l.win ? [] : [0, 1].filter(i => l.out[r][i] ? l.pc[r][i] < LEND && (l.pc[r][i] + l.die <= lMax(l, r) || (!l.cap[r] && l.pc[r][i] < LN && lCatch(l, r, i))) : l.die === 6 || l.ev[r][i]);   // in the base: a 6 brings it out the first time; after that any number does
 function ludoRoll(flick, at, held) {
   if (ludo.turn !== myRole || ludo.rolled || ludo.win || ldie || ldrag) return;
   const w = [1, 1, 1, 1, 1, 1];   // random, but helpful: a number that catches a piece in reach, or a first 6, comes up a little more often
@@ -2405,9 +2405,10 @@ function ludoRoll(flick, at, held) {
 }
 function lStep(l, r, i) {   // where a piece lands; a rocket adds 3 when that still fits on the ring
   let to = l.pc[r][i] + l.die;
-  const bi = to < LN - 3 ? l.bo.indexOf(lAbs(r, to)) : -1;
+  const wrap = !l.cap[r] && l.pc[r][i] < LN && to > LN - 1;   // past a locked gate: only to catch a piece sitting there
+  const bi = !wrap && to < LN - 3 ? l.bo.indexOf(lAbs(r, to)) : -1;
   if (bi >= 0) to += 3;
-  return { to, wrap: false, bi, land: to };
+  return { to, wrap, bi, land: wrap ? to % LN : to };
 }
 function lCatch(l, r, i) {   // would this move land on one of the other's pieces, off the safe squares?
   if (!l.out[r][i]) return false;
