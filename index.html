@@ -686,7 +686,19 @@
 const BROKERS = [['wss://broker.emqx.io:8084/mqtt'], ['wss://broker.hivemq.com:8884/mqtt'], ['wss://public.cloud.shiftr.io:443', { username: 'public', password: 'public' }]];   // all used; first copy to arrive wins
 const FACES = ['🧔‍♂️', '👨‍🦱', '👱‍♂️', '👨', '🤴', '😈', '🦊', '🐺', '🍆', '🔥'];
 const KINDS = { __proto__: null, vib: 'Vibrates', suc: 'Suction' };   // each egg's job
-const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
+let ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
+let iceAt = 0;
+async function getIce() {   // a 24-hour pass for Cloudflare's relay: when a network blocks a direct line, videos and sound still go phone to phone, fast
+  if (Date.now() - iceAt < 12 * 3600e3) return;
+  if (location.hostname !== 'shani2323.github.io' && !window.__turnTest) return;   // the helper only answers the real site
+  iceAt = Date.now();
+  try {
+    const r = await fetch('https://loveline-buzz.shani2323.workers.dev/ice', { method: 'POST' });
+    const j = await r.json();
+    if (Array.isArray(j.iceServers) && j.iceServers.length) ICE = [{ urls: 'stun:stun.l.google.com:19302' }, ...j.iceServers];
+  } catch { iceAt = Date.now() - 11.9 * 3600e3; }   // try again in about 6 minutes
+}
+getIce();
 const MODES = { __proto__: null,   // name, base speed in beats per second (the speed slider scales it 0.5x to 1.5x)
   steady: ['Steady', 0], wave: ['Wave', .9], pulse: ['Pulse', 1.2], heart: ['Heartbeat', 1.1], rise: ['Rise', 1.2],
   nipple: ['Nipple suck', 1.2], suckle: ['Soft suckle', .9], clit: ['Clit flick', 4],
@@ -1197,6 +1209,7 @@ function setupDc(ch) {
 }
 async function startData() {   // egg phone opens the direct line
   dataAt = Date.now();
+  await getIce();
   endRtc('data');
   const pc = newPc('data');
   setupDc(pc.createDataChannel('closer'));
@@ -1238,6 +1251,7 @@ async function startMic() {
   if (!pairKey || !partnerOnline()) { notify(`${who()} is not connected yet.`); render(); return; }
   try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true } }); }
   catch { notify('Allow the microphone for this page to share your sound.'); render(); return; }
+  await getIce();
   const pc = newPc('send');
   mic.getTracks().forEach(t => pc.addTrack(t, mic));
   await pc.setLocalDescription(await pc.createOffer());
@@ -1485,9 +1499,10 @@ function padDrive(pt, from) {
   inkG.beginPath(); inkG.moveTo((from || pt).px, (from || pt).py); inkG.lineTo(pt.px, pt.py); inkG.stroke();
 }
 function padUp() {   // finger lifted: they stop, and go back to the pattern they had
-  if (!touchPrev) return;
-  for (const k in touchPrev) change(k, { level: 0, mode: touchPrev[k].mode, speed: touchPrev[k].speed }, false, true);
-  touchPrev = null; fingers.clear();
+  const prev = touchPrev;
+  if (!prev) return;
+  touchPrev = null; fingers.clear();   // cleared first: stopping redraws the page, and a redraw with no eggs closes the pad, which lifts the finger again
+  for (const k in prev) change(k, { level: 0, mode: prev[k].mode, speed: prev[k].speed }, false, true);
   $('pad').classList.remove('on'); $('padRead').innerHTML = 'Touch, tap or draw.<br>Lift your finger and they stop.';
 }
 $('pad').addEventListener('pointerdown', ev => {
