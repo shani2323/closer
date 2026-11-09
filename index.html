@@ -145,7 +145,9 @@
   .chatWho small.live { color: var(--green); }
   .clearChat { display: none; margin: 0 auto 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--red); font-size: 13px; font-weight: 600; }
   .dock.open .clearChat { display: block; }
-  #clearSheet, #askSheet { z-index: 12; }
+  #clearSheet, #askSheet, #newSheet { z-index: 12; }
+  .newBar { height: 6px; margin: 4px 0 14px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+  .newBar i { display: block; height: 100%; background: var(--blue); transform-origin: left; transition: transform 100ms linear; }
   .primary.danger { background: var(--red); }
   .ghost { width: 100%; height: 50px; margin-top: 8px; border: 0; border-radius: 14px; background: var(--fill); color: var(--blue); font-size: 17px; font-weight: 600; }
   .bubble { max-width: 80%; padding: 6px 8px 5px 10px; border-radius: 10px 10px 10px 3px; font-size: 16px; line-height: 1.32; letter-spacing: -.01em;
@@ -563,7 +565,7 @@
     <canvas id="ludoBoard" aria-label="Ludo board"></canvas>
     <div class="ludoDock"><button class="primary" id="ludoRoll">Roll</button><div class="lreact" id="lreact" aria-label="Reactions"><button type="button" data-e="😈" aria-label="Send 😈">😈</button><button type="button" data-e="😂" aria-label="Send 😂">😂</button><button type="button" data-e="😘" aria-label="Send 😘">😘</button><button type="button" data-e="🙈" aria-label="Send 🙈">🙈</button><button type="button" data-e="🔥" aria-label="Send 🔥">🔥</button></div></div>
     <button class="gameEnd" id="ludoNew" hidden>New game</button>
-    <details class="ludoHelp"><summary>How to play</summary><p class="gameRules">Two pieces each, a queen and a rook. Each waits in your base until you roll a 6 for it, only the first time: after that any number brings it out again. Throw the die across the board with your finger, shake your phone, or tap Roll. Then tap a glowing piece. There are three 🚀 and two 💀. A 🚀 jumps you 3 ahead, then flies to a new random square. Land on a 💀 and that piece goes back to base. The rockets and the skulls jump to new random squares at random moments: never next to each other, never under a piece, never on the paths to the heart. Land on the other's piece and you flick yours into it (pull back, let go: harder pull, harder hit) to send it back to base; stars and start squares are safe. A 6 or a catch rolls again. Every square counts, stars and starts too. Go once round the ring (the arrows show the way), then turn into your own coloured path to the heart. That path stays locked 🔒 until you catch one of the other's pieces; until then you keep going round. Bring both pieces onto the heart with an exact roll to win. The loser gets a dare.</p></details>
+    <details class="ludoHelp"><summary>How to play</summary><p class="gameRules">Two pieces each, a queen and a rook. Each waits in your base until you roll a 6 for it, only the first time: after that any number brings it out again. Throw the die across the board with your finger, shake your phone, or tap Roll. Then tap a glowing piece. There are three 🚀 and two 💀. A 🚀 jumps you 3 ahead, then flies to a new random square. Land on a 💀 and that piece goes back to base. The rockets and the skulls jump to new random squares at random moments: never next to each other, never under a piece, never on the paths to the heart. Land on the other's piece and you flick yours into it (pull back, let go: harder pull, harder hit) to send it back to base; stars and start squares are safe. A 6 or a catch rolls again. The die is fair but helpful: a number that catches a piece within 6 squares, or a 6 for a piece's first start, comes up a little more often. Every square counts, stars and starts too. Go once round the ring (the arrows show the way), then turn into your own coloured path to the heart. That path stays locked 🔒 until you catch one of the other's pieces, or a 💀 hits you twice. Until then your pieces wait in front of it: a number too big for every piece passes the turn. If all the other's pieces are already on their heart path while yours is still locked, they win. Bring both pieces onto the heart with an exact roll to win. The loser gets a dare.</p></details>
   </section>
 
   <section class="panelBox glass" id="watchPanel" hidden>
@@ -666,6 +668,14 @@
 </div></div>
 
 
+<div class="sheet" id="newSheet" hidden><form class="glass" onsubmit="return false">
+  <div class="grabber"></div>
+  <h2 id="newTitle"></h2>
+  <p id="newText"></p>
+  <div class="newBar" id="newBar" hidden><i id="newFill"></i></div>
+  <button type="button" class="primary" id="newYes"></button>
+  <button type="button" class="ghost" id="newNo"></button>
+</form></div>
 <div class="sheet" id="askSheet" hidden>
   <form id="askForm" class="glass">
     <div class="grabber"></div>
@@ -2344,7 +2354,7 @@ function lSpot(l) {   // a random empty ring square for a rocket or the skull: n
   return free[((b[0] << 8) | b[1]) % free.length];
 }
 function blankLudo(turn, random) {
-  const l = { turn: turn || 'host', die: 0, rolled: false, pc: { host: [0, 0], remote: [0, 0] }, out: { host: [false, false], remote: [false, false] }, ev: { host: [false, false], remote: [false, false] }, win: null, bo: [4, 20, 28], kl: [12, 30], cap: { host: false, remote: false } };
+  const l = { turn: turn || 'host', die: 0, rolled: false, pc: { host: [0, 0], remote: [0, 0] }, out: { host: [false, false], remote: [false, false] }, ev: { host: [false, false], remote: [false, false] }, sk: { host: 0, remote: 0 }, win: null, bo: [4, 20, 28], kl: [12, 30], cap: { host: false, remote: false } };
   if (random) { l.bo = []; l.kl = []; for (let k = 0; k < 3; k++) l.bo.push(lSpot(l)); for (let k = 0; k < 2; k++) l.kl.push(lSpot(l)); }
   return l;
 }
@@ -2357,18 +2367,28 @@ function cleanLudo(l) {
   const sq = a => Number.isInteger(a) && a >= 0 && a < LN && !LSAFE.has(a);
   const bo = Array.isArray(l.bo) && l.bo.length === 3 && l.bo.every(sq) && new Set(l.bo).size === 3 ? l.bo.slice() : [4, 20, 28];
   const kl = Array.isArray(l.kl) && l.kl.length === 2 && l.kl.every(a => sq(a) && !bo.includes(a)) && l.kl[0] !== l.kl[1] ? l.kl.slice() : [12, 30];
+  const hits = r => l.sk && Number.isInteger(l.sk[r]) && l.sk[r] >= 0 && l.sk[r] <= 9 ? l.sk[r] : 0;   // how often a skull hit that side
   const evs = (r, o) => o.map((x, j) => x || !!(l.ev && Array.isArray(l.ev[r]) && l.ev[r][j] === true));   // been out before: no 6 needed to come out again
-  return { turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, ev: { host: evs('host', outs('host')), remote: evs('remote', outs('remote')) }, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) } };
+  return { turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, ev: { host: evs('host', outs('host')), remote: evs('remote', outs('remote')) }, sk: { host: hits('host'), remote: hits('remote') }, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) } };
 }
 const savedLudo = store.get('ludo:' + room) || {};
 let lrings = [], lflash = null, lhome = null, lwin = null, lkl = null, ludo = cleanLudo(savedLudo.l) || blankLudo(), ludoV = Number.isFinite(savedLudo.v) ? savedLudo.v : 0, lrun = 0, lhop = null, ldie = null, ltaps = [], lfly = null, lfx = [], lland = {}, lpops = [];
-const ludoMoves = (l, r) => !l.rolled || l.win ? [] : [0, 1].filter(i => l.out[r][i] ? l.pc[r][i] < LEND && ((!l.cap[r] && l.pc[r][i] < LN) || l.pc[r][i] + l.die <= LEND) : l.die === 6 || l.ev[r][i]);   // in the base: a 6 brings it out the first time; after that any number does
+const lMax = (l, r) => l.cap[r] ? LEND : LN - 1;   // locked: a piece waits on the last ring square before its heart path
+const ludoMoves = (l, r) => !l.rolled || l.win ? [] : [0, 1].filter(i => l.out[r][i] ? l.pc[r][i] < LEND && l.pc[r][i] + l.die <= lMax(l, r) : l.die === 6 || l.ev[r][i]);   // in the base: a 6 brings it out the first time; after that any number does
 function ludoRoll(flick, at, held) {
   if (ludo.turn !== myRole || ludo.rolled || ludo.win || ldie || ldrag) return;
-  let b; do b = rand(1)[0]; while (b >= 252);   // a fair die: no number comes up more often
-  const d = b % 6 + 1, l = JSON.parse(JSON.stringify(ludo));
+  const w = [1, 1, 1, 1, 1, 1];   // random, but helpful: a number that catches a piece in reach, or a first 6, comes up a little more often
+  for (let n = 1; n <= 6; n++) { const t = { ...ludo, die: n, rolled: true }; if (ludoMoves(t, myRole).some(i => lCatch(t, myRole, i))) w[n - 1] += 1.2; }
+  if ([0, 1].some(i => !ludo.out[myRole][i] && !ludo.ev[myRole][i])) w[5] += 1;
+  const u = rand(4).reduce((a, x) => a * 256 + x, 0) / 2 ** 32 * w.reduce((a, x) => a + x, 0);
+  let d = 1; for (let acc = w[0]; acc <= u && d < 6; acc += w[d], d++);
+  const l = JSON.parse(JSON.stringify(ludo));
   l.die = d; l.rolled = true;
-  if (!ludoMoves(l, myRole).length) { l.rolled = false; if (d !== 6) l.turn = other(myRole); }   // no piece can move: the turn passes, unless it was a 6
+  let gate = false;
+  if (!ludoMoves(l, myRole).length) {   // no piece can use this number: the turn passes
+    l.rolled = false; l.turn = other(myRole);
+    if (!l.cap[myRole] && lStuck(l, myRole) && lStuck(l, other(myRole))) { l.cap[myRole] = true; gate = true; }   // nobody can ever move again: this side's path opens so the game goes on
+  }
   lheld = held || null;
   if (!flick) {
     const side = Math.floor(Math.random() * 4), t = .2 + Math.random() * .6, [lo, hi] = dieBox(1), q = lo + (hi - lo) * t;
@@ -2377,19 +2397,24 @@ function ludoRoll(flick, at, held) {
     flick = [Math.cos(ang) * sp, Math.sin(ang) * sp];
   }
   const r3 = v => Math.round(v * 1000) / 1000;
-  ludoCommit(l, { k: 'roll', d, r: myRole, s: rand(1)[0], tv: [r3(Math.max(-8, Math.min(8, flick[0]))), r3(Math.max(-8, Math.min(8, flick[1])))], p: at.map(v => r3(Math.max(0, Math.min(1, v)))) });
+  ludoCommit(l, { k: 'roll', d, r: myRole, gate, s: rand(1)[0], tv: [r3(Math.max(-8, Math.min(8, flick[0]))), r3(Math.max(-8, Math.min(8, flick[1])))], p: at.map(v => r3(Math.max(0, Math.min(1, v)))) });
   lheld = null;
   const ms = ludoMoves(l, myRole);
   const go = () => ldie ? setTimeout(go, 150) : ludoMove(ms[0]);
   if (ms.length && (ms.length === 1 || (l.pc[myRole][0] === l.pc[myRole][1] && l.out[myRole][0] === l.out[myRole][1]))) setTimeout(go, 500);   // only one real choice: it moves by itself once the die stops
 }
-function lStep(l, r, i) {   // where a piece lands: along its own path, or round the ring again while its heart path is locked
-  const wrap = !l.cap[r] && l.pc[r][i] < LN, sq = t => wrap ? t % LN : t;
+function lStep(l, r, i) {   // where a piece lands; a rocket adds 3 when that still fits on the ring
   let to = l.pc[r][i] + l.die;
-  const bi = sq(to) < LN && (wrap || to < LN - 3) ? l.bo.indexOf(lAbs(r, sq(to))) : -1;
+  const bi = to < LN - 3 ? l.bo.indexOf(lAbs(r, to)) : -1;
   if (bi >= 0) to += 3;
-  return { to, wrap, bi, land: sq(to) };
+  return { to, wrap: false, bi, land: to };
 }
+function lCatch(l, r, i) {   // would this move land on one of the other's pieces, off the safe squares?
+  if (!l.out[r][i]) return false;
+  const at = lStep(l, r, i).land, a = lAbs(r, at), o = other(r);
+  return at < LN && !LSAFE.has(a) && !l.kl.includes(a) && l.pc[o].some((q, j) => l.out[o][j] && q < LN && lAbs(o, q) === a);
+}
+const lStuck = (l, r) => [1, 2, 3, 4, 5, 6].every(d => !ludoMoves({ ...l, die: d, rolled: true, win: null }, r).length);   // no number at all would move a piece
 function ludoMove(i) {
   if (lAim || lhit || ludo.turn !== myRole || !ludoMoves(ludo, myRole).includes(i)) return;
   const l = JSON.parse(JSON.stringify(ludo)), me = myRole, opp = other(me), from = l.pc[me][i], ex = !l.out[me][i];
@@ -2405,10 +2430,12 @@ function ludoMove(i) {
     if (boost) l.bo[st.bi] = lSpot(l);   // the used rocket flies off to a new random square
   }
   if (l.pc[me].every(q => q === LEND)) l.win = me;
+  let lw = false;
+  for (const r of [opp, me]) if (!l.win && !l.cap[r] && l.pc[other(r)].every(q => q >= LN)) { l.win = other(r); lw = true; }   // that side's path is locked and nothing is left on the ring to catch: the other side wins
   if (!l.win && !(l.die === 6 || caught)) l.turn = opp;
-  if (killed) { l.kl[killed - 1] = -1; l.kl[killed - 1] = lSpot(l); killed = true; }   // that skull jumps somewhere new after it strikes
+  if (killed) { l.kl[killed - 1] = -1; l.kl[killed - 1] = lSpot(l); killed = true; l.sk[me]++; if (l.sk[me] >= 2 && !l.cap[me]) { l.cap[me] = true; unlock = true; } }   // that skull jumps somewhere new; a second skull hit opens the heart path
   l.rolled = false;
-  const act = { k: 'move', r: me, i, from, to, caught, boost, cj, cp, ex, killed, wrap, unlock };
+  const act = { k: 'move', r: me, i, from, to, caught, boost, cj, cp, ex, killed, wrap, unlock, lw };
   tap();
   if (caught) {   // hop up to the square before theirs, then you flick your piece into it
     lAim = { l, act, t: performance.now() / 1000 };
@@ -2417,7 +2444,7 @@ function ludoMove(i) {
     renderLudo(); return;
   }
   ludoCommit(l, act);
-  if (l.win) setTimeout(() => loserDare(opp), (to - from) * 150 + 5200);   // after the celebration; only the winner's phone deals the dare, so it happens once
+  if (l.win) setTimeout(() => loserDare(other(l.win)), (to - from) * 150 + 5200);   // after the celebration; only the winner's phone deals the dare, so it happens once
 }
 let lAim = null, aimDrag = null, lhit = null, lglide = null, lbo = null, lnextSpot = 0;
 const cellXY = ([x, y]) => { const cs = boardW() / LG; return [(x + .5) * cs, (y + .5) * cs]; };
@@ -2473,8 +2500,8 @@ function ludoCommit(l, act) { l = cleanLudo(l); const v = nextV(ludoV); applyLud
 function gotLudo(m) {
   if (!(m.v > ludoV)) return;
   const l = cleanLudo(m.l); if (!l) return;
-  const a = m.act || {}, act = a.k === 'roll' && Number.isInteger(a.d) && a.d >= 1 && a.d <= 6 ? { k: 'roll', d: a.d, s: Number.isInteger(a.s) ? a.s & 255 : 0, tv: Array.isArray(a.tv) && a.tv.length === 2 && a.tv.every(Number.isFinite) ? a.tv.map(v => Math.max(-8, Math.min(8, v))) : null, p: Array.isArray(a.p) && a.p.length === 2 && a.p.every(n => Number.isFinite(n) && n >= 0 && n <= 1) ? a.p.slice() : null, r: ['host', 'remote'].includes(a.r) ? a.r : null }
-    : a.k === 'move' && ['host', 'remote'].includes(a.r) && [0, 1].includes(a.i) && Number.isInteger(a.from) && Number.isInteger(a.to) && a.from >= 0 && a.from < LEND && (a.ex === true ? a.from === 0 && a.to === 0 : a.to > a.from && a.to - a.from <= 9 && (a.wrap === true || a.to <= LEND)) ? { k: 'move', r: a.r, i: a.i, from: a.from, to: a.to, ex: a.ex === true, wrap: a.wrap === true, unlock: a.unlock === true, killed: a.killed === true, caught: a.caught === true, fl: Array.isArray(a.fl) && a.fl.length === 3 && a.fl.every(Number.isFinite) ? [Math.max(-1, Math.min(1, a.fl[0])), Math.max(-1, Math.min(1, a.fl[1])), Math.max(.2, Math.min(1, a.fl[2]))] : null, boost: a.boost === true, cj: [0, 1].includes(a.cj) ? a.cj : -1, cp: Number.isInteger(a.cp) && a.cp >= 0 && a.cp < LN ? a.cp : 0 } : null;
+  const a = m.act || {}, act = a.k === 'roll' && Number.isInteger(a.d) && a.d >= 1 && a.d <= 6 ? { k: 'roll', d: a.d, gate: a.gate === true, s: Number.isInteger(a.s) ? a.s & 255 : 0, tv: Array.isArray(a.tv) && a.tv.length === 2 && a.tv.every(Number.isFinite) ? a.tv.map(v => Math.max(-8, Math.min(8, v))) : null, p: Array.isArray(a.p) && a.p.length === 2 && a.p.every(n => Number.isFinite(n) && n >= 0 && n <= 1) ? a.p.slice() : null, r: ['host', 'remote'].includes(a.r) ? a.r : null }
+    : a.k === 'move' && ['host', 'remote'].includes(a.r) && [0, 1].includes(a.i) && Number.isInteger(a.from) && Number.isInteger(a.to) && a.from >= 0 && a.from < LEND && (a.ex === true ? a.from === 0 && a.to === 0 : a.to > a.from && a.to - a.from <= 9 && (a.wrap === true || a.to <= LEND)) ? { k: 'move', r: a.r, i: a.i, from: a.from, to: a.to, ex: a.ex === true, wrap: a.wrap === true, unlock: a.unlock === true, killed: a.killed === true, caught: a.caught === true, lw: a.lw === true, fl: Array.isArray(a.fl) && a.fl.length === 3 && a.fl.every(Number.isFinite) ? [Math.max(-1, Math.min(1, a.fl[0])), Math.max(-1, Math.min(1, a.fl[1])), Math.max(.2, Math.min(1, a.fl[2]))] : null, boost: a.boost === true, cj: [0, 1].includes(a.cj) ? a.cj : -1, cp: Number.isInteger(a.cp) && a.cp >= 0 && a.cp < LN ? a.cp : 0 } : null;
   applyLudo(l, m.v, act);
 }
 function applyLudo(l, v, act) {
@@ -2483,12 +2510,14 @@ function applyLudo(l, v, act) {
   ludo = l; ludoV = v; store.set('ludo:' + room, { l, v });
   if (act && panel === 'ludo' && !document.hidden) {
     if (act.k === 'roll') dieThrow(act.d, act.s, act.tv, act.p, act.r);
+    if (act.k === 'roll' && act.gate) { lpop('🔓 Nobody can move: the path opens', act.r, -1, performance.now() / 1000 + 1.6); lrings.push({ cl: LLANE[act.r][0], col: '#ffd75e', t: performance.now() / 1000 + 1.6, sz: 2, fire: 'unlock' }); }
     if (act.k === 'move') {
       const t0 = performance.now() / 1000, n = act.to - act.from;
       const sq = q => act.wrap ? q % LN : q, mine = act.r === myRole, flick = act.caught && act.fl && act.cj >= 0;
       if (flick) { if (!mine && n > 1) lhop = { ...act, to: act.to - 1, t0 }; lhit = { act, t0: mine ? t0 : t0 + Math.max(0, n - 1) * .15 }; }   // theirs hops up, then the hit plays on both phones
       else if (n > 0) lhop = { ...act, t0 };
-      if (act.unlock) lpop('🔓 Heart path open!', act.r, sq(act.to), t0 + n * .15 + .9);
+      if (act.unlock) { lpop(act.killed ? '💀💀 Two hits: heart path open!' : '🔓 Heart path open!', act.r, sq(act.to), t0 + n * .15 + .9); lrings.push({ cl: LLANE[act.r][0], col: '#ffd75e', t: t0 + n * .15 + .9, sz: 2, fire: 'unlock' }); }   // the lock bursts open
+      if (act.lw) lpop(`🔒 ${l.win === myRole ? who() + ' can' : 'You can'}'t open the heart path any more`, other(l.win), -1, t0 + n * .15 + .4);
       if (act.caught && act.cj >= 0 && !flick) lfly = { r: other(act.r), i: act.cj, a: lCell(other(act.r), act.cp), b: LYARD[other(act.r)][act.cj], t0: t0 + n * .15 };
       if (act.killed) { lfly = { r: act.r, i: act.i, a: lCell(act.r, sq(act.to)), b: LYARD[act.r][act.i], t0: t0 + n * .15 + .25, own: true }; lpop('💀 Back to base!', act.r, sq(act.to), t0 + n * .15); if (navigator.vibrate) setTimeout(() => navigator.vibrate([60, 40, 120]), n * 150); }
       if (act.ex) { lfly = { r: act.r, i: act.i, a: LYARD[act.r][act.i], b: lCell(act.r, 0), t0, own: true, ex: true }; lpop('Out! 🎉', act.r, 0, t0 + .5); }
@@ -2511,11 +2540,11 @@ function renderLudo() {
   const roll = $('ludoRoll');
   roll.disabled = !me || l.rolled || !!l.win || !!ldie;
   roll.textContent = l.win ? 'Game over' : lAim ? 'Flick it!' : ldie ? 'Rolling…' : me ? (l.rolled ? 'Pick a piece' : 'Roll') : `${name}'s turn`;
-  $('ludoNew').hidden = !l.win;
+  $('ludoNew').hidden = false;
   $('ludoBoard').style.touchAction = canThrow() || lAim ? 'none' : 'manipulation';   // the page scrolls normally unless you are about to throw
 }
 $('ludoRoll').onclick = () => { tap(); askMotion(); ludoRoll(); };
-$('ludoNew').onclick = () => { tap(); ludoCommit(blankLudo(other(ludo.win || myRole), true), null); };   // the loser starts the next game
+$('ludoNew').onclick = () => { tap(); askNew('ludo'); };
 function ludoOpen() { loadRapier(); renderLudo(); if (!lrun) lrun = requestAnimationFrame(ludoLoop); }
 function ludoLoop() { if (panel !== 'ludo') { lrun = 0; return; } lrun = requestAnimationFrame(ludoLoop); ludoSpotTick(); drawLudo(); }
 function fitCanvas(cv) {
@@ -3103,11 +3132,50 @@ $('towerView').onclick = () => {   // one tap shows it all, the next tap goes ba
   b.innerHTML = twhole ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h6V3M21 9h-6V3M3 15h6v6M21 15h-6v6"/></svg>' : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>';
   b.title = b.ariaLabel = twhole ? 'Back to the top' : 'Show the whole tower';
 };
-$('towerNew').onclick = () => {
-  if (!confirm('Start a new tower? This one goes away on both phones. Your best height stays.')) return;
-  const t = blankTower(tower.best), v = nextV(towerV);
-  t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v });
+$('towerNew').onclick = () => { tap(); askNew('tower'); };
+// A new game in the middle of one needs both of you: one asks, the other has 10 seconds to agree, otherwise the game goes on.
+const NEWG = {
+  ludo: { what: 'This Ludo game ends on both phones.', done: () => !!ludo.win, reset: () => ludoCommit(blankLudo(other(ludo.win || myRole), true), null) },   // the loser, or the other one, starts
+  tower: { what: 'This tower comes down on both phones. Your best height stays.', done: () => !tower.f, reset: () => { const t = blankTower(tower.best), v = nextV(towerV); t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v }); } }
 };
+let newAsk = null, newTick = 0;
+function newShow(title, text, yes, no, onYes, onNo) {
+  $('newTitle').textContent = title; $('newText').textContent = text;
+  $('newYes').textContent = yes; $('newYes').hidden = !yes; $('newNo').textContent = no;
+  $('newYes').onclick = () => { tap(); onYes(); }; $('newNo').onclick = () => { tap(); onNo(); };
+  $('newBar').hidden = !newAsk; $('newSheet').hidden = false;
+}
+function newClose(say) { newAsk = null; clearInterval(newTick); $('newSheet').hidden = true; if (say) notify(say); }
+function newCount(onEnd) {   // the bar empties over 10 seconds
+  clearInterval(newTick); $('newFill').style.transform = 'scaleX(1)';
+  newTick = setInterval(() => { if (!newAsk) return clearInterval(newTick); const left = newAsk.until - Date.now(); $('newFill').style.transform = `scaleX(${Math.max(0, left / 10000)})`; if (left <= 0) onEnd(); }, 100);
+}
+function askNew(g) {
+  const G = NEWG[g];
+  if (G.done()) { G.reset(); return; }   // a finished game starts again straight away
+  newAsk = null;
+  newShow('Start a new game?', `${G.what} ${who()} has to agree too.`, `Ask ${who()}`, 'Cancel', () => {
+    if (!partnerOnline()) { newClose(`${who()} is not here, so the game goes on. Ask again when you are both in.`); return; }
+    newAsk = { g, id: Math.random().toString(36).slice(2, 10), mine: true, until: Date.now() + 10000 };
+    send({ t: 'newAsk', g, id: newAsk.id });
+    newShow('Waiting for ' + who(), `${who()} has 10 seconds to agree. If not, this game goes on.`, '', 'Cancel', () => {}, () => { send({ t: 'newAns', id: newAsk.id, ok: false }); newClose(); });
+    newCount(() => newClose(`${who()} did not agree, so the game goes on.`));
+  }, () => newClose());
+}
+function gotNewAsk(m) {
+  if (!NEWG[m.g] || typeof m.id !== 'string' || m.id.length > 12) return;
+  newAsk = { g: m.g, id: m.id, mine: false, until: Date.now() + 10000 };
+  const answer = ok => { const id = newAsk && newAsk.id; send({ t: 'newAns', id, ok }); newClose(ok ? '' : 'The game goes on.'); };
+  newShow(`${who()} wants a new game`, `${NEWG[m.g].what} Agree within 10 seconds, or the game goes on.`, 'Agree', 'Keep playing', () => answer(true), () => answer(false));
+  newCount(() => answer(false));
+  if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+}
+function gotNewAns(m) {
+  if (!newAsk || m.id !== newAsk.id) return;
+  if (!newAsk.mine) { newClose(m.ok ? '' : `${who()} cancelled.`); return; }   // the asker gave up
+  const g = newAsk.g; newClose(m.ok ? 'New game! 🎉' : `${who()} wants to keep playing.`);
+  if (m.ok) NEWG[g].reset();   // the one who asked starts it, so it happens once
+}
 
 // Skipping a dare costs a penalty, sent outside Loveline. Nude photo penalties are on unless that person switched them off, on their own phone.
 const PENALTIES = {
@@ -4135,6 +4203,8 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'tower') gotTower(m);
   if (m.t === 'towerShake') gotShake(m);
   if (m.t === 'ludo') gotLudo(m);
+  if (m.t === 'newAsk') gotNewAsk(m);
+  if (m.t === 'newAns') gotNewAns(m);
   if (m.t === 'ludoReact' && panel === 'ludo') ludoReact(m.e, false);
   if (m.t === 'buzz') gotBuzz();
   if (m.t === 'buzzgot') notify(`${who()} got your 💗`);
