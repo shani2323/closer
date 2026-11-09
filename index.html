@@ -128,6 +128,7 @@
           -webkit-mask-image: linear-gradient(transparent, #000 20px); mask-image: linear-gradient(transparent, #000 20px); }
   .msgs::-webkit-scrollbar { display: none; }
   .msgs:empty { display: none; }
+  .dock:not(.open) .msgs .bubble:not(:last-child) { display: none; }   /* small: only the newest message */
   .dock.open .msgs { max-height: 55dvh; }
   .chatTop { display: none; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
   .dock.open .chatTop { display: flex; }
@@ -141,6 +142,10 @@
   .bubble { max-width: 80%; padding: 6px 8px 5px 10px; border-radius: 10px 10px 10px 3px; font-size: 16px; line-height: 1.32; letter-spacing: -.01em;
             align-self: flex-start; overflow-wrap: anywhere; white-space: pre-wrap; background: #202c33; color: #e9edef; }
   .bubble.mine { align-self: flex-end; border-radius: 10px 10px 3px 10px; background: #005c4b; }
+  .grab { display: block; width: 64px; height: 20px; margin: -12px auto 0; padding: 0; border: 0; background: none; position: relative; }
+  .grab::before { content: ""; position: absolute; left: 50%; top: 8px; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: rgba(255, 255, 255, .32); }
+  .grab:active::before { background: rgba(255, 255, 255, .6); }
+  .msgs { transition: max-height 280ms cubic-bezier(.2, .8, .2, 1); }
   .bubble.big { background: none; font-size: 40px; line-height: 1.1; padding: 0 2px; }
   .meta { float: right; margin: 7px 0 -3px 10px; font-size: 11px; line-height: 1; color: rgba(233, 237, 239, .6); letter-spacing: 0; white-space: nowrap; }
   .big .meta { float: none; display: block; text-align: right; margin: 0; }
@@ -185,6 +190,7 @@
   .hero .primary { margin-top: 20px; }
   body.noeggs #eggs, body.noeggs #mixBtn, body.noeggs #touchBtn, body.noeggs:not(.mayrun) #stop { display: none !important; }
   body.panel #hero, body.panel #alertAsk, body.touching #alertAsk { display: none; }
+  body.panel:not(.watching) #eggs { display: none; }   /* games and drawing get the whole screen; Leo and Max stay on Play and Watch */
   body.watching #watchPanel > :not(#player) { scroll-margin-top: calc(var(--pin, 380px) + 12px); }   /* anything brought into view lands below the video, never under it */   /* Draw, Truth or Dare and Watch keep the full screen */
   .primary { width: 100%; height: 50px; margin-top: 12px; border: 0; border-radius: 14px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 600; }
 
@@ -245,8 +251,8 @@
   .parkBox h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -.025em; }
   .parkBox p { margin: 0 0 14px; color: var(--label2); font-size: 15px; }
   .primary.alt { background: var(--fill2); }
-  .tabs { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; margin: 0 0 12px; padding: 2px; border-radius: 10px; background: var(--fill); }
-  .tabs button { height: 34px; border: 0; border-radius: 8px; background: none; font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
+  .tabs { display: grid; grid-template-columns: repeat(6, auto); gap: 2px; margin: 0 0 12px; padding: 2px; border-radius: 10px; background: var(--fill); }
+  .tabs button { height: 34px; padding: 0 4px; border: 0; border-radius: 8px; background: none; font-size: 13px; font-weight: 500; letter-spacing: -.01em; }
   .tabs button[aria-selected=true] { background: #636366; font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .25); }
   body.panel .egg { display: grid; grid-template-columns: 44px 1fr; column-gap: 10px; align-items: center; text-align: left; padding: 8px 12px 8px 8px; border-radius: 16px; }
   body.panel .orb { grid-row: 1 / 4; width: 44px; height: 44px; margin: 0; }
@@ -266,7 +272,9 @@
               background: radial-gradient(circle, #fff 0 25%, rgba(255, 122, 184, .9) 45%, rgba(255, 122, 184, 0) 70%); transition: left 60ms linear, top 60ms linear; }
   .brushes { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
   .brushes::-webkit-scrollbar { display: none; }
-  .brushes button { flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font: 600 14px/34px inherit; }
+  .brushes button { flex: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 20px; background: var(--fill); color: var(--label); font: 20px/1 inherit; }
+  .brushes { justify-content: space-between; }
+  #sizeBtn i { display: block; border-radius: 50%; background: currentColor; }
   .brushes button[aria-pressed=true] { background: #fff; color: #000; }
   .brushes button:active { transform: scale(.96); transition: transform 100ms ease-out; }
   #board { display: block; width: 100%; aspect-ratio: 1; border-radius: 14px; background: #0b0b0d; touch-action: none; }
@@ -291,12 +299,22 @@
   .towerHud b { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .towerHud small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; }
   #towerHearts { font-size: 17px; letter-spacing: 1px; }
-  .towerView { position: absolute; left: 10px; bottom: 10px; height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: rgba(20, 10, 40, .55); color: #fff; font: 600 13px/30px inherit;
+  .towerView { position: absolute; left: 10px; bottom: 10px; width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 19px; background: rgba(20, 10, 40, .55); color: #fff; font: 600 13px/30px inherit;
                -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
   .towerView[aria-pressed=true] { background: #fff; color: #000; }
   .towerView:active { transform: scale(.96); transition: transform 100ms ease-out; }
+  #ludoBoard { display: block; width: 100%; aspect-ratio: 1; margin: 4px 0 10px; border-radius: 18px; touch-action: manipulation; }
+  .lreact { flex: 1; display: flex; gap: 4px; min-width: 0; }
+  .lreact button { flex: 1; min-width: 0; height: 40px; padding: 0; border: 0; border-radius: 20px; background: var(--fill); font-size: 19px; }
+  .lreact button:active { transform: scale(.9); transition: transform 90ms ease-out; }
+  .ludoHelp summary { margin: 10px 0 0; font-size: 13px; color: var(--muted, #8e8e93); cursor: pointer; }
+  .ludoHelp .gameRules { margin-top: 6px; }
+  .ludoDock { display: flex; gap: 6px; align-items: center; }
+  #ludoRoll { flex: 0 0 auto; width: auto; min-width: 96px; height: 40px; padding: 0 14px; margin: 0; border-radius: 20px; font-size: 14px; }
+  #ludoRoll:active:not(:disabled) { transform: scale(.97); transition: transform 100ms ease-out; }
   .towerDrop:active:not(:disabled) { transform: scale(.97); transition: transform 100ms ease-out; }
   .towerDrop:disabled { opacity: 1; background: var(--fill); color: var(--label2); }
+  .towerDrop.shake:not(:disabled) { background: linear-gradient(135deg, #ff6b9d, #a65bff); }
   .hleft { display: flex; align-items: center; gap: 8px; min-width: 0; }
   #buzzBtn { flex: none; padding: 0; font-size: 19px; line-height: 1; }
   #buzzBtn:active { transform: scale(.92); transition: transform 100ms ease-out; }
@@ -369,8 +387,8 @@
   .wgrid { grid-column: 1 / 3; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; animation: wgridIn .28s cubic-bezier(.2, .8, .2, 1); }
   .wgrid[hidden] { display: none; }
   .wgrid button { display: grid; justify-items: center; gap: 1px; min-width: 0; padding: 4px 3px; border: 0; border-radius: 10px; background: var(--fill); color: var(--label); font: 500 10px/1.15 inherit; }
-  .wgrid button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .wgrid button canvas { width: 100%; height: 13px; }
+  .wgrid button span { max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: center; }
+  .wgrid button b { font-size: 19px; line-height: 1.1; font-weight: 400; }
   .wgrid button[aria-pressed=true] { background: #fff; color: #000; }
   .wgrid button:active { transform: scale(.96); transition: transform 100ms ease-out; }
   @keyframes wgridIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
@@ -385,8 +403,9 @@
   body.watching .ring, body.watching .veil { display: none; }
   body.watching .toast { top: auto; bottom: calc(var(--dock, 80px) + 12px); }
   body.watching.scrolled #vidNote, body.watching.scrolled #vidTogether { display: none; }   /* scrolled down: only the video and its buttons stay pinned */
-  body.watching .dock.open .msgs { max-height: 30vh; }
-  body.watching .dock:not(.open) .msgs { max-height: 40px; overflow: hidden; }   /* only the newest message peeks out; tap it to open the chat */
+  body.watching.vidOn .dock.open .msgs { max-height: 30vh; }
+  body.watching.vidOn .dock:not(.open) .msgs { max-height: 40px; overflow: hidden; }   /* a video is up: only the newest message peeks out */
+  body.watching:not(.vidOn) .dock .msgs { max-height: var(--room, 30vh); }   /* nothing playing: the chat grows into the empty space */   /* only the newest message peeks out; tap it to open the chat */
   body.watching .dock { padding-top: 8px; }
   body.watching main { padding-bottom: calc(var(--dock, 80px) + 16px); }
   body.watching .seekBox { padding: 8px 0 4px; }
@@ -480,7 +499,7 @@
     <p class="note" id="heroText"></p>
     <div id="heroSlot"></div>
   </section>
-  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game">Truth or Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="watch">Watch</button></nav>
+  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game">Truth or Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="ludo">Ludo</button><button role="tab" data-p="watch">Watch</button></nav>
   <p class="warn" id="batWarn" role="alert" hidden></p>
   <section class="ask glass" id="alertAsk" hidden>
     <b>💗 Get Thinking of you alerts</b>
@@ -522,12 +541,20 @@
     <p class="turn" id="towerTurn"></p>
     <div class="towerWrap">
       <canvas id="towerCanvas" aria-label="Our tower"></canvas>
-      <button class="towerView" id="towerView" aria-pressed="false">Whole tower</button>
+      <button class="towerView" id="towerView" aria-pressed="false" aria-label="Show the whole tower" title="Show the whole tower"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg></button>
       <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
-    <p class="gameRules">Take turns. A perfect drop gives back a heart and keeps the tower still. Off-centre drops make it sway, and if the top hangs too far out it topples. After 3 misses the top 3 floors fall. Drag the tower to look up and down.</p>
+    <p class="gameRules">Take turns. A perfect drop gives back a heart and keeps the tower still. Off-centre drops make it swing more, perfect drops calm it, and 3 perfect drops in a row stand it still. While the other one aims, you can shake the tower twice. Swing too far and the whole tower falls: whoever dropped last gets a dare. If the weight above a floor hangs past its edge, everything above it topples. After 3 misses the top 3 floors fall. Drag the tower to look up and down.</p>
+  </section>
+  <section class="panelBox glass" id="ludoPanel" hidden>
+    <div class="panelHead"><b>Ludo</b><button class="done" data-close>Done</button></div>
+    <p class="turn" id="ludoTurn" aria-live="polite"></p>
+    <canvas id="ludoBoard" aria-label="Ludo board"></canvas>
+    <div class="ludoDock"><button class="primary" id="ludoRoll">Roll</button><div class="lreact" id="lreact" aria-label="Reactions"><button type="button" data-e="😈" aria-label="Send 😈">😈</button><button type="button" data-e="😂" aria-label="Send 😂">😂</button><button type="button" data-e="😘" aria-label="Send 😘">😘</button><button type="button" data-e="🙈" aria-label="Send 🙈">🙈</button><button type="button" data-e="🔥" aria-label="Send 🔥">🔥</button></div></div>
+    <button class="gameEnd" id="ludoNew" hidden>New game</button>
+    <details class="ludoHelp"><summary>How to play</summary><p class="gameRules">Two pieces each, a queen and a rook. Each waits in your base until you roll a 6 for it. Throw the die across the board with your finger, shake your phone, or tap Roll. Then tap a glowing piece. A 🚀 jumps you 3 ahead, then flies to a new random square. Land on the 💀 and that piece goes back to base. The rockets and the skull jump to new random squares at random moments: never next to each other, never under a piece, never on the paths to the heart. Land on the other's piece and you flick yours into it (pull back, let go: harder pull, harder hit) to send it back to base; stars and start squares are safe. A 6 or a catch rolls again. Go once round the ring (the arrows show the way), then turn into your own coloured path to the heart. That path stays locked 🔒 until you catch one of the other's pieces; until then you keep going round. Bring both pieces onto the heart with an exact roll to win. The loser gets a dare.</p></details>
   </section>
 
   <section class="panelBox glass" id="watchPanel" hidden>
@@ -605,7 +632,8 @@
 
 <div class="dock" id="dock"><div class="dock-in">
   <div class="chatTop"><button class="clearChat" id="clearChat" hidden>Clear chat</button><button class="closeChat" id="closeChat">Close</button></div>
-  <div class="msgs" id="msgs" aria-live="polite" title="Tap to see more"></div>
+  <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
+  <div class="msgs" id="msgs" aria-live="polite" title="Tap a message to answer it. Double tap to make the chat small."></div>
   <div class="typing" id="typing" hidden></div>
   <div class="quick glass" id="quick" hidden></div>
   <div class="replyBar" id="replyBar" hidden><div><b id="replyWho"></b><span id="replyText"></span></div><button type="button" id="replyX" aria-label="Cancel the reply">✕</button></div>
@@ -706,6 +734,9 @@ const MODES = { __proto__: null,   // name, base speed in beats per second (the 
   bob: ['Head bobbing', 1], deepsuck: ['Long deep sucks', .28], fastsuck: ['Fast sucks', 2.2], kiss: ['Kisses and a long suck', 1.6], lick: ['Licks and sucks', 2.4], licks: ['Slow licks', 1.1], flutter: ['Tongue flutter', 3.2], swirl: ['Circling tongue', 3],
   tease: ['Tease and edge', .04], climax: ['Build to climax', 0], storm: ['Storm', 4], touch: ['Finger', 1],
 };
+const ICON = { __proto__: null, steady: '➖', wave: '🌊', pulse: '💥', heart: '💓', rise: '📈', nipple: '🍒', suckle: '🍼', clit: '🎯', sex: '🔄', deep: '⏬', fast: '⚡', pound: '🔨', shallow: '🔁', grind: '⚙️',
+  bob: '🎈', deepsuck: '🌪️', fastsuck: '💨', kiss: '💋', lick: '👅', licks: '🍭', flutter: '🦋', swirl: '🌀', tease: '🪶', climax: '🎆', storm: '⛈️', touch: '👆' };
+const modeName = m => `${ICON[m] || ''} ${MODES[m][0]}`.trim();
 const GROUPS = {   // what each egg can really do
   vib: [['Basics', ['steady', 'wave', 'pulse', 'heart', 'rise']], ['Strokes', ['sex', 'deep', 'fast', 'pound', 'shallow', 'grind']], ['Clit', ['clit']], ['Build up', ['tease', 'climax', 'storm']], ['Touch', ['touch']]],
   suc: [['Basics', ['steady', 'wave', 'pulse', 'rise']], ['Sucking', ['nipple', 'suckle', 'bob', 'deepsuck', 'fastsuck', 'kiss']], ['Licking', ['licks', 'flutter', 'swirl', 'lick']], ['Build up', ['tease', 'climax']], ['Touch', ['touch']]],
@@ -868,7 +899,7 @@ for (const kind in KINDS) {
     <button class="name" aria-label="Rename"></button><div class="sub"></div>
     <div class="controls">
       <label class="strength"><span class="cap">Strength</span><input type="range" class="level" min="0" max="100" value="0" aria-label="${KINDS[kind]} strength"></label>
-      <label class="mode"><select class="modeSel" aria-label="${KINDS[kind]} pattern">${GROUPS[kind].map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m}">${MODES[m][0]}</option>`).join('')}</optgroup>`).join('')}</select>
+      <label class="mode"><select class="modeSel" aria-label="${KINDS[kind]} pattern">${GROUPS[kind].map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m}">${modeName(m)}</option>`).join('')}</optgroup>`).join('')}</select>
         <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></label>
       <label class="speed"><span class="cap">Speed</span><input type="range" class="spd" min="0" max="100" value="50" aria-label="${KINDS[kind]} speed"><span class="ends"><span>Slow</span><span>Fast</span></span></label>
     </div>`;
@@ -1360,6 +1391,7 @@ function renderChat() {
   $('msgs').innerHTML = chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) && !c.re ? 'big' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${esc(c.text)}<span class="meta">${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
   $('msgs').scrollTop = $('msgs').scrollHeight;
   $('clearChat').hidden = !chat.length;
+  $('chatGrab').hidden = !chat.length;
   fitDock();
 }
 function burst(text) {   // full-screen moment: the emoji pops big in the middle, then a shower rises
@@ -1545,8 +1577,8 @@ $('wpat').querySelectorAll('.wegg').forEach(row => {
     if (Math.abs(dx) > 28) { step(dx < 0 ? 1 : -1); return; }
     tap(); grid.hidden = !grid.hidden;
     if (!grid.hidden) {
-      grid.innerHTML = list.map(m => `<button type="button" data-m="${m}"><canvas width="96" height="28"></canvas><span>${MODES[m][0]}</span></button>`).join('');
-      grid.querySelectorAll('button').forEach(b => { drawWave(b.querySelector('canvas'), b.dataset.m, state[k].speed); b.onclick = () => { tap(); change(k, { mode: b.dataset.m }); grid.hidden = true; }; });
+      grid.innerHTML = list.map(m => `<button type="button" data-m="${m}"><b>${ICON[m] || '•'}</b><span>${MODES[m][0]}</span></button>`).join('');
+      grid.querySelectorAll('button').forEach(b => { b.onclick = () => { tap(); change(k, { mode: b.dataset.m }); grid.hidden = true; }; });
       renderWatchCtl(true);
     }
   });
@@ -1572,7 +1604,7 @@ function renderWatchCtl(canControl) {
     const k = row.dataset.k, e = state[k], cur = fitMode(k, e.mode), sp = row.querySelector('.wspeed');
     row.hidden = !e.connected; row.classList.toggle('off', !canControl);
     row.querySelector('.wface').textContent = faces[k];
-    row.querySelector('.wmode').textContent = MODES[cur][0];
+    row.querySelector('.wmode').textContent = modeName(cur);
     const wave = row.querySelector('.wwave'), key = cur + Math.round(e.speed * 20);
     if (wave.dataset.key !== key) { wave.dataset.key = key; drawWave(wave, cur, e.speed); }
     row.querySelectorAll('.wgrid button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === cur));
@@ -1682,7 +1714,7 @@ const myTie = Math.random();   // two changes in the same moment still have one 
 const nextV = v => Math.max(Date.now(), Math.floor(v) + 1) + myTie;
 function gotPanel(m) { if (!(m.v > panelV)) return; panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); }
 function openPanel(p, fromPartner, quiet) {
-  if (!['play', 'draw', 'game', 'tower', 'watch'].includes(p)) return;
+  if (!['play', 'draw', 'game', 'tower', 'watch', 'ludo'].includes(p)) return;
   const changed = p !== panel, was = panel;
   if (panel === 'watch' && p !== 'watch') leaveWatch();
   if (p !== panel && !$('touchSheet').hidden) closeTouch();
@@ -1690,16 +1722,17 @@ function openPanel(p, fromPartner, quiet) {
   if (changed) scrollTo({ top: 0 });   // a section always opens at its top, never half hidden under the title bar
   document.body.classList.toggle('panel', p !== 'play');
   document.body.classList.toggle('watching', p === 'watch');
-  $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('towerPanel').hidden = p !== 'tower'; $('watchPanel').hidden = p !== 'watch';
+  $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('towerPanel').hidden = p !== 'tower'; $('watchPanel').hidden = p !== 'watch'; $('ludoPanel').hidden = p !== 'ludo';
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p));
   if (p === 'draw') sizeBoard();
   if (p === 'tower') towerOpen();
+  if (p === 'ludo') ludoOpen();
   if (p === 'watch') { renderVids(); renderPlayer(); }
   renderGame();
   if (!fromPartner) { panelV = nextV(panelV); keep('panelV', panelV); send({ t: 'panel', p, v: panelV }); }
   else if (changed && !quiet) { tap(); notify(p === 'play' ? `${who()} left ${PANELS[was]}.${was === 'watch' ? ' The video paused.' : ''}` : `${who()} opened ${PANELS[p]}.`); }
 }
-const PANELS = { __proto__: null, draw: 'Draw', game: 'Truth or Dare', tower: 'Tower', watch: 'Watch' };
+const PANELS = { __proto__: null, draw: 'Draw', game: 'Truth or Dare', tower: 'Tower', watch: 'Watch', ludo: 'Ludo' };
 const okToLeave = p => panel !== 'watch' || p === 'watch' || !wstate.playing || confirm('Leave Watch? The video pauses on both phones.');
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { if (!okToLeave(b.dataset.p)) return; tap(); openPanel(b.dataset.p); });
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (okToLeave('play')) openPanel('play'); });
@@ -1708,7 +1741,7 @@ document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (o
 const board = $('board'), bctx = board.getContext('2d');
 const COLORS = ['#ffffff', '#ff7ab8', '#bf5af2', '#ff453a', '#0a84ff', '#30d158'];
 let strokes = [], pen = { c: '#ff7ab8', w: 4, e: false, b: 'pen', m: false }, drawing = null;
-const BRUSHES = { __proto__: null, pen: '✏️ Pen', neon: '✨ Neon', rainbow: '🌈 Rainbow', hearts: '❤️ Hearts', stars: '⭐ Stars' };
+const BRUSHES = { __proto__: null, pen: ['✏️', 'Pen'], neon: ['✨', 'Neon'], rainbow: ['🌈', 'Rainbow'], hearts: ['❤️', 'Hearts'], stars: ['⭐', 'Stars'] };
 const STAMP = { __proto__: null, hearts: '❤️', stars: '⭐' };
 const SIZES = [2, 4, 8];
 function sizeBoard() {
@@ -1783,6 +1816,7 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   if (m.pv < panelV) send({ t: 'panel', p: panel, v: panelV });
   if (m.gv < gameV) send({ t: 'game', game, v: gameV });
   if (m.tv < towerV) send({ t: 'tower', tower, v: towerV });
+  if (Number.isFinite(m.lv) && m.lv < ludoV) send({ t: 'ludo', l: ludo, v: ludoV });
   if ((myPush || '').slice(-16) !== (m.pu || '')) send({ t: 'pushsub', endpoint: myPush });
   if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
   if (Number.isInteger(m.lc) && m.lc !== libSize() && Date.now() - libSentAt > 5000) { libSentAt = Date.now(); sendLib(); }
@@ -1805,14 +1839,14 @@ function gotDraw(m) {
   if (panel === 'draw') seg(s, from);
 }
 $('tools').insertAdjacentHTML('afterbegin', COLORS.map(c => `<button class="sw" style="background:${c}" data-c="${c}" aria-label="Colour ${c}"></button>`).join(''));
-$('brushes').innerHTML = Object.keys(BRUSHES).map(b => `<button type="button" data-b="${b}">${BRUSHES[b]}</button>`).join('')
-  + '<button type="button" id="mirrorBtn">🪞 Mirror</button><button type="button" id="sizeBtn" aria-label="Brush size"></button>';
+$('brushes').innerHTML = Object.keys(BRUSHES).map(b => `<button type="button" data-b="${b}" aria-label="${BRUSHES[b][1]}" title="${BRUSHES[b][1]}">${BRUSHES[b][0]}</button>`).join('')
+  + '<button type="button" id="mirrorBtn" aria-label="Mirror" title="Mirror: draws both sides">🪞</button><button type="button" id="sizeBtn" aria-label="Brush size" title="Brush size"><i></i></button>';
 function renderTools() {
   document.querySelectorAll('.sw').forEach(b => b.setAttribute('aria-pressed', !pen.e && b.dataset.c === pen.c));
   $('eraser').setAttribute('aria-pressed', pen.e);
   document.querySelectorAll('#brushes [data-b]').forEach(b => b.setAttribute('aria-pressed', !pen.e && b.dataset.b === pen.b));
   $('mirrorBtn').setAttribute('aria-pressed', pen.m);
-  $('sizeBtn').textContent = ['● Thin', '● Medium', '● Thick'][SIZES.indexOf(pen.w)];
+  $('sizeBtn').firstChild.style.width = $('sizeBtn').firstChild.style.height = [5, 9, 15][SIZES.indexOf(pen.w)] + 'px';   // the dot shows the size
 }
 document.querySelectorAll('#brushes [data-b]').forEach(b => b.onclick = () => { tap(); pen.b = b.dataset.b; pen.e = false; renderTools(); });
 $('mirrorBtn').onclick = () => { tap(); pen.m = !pen.m; renderTools(); };
@@ -2148,9 +2182,9 @@ const CARDS = {
 };
 const myRole = isRemote ? 'remote' : 'host';
 // ---- Our Tower: we take turns dropping a floor. It stays saved on both phones and keeps growing.
-const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 2.2, TGROUND = 12, TOVER = .5, TCHECK = 10;   // a box more than half off its floor falls; balance is checked over the top 10 floors
+const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 2.2, TGROUND = 12, TOVER = .5, TCHECK = TKEEP;   // a box more than half off its floor falls; every floor carries the weight of all floors above it
 const TCOL = [['#ff6b9d', '#c2185b'], ['#7c86ff', '#3b3fc4']];   // her floors, his floors
-const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [] });
+const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [], sw: 0, c: 0 });
 function cleanFloors(list, most) {
   if (!Array.isArray(list) || list.length > most) return null;
   const out = [];
@@ -2161,11 +2195,12 @@ function cleanTower(t) {
   if (!t || typeof t !== 'object' || !['host', 'remote'].includes(t.turn)) return null;
   const n = (x, top) => Number.isInteger(x) && x >= 0 && x <= top ? x : null, f = n(t.f, 1e6), hearts = n(t.hearts, 3), best = n(t.best, 1e6), b = cleanFloors(t.b, TKEEP);
   if (f === null || hearts === null || best === null || !b || b.length > f) return null;
-  return { f, hearts, turn: t.turn, best: Math.max(best, f), n: { host: n(t.n && t.n.host, 1e6) || 0, remote: n(t.n && t.n.remote, 1e6) || 0 }, b };
+  const sw = Number.isFinite(t.sw) ? Math.max(0, Math.min(1, t.sw)) : 0, c = n(t.c, 3) || 0;
+  return { f, hearts, turn: t.turn, best: Math.max(best, f), n: { host: n(t.n && t.n.host, 1e6) || 0, remote: n(t.n && t.n.remote, 1e6) || 0 }, b, sw, c };
 }
 const savedTower = store.get('tower:' + room) || {};
 let tower = cleanTower(savedTower.t) || blankTower(), towerV = Number.isFinite(savedTower.v) ? savedTower.v : 0;
-let tanim = null, tlanded = 0, trun = 0, tlast = 0, tcamX = 50, tcamY = 0, tz = 1, twhole = false, tlook = 0, tlv = 0, tdrag = null, tback = false, tshake = 0, tA = 0, tV = 0, tHist = [], tsquash = -9, tbits = [], tdrops = [];
+let tanim = null, tlanded = 0, trun = 0, tlast = 0, tcamX = 50, tcamY = 0, tz = 1, twhole = false, tlook = 0, tlv = 0, tdrag = null, tback = false, tshake = 0, tA = 0, tV = 0, tsquash = -9, tbits = [], tdrops = [];
 const tcalm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const towerNow = () => performance.now() / 1000;
 const towerBase = () => { const top = tower.b[tower.b.length - 1]; return top ? top[0] : 50; };
@@ -2180,13 +2215,16 @@ function towerTip(b) {   // how close the stack is to tipping: 0 balanced, 1 its
   return { risk: Math.min(1.5, risk), gives, lean };
 }
 let ttip = towerTip(tower.b);
-// The tower is a spring. Taller is softer and swings slower; weight hanging to one side bends it that way and lets the wind
-// rock it; an off-centre landing kicks it. A straight tower built from perfect drops stands still.
-const towerSway = () => tA, towerWob = () => 0;
-const towerTopX = () => towerBase() + tA;
+// The tower is one rigid stack rocking on its base: it never bends. Taller rocks slower; weight hanging to one side
+// tilts it that way and lets the wind rock it; an off-centre landing knocks it. A straight tower of perfect drops stands still.
+let tAmp = 0;   // how far the top swings now; it eases toward the shared swing level
+const towerRock = t => tAmp * Math.sin(t * Math.max(1.1, 2.6 - tower.b.length * .03));   // taller swings slower
+const towerSway = t => tA + towerRock(t), towerWob = () => 0;
+const towerTopX = t => towerBase() + tA + towerRock(t);
 function towerStep(dt, count, now) {
   const k = Math.max(2.5, 16 - count * .25), eq = 7 * Math.max(-1.2, Math.min(1.2, ttip.lean)), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
-  if (tcalm) { tA = eq; tV = 0; return; }
+  tAmp += (tower.sw * 22 - tAmp) * Math.min(1, dt * 1.5);   // a perfect drop calms it over a second or two
+  if (tcalm) { tA = eq; tV = 0; tAmp = 0; return; }
   for (let n = 0; n < 4; n++) { const h = dt / 4; tV += (-k * (tA - eq) - 1.3 * tV + wind) * h; tA += tV * h; }
 }
 const towerPace = () => 1.35 + Math.min(tower.f, 80) * .02;
@@ -2203,28 +2241,68 @@ function renderTower() {
   $('towerTurn').textContent = (me ? 'Your turn. Tap when the box is over the tower.' : `${who()} is building…`);
   const chip = (role, name) => `<span class="${role === 'host' ? 'her' : 'him'}">${esc(name)} ${tower.n[role]}</span>`, otherRole = myRole === 'host' ? 'remote' : 'host';
   $('towerCount').innerHTML = chip(myRole, 'You') + chip(otherRole, who());
-  $('towerDrop').disabled = !me || !!tanim;
-  $('towerDrop').textContent = me ? 'Drop' : `${who()}'s turn`;
+  const left = shakeTurn === towerV ? shakesLeft : 2;
+  $('towerDrop').disabled = !!tanim || (!me && left <= 0);
+  $('towerDrop').textContent = me ? 'Drop' : left > 0 ? `Shake it 〰️ (${left} left)` : `${who()}'s turn`;
+  $('towerDrop').classList.toggle('shake', !me);
   $('towerNew').hidden = !floors;
 }
 function saveTower() { store.set('tower:' + room, { t: tower, v: towerV }); }
+// ---- real physics for falling boxes (Rapier, loaded only when the Tower opens)
+let RAP = null, tworld = null, tbodies = [];
+const tstand = new Map();   // the standing floors as bodies that move with the tower and push whatever hits them
+function loadRapier() {
+  return loadRapier.p = loadRapier.p || import('./rapier2d.mjs').then(async m => { await m.default.init(); RAP = m.default; }).catch(() => { loadRapier.p = null; });
+}
+function towerWorld() {
+  if (!tworld && RAP) {
+    tworld = new RAP.World({ x: 0, y: -150 });   // same pull as before, in tower units
+    tworld.createCollider(RAP.ColliderDesc.cuboid(800, 20).setTranslation(50, -20).setFriction(.9));   // the ground
+  }
+  return tworld;
+}
+function fling(d) {   // a box that leaves the tower: x, y = middle of its bottom edge
+  const w = towerWorld();
+  if (!w) { tdrops.push(d); return; }
+  const b = w.createRigidBody(RAP.RigidBodyDesc.dynamic().setTranslation(d.x, d.y + TH / 2).setRotation(-d.rot).setLinvel(d.vx, d.vy).setAngvel(-d.vr).setCcdEnabled(true));
+  w.createCollider(RAP.ColliderDesc.cuboid(TW / 2, TH / 2).setFriction(.7).setRestitution(.18).setDensity(1), b);
+  tbodies.push({ b, o: d.o, p: d.p, born: towerNow() });
+  while (tbodies.length > 80) w.removeRigidBody(tbodies.shift().b);
+}
+function standAt(i, x, y, r) {
+  let b = tstand.get(i);
+  if (!b) { b = tworld.createRigidBody(RAP.RigidBodyDesc.kinematicPositionBased().setTranslation(x, y + TH / 2).setRotation(-r)); tworld.createCollider(RAP.ColliderDesc.cuboid(TW / 2, TH / 2).setFriction(.7), b); tstand.set(i, b); }
+  b.setNextKinematicTranslation({ x, y: y + TH / 2 }); b.setNextKinematicRotation(-r);
+}
+function standTrim(keep) { if (tworld) for (const [i, b] of tstand) if (!keep(i)) { tworld.removeRigidBody(b); tstand.delete(i); } }
 function towerBit(x, y, o) { if (tbits.length < 90) tbits.push({ x, y, vx: 0, vy: 0, life: 1, fade: 1, r: 1, col: '#fff', g: 0, ...o }); }
 function towerLand() {
   const a = tanim; if (!a) return;
   tanim = null; tlanded = towerNow();
   const y = a.idx * TH, side = Math.sign(a.rel) || 1;
-  if (a.kind === 'topple') {   // it landed, the stack leaned, and the top slid off sideways
+  if (a.kind === 'collapse') {   // the swing got too big: every floor comes down, the top ones fly furthest
+    const dir = Math.sign(a.rel) || 1, n = a.fell.length, sway = towerSway(tlanded);
+    standTrim(i => i < tower.f);
+    a.fell.forEach((k, i) => { const h = (i + 1) / Math.max(1, n); fling({ x: k[0] + sway * h, y: i * TH, o: k[1], p: k[2], vx: dir * (6 + h * 46) + (Math.random() - .5) * 8, vy: 4 + h * 14, rot: 0, vr: dir * (.6 + h * 3) }); });
+    const loser = a.o === (myRole === 'host' ? 0 : 1) ? 'You' : who();
+    towerBit(tcamX, tcamY + 60, { txt: 'The tower fell!', col: '#ffd0d0', vy: 4, fade: .35, size: 10 });
+    towerBit(tcamX, tcamY + 44, { txt: `${loser} ${loser === 'You' ? 'get' : 'gets'} a dare`, col: '#fff', vy: 3, fade: .35, size: 8 });
+    if (!tcalm) tshake = 6; tAmp = 0; tA = 0; tV = 0; twhole = false; tback = true;
+    if (navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 240]);
+  } else if (a.kind === 'topple') {   // it landed, the stack leaned, and the top slid off sideways
     const dir = Math.sign(a.rel) || 1, from = a.idx - a.fell.length + 1;
-    a.fell.forEach((k, i) => tdrops.push({ x: k[0] + towerSway(tlanded), y: (from + i) * TH, o: k[1], p: k[2], vx: dir * (12 + i * 7), vy: 6 + i * 2, rot: 0, vr: dir * (1.6 + i * .5) }));
+    standTrim(i => i < tower.f);
+    a.fell.forEach((k, i) => fling({ x: k[0] + towerSway(tlanded), y: (from + i) * TH, o: k[1], p: k[2], vx: dir * (12 + i * 7), vy: 6 + i * 2, rot: 0, vr: dir * (1.6 + i * .5) }));
     towerBit(a.base, a.idx * TH - 4, { txt: `Too far out! ${a.fell.length} ${a.fell.length === 1 ? 'floor' : 'floors'} toppled`, col: '#ffd0d0', vy: 9, fade: .6, size: 6 });
     if (!tcalm) tshake = 3.5;
     tV -= dir * 18;   // losing the top flings the rest back the other way
     if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
   } else if (a.kind === 'miss') {
-    tdrops.push({ x: a.xLand + a.rel, y, o: a.o, p: 0, vx: side * (10 + Math.min(30, Math.abs(a.rel))), vy: 8, rot: 0, vr: side * (Math.abs(a.rel) < TW ? 3.4 : 1) });
+    standTrim(i => i < tower.f);
+    fling({ x: a.xLand + a.rel, y, o: a.o, p: 0, vx: side * (10 + Math.min(30, Math.abs(a.rel))), vy: 8, rot: 0, vr: side * (Math.abs(a.rel) < TW ? 3.4 : 1) });
     towerBit(a.xLand + a.rel, y + TH + 8, { txt: 'Missed', col: '#ff8a8a', vy: 12, fade: 1.2 });
     if (navigator.vibrate) navigator.vibrate(60);
-    a.fell.forEach((k, i) => tdrops.push({ x: a.base + towerSway(tlanded), y: (a.idx - 1 - i) * TH, o: k[1], p: k[2], vx: (i % 2 ? 1 : -1) * (14 + i * 9), vy: 18 - i * 4, rot: 0, vr: (i % 2 ? 1 : -1) * 2.2 }));
+    a.fell.forEach((k, i) => fling({ x: a.base + towerSway(tlanded), y: (a.idx - 1 - i) * TH, o: k[1], p: k[2], vx: (i % 2 ? 1 : -1) * (14 + i * 9), vy: 18 - i * 4, rot: 0, vr: (i % 2 ? 1 : -1) * 2.2 }));
     if (a.fell.length) { towerBit(a.base, a.idx * TH - 6, { txt: `Top ${a.fell.length} ${a.fell.length === 1 ? 'floor' : 'floors'} fell`, col: '#ffd0d0', vy: 9, fade: .7, size: 6 }); if (!tcalm) tshake = 3; if (navigator.vibrate) navigator.vibrate([90, 50, 90]); }
   } else {
     if (!tcalm) tsquash = tlanded;
@@ -2233,7 +2311,8 @@ function towerLand() {
     for (let i = 0; i < 14; i++) { const s = i % 2 ? 1 : -1; towerBit(a.land + s * (TW / 2 - 2), y, { vx: s * (8 + Math.random() * 18), vy: 3 + Math.random() * 9, r: .9 + Math.random() * 1.5, col: 'rgba(255,255,255,.75)', fade: 1.4 }); }
     if (a.kind === 'perfect') {
       towerBit(a.land, y + TH / 2, { ring: 1, col: '#ffe08a', fade: 1.5 });
-      towerBit(a.land, y + TH + 7, { txt: 'Perfect!', col: '#ffe08a', vy: 13, fade: .9, size: 8 });
+      towerBit(a.land, y + TH + 7, { txt: a.combo ? 'Combo x3! Steady' : 'Perfect!', col: '#ffe08a', vy: 13, fade: .9, size: a.combo ? 10 : 8 });
+      if (a.combo) { tV = 0; tA *= .3; burst('✨'); }
       for (let i = 0; i < 18; i++) towerBit(a.land, y + TH, { vx: (Math.random() - .5) * 60, vy: 12 + Math.random() * 34, g: 55, r: .7 + Math.random(), col: i % 2 ? '#ffe08a' : '#ff9ec4', fade: .9 });
       if (navigator.vibrate) navigator.vibrate([20, 40, 20]); else tap();
     } else tap();
@@ -2241,29 +2320,571 @@ function towerLand() {
   }
   if (tower.turn === myRole && a.o !== (myRole === 'host' ? 0 : 1)) { towerBit(tcamX, tcamY + 44, { txt: 'Your turn', col: '#fff', vy: 3, fade: .55, size: 8 }); tap(); }
   renderTower();
-  if (a.kind === 'miss' || a.kind === 'topple') towerBump($(a.kind === 'miss' ? 'towerHearts' : 'towerFloors'), 1.3); else { towerBump($('towerFloors'), 1.3); towerBump($('towerCount').children[a.o === (myRole === 'host' ? 0 : 1) ? 0 : 1], 1.18); }
+  if (a.kind === 'collapse') towerBump($('towerFloors'), 1.5); else if (a.kind === 'miss' || a.kind === 'topple') towerBump($(a.kind === 'miss' ? 'towerHearts' : 'towerFloors'), 1.3); else { towerBump($('towerFloors'), 1.3); towerBump($('towerCount').children[a.o === (myRole === 'host' ? 0 : 1) ? 0 : 1], 1.18); }
 }
 function applyTower(t, v, drop) {
   if (tanim) towerLand();
   const was = tower.b.length;
   tower = t; towerV = v; saveTower(); ttip = towerTip(tower.b);
   if (drop && panel === 'tower' && !document.hidden) {
-    const kept = drop.kind === 'good' || drop.kind === 'perfect', top = drop.kind === 'topple', now = towerNow(), tl = now + TFALL;
+    const kept = drop.kind === 'good' || drop.kind === 'perfect', top = drop.kind === 'topple' || drop.kind === 'collapse', now = towerNow(), tl = now + TFALL;
     const below = kept ? tower.b[tower.b.length - 2] : top ? (drop.fell.length > 1 ? drop.fell[drop.fell.length - 2] : tower.b[tower.b.length - 1]) : drop.fell.length ? drop.fell[drop.fell.length - 1] : tower.b[tower.b.length - 1];
     const base = below ? below[0] : 50, xLand = base + towerSway(tl) + towerWob(tl);
-    const idx = kept ? tower.f - 1 : top ? tower.f + drop.fell.length - 1 : tower.f + drop.fell.length;
-    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, base, xLand, idx, land: xLand + (drop.kind === 'good' || top ? drop.rel : 0) };
+    const idx = drop.kind === 'collapse' ? drop.fell.length - 1 : kept ? tower.f - 1 : top ? tower.f + drop.fell.length - 1 : tower.f + drop.fell.length;
+    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, combo: drop.combo, base, xLand, idx, land: xLand + (drop.kind === 'good' || top ? drop.rel : 0) };
   }
   renderTower();
   return was;
+}
+let shakesLeft = 2, shakesGot = 0, shakeTurn = -1;
+// ---- Ludo for two
+const LG = 9, LN = 32, LRING = (() => {   // a 9 x 9 board: 32 squares round the edge, starting at her square, bottom middle
+  const r = [], e = LG - 1, m = e / 2;
+  for (let x = m; x >= 0; x--) r.push([x, e]);
+  for (let y = e - 1; y >= 0; y--) r.push([0, y]);
+  for (let x = 1; x <= e; x++) r.push([x, 0]);
+  for (let y = 1; y <= e; y++) r.push([e, y]);
+  for (let x = e - 1; x > m; x--) r.push([x, e]);
+  return r;
+})();
+const LLANE = { host: [[4, 7], [4, 6], [4, 5]], remote: [[4, 1], [4, 2], [4, 3]] }, LOFF = { host: 0, remote: 16 }, LEND = 35, LSAFE = new Set([0, 8, 16, 24]), LMID = [4, 4];
+const LCOL = { host: ['#ff7aa8', '#e8336f'], remote: ['#7fb0ff', '#3a6df0'] }, LYARD = { host: [[3, 7], [5, 7]], remote: [[3, 1], [5, 1]] };
+const other = r => r === 'host' ? 'remote' : 'host';
+const lAbs = (r, p) => p < LN ? (LOFF[r] + p) % LN : -1;
+const lCell = (r, p) => p < LN ? LRING[lAbs(r, p)] : p < LEND ? LLANE[r][p - LN] : LMID;
+function lSpot(l) {   // a random empty ring square for a rocket or the skull: never a star, a start, another special or a piece
+  const busy = new Set();
+  for (const a of [...l.bo, l.kl]) if (a >= 0) [a - 1, a, a + 1].forEach(b => busy.add((b + LN) % LN));   // keep one empty square between specials
+  for (const r of ['host', 'remote']) l.pc[r].forEach((q, j) => { if (q < LN && l.out[r][j]) busy.add(lAbs(r, q)); });
+  const free = [...Array(LN).keys()].filter(a => !LSAFE.has(a) && !busy.has(a)), b = rand(2);
+  return free[((b[0] << 8) | b[1]) % free.length];
+}
+function blankLudo(turn, random) {
+  const l = { turn: turn || 'host', die: 0, rolled: false, pc: { host: [0, 0], remote: [0, 0] }, out: { host: [false, false], remote: [false, false] }, win: null, bo: [4, 20], kl: 12, cap: { host: false, remote: false } };
+  if (random) { l.bo = []; l.kl = -1; l.bo.push(lSpot(l)); l.bo.push(lSpot(l)); l.kl = lSpot(l); }
+  return l;
+}
+function cleanLudo(l) {
+  if (!l || typeof l !== 'object' || !['host', 'remote'].includes(l.turn) || !l.pc) return null;
+  const pcs = r => Array.isArray(l.pc[r]) && l.pc[r].length === 2 && l.pc[r].every(x => Number.isInteger(x) && x >= 0 && x <= LEND) ? l.pc[r].slice() : null;
+  const h = pcs('host'), m = pcs('remote');
+  if (!h || !m) return null;
+  const pc = { host: h, remote: m }, outs = r => pc[r].map((q, j) => q > 0 || (!!l.out && Array.isArray(l.out[r]) && l.out[r][j] === true));   // a piece past its start is always out
+  const sq = a => Number.isInteger(a) && a >= 0 && a < LN && !LSAFE.has(a);
+  const bo = Array.isArray(l.bo) && l.bo.length === 2 && l.bo.every(sq) && l.bo[0] !== l.bo[1] ? l.bo.slice() : [4, 20];
+  const kl = sq(l.kl) && !bo.includes(l.kl) ? l.kl : 12;
+  return { turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) } };
+}
+const savedLudo = store.get('ludo:' + room) || {};
+let lkl = null, ludo = cleanLudo(savedLudo.l) || blankLudo(), ludoV = Number.isFinite(savedLudo.v) ? savedLudo.v : 0, lrun = 0, lhop = null, ldie = null, ltaps = [], lfly = null, lfx = [], lland = {}, lpops = [];
+const ludoMoves = (l, r) => !l.rolled || l.win ? [] : [0, 1].filter(i => l.out[r][i] ? l.pc[r][i] < LEND && ((!l.cap[r] && l.pc[r][i] < LN) || l.pc[r][i] + l.die <= LEND) : l.die === 6);   // in the base: only a 6 brings it out
+function ludoRoll(flick, at, held) {
+  if (ludo.turn !== myRole || ludo.rolled || ludo.win || ldie || ldrag) return;
+  let b; do b = rand(1)[0]; while (b >= 252);   // a fair die: no number comes up more often
+  const d = b % 6 + 1, l = JSON.parse(JSON.stringify(ludo));
+  l.die = d; l.rolled = true;
+  if (!ludoMoves(l, myRole).length) { l.rolled = false; if (d !== 6) l.turn = other(myRole); }   // no piece can move: the turn passes, unless it was a 6
+  lheld = held || null;
+  if (!flick) {
+    const side = Math.floor(Math.random() * 4), t = .2 + Math.random() * .6, [lo, hi] = dieBox(1), q = lo + (hi - lo) * t;
+    at = at || [[lo, q], [hi, q], [q, lo], [q, hi]][side];
+    const ang = Math.atan2(.5 - at[1], .5 - at[0]) + (Math.random() - .5) * 1.4, sp = 1.6 + Math.random() * 1.6;   // board widths a second
+    flick = [Math.cos(ang) * sp, Math.sin(ang) * sp];
+  }
+  const r3 = v => Math.round(v * 1000) / 1000;
+  ludoCommit(l, { k: 'roll', d, r: myRole, s: rand(1)[0], tv: [r3(Math.max(-8, Math.min(8, flick[0]))), r3(Math.max(-8, Math.min(8, flick[1])))], p: at.map(v => r3(Math.max(0, Math.min(1, v)))) });
+  lheld = null;
+  const ms = ludoMoves(l, myRole);
+  const go = () => ldie ? setTimeout(go, 150) : ludoMove(ms[0]);
+  if (ms.length && (ms.length === 1 || (l.pc[myRole][0] === l.pc[myRole][1] && l.out[myRole][0] === l.out[myRole][1]))) setTimeout(go, 500);   // only one real choice: it moves by itself once the die stops
+}
+function lStep(l, r, i) {   // where a piece lands: along its own path, or round the ring again while its heart path is locked
+  const wrap = !l.cap[r] && l.pc[r][i] < LN, sq = t => wrap ? t % LN : t;
+  let to = l.pc[r][i] + l.die;
+  const bi = sq(to) < LN && (wrap || to < LN - 3) ? l.bo.indexOf(lAbs(r, sq(to))) : -1;
+  if (bi >= 0) to += 3;
+  return { to, wrap, bi, land: sq(to) };
+}
+function ludoMove(i) {
+  if (lAim || lhit || ludo.turn !== myRole || !ludoMoves(ludo, myRole).includes(i)) return;
+  const l = JSON.parse(JSON.stringify(ludo)), me = myRole, opp = other(me), from = l.pc[me][i], ex = !l.out[me][i];
+  let to = from, boost = false, caught = false, killed = false, cj = -1, cp = 0, wrap = false, unlock = false;
+  if (ex) l.out[me][i] = true;   // a 6 brings it out onto its start square
+  else {
+    const st = lStep(l, me, i), at = st.land;   // a rocket on the landing square jumps 3 more
+    to = st.to; boost = st.bi >= 0; wrap = st.wrap;
+    l.pc[me][i] = at;
+    if (at < LN && lAbs(me, at) === l.kl) { l.pc[me][i] = 0; l.out[me][i] = false; killed = true; }   // the skull: back to the base
+    else if (at < LN && !LSAFE.has(lAbs(me, at))) l.pc[opp].forEach((q, j) => { if (q < LN && l.out[opp][j] && lAbs(opp, q) === lAbs(me, at)) { cj = j; cp = q; l.pc[opp][j] = 0; l.out[opp][j] = false; caught = true; } });
+    if (caught && !l.cap[me]) { l.cap[me] = true; unlock = true; }   // the first catch opens the path to the heart
+    if (boost) l.bo[st.bi] = lSpot(l);   // the used rocket flies off to a new random square
+  }
+  if (l.pc[me].every(q => q === LEND)) l.win = me;
+  if (!l.win && !(l.die === 6 || caught)) l.turn = opp;
+  if (killed) l.kl = lSpot(l);   // the skull jumps somewhere new after it strikes
+  l.rolled = false;
+  const act = { k: 'move', r: me, i, from, to, caught, boost, cj, cp, ex, killed, wrap, unlock };
+  tap();
+  if (caught) {   // hop up to the square before theirs, then you flick your piece into it
+    lAim = { l, act, t: performance.now() / 1000 };
+    if (to - 1 > from) lhop = { r: me, i, from, to: to - 1, wrap, t0: performance.now() / 1000 };
+    lAim.timer = setTimeout(() => { if (lAim && lAim.act === act) { const [px, py] = aimFrom(), [tx, ty] = aimAt(); ludoFlick(px - tx, py - ty); } }, 8000);   // nobody flicked: it flicks by itself
+    renderLudo(); return;
+  }
+  ludoCommit(l, act);
+  if (l.win) setTimeout(() => loserDare(opp), 3800);   // only the winner's phone deals the dare, so it happens once
+}
+let lAim = null, aimDrag = null, lhit = null, lglide = null, lbo = null, lnextSpot = 0;
+const cellXY = ([x, y]) => { const cs = boardW() / LG; return [(x + .5) * cs, (y + .5) * cs]; };
+const aimFrom = () => { const a = lAim.act; return cellXY(lCell(a.r, a.wrap ? (a.to - 1) % LN : a.to - 1)); };
+const aimAt = () => { const a = lAim.act; return cellXY(lCell(other(a.r), a.cp)); };
+function ludoFlick(dx, dy) {   // the pull-back on the screen (dx, dy): you flick the opposite way, harder the further you pulled
+  if (!lAim) return;
+  const len = Math.hypot(dx, dy); if (len < 8) return;
+  const a = lAim, pw = Math.max(.25, Math.min(1, len / (boardW() / LG * 2.2))), r3 = v => Math.round(v * 1000) / 1000;
+  clearTimeout(a.timer); lAim = null; aimDrag = null;
+  a.act.fl = [r3(-dx / len), r3(-dy / len), r3(pw)];
+  ludoCommit(a.l, a.act);
+}
+function hitStep(cs, now) {   // the hit, with real physics: your piece slides into theirs and knocks it away
+  const h = lhit; if (!h || now < h.t0) return;
+  const a = h.act, opp = other(a.r);
+  if (!h.w) {
+    const P = cellXY(lCell(a.r, a.wrap ? (a.to - 1) % LN : a.to - 1)), T = cellXY(lCell(opp, a.cp));
+    const base = Math.atan2(T[1] - P[1], T[0] - P[0]), want = Math.atan2(a.fl[1], a.fl[0]);
+    let d = want - base; d = Math.atan2(Math.sin(d), Math.cos(d)); d = Math.max(-.35, Math.min(.35, d));   // aim decides the angle a little, it always connects
+    const ang = base + d, sp = cs * (7 + 11 * a.fl[2]);
+    h.P = P; h.T = T; h.pw = a.fl[2];
+    if (RAP) {
+      const w = new RAP.World({ x: 0, y: 0 }), ball = (x, y, dens, damp) => { const b = w.createRigidBody(RAP.RigidBodyDesc.dynamic().setTranslation(x, y).setLinearDamping(damp).setAngularDamping(.8).setCcdEnabled(true)); w.createCollider(RAP.ColliderDesc.ball(cs * .27).setDensity(dens).setRestitution(.9).setFriction(.2), b); return b; };
+      h.w = w; h.ba = ball(P[0], P[1], 3, 3.2); h.bv = ball(T[0], T[1], 1, .7);
+      h.ba.setLinvel({ x: Math.cos(ang) * sp, y: Math.sin(ang) * sp }, true);
+    } else h.w = { free() {} };
+    h.t1 = now;
+  }
+  if (h.ba) { h.w.timestep = 1 / 60; h.w.step(); const pa = h.ba.translation(), pv = h.bv.translation(); h.pa = [pa.x, pa.y]; h.pv = [pv.x, pv.y]; h.rv = h.bv.rotation() + (pv.x - h.T[0]) / cs * .6; }
+  else { const f = Math.min(1, (now - h.t1) / .25); h.pa = [h.P[0] + (h.T[0] - h.P[0]) * f * .7, h.P[1] + (h.T[1] - h.P[1]) * f * .7]; h.pv = h.T; h.rv = 0; }
+  if (!h.hit && Math.hypot(h.pa[0] - h.pv[0], h.pa[1] - h.pv[1]) < cs * .6 || !h.hit && now - h.t1 > .3) {
+    h.hit = true; lsparks(h.T[0] / boardW(), h.T[1] / boardW(), '#ffe08a');
+    if (navigator.vibrate) navigator.vibrate(opp === myRole ? [Math.round(60 + 80 * h.pw), 40, Math.round(80 + 120 * h.pw)] : 25);
+  }
+  if (now - h.t1 > .95) {   // then theirs flies home and yours settles on the square
+    lfly = { r: opp, i: a.cj, ap: h.pv, b: LYARD[opp][a.cj], t0: now };
+    lglide = { r: a.r, i: a.i, ap: h.pa, t0: now };
+    h.w.free(); lhit = null;
+  }
+}
+function ludoSpotTick() {   // the rockets and the skull reappear somewhere else at random moments; only the phone whose turn it is moves them, so both stay the same
+  if (window.__noSpotTimer || panel !== 'ludo' || ludo.turn !== myRole || ludo.win || ldie || lhop || lAim || lhit || ldrag || lfly) return;
+  const now = performance.now() / 1000;
+  if (!lnextSpot) { lnextSpot = now + 60 + Math.random() * 120; return; }   // somewhere between 1 and 3 minutes
+  if (now < lnextSpot) return;
+  lnextSpot = now + 60 + Math.random() * 120;   // somewhere between 1 and 3 minutes
+  const l = JSON.parse(JSON.stringify(ludo)), k = Math.floor(Math.random() * 3);
+  if (k < 2) { l.bo[k] = -1; l.bo[k] = lSpot(l); } else { l.kl = -1; l.kl = lSpot(l); }
+  ludoCommit(l, { k: 'spot' });
+}
+function ludoCommit(l, act) { l = cleanLudo(l); const v = nextV(ludoV); applyLudo(l, v, act); send({ t: 'ludo', l, v, act }); }
+function gotLudo(m) {
+  if (!(m.v > ludoV)) return;
+  const l = cleanLudo(m.l); if (!l) return;
+  const a = m.act || {}, act = a.k === 'roll' && Number.isInteger(a.d) && a.d >= 1 && a.d <= 6 ? { k: 'roll', d: a.d, s: Number.isInteger(a.s) ? a.s & 255 : 0, tv: Array.isArray(a.tv) && a.tv.length === 2 && a.tv.every(Number.isFinite) ? a.tv.map(v => Math.max(-8, Math.min(8, v))) : null, p: Array.isArray(a.p) && a.p.length === 2 && a.p.every(n => Number.isFinite(n) && n >= 0 && n <= 1) ? a.p.slice() : null, r: ['host', 'remote'].includes(a.r) ? a.r : null }
+    : a.k === 'move' && ['host', 'remote'].includes(a.r) && [0, 1].includes(a.i) && Number.isInteger(a.from) && Number.isInteger(a.to) && a.from >= 0 && a.from < LEND && (a.ex === true ? a.from === 0 && a.to === 0 : a.to > a.from && a.to - a.from <= 9 && (a.wrap === true || a.to <= LEND)) ? { k: 'move', r: a.r, i: a.i, from: a.from, to: a.to, ex: a.ex === true, wrap: a.wrap === true, unlock: a.unlock === true, killed: a.killed === true, caught: a.caught === true, fl: Array.isArray(a.fl) && a.fl.length === 3 && a.fl.every(Number.isFinite) ? [Math.max(-1, Math.min(1, a.fl[0])), Math.max(-1, Math.min(1, a.fl[1])), Math.max(.2, Math.min(1, a.fl[2]))] : null, boost: a.boost === true, cj: [0, 1].includes(a.cj) ? a.cj : -1, cp: Number.isInteger(a.cp) && a.cp >= 0 && a.cp < LN ? a.cp : 0 } : null;
+  applyLudo(l, m.v, act);
+}
+function applyLudo(l, v, act) {
+  if (l.kl !== ludo.kl) lkl = { from: ludo.kl, t: performance.now() / 1000 };
+  if (l.bo.join() !== ludo.bo.join()) lbo = { from: ludo.bo.slice(), t: performance.now() / 1000 };
+  ludo = l; ludoV = v; store.set('ludo:' + room, { l, v });
+  if (act && panel === 'ludo' && !document.hidden) {
+    if (act.k === 'roll') dieThrow(act.d, act.s, act.tv, act.p, act.r);
+    if (act.k === 'move') {
+      const t0 = performance.now() / 1000, n = act.to - act.from;
+      const sq = q => act.wrap ? q % LN : q, mine = act.r === myRole, flick = act.caught && act.fl && act.cj >= 0;
+      if (flick) { if (!mine && n > 1) lhop = { ...act, to: act.to - 1, t0 }; lhit = { act, t0: mine ? t0 : t0 + Math.max(0, n - 1) * .15 }; }   // theirs hops up, then the hit plays on both phones
+      else if (n > 0) lhop = { ...act, t0 };
+      if (act.unlock) lpop('🔓 Heart path open!', act.r, sq(act.to), t0 + n * .15 + .9);
+      if (act.caught && act.cj >= 0 && !flick) lfly = { r: other(act.r), i: act.cj, a: lCell(other(act.r), act.cp), b: LYARD[other(act.r)][act.cj], t0: t0 + n * .15 };
+      if (act.killed) { lfly = { r: act.r, i: act.i, a: lCell(act.r, sq(act.to)), b: LYARD[act.r][act.i], t0: t0 + n * .15 + .25, own: true }; lpop('💀 Back to base!', act.r, sq(act.to), t0 + n * .15); if (navigator.vibrate) setTimeout(() => navigator.vibrate([60, 40, 120]), n * 150); }
+      if (act.ex) { lfly = { r: act.r, i: act.i, a: LYARD[act.r][act.i], b: lCell(act.r, 0), t0, own: true, ex: true }; lpop('Out! 🎉', act.r, 0, t0 + .5); }
+      if (act.boost) lpop('🚀 Boost +3', act.r, sq(act.to - 3), t0 + (n - 3) * .15);
+      if (act.caught) lpop(flick ? (act.fl[2] > .75 ? '💥 Smashed!' : '💥 Caught!') : '💥 Caught!', act.r, sq(act.to), flick ? lhit.t0 + .2 : t0 + n * .15);
+      else if (!l.win && l.turn === act.r && !act.ex) lpop('Roll again!', act.r, sq(act.to), t0 + n * .15 + .1);
+    }
+  }
+  if (l.win && act && act.k === 'move' && !act.ex) setTimeout(() => { burst(l.win === myRole ? '🏆' : '🎲'); lconfetti(); }, (act.to - act.from) * 150 + 200);
+  if (act && act.k === 'roll' && act.d === 6) lpop('Six! 🎉', l.turn, -1, performance.now() / 1000 + 1.3);
+  renderLudo();
+}
+function renderLudo() {
+  const me = ludo.turn === myRole, l = ludo, name = who();
+  $('ludoTurn').textContent = l.win ? (l.win === myRole ? `You won! ${name} gets a dare.` : `${name} won. You get a dare.`)
+    : lAim ? 'Pull back on the board and let go: flick your piece into theirs!' : lhit ? 'Hit!' : ldie ? (me ? 'Rolling…' : `${name} is rolling…`) : me ? (l.rolled ? `You rolled ${l.die}. Tap a glowing piece.` : l.out[myRole].some(Boolean) ? 'Your turn. Throw the die or shake your phone.' : 'Your turn. You need a 6 to bring a piece out.') : `${name} is playing…`;
+  const roll = $('ludoRoll');
+  roll.disabled = !me || l.rolled || !!l.win || !!ldie;
+  roll.textContent = l.win ? 'Game over' : lAim ? 'Flick it!' : ldie ? 'Rolling…' : me ? (l.rolled ? 'Pick a piece' : 'Roll') : `${name}'s turn`;
+  $('ludoNew').hidden = !l.win;
+  $('ludoBoard').style.touchAction = canThrow() || lAim ? 'none' : 'manipulation';   // the page scrolls normally unless you are about to throw
+}
+$('ludoRoll').onclick = () => { tap(); askMotion(); ludoRoll(); };
+$('ludoNew').onclick = () => { tap(); ludoCommit(blankLudo(other(ludo.win || myRole), true), null); };   // the loser starts the next game
+function ludoOpen() { loadRapier(); renderLudo(); if (!lrun) lrun = requestAnimationFrame(ludoLoop); }
+function ludoLoop() { if (panel !== 'ludo') { lrun = 0; return; } lrun = requestAnimationFrame(ludoLoop); ludoSpotTick(); drawLudo(); }
+function fitCanvas(cv) {
+  const dpr = Math.min(3, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); return [c, w, h];
+}
+function rr(c, x, y, w, h, r) { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); }
+// a chess piece seen from the front and lit from the top left, rounded corners so it reads as turned wood; base at (0, 0), height h
+const PROFILE = {
+  queen: [[-.4, 0], [-.4, -.1], [-.3, -.16], [-.21, -.24], [-.15, -.42], [-.14, -.53], [-.27, -.57], [-.27, -.63], [-.16, -.66], [-.23, -.76], [-.2, -.86], [-.1, -.92], [0, -.93]],
+  rook: [[-.4, 0], [-.4, -.1], [-.31, -.16], [-.25, -.22], [-.23, -.58], [-.33, -.63], [-.33, -.94], [-.19, -.94], [-.19, -.84], [-.07, -.84], [-.07, -.94], [0, -.94]]
+};
+function roundPath(c, pts, r) {   // a closed outline with softly rounded corners
+  const n = pts.length, m = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  c.beginPath(); c.moveTo(...m(pts[n - 1], pts[0]));
+  for (let k = 0; k < n; k++) c.arcTo(pts[k][0], pts[k][1], ...m(pts[k], pts[(k + 1) % n]), r);
+  c.closePath();
+}
+function drawPiece(c, h, kind, col) {
+  const half = PROFILE[kind], pts = [...half, ...half.slice(0, -1).reverse().map(([x, y]) => [-x, y])].map(([x, y]) => [x * h, y * h]);
+  const g = c.createLinearGradient(-h * .4, 0, h * .4, 0);   // round body: dark edges, a soft highlight left of centre
+  g.addColorStop(0, col[1]); g.addColorStop(.22, col[0]); g.addColorStop(.34, '#ffffffd9'); g.addColorStop(.48, col[0]); g.addColorStop(.86, col[1]); g.addColorStop(1, '#1a1030');
+  roundPath(c, pts, h * .035); c.fillStyle = g; c.fill();
+  const ao = c.createLinearGradient(0, -h, 0, 0); ao.addColorStop(0, 'rgba(255,255,255,.16)'); ao.addColorStop(.75, 'rgba(0,0,0,0)'); ao.addColorStop(1, 'rgba(0,0,0,.3)');
+  c.fillStyle = ao; c.fill();   // light from above, shade where it meets the ground
+  c.strokeStyle = 'rgba(20,8,40,.45)'; c.lineWidth = 1; c.stroke();
+  const disc = (y, rx, a) => { c.fillStyle = `rgba(255,255,255,${a})`; c.beginPath(); c.ellipse(0, y * h, rx * h, rx * h * .2, 0, 0, 7); c.fill(); };
+  disc(-.1, .38, .25);   // the top of the base catches the light
+  if (kind === 'queen') {
+    disc(-.57, .26, .3);
+    const bg = c.createRadialGradient(-h * .03, -h * 1.0, 0, 0, -h * .98, h * .08); bg.addColorStop(0, '#fff'); bg.addColorStop(1, col[1]);
+    c.fillStyle = bg; c.beginPath(); c.arc(0, -h * .98, h * .075, 0, 7); c.fill();   // the ball on the crown
+  } else { c.fillStyle = 'rgba(20,8,40,.35)'; c.beginPath(); c.ellipse(0, -h * .94, h * .26, h * .05, 0, 0, 7); c.fill(); }   // the hollow top of the tower
+}
+function lpop(txt, r, p, at) { lpops.push({ txt, r, p, at }); }
+function lconfetti() { for (let k = 0; k < 90; k++) lfx.push({ x: .5, y: .45, vx: (Math.random() - .5) * 1.6, vy: -Math.random() * 1.3 - .2, life: 1, col: ['#ff7aa8', '#7fb0ff', '#ffe08a', '#b58cff', '#fff'][k % 5], r: 2 + Math.random() * 3, rot: Math.random() * 6 }); }
+function lsparks(x, y, col) { for (let k = 0; k < 22; k++) { const a = Math.random() * 7, v = .15 + Math.random() * .45; lfx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - .2, life: .8, col, r: 1.5 + Math.random() * 2.5, rot: 0 }); } }
+function drawLudo() {
+  const [c, W, H] = fitCanvas($('ludoBoard')); if (!W) return;
+  c.clearRect(0, 0, W, H); c.translate(0, H - W);   // the board is the square at the bottom; the strip above is for tall pieces
+  const cs = W / LG, now = performance.now() / 1000, mid = ([x, y]) => [(x + .5) * cs, (y + .5) * cs], dt = Math.min(.05, now - (drawLudo.t || now)); drawLudo.t = now;
+  // night sky with a soft glow behind the heart
+  const g = c.createLinearGradient(0, 0, W, W); g.addColorStop(0, '#2d1458'); g.addColorStop(1, '#120d2c');
+  c.fillStyle = g; rr(c, 0, 0, W, W, 20); c.fill();
+  const glow = c.createRadialGradient(W / 2, W / 2, 0, W / 2, W / 2, W * .45); glow.addColorStop(0, `rgba(255,94,154,${.2 + .06 * Math.sin(now * 2.4)})`); glow.addColorStop(1, 'rgba(255,94,154,0)');
+  c.fillStyle = glow; c.fillRect(0, 0, W, W);
+  for (let k = 0; k < 18; k++) { const sx = (k * 97 % 100) / 100 * W, sy = (k * 61 % 100) / 100 * W; c.fillStyle = `rgba(255,255,255,${.12 + .1 * Math.sin(now * 1.7 + k)})`; c.fillRect(sx, sy, 1.4, 1.4); }
+  // the path: her colour fades into his around the ring
+  LRING.forEach(([x, y], a) => {
+    const start = a === 0 ? 'host' : a === LN / 2 ? 'remote' : null, t = (a <= LN / 2 ? a : LN - a) / (LN / 2);
+    const cg = c.createLinearGradient(x * cs, y * cs, x * cs, (y + 1) * cs);
+    const tint = `rgba(${Math.round(255 - 128 * t)},${Math.round(122 + 54 * t)},${Math.round(168 + 87 * t)},`;
+    cg.addColorStop(0, start ? LCOL[start][0] : tint + '.20)'); cg.addColorStop(1, start ? LCOL[start][1] : tint + '.10)');
+    c.fillStyle = cg; rr(c, x * cs + 2.5, y * cs + 2.5, cs - 5, cs - 5, cs * .26); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.10)'; c.lineWidth = 1; c.stroke();
+    c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    if (start) { c.font = `600 ${cs * .2}px system-ui`; c.globalAlpha = .9; c.fillText('START', mid([x, y])[0], (y + .82) * cs); c.globalAlpha = 1; }
+    else if (LSAFE.has(a)) { c.font = `${cs * (.42 + .04 * Math.sin(now * 3 + a))}px system-ui`; c.fillText('⭐', ...mid([x, y])); }
+    else if (ludo.bo.includes(a)) { const k = lbo && !lbo.from.includes(a) ? Math.min(1, Math.max(0, (now - lbo.t - .25) / .35)) : 1, z = k < 1 ? Math.sin(k * Math.PI / 2) * 1.15 : 1; c.font = `${cs * (.38 + .03 * Math.sin(now * 4 + a)) * z}px system-ui`; if (z > .01) c.fillText('🚀', ...mid([x, y])); }   // pops up in its new spot
+    else if (a === ludo.kl) {
+      const pulse = .5 + .5 * Math.sin(now * 3.2), kg = c.createRadialGradient(...mid([x, y]), 0, ...mid([x, y]), cs * .7);
+      kg.addColorStop(0, `rgba(255,40,70,${.45 + .25 * pulse})`); kg.addColorStop(1, 'rgba(255,40,70,0)');
+      c.fillStyle = kg; c.fillRect(x * cs - cs * .2, y * cs - cs * .2, cs * 1.4, cs * 1.4);
+      const pop = lkl ? Math.min(1, Math.max(0, (now - lkl.t - .25) / .35)) : 1, sz = .44 * (pop < 1 ? Math.sin(pop * Math.PI / 2) * 1.15 : 1);   // pops up in its new spot
+      c.fillStyle = '#fff'; c.font = `${cs * sz}px system-ui`; if (sz > .01) c.fillText('💀', ...mid([x, y]));
+    }
+  });
+  for (const r of ['host', 'remote']) LLANE[r].forEach(([x, y], k) => { c.fillStyle = LCOL[r][0] + (k ? '66' : '44'); rr(c, x * cs + 2.5, y * cs + 2.5, cs - 5, cs - 5, cs * .26); c.fill(); });
+  LRING.forEach(([x, y], a) => {   // which way to go: faint arrows on the plain squares
+    if (a === 0 || a === LN / 2 || LSAFE.has(a) || ludo.bo.includes(a) || a === ludo.kl) return;
+    if (['host', 'remote'].some(r => ludo.pc[r].some((q, j) => ludo.out[r][j] && q < LN && lAbs(r, q) === a))) return;   // no arrow under a piece
+    const [nx, ny] = LRING[(a + 1) % LN], [cx, cy] = mid([x, y]);
+    c.save(); c.translate(cx, cy); c.rotate(Math.atan2(ny - y, nx - x)); c.strokeStyle = 'rgba(255,255,255,.24)'; c.lineWidth = 2; c.lineCap = c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(-cs * .06, -cs * .1); c.lineTo(cs * .06, 0); c.lineTo(-cs * .06, cs * .1); c.stroke(); c.restore();
+  });
+  for (const r of ['host', 'remote']) {   // each player's turn into the heart path, in their colour; dashed and locked until they catch a piece
+    const a = mid(lCell(r, LN - 1)), b = mid(LLANE[r][0]), k = [b[0], a[1]], open = ludo.cap[r], e = [b[0], b[1] + (r === 'host' ? 1 : -1) * cs * .3];
+    c.save(); c.strokeStyle = c.fillStyle = LCOL[r][0]; c.globalAlpha = open ? .95 : .5; c.lineWidth = 3; c.lineCap = 'round';
+    if (!open) c.setLineDash([4, 5]);
+    c.beginPath(); c.moveTo(a[0], a[1]); c.quadraticCurveTo(k[0], k[1], e[0], e[1]); c.stroke(); c.setLineDash([]);
+    const dy = r === 'host' ? -1 : 1; c.beginPath(); c.moveTo(e[0], e[1] + dy * cs * .1); c.lineTo(e[0] - cs * .1, e[1] - dy * cs * .03); c.lineTo(e[0] + cs * .1, e[1] - dy * cs * .03); c.closePath(); c.fill();
+    if (!open) { c.globalAlpha = .9; c.font = `${cs * .34}px system-ui`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🔒', b[0], b[1]); }
+    c.restore();
+  }
+  if (ludo.turn === myRole && ludo.rolled && !ldie && !ludo.win && !lAim) ludoMoves(ludo, myRole).forEach(i => {   // where each piece you can move would land
+    const r = myRole, from = ludo.pc[r][i], cells = [];
+    if (!ludo.out[r][i]) cells.push(lCell(r, 0));
+    else { const st = lStep(ludo, r, i); for (let k = 1; k <= st.to - from; k++) cells.push(lCell(r, st.wrap ? (from + k) % LN : from + k)); }
+    c.save(); c.fillStyle = c.strokeStyle = LCOL[r][0];
+    cells.slice(0, -1).forEach(cl => { const [px, py] = mid(cl); c.globalAlpha = .6; c.beginPath(); c.arc(px, py, cs * .06, 0, 7); c.fill(); });
+    const [ex, ey] = mid(cells[cells.length - 1]); c.globalAlpha = .55 + .3 * Math.sin(now * 5); c.lineWidth = 2.5; c.setLineDash([4, 3]);
+    c.beginPath(); c.arc(ex, ey, cs * .38, 0, 7); c.stroke(); c.restore();
+  });
+  if (lbo && now - lbo.t < .3) lbo.from.filter(a => a >= 0 && !ludo.bo.includes(a)).forEach(a => { const k = (now - lbo.t) / .3; c.save(); c.globalAlpha = 1 - k; c.font = `${cs * .38 * (1 + k * .6)}px system-ui`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🚀', ...mid(LRING[a])); c.restore(); });   // fades from where it was
+  if (lkl && now - lkl.t < .3 && lkl.from >= 0) { const k = (now - lkl.t) / .3; c.save(); c.globalAlpha = 1 - k; c.font = `${cs * .44 * (1 + k * .6)}px system-ui`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('💀', ...mid(LRING[lkl.from])); c.restore(); }   // fades from where it was
+  for (const r of ['host', 'remote']) LYARD[r].forEach(([x, y]) => {   // the bases: round pads beside each lane
+    const [cx, cy] = mid([x, y]); c.fillStyle = LCOL[r][1] + '33'; c.beginPath(); c.arc(cx, cy, cs * .42, 0, 7); c.fill();
+    c.setLineDash([3, 4]); c.strokeStyle = LCOL[r][0] + '99'; c.lineWidth = 1.5; c.stroke(); c.setLineDash([]);
+  });
+  const beat = 1 + .08 * Math.max(0, Math.sin(now * 5)) * Math.max(0, Math.sin(now * 2.5));
+  c.save(); c.translate(...mid(LMID)); c.scale(beat, beat); c.fillStyle = '#fff'; c.font = `${cs * .72}px system-ui`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('💗', 0, 2); c.restore();
+  // pieces
+  hitStep(cs, now);
+  const moves = ludo.turn === myRole && !ldie && !lAim && !lhit ? ludoMoves(ludo, myRole) : [];
+  ltaps = [];
+  const pieces = [];
+  for (const r of ['host', 'remote']) ludo.pc[r].forEach((p, i) => {
+    const out = ludo.out[r][i];
+    let [x, y] = mid(out ? lCell(r, p) : LYARD[r][i]), lift = 0, squash = 1, tilt = 0;
+    if (lAim && lAim.act.r === r && lAim.act.i === i) [x, y] = aimFrom();   // waiting to flick, one square before theirs
+    if (lhit && lhit.act.r === r && lhit.act.i === i) { [x, y] = now >= lhit.t0 && lhit.pa ? lhit.pa : cellXY(lCell(r, lhit.act.wrap ? (lhit.act.to - 1) % LN : lhit.act.to - 1)); }
+    if (lhit && other(lhit.act.r) === r && lhit.act.cj === i) { if (now >= lhit.t0 && lhit.pv) { [x, y] = lhit.pv; tilt = Math.max(-1.2, Math.min(1.2, lhit.rv || 0)); } else [x, y] = cellXY(lCell(r, lhit.act.cp)); }
+    if (lglide && lglide.r === r && lglide.i === i) { const f = Math.min(1, (now - lglide.t0) / .25), e = 1 - Math.pow(1 - f, 3); x = lglide.ap[0] + (x - lglide.ap[0]) * e; y = lglide.ap[1] + (y - lglide.ap[1]) * e; if (f >= 1) { lglide = null; lland[r + i] = now; } }
+    if (lhop && lhop.r === r && lhop.i === i) {   // hopping square by square, a little thump on each
+      const step = (now - lhop.t0) / .15, n = lhop.to - lhop.from;
+      if (step < n) {
+        const k = Math.max(0, Math.floor(step)), f = Math.max(0, step - k), w = q => lhop.wrap ? q % LN : q, [ax, ay] = mid(lCell(r, w(lhop.from + k))), [bx, by] = mid(lCell(r, w(lhop.from + k + 1)));
+        x = ax + (bx - ax) * f; y = ay + (by - ay) * f; lift = Math.sin(f * Math.PI) * cs * .32;
+        if (k !== lhop.k) { lhop.k = k; if (navigator.vibrate && r === myRole) navigator.vibrate(8); }
+      } else { lland[r + i] = now; if (lhop.caught) lsparks(x / W, y / W, '#ffe08a'); lhop = null; }
+    }
+    if (lfly && lfly.r === r && lfly.i === i) {   // flies in an arc: caught or killed back to base, or out of the base onto the start
+      const f = (now - lfly.t0) / (lfly.ex ? .5 : .7);
+      const A = lfly.ap || mid(lfly.a);
+      if (f < 0) { if (!lfly.own || (!lfly.ex && !(lhop && lhop.r === r && lhop.i === i))) [x, y] = A; }   // waits where it was hit until it flies
+      else if (f < 1) { const [ax, ay] = A, [bx, by] = mid(lfly.b); x = ax + (bx - ax) * f; y = ay + (by - ay) * f; lift = Math.sin(f * Math.PI) * cs * (lfly.ex ? .9 : 1.6); }
+      else { lland[r + i] = now; lsparks(x / W, y / W, LCOL[r][0]); lfly = null; }
+    }
+    const since = now - (lland[r + i] || -9);
+    if (since < .35) squash = 1 - .22 * Math.exp(-since * 9) * Math.cos(since * 30);
+    const same = out && ludo.out[r][1 - i] && ludo.pc[r][1 - i] === p && p < LEND, twin = out && p < LN && ludo.pc[other(r)].some((q, j) => ludo.out[other(r)][j] && q < LN && lAbs(other(r), q) === lAbs(r, p));
+    if (p === LEND) { x += (i ? 1 : -1) * cs * .2; y += (r === 'host' ? .1 : -.32) * cs; }
+    else if (same || twin) x += (i ? 1 : -1) * cs * .17 + (twin ? (r === 'host' ? -1 : 1) * cs * .08 : 0);
+    const can = moves.includes(i) && r === myRole, rad = cs * (p === LEND ? .2 : same || twin ? .25 : .31);
+    if (can) lift += (1 + Math.sin(now * 5 + i)) * cs * .04;   // pieces you can move bob, asking to be picked
+    pieces.push({ r, x, y, lift, squash, rad, can, i, home: p === LEND, tilt });
+  });
+  pieces.sort((a, b) => a.y - b.y).forEach(({ r, x, y, lift, squash, rad, can, i, home, tilt }) => {
+    const h = rad * 2.35, base = y + h * .47;   // the whole piece sits inside its square, centred on it
+    if (can) {   // a glowing ring on the floor around the pieces you can move
+      c.strokeStyle = `rgba(255,255,255,${.5 + .4 * Math.sin(now * 6)})`; c.lineWidth = 2.5;
+      c.beginPath(); c.ellipse(x, base, rad * 1.35 + Math.sin(now * 6) * 1.5, rad * .5, 0, 0, 7); c.stroke();
+      ltaps.push([x, base - h * .45, Math.max(h * .55, cs * .5), i]);
+    }
+    c.fillStyle = LCOL[r][1] + '59'; c.beginPath(); c.ellipse(x, base - h * .03, h * .42, h * .13, 0, 0, 7); c.fill();   // its spot on the ground
+    c.fillStyle = `rgba(0,0,0,${.5 - Math.min(.35, lift / cs)})`; c.beginPath(); c.ellipse(x + h * .03, base - h * .02, h * (.36 - lift / cs * .12), h * .09, 0, 0, 7); c.fill();   // contact shadow
+    if (home) { const hg = c.createRadialGradient(x, base, 0, x, base, rad * 2.4); hg.addColorStop(0, LCOL[r][0] + 'cc'); hg.addColorStop(1, LCOL[r][0] + '00'); c.fillStyle = hg; c.beginPath(); c.ellipse(x, base, rad * 2.4, rad * 1.2, 0, 0, 7); c.fill(); }
+    c.save(); c.translate(x, base - lift); if (tilt) c.rotate(tilt); c.scale(2 - squash, squash);
+    drawPiece(c, h, i ? 'rook' : 'queen', LCOL[r]);
+    c.restore();
+    if (home) { c.font = `${rad * 1.1}px system-ui`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(r === 'host' ? '💗' : '💙', x + rad * 1.05, base - h * .85); }   // home: a badge in their own colour
+  });
+  if (lAim) {   // the aim: a target on their piece, and while you pull back a line showing where and how hard you will flick
+    const [px, py] = aimFrom(), [tx, ty] = aimAt(), pulse = .5 + .5 * Math.sin(now * 7);
+    c.save(); c.strokeStyle = `rgba(255,70,90,${.6 + .4 * pulse})`; c.lineWidth = 2.5;
+    c.beginPath(); c.arc(tx, ty, cs * (.38 + .05 * pulse), 0, 7); c.stroke();
+    c.beginPath(); c.moveTo(tx - cs * .55, ty); c.lineTo(tx - cs * .2, ty); c.moveTo(tx + cs * .2, ty); c.lineTo(tx + cs * .55, ty); c.moveTo(tx, ty - cs * .55); c.lineTo(tx, ty - cs * .2); c.moveTo(tx, ty + cs * .2); c.lineTo(tx, ty + cs * .55); c.stroke();
+    if (aimDrag) {
+      const dx = aimDrag.x - aimDrag.x0, dy = aimDrag.y - aimDrag.y0, len = Math.hypot(dx, dy), pw = Math.max(.25, Math.min(1, len / (cs * 2.2)));
+      if (len > 8) {
+        const ux = -dx / len, uy = -dy / len, L = cs * (.8 + 2.2 * pw), col = pw > .75 ? '#ff5a6e' : pw > .45 ? '#ffd75e' : '#ffffff';
+        c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 3 + pw * 3; c.lineCap = 'round'; c.setLineDash([2, 7]);
+        c.beginPath(); c.moveTo(px, py); c.lineTo(px + ux * L, py + uy * L); c.stroke(); c.setLineDash([]);
+        c.beginPath(); c.moveTo(px + ux * (L + cs * .22), py + uy * (L + cs * .22)); c.lineTo(px + ux * L - uy * cs * .14, py + uy * L + ux * cs * .14); c.lineTo(px + ux * L + uy * cs * .14, py + uy * L - ux * cs * .14); c.closePath(); c.fill();
+        c.lineWidth = 4; c.beginPath(); c.arc(px, py, cs * .5, -Math.PI / 2, -Math.PI / 2 + pw * Math.PI * 2); c.stroke();   // power ring
+      }
+    } else { c.globalAlpha = .55 + .35 * pulse; c.strokeStyle = '#fff'; c.lineWidth = 2; c.setLineDash([3, 5]); c.beginPath(); c.moveTo(px, py); c.lineTo(tx, ty); c.stroke(); c.setLineDash([]); }
+    c.restore();
+  }
+  drawBoardDie(c, W, cs, now);
+  // pops, sparks, confetti
+  lpops = lpops.filter(o => {
+    const age = now - o.at; if (age < 0) return true; if (age > 1.3) return false;
+    const [x, y] = o.p >= 0 ? mid(lCell(o.r, o.p)) : [W / 2, W / 2];
+    c.save(); c.globalAlpha = Math.min(1, (1.3 - age) * 2.5); c.font = `700 ${cs * .34}px system-ui`; const tw = c.measureText(o.txt).width / 2 + 6; c.translate(Math.max(tw, Math.min(W - tw, x)), y - cs * .7 - age * cs * .5); const k = Math.min(1, age * 7); c.scale(.6 + .4 * k, .6 + .4 * k);
+    c.font = `700 ${cs * .34}px system-ui`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,10,40,.85)'; c.strokeText(o.txt, 0, 0); c.fillStyle = '#fff'; c.fillText(o.txt, 0, 0);
+    c.restore(); return true;
+  });
+  lfx = lfx.filter(f => {
+    f.vy += 1.4 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt * .55; f.rot += dt * 6;
+    if (f.life <= 0 || f.y > 1.1) return false;
+    c.save(); c.globalAlpha = Math.min(1, f.life * 2); c.translate(f.x * W, f.y * W); c.rotate(f.rot); c.fillStyle = f.col; c.fillRect(-f.r, -f.r / 2, f.r * 2, f.r); c.restore(); return true;
+  });
+  // reactions floating up
+  lreacts = lreacts.filter(o => { const age = now - o.t0; if (age > 2.2) return false; c.save(); c.globalAlpha = Math.min(1, (2.2 - age) * 1.5); c.font = `${cs * (.7 + Math.min(.3, age))}px system-ui`; c.textAlign = 'center'; c.fillText(o.e, o.x * W + Math.sin(age * 4 + o.x * 9) * cs * .2, W * (.85 - age * .3)); c.restore(); return true; });
+}
+let lreacts = [], lreactAt = 0;
+const LREACT = ['😈', '😂', '😘', '🙈', '🔥'];
+function ludoReact(e, mine) {
+  if (!LREACT.includes(e)) return;
+  for (let k = 0; k < 3; k++) lreacts.push({ e, x: (mine ? .7 : .3) + (Math.random() - .5) * .25, t0: performance.now() / 1000 + k * .12 });
+  if (!mine && navigator.vibrate) navigator.vibrate(20);
+}
+document.querySelectorAll('#lreact button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); ludoReact(b.dataset.e, true); send({ t: 'ludoReact', e: b.dataset.e }); });
+// the die lives on the board, in the open space inside the ring; pick it up anywhere there and throw it
+let ldrag = null, lheld = null, dieRest = null, lgold = 0, lmotionAsked = false, lspikes = [];
+const canThrow = () => panel === 'ludo' && ludo.turn === myRole && !ludo.rolled && !ludo.win && !ldie;
+const boardW = () => $('ludoBoard').clientWidth || 300;
+const dieSize = W => W / LG * .78;   // grows and shrinks with the board
+function dieBox(W) { const cs = W / LG, m = dieSize(W) * .62; return [cs + m, LG * cs - cs - m]; }   // where its centre may go: inside the ring
+function dieHome(W) { const cs = W / LG, [lo, hi] = dieBox(W), x = dieRest ? dieRest.x * W : cs * 2.3, y = dieRest ? dieRest.y * W : cs * 4.5; return [Math.max(lo, Math.min(hi, x)), Math.max(lo, Math.min(hi, y))]; }
+const boardXY = ev => { const b = $('ludoBoard').getBoundingClientRect(); return [ev.clientX - b.left, ev.clientY - b.top - (b.height - b.width), b.width]; };
+$('ludoBoard').addEventListener('pointerdown', ev => {
+  const [x, y, W] = boardXY(ev), hit = ltaps.find(([px, py, r]) => Math.hypot(px - x, py - y) <= r);
+  if (lAim) { $('ludoBoard').setPointerCapture(ev.pointerId); aimDrag = { id: ev.pointerId, x0: x, y0: y, x, y }; tap(); return; }   // pull back anywhere to aim
+  if (hit) { ludoMove(hit[3]); return; }
+  if (!canThrow()) return;
+  const [lo, hi] = dieBox(W), [hx, hy] = dieHome(W);
+  if (x < lo - W / LG * .6 || x > hi + W / LG * .6 || y < lo - W / LG * .6 || y > hi + W / LG * .6) return;   // a touch on the path is not a throw
+  const near = Math.hypot(x - hx, y - hy) < dieSize(W);
+  $('ludoBoard').setPointerCapture(ev.pointerId);
+  ldrag = { id: ev.pointerId, ox: near ? x - hx : 0, oy: near ? y - hy : 0, x: near ? hx : Math.max(lo, Math.min(hi, x)), y: near ? hy : Math.max(lo, Math.min(hi, y)), px: 0, py: 0, hist: [[x, y, performance.now()]], moved: 0, buzz: 0 };
+  tap(); renderLudo();
+});
+$('ludoBoard').addEventListener('pointermove', ev => {
+  if (aimDrag && ev.pointerId === aimDrag.id) { const [x, y] = boardXY(ev); aimDrag.x = x; aimDrag.y = y; return; }
+  if (!ldrag || ev.pointerId !== ldrag.id) return;
+  const [x, y, W] = boardXY(ev), [lo, hi] = dieBox(W), last = ldrag.hist[ldrag.hist.length - 1];
+  const nx = Math.max(lo, Math.min(hi, x - ldrag.ox)), ny = Math.max(lo, Math.min(hi, y - ldrag.oy));
+  ldrag.py += (nx - ldrag.x) * .05; ldrag.px -= (ny - ldrag.y) * .05;   // it turns in your fingers as you move it
+  ldrag.moved += Math.hypot(x - last[0], y - last[1]); ldrag.x = nx; ldrag.y = ny;
+  ldrag.hist.push([x, y, performance.now()]); if (ldrag.hist.length > 6) ldrag.hist.shift();
+  if (ldrag.moved - ldrag.buzz > 70) { ldrag.buzz = ldrag.moved; if (navigator.vibrate) navigator.vibrate(6); }   // a little rattle as you shake it in your hand
+});
+$('ludoBoard').addEventListener('pointerup', ev => {
+  if (aimDrag && ev.pointerId === aimDrag.id) { const [x, y] = boardXY(ev), d = aimDrag; aimDrag = null; ludoFlick(x - d.x0, y - d.y0); return; }
+  if (!ldrag || ev.pointerId !== ldrag.id) return;
+  const d = ldrag, [, , W] = boardXY(ev), h = d.hist, a = h[0], z = h[h.length - 1], dt = Math.max(16, z[2] - a[2]);
+  ldrag = null; askMotion();
+  if (!canThrow()) { renderLudo(); return; }
+  const at = [d.x / W, d.y / W], still = performance.now() - z[2] > 120;
+  if (d.moved < 10) ludoRoll(null, at, [d.px, d.py]);   // a tap on the die: a random throw from there
+  else ludoRoll(still ? [0, 0] : [(z[0] - a[0]) / dt * 1000 / W, (z[1] - a[1]) / dt * 1000 / W], at, [d.px, d.py]);   // held still: it just drops; moving: it flies at your finger's speed
+});
+$('ludoBoard').addEventListener('pointercancel', ev => { if (aimDrag && ev.pointerId === aimDrag.id) aimDrag = null; if (ldrag && ev.pointerId === ldrag.id) { ldrag = null; renderLudo(); } });
+// shake the phone to roll: three hard jolts within a second (so walking never rolls it)
+function askMotion() {
+  if (lmotionAsked) return; lmotionAsked = true;
+  const D = window.DeviceMotionEvent;
+  if (D && typeof D.requestPermission === 'function') D.requestPermission().catch(() => {});   // iPhone asks once
+}
+addEventListener('devicemotion', ev => {
+  const g = ev.accelerationIncludingGravity; if (!g || !canThrow() || ldrag) return;
+  if (Math.hypot(g.x || 0, g.y || 0, g.z || 0) < 22) return;
+  const now = Date.now(); lspikes = lspikes.filter(t => now - t < 1000); lspikes.push(now);
+  if (lspikes.length < 3) return;
+  lspikes = [];
+  ludoRoll();
+});
+// the die: a 3D cube (drawn by hand, no extra library) thrown in a closed box with real physics (Rapier)
+const DPIPS = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
+const mmul = (A, B) => [0, 1, 2].flatMap(r => [0, 1, 2].map(k => A[r * 3] * B[k] + A[r * 3 + 1] * B[3 + k] + A[r * 3 + 2] * B[6 + k]));
+const mvec = (M, v) => [0, 1, 2].map(r => M[r * 3] * v[0] + M[r * 3 + 1] * v[1] + M[r * 3 + 2] * v[2]);
+const rotX = a => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, c, -s, 0, s, c]; };
+const rotY = a => { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; };
+const rotZ = a => { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; };
+// faces: number, outward direction, two directions along the face (x right, y down, z towards you); opposite faces add up to 7
+const DFACES = [[1, [0, 0, 1], [1, 0, 0], [0, 1, 0]], [6, [0, 0, -1], [-1, 0, 0], [0, 1, 0]], [3, [1, 0, 0], [0, 0, -1], [0, 1, 0]], [4, [-1, 0, 0], [0, 0, 1], [0, 1, 0]], [2, [0, -1, 0], [1, 0, 0], [0, 0, 1]], [5, [0, 1, 0], [1, 0, 0], [0, 0, -1]]];
+const DUP = { 1: rotY(0), 6: rotY(Math.PI), 3: rotY(-Math.PI / 2), 4: rotY(Math.PI / 2), 2: rotX(-Math.PI / 2), 5: rotX(Math.PI / 2) };   // turns that face towards you
+const DVIEW = mmul(rotX(-.4), rotY(-.36)), DLIGHT = [-.35, -.6, .72];   // seen a little from above and the side
+function rotAxis(ux, uy, t) {   // turn by t around a flat direction (ux, uy): how a cube rolls along the table
+  const c = Math.cos(t), s = Math.sin(t), k = 1 - c;
+  return [c + ux * ux * k, ux * uy * k, uy * s, ux * uy * k, c + uy * uy * k, -ux * s, -uy * s, ux * s, c];
+}
+function dieThrow(d, seed, tv, p, r) {
+  const W = boardW(), s = dieSize(W), held = lheld, [lo, hi] = dieBox(W);
+  const v = (tv || [2, 1]).map(n => n * W), sp = Math.hypot(v[0], v[1]) || 1;
+  const sx = Math.max(lo, Math.min(hi, (p ? p[0] : .3) * W)), sy = Math.max(lo, Math.min(hi, (p ? p[1] : .5) * W));
+  ldie = { d, r: r || ludo.turn, t0: performance.now() / 1000, x0: sx, y0: sy, ux: -v[1] / sp, uy: v[0] / sp, roll: (2 + seed % 3) * Math.PI * 2 * Math.min(1.5, .4 + sp / W / 2.5), held, W };
+  if (RAP) {
+    const w = new RAP.World({ x: 0, y: 0 });   // seen from above: no gravity, the felt slows it down
+    const m = s * .62 - s / 2;   // walls sit just inside the ring
+    for (const [hx, hy, cx, cy] of [[W, 10, W / 2, lo - m - 10 - s / 2], [W, 10, W / 2, hi + m + 10 + s / 2], [10, W, lo - m - 10 - s / 2, W / 2], [10, W, hi + m + 10 + s / 2, W / 2]]) w.createCollider(RAP.ColliderDesc.cuboid(hx, hy).setTranslation(cx, cy).setRestitution(.55).setFriction(.3));
+    const body = w.createRigidBody(RAP.RigidBodyDesc.dynamic().setTranslation(sx, sy).setLinvel(v[0], v[1]).setAngvel((seed & 1 ? 1 : -1) * (3 + sp / W * 3)).setLinearDamping(1.6).setAngularDamping(1.8).setCcdEnabled(true));
+    w.createCollider(RAP.ColliderDesc.roundCuboid(s / 2 - 3, s / 2 - 3, 3).setRestitution(.5).setFriction(.3).setDensity(1), body);
+    ldie.w = w; ldie.b = body;
+  }
+  if (navigator.vibrate) navigator.vibrate(15);
+  renderLudo();
+}
+function drawCube(c, x, y, s, M, pip) {
+  const h = s / 2;
+  const faces = DFACES.map(([n, N, U, V]) => ({ n, N: mvec(M, N), U: mvec(M, U), V: mvec(M, V) })).filter(f => f.N[2] > .01);
+  for (const f of faces) {
+    const lit = .6 + .4 * Math.max(0, f.N[0] * DLIGHT[0] + f.N[1] * DLIGHT[1] + f.N[2] * DLIGHT[2]), g = Math.round(255 * lit);
+    c.save(); c.transform(f.U[0] * h, f.U[1] * h, f.V[0] * h, f.V[1] * h, x + f.N[0] * h, y + f.N[1] * h);
+    c.fillStyle = `rgb(${Math.round(g * .82)},${Math.round(g * .8)},${Math.round(g * .86)})`; c.fillRect(-1, -1, 2, 2);   // the rounded edge
+    c.fillStyle = `rgb(${g},${g},${Math.min(255, g + 4)})`; rr(c, -.9, -.9, 1.8, 1.8, .42); c.fill();
+    c.fillStyle = pip;
+    for (const [px, py] of DPIPS[f.n]) { c.beginPath(); c.arc(px * .5, py * .5, f.n === 1 ? .3 : .19, 0, 7); c.fill(); }
+    c.restore();
+  }
+}
+function drawBoardDie(c, W, cs, now) {
+  const s = dieSize(W);
+  let [x, y] = dieHome(W), a = dieRest ? dieRest.a : 0, M = null, lift = 0, glow = null;
+  const face = ldie ? ldie.d : (dieRest && dieRest.d) || ludo.die || 5, who = ldie ? ldie.r : dieRest ? dieRest.r : ludo.turn;
+  if (ldie) {
+    const age = now - ldie.t0, k = Math.pow(Math.max(0, 1 - age / 1.3), 2);
+    let done;
+    if (ldie.w && ldie.W === W) {
+      ldie.w.timestep = 1 / 60; ldie.w.step();
+      const t = ldie.b.translation(), v = ldie.b.linvel();
+      x = t.x; y = t.y; a = ldie.b.rotation();
+      if (ldie.v && Math.hypot(v.x - ldie.v.x, v.y - ldie.v.y) > W * .5 && now - (ldie.hit || 0) > .07) { ldie.hit = now; if (navigator.vibrate) navigator.vibrate(8); }   // a tick each time it hits the edge
+      ldie.v = { x: v.x, y: v.y };
+      done = age > 1.3 && (ldie.b.isSleeping() || (Math.hypot(v.x, v.y) < W * .02 && Math.abs(ldie.b.angvel()) < .4)) || age > 2.6;
+    } else { const e = 1 - k; x = ldie.x0 + (W / 2 - ldie.x0) * e * .5; y = ldie.y0 + (W / 2 - ldie.y0) * e * .5; done = age > 1.3; }
+    lift = Math.max(0, 1 - age / .35) * .5;   // it lands from your hand
+    const held = ldie.held && k > 0 ? mmul(rotX(ldie.held[0] * k), rotY(ldie.held[1] * k)) : rotX(0);
+    M = mmul(rotAxis(ldie.ux, ldie.uy, ldie.roll * k), mmul(held, mmul(rotZ(a), DUP[face])));   // rolls the way it was thrown and ends on the rolled number
+    if (done) {
+      const lane = W / 2, gap = cs * 1.5 + s * .55;   // smart rest: never sit on the lane or the heart, slide aside
+      dieRest = { x: x / W, y: y / W, a, d: ldie.d, r: ldie.r, gx: Math.abs(x - lane) < gap ? (x < lane ? lane - gap : lane + gap) / W : null };
+      if (ldie.d === 6) lgold = now; if (ldie.w) ldie.w.free(); ldie = null; renderLudo(); if (navigator.vibrate) navigator.vibrate(25);
+    }
+  } else if (ldrag) { x = ldrag.x; y = ldrag.y; lift = .45; M = mmul(rotX(ldrag.px), mmul(rotY(ldrag.py), DUP[face])); }
+  else {
+    if (dieRest && dieRest.gx !== null) { dieRest.x += (dieRest.gx - dieRest.x) * .15; if (Math.abs(dieRest.gx - dieRest.x) < .001) dieRest.gx = null; }
+    if (canThrow()) { lift = Math.abs(Math.sin(now * 3)) * .14; glow = LCOL[myRole][0]; }   // it hops, asking to be thrown
+  }
+  if (!M) M = mmul(rotZ(a), DUP[face]);
+  if (now - lgold < 1.6) glow = '#ffd75e';
+  const sc = 1 + lift * .35;   // higher = bigger, shadow further away
+  c.fillStyle = `rgba(0,0,0,${.4 - lift * .3})`; c.beginPath(); c.ellipse(x + s * (.12 + lift * .5), y + s * (.22 + lift * .6), s * .6, s * .5, 0, 0, 7); c.fill();
+  if (glow) { const gg = c.createRadialGradient(x, y, s * .3, x, y, s * 1.25); gg.addColorStop(0, glow + 'aa'); gg.addColorStop(1, glow + '00'); c.fillStyle = gg; c.beginPath(); c.arc(x, y, s * 1.25, 0, 7); c.fill(); }
+  drawCube(c, x, y - s * .1 * sc, s * sc, mmul(DVIEW, M), LCOL[who] ? LCOL[who][1] : '#1c1c1e');
+}
+function towerKick(dir, mine) {   // a push from the side: the dropper has to time it again
+  if (!tcalm) { tV += dir * 24; tshake = 1.6; }
+  towerBit(tcamX, tcamY + 50, { txt: mine ? 'You shook it!' : `${who()} shook the tower!`, col: '#fff', vy: 6, fade: .8, size: 7 });
+  if (navigator.vibrate) navigator.vibrate(mine ? 30 : [40, 30, 80]);
+}
+function towerShake() {
+  if (tower.turn === myRole || tanim || !partnerOnline()) return;
+  if (shakeTurn !== towerV) { shakeTurn = towerV; shakesLeft = 2; }
+  if (shakesLeft <= 0) return;
+  shakesLeft--; tap();
+  const dir = Math.random() < .5 ? -1 : 1;
+  towerKick(dir, true); send({ t: 'towerShake', dir, v: towerV }); renderTower();
+}
+function gotShake(m) {   // only while it is my turn, at most twice per turn
+  if (m.v !== towerV || tower.turn !== myRole || ![1, -1].includes(m.dir)) return;
+  if (shakeTurn !== towerV) { shakeTurn = towerV; shakesGot = 0; }
+  if (shakesGot >= 2) return;
+  shakesGot++;
+  towerKick(m.dir, false);
 }
 function towerTap(force, swing) {
   if (tower.turn !== myRole || tanim) return;
   const now = towerNow(), v0 = Number.isFinite(swing) ? swing : Number.isFinite(force) ? 0 : towerSwingV(now), x0 = Number.isFinite(force) ? force : towerSwingX(now), rel = x0 - towerTopX(now + TFALL), far = Math.abs(rel);
   const me = myRole === 'host' ? 0 : 1, t = JSON.parse(JSON.stringify(tower));
   let kind = far <= TPERFECT ? 'perfect' : (!tower.f || far <= TW * TOVER) ? 'good' : 'miss';
-  let fell = [];
+  let fell = [], combo = false;
   if (kind === 'miss') {
+    t.c = 0;
     t.hearts--;
     if (t.hearts <= 0) { fell = t.b.splice(-3); t.f = Math.max(0, t.f - 3); t.hearts = 3; }
   } else {
@@ -2271,20 +2892,25 @@ function towerTap(force, swing) {
     t.b.push([Math.round((towerBase() + (kind === 'perfect' ? 0 : rel)) * 10) / 10, me, kind === 'perfect' ? 1 : 0]);
     if (t.b.length > TKEEP) t.b.shift();
     if (kind === 'perfect') t.hearts = Math.min(3, t.hearts + 1);
+    t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 : (t.sw || 0) + .06 + far / (TW * TOVER) * .3) * 100) / 100;   // off-centre adds swing, worse adds more; perfect calms it
+    t.c = kind === 'perfect' ? (t.c || 0) + 1 : 0;
+    if (t.c >= 3) { t.sw = 0; t.c = 0; combo = true; }   // three perfect drops in a row: the tower stands completely still again
     const tip = towerTip(t.b);
-    if (tip.gives >= 0) { kind = 'topple'; fell = t.b.splice(tip.gives + 1); t.f -= fell.length; t.n[myRole]--; }   // the weight above a floor hangs over its edge: all of it slides off, the new box too
+    if (t.sw >= 1) { kind = 'collapse'; fell = t.b.splice(0); t.f = 0; t.sw = 0; t.hearts = 3; }   // it swung too far: the whole tower comes down, and whoever dropped last loses
+    else if (tip.gives >= 0) { kind = 'topple'; fell = t.b.splice(tip.gives + 1); t.f -= fell.length; t.n[myRole]--; }   // the weight above a floor hangs over its edge: all of it slides off, the new box too
   }
   t.best = Math.max(t.best, t.f); t.turn = myRole === 'host' ? 'remote' : 'host';
-  const drop = { rel: Math.round(rel * 10) / 10, v: Math.round(v0), kind, o: me, fell }, v = nextV(towerV);
+  const drop = { rel: Math.round(rel * 10) / 10, v: Math.round(v0), kind, o: me, fell, combo }, v = nextV(towerV);
   tback = true;   // dropping a box brings the camera back to the top
   applyTower(t, v, drop);
   send({ t: 'tower', tower: t, v, drop });
+  if (kind === 'collapse') setTimeout(() => loserDare(myRole), 3200);   // only the phone that dropped it deals the dare, so it happens once
 }
 function gotTower(m) {
   if (!(m.v > towerV)) return;
   const t = cleanTower(m.tower); if (!t) return;
-  const d = m.drop, fell = d && cleanFloors(d.fell, TCHECK + 1);
-  const drop = d && ['perfect', 'good', 'miss', 'topple'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell } : null;
+  const d = m.drop, fell = d && cleanFloors(d.fell, TKEEP + 1);
+  const drop = d && ['perfect', 'good', 'miss', 'topple', 'collapse'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell, combo: d.combo === true } : null;
   applyTower(t, m.v, drop);
   if (!drop) renderTower();
 }
@@ -2324,7 +2950,7 @@ function drawTower() {
   const shown = kept ? tower.b.slice(0, -1) : a && a.kind === 'topple' ? tower.b.concat(a.fell.slice(0, -1)) : tower.b.concat(a ? a.fell : []);
   const under = tower.f - tower.b.length, count = under + shown.length, topY = count * TH;
   const R = 20 + 38 * tz, room = Hu - TGROUND - R;   // the sky kept above the tower for the swinging box shrinks as the camera steps back
-  tz += (Math.max(twhole ? .03 : .5, Math.min(1, room / Math.max(1, topY + 6))) - tz) * Math.min(1, dt * 4);   // the camera steps back as the tower grows
+  tz += ((twhole ? Math.max(.03, Math.min(1, room / Math.max(1, topY + 6))) : 1) - tz) * Math.min(1, dt * 4);   // close view stays near the top; whole view fits every floor
   const followY = tfollow = Math.max(0, topY - room / tz);   // the camera follows the top; a finger can pull it down the tower
   if (!tdrag) {
     if (tback) { tlook *= Math.max(0, 1 - dt * 7); tlv = 0; if (Math.abs(tlook) < .5) { tlook = 0; tback = false; } }
@@ -2362,15 +2988,14 @@ function drawTower() {
   const gy = sy(0);
   if (gy < Hu + 2) { c.fillStyle = '#160d33'; c.fillRect(-6, gy, 112, Hu - gy + 6); c.fillStyle = '#ff6b9d'; c.fillRect(-6, gy, 112, .6); }
   towerStep(dt, count, now);
-  tHist.push([now, tA]); while (tHist.length > 2 && now - tHist[0][0] > 1) tHist.shift();
-  const past = t => { for (let j = tHist.length - 1; j >= 0; j--) if (tHist[j][0] <= t) return tHist[j][1]; return tHist[0][1]; };
-  const lean = i => { const h = (i + 1) / Math.max(1, count); return past(now - (count - 1 - i) * .02) * Math.pow(h, 1.5); };   // it bends like a pole; a knock at the top takes a moment to reach the bottom
+  const top = towerSway(now), lean = i => top * (i + 1) / Math.max(1, count), tilt = top / Math.max(1, count) / TH * .9;   // a rigid stack: every floor moves with its height and tilts by the same angle
   const from = Math.max(0, Math.floor((tcamY - 6) / TH));
   const fillX = shown[0] ? shown[0][0] : baseX;
   for (let i = from; i < count; i++) {
     const k = i >= under ? shown[i - under] : null;
     const last = i === count - 1 && !a, sq = last ? 1 - .14 * Math.exp(-8 * (now - tsquash)) * Math.cos(18 * (now - tsquash)) : 1;
-    towerFloor(c, sx((k ? k[0] : fillX) + lean(i)), sy(i * TH), k ? k[1] : i % 2, k ? k[2] : 0, i, sq, (lean(i + 1) - lean(i)) / TH * .9);
+    towerFloor(c, sx((k ? k[0] : fillX) + lean(i)), sy(i * TH), k ? k[1] : i % 2, k ? k[2] : 0, i, sq, tilt);
+    if (towerWorld()) standAt(i, (k ? k[0] : fillX) + lean(i), i * TH, tilt);
   }
   if (a) {   // the box on its way down
     const p = Math.min(1, (now - a.t0) / TFALL), startY = hang, y = startY + (a.idx * TH - startY) * p * p;
@@ -2394,6 +3019,17 @@ function drawTower() {
     towerHeart(c, sx(hx) - speed * .02 * tz, sy(by + TH + 13), 6 * Math.max(.6, tz), TCOL[o][0]);
     c.globalAlpha = 1;
   }
+  if (tworld) {
+    standTrim(i => i >= from && i < count);
+    tworld.timestep = Math.min(1 / 30, Math.max(1 / 240, dt)); tworld.step();
+    const nowT = towerNow();
+    tbodies = tbodies.filter(d => {
+      const t = d.b.translation();
+      if (t.y < -300 || nowT - d.born > 10) { tworld.removeRigidBody(d.b); return false; }
+      if (sy(t.y) > -60 && sy(t.y) < Hu + 60) towerFloor(c, sx(t.x), sy(t.y - TH / 2), d.o, d.p, 0, 1, -d.b.rotation());
+      return true;
+    });
+  }
   tdrops = tdrops.filter(d => { d.vy -= 150 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.rot += d.vr * dt; towerFloor(c, sx(d.x), sy(d.y), d.o, d.p, 0, 1, d.rot); return sy(d.y) < Hu + 40; });
   tbits = tbits.filter(b => {
     b.life -= dt * b.fade; if (b.life <= 0) return false;
@@ -2407,11 +3043,11 @@ function drawTower() {
   if (!a && !$('towerDrop').disabled !== (tower.turn === myRole)) renderTower();
 }
 function towerLoop() { if (panel !== 'tower') { trun = 0; return; } trun = requestAnimationFrame(towerLoop); drawTower(); }
-function towerOpen() { renderTower(); tlast = towerNow(); tcamX = towerBase(); if (!trun) trun = requestAnimationFrame(towerLoop); }
+function towerOpen() { loadRapier(); renderTower(); tlast = towerNow(); tcamX = towerBase(); if (!trun) trun = requestAnimationFrame(towerLoop); }
 const towerReady = () => towerNow() - tlanded > .3;
 let tpress = null;
-$('towerDrop').onpointerdown = () => { if (towerReady()) towerTap(); };
-$('towerDrop').onclick = ev => { if (!ev.detail && towerReady()) towerTap(); };   // a keyboard press has no finger
+$('towerDrop').onpointerdown = () => { if (tower.turn !== myRole) towerShake(); else if (towerReady()) towerTap(); };
+$('towerDrop').onclick = ev => { if (ev.detail) return; if (tower.turn !== myRole) towerShake(); else if (towerReady()) towerTap(); };   // a keyboard press has no finger
 const towerUnit = () => $('towerCanvas').clientWidth / 100 * tz;   // screen pixels in one tower unit
 const rubber = (x, d) => x * d * .55 / (d + .55 * Math.abs(x));
 $('towerCanvas').onpointerdown = ev => {
@@ -2439,7 +3075,12 @@ $('towerCanvas').onclick = () => {   // a drag to look around never drops a box
   if (!towerReady()) return;
   if (p && towerNow() - p.at < .6) towerTap(p.x, p.v); else towerTap();
 };
-$('towerView').onclick = () => { tap(); twhole = !twhole; $('towerView').setAttribute('aria-pressed', twhole); };
+$('towerView').onclick = () => {   // one tap shows it all, the next tap goes back to the top
+  tap(); twhole = !twhole; tlook = 0; tlv = 0; tback = false;
+  const b = $('towerView'); b.setAttribute('aria-pressed', twhole);
+  b.innerHTML = twhole ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h6V3M21 9h-6V3M3 15h6v6M21 15h-6v6"/></svg>' : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>';
+  b.title = b.ariaLabel = twhole ? 'Back to the top' : 'Show the whole tower';
+};
 $('towerNew').onclick = () => {
   if (!confirm('Start a new tower? This one goes away on both phones. Your best height stays.')) return;
   const t = blankTower(tower.best), v = nextV(towerV);
@@ -2539,6 +3180,12 @@ function turnFx(title, line) {   // the other phone must feel that it is now the
   document.body.appendChild(n); setTimeout(() => n.remove(), 3700);
 }
 function setGame(g, fromPartner) { game = { ...g, score: g.score || game.score }; store.set('gameScore:' + room, game.score); keep('game', game); renderGame(); g = game; if (!fromPartner) { gameV = nextV(gameV); keep('gameV', gameV); send({ t: 'game', game: g, v: gameV }); } }
+function loserDare(loser) {   // the tower fell on their drop: both phones go to Truth or Dare and the loser gets a dare
+  openPanel('game');
+  if (game.pen || game.k) return;   // a card or forfeit is already on the table: it stays, the loser is next
+  setGame({ turn: loser, k: null, i: -1, score: game.score });
+  pickCard('dare');
+}
 function pickCard(k) {   // her turn: cards for her with the eggs; his turn: cards for him, far away
   if (game.pen || (k === 'truth' && game.score[game.turn].r >= MAX_TRUTHS)) return;
   const n = deck(game.turn, k).length, u = used(game.turn, k);
@@ -3464,6 +4111,9 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'draw') { gotDraw(m); theirFinger(m); }
   if (m.t === 'game') gotGame(m);
   if (m.t === 'tower') gotTower(m);
+  if (m.t === 'towerShake') gotShake(m);
+  if (m.t === 'ludo') gotLudo(m);
+  if (m.t === 'ludoReact' && panel === 'ludo') ludoReact(m.e, false);
   if (m.t === 'buzz') gotBuzz();
   if (m.t === 'buzzgot') notify(`${who()} got your 💗`);
   if (m.t === 'pushsub') gotPushSub(m);
@@ -3866,11 +4516,19 @@ for (const b of document.querySelectorAll('.copyReport')) b.onclick = async () =
 $('clearNo').onclick = () => { $('clearSheet').hidden = true; };
 $('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
 $('clearForm').onsubmit = ev => { ev.preventDefault(); $('clearSheet').hidden = true; clearChat(); };
-$('msgs').onclick = ev => {   // closed: opens the chat. Open: tapping a message answers it
-  const b = ev.target.closest('.bubble');
-  if ($('dock').classList.contains('open') && b) { const c = chat.find(x => x.id === b.dataset.id); if (c) { tap(); setReply(c); backToTyping(); } return; }
-  $('dock').classList.toggle('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock();
+let chatTapAt = 0, chatTapT = 0;
+const openChat = () => { if (chatIsOpen()) return; $('dock').classList.add('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
+$('msgs').onclick = ev => {   // one tap on a message answers it; a double tap anywhere makes the chat small again
+  const b = ev.target.closest('.bubble'), now = Date.now();
+  if (now - chatTapAt < 300) { clearTimeout(chatTapT); chatTapAt = 0; if (chatIsOpen()) { tap(); closeChat(); } return; }
+  chatTapAt = now;
+  chatTapT = setTimeout(() => {
+    const c = b && chat.find(x => x.id === b.dataset.id);
+    if (c) { tap(); openChat(); setReply(c); backToTyping(); return; }
+    openChat();
+  }, 260);
 };
+$('chatGrab').onclick = () => { tap(); chatIsOpen() ? closeChat() : openChat(); };
 $('replyX').onclick = () => { setReply(null); backToTyping(); };
 const chatIsOpen = () => $('dock').classList.contains('open');
 const closeChat = () => { $('dock').classList.remove('open'); fitDock(); };
@@ -3899,7 +4557,12 @@ $('nameForm').onsubmit = ev => {
 };
 if (!myName) $('nameSheet').hidden = false;
 new ResizeObserver(fitDock).observe($('dock'));
-new ResizeObserver(() => document.body.style.setProperty('--pin', 58 + $('player').offsetHeight + 'px')).observe($('player'));   // how much of the screen the pinned video takes
+new ResizeObserver(() => { document.body.style.setProperty('--pin', 58 + $('player').offsetHeight + 'px'); document.body.classList.toggle('vidOn', $('player').offsetHeight > 0); chatRoom(); }).observe($('player'));
+function chatRoom() {   // how tall the chat may grow in Watch when no video is up: everything between the panel and the message box
+  const r = $('watchPanel').getBoundingClientRect();
+  document.body.style.setProperty('--room', Math.max(80, innerHeight - Math.max(0, r.bottom) - $('dock').offsetHeight + ($('msgs') ? $('msgs').offsetHeight : 0) - 16) + 'px');
+}
+new ResizeObserver(chatRoom).observe($('watchPanel')); addEventListener('resize', chatRoom); addEventListener('scroll', chatRoom, { passive: true });   // how much of the screen the pinned video takes
 
 render(); renderChat();
 let parked = false;
@@ -3990,7 +4653,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', nm: myName, pv: panelV, gv: gameV, tv: towerV, pu: (partnerPush || '').slice(-16), wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
