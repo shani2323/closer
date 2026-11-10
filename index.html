@@ -124,6 +124,13 @@
                   -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
                   -webkit-mask-image: linear-gradient(transparent, #000 26px); mask-image: linear-gradient(transparent, #000 26px); }
   .dock-in { max-width: 480px; margin: 0 auto; }
+  body.chatTab .dock::before { top: -14px; background: var(--bg); -webkit-mask-image: none; mask-image: none; }   /* the Chat tab: the conversation fills everything under the tabs */
+  body.chatTab .dock.open .msgs { max-height: var(--chatRoom, 60dvh) !important; min-height: var(--chatRoom, 60dvh); overflow: auto !important; }
+  .e2e { display: block; align-self: center; max-width: 88%; margin: 2px auto 8px; padding: 6px 10px; border: 0; border-radius: 8px; background: rgba(255, 214, 10, .12); color: #e9d58c; font-family: inherit; font-size: 12px; line-height: 1.35; text-align: center; }
+  .dock:not(.open) .e2e { display: none; }
+  .float.mini { bottom: var(--b, 120px); font-size: var(--fs, 22px); animation-name: riseMini; }
+  @keyframes riseMini { from { transform: none; opacity: 0; } 15% { opacity: 1; } to { transform: translate(var(--dx, 0), -28vh) rotate(var(--r, 0deg)) scale(1.15); opacity: 0; } }
+  .float, .pop { will-change: transform, opacity; }
   .msgs { display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; padding: 4px 4px 8px; scrollbar-width: none;
           -webkit-mask-image: linear-gradient(transparent, #000 20px); mask-image: linear-gradient(transparent, #000 20px); }
   .msgs::-webkit-scrollbar { display: none; }
@@ -281,8 +288,9 @@
   .parkBox h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -.025em; }
   .parkBox p { margin: 0 0 14px; color: var(--label2); font-size: 15px; }
   .primary.alt { background: var(--fill2); }
-  .tabs { display: grid; grid-template-columns: repeat(6, auto); gap: 2px; margin: 0 0 12px; padding: 2px; border-radius: 10px; background: var(--fill); }
-  .tabs button { height: 34px; padding: 0 4px; border: 0; border-radius: 8px; background: none; font-size: 13px; font-weight: 500; letter-spacing: -.01em; }
+  .tabs { display: flex; flex-wrap: nowrap; overflow: hidden; gap: 2px; margin: 0 0 12px; padding: 2px; border-radius: 10px; background: var(--fill); }
+  .tabs button { flex: 1 1 auto; min-width: 0; height: 34px; padding: 0 clamp(2px, 1vw, 7px); white-space: nowrap; border: 0; border-radius: 8px; background: none; font-size: clamp(10.5px, 3.2vw, 13px); font-weight: 500; letter-spacing: -.02em; }   /* every section fits one row on any phone width */
+  @media (max-width: 340px) { .tabs .tdl { display: none; } }
   .tabs button[aria-selected=true] { background: #636366; font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .25); }
   body.panel .egg { display: grid; grid-template-columns: 44px 1fr; column-gap: 10px; align-items: center; text-align: left; padding: 8px 12px 8px 8px; border-radius: 16px; }
   body.panel .orb { grid-row: 1 / 4; width: 44px; height: 44px; margin: 0; }
@@ -539,11 +547,36 @@
   .replyBar div { flex: 1; min-width: 0; font-size: 13px; line-height: 1.3; }
   .replyBar b { display: block; color: var(--pink, #ff5c93); }
   .replyBar span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--label2); }
+  .replyBar .replyPin { width: auto; padding: 0 10px; border-radius: 15px; background: var(--fill); color: var(--label); font-size: 13px; font-weight: 600; }
   .replyBar button { flex: none; width: 30px; height: 30px; border: 0; border-radius: 50%; background: none; color: var(--label2); font-size: 15px; }
   .quote { display: block; margin: 0 0 4px; padding: 3px 8px; border-left: 3px solid rgba(255, 255, 255, .6); border-radius: 6px; background: rgba(0, 0, 0, .22); font-size: 13px; line-height: 1.3; }
   .quote b { display: block; font-size: 12px; }
   .quote span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .85; }
   .dock.open .bubble { cursor: pointer; }
+  .bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }   /* a long press opens Loveline's own menu, not the browser's */
+  .bubble.held { filter: brightness(1.25); }
+  .bubble.flash { animation: bflash 1.4s ease-out; }
+  @keyframes bflash { 0%, 35% { filter: brightness(1.7); } }
+  .pinMark { width: 11px; height: 11px; margin-right: 3px; vertical-align: -1px; opacity: .65; }
+  .pinBar { display: none; align-items: center; gap: 10px; margin: 0 4px 6px; padding: 7px 12px 7px 10px; border-radius: 12px; background: var(--fill); cursor: pointer; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .dock.open .pinBar:not([hidden]) { display: flex; }
+  .pinBar:active { background: var(--fill2); }
+  .pinTicks { display: flex; flex-direction: column; gap: 2px; align-self: stretch; }
+  .pinTicks:empty { display: none; }
+  .pinTicks i { flex: 1; width: 2px; border-radius: 1px; background: var(--label3); }
+  .pinTicks i.on { background: var(--label); }
+  .pinBar div { flex: 1; min-width: 0; font-size: 13px; line-height: 1.3; }
+  .pinBar b { display: block; font-weight: 600; color: var(--label); }
+  .pinBar span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--label2); }
+  .pinBar .pinMark { flex: none; width: 15px; height: 15px; margin: 0; opacity: .6; }
+  .msgMenu { position: fixed; z-index: 30; min-width: 200px; padding: 4px 0; border-radius: 14px; background: rgba(44, 44, 46, .9); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+             box-shadow: 0 12px 40px rgba(0, 0, 0, .55); transform-origin: var(--ox, 50%) var(--oy, 0); animation: menuIn .2s cubic-bezier(.2, .8, .2, 1); }
+  .msgMenu button { display: block; width: 100%; padding: 12px 16px; border: 0; background: none; color: var(--label); font-size: 16px; text-align: left; }
+  .msgMenu button + button { border-top: .5px solid rgba(255, 255, 255, .12); }
+  .msgMenu button:active { background: rgba(255, 255, 255, .12); }
+  @keyframes menuIn { from { opacity: 0; transform: scale(.85); } }
+  @media (prefers-reduced-motion: reduce) { .msgMenu { animation: none; } .bubble.flash { animation: none; outline: 2px solid var(--label3); } }
+  @media (prefers-reduced-transparency: reduce) { .msgMenu { background: #2c2c2e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
   @media (prefers-reduced-motion: reduce) { .orb, .toast, .switch::after { transition: none; } .float, .pop, .veil, .ring { display: none; } }
   @media (prefers-reduced-transparency: reduce) { .glass, .toast, .sheet form, .bubble { background: #1c1c1e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
 </style>
@@ -577,14 +610,15 @@
   function dots() { [...$l('lockDots').children].forEach((d, i) => d.classList.toggle('on', i < typed.length)); }
   function show(m, hint) {
     mode = m; typed = ''; dots();
-    $l('lock').hidden = false; $l('calc').hidden = m !== 'calc'; $l('lockPad').hidden = m === 'calc';
+    $l('lock').hidden = false; $l('calc').hidden = m !== 'calc'; $l('lockPad').hidden = m === 'calc'; behind(true);
     if (m === 'calc') { document.title = 'Calculator'; ss('lockDecoy', '1'); calcReset(); }
     else { document.title = title; $l('lockTitle').textContent = TITLES[m]; $l('lockHint').textContent = hint || (m === 'set1' ? 'You will need it every time Loveline opens.' : ''); }
     $l('lockCancel').textContent = m === 'enter' ? 'Forgot?' : 'Cancel';
     $l('lockCancel').style.visibility = m === 'enter' || (changing && m !== 'calc') ? 'visible' : 'hidden';   // only a change of passcode can be cancelled
     try { document.activeElement && document.activeElement.blur(); } catch {}
   }
-  function unlock() { mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); }
+  function behind(off) { for (const el of document.body.children) if (el.id !== 'lock' && el.tagName !== 'SCRIPT') el.inert = off; }   // nothing behind the lock can be tapped or reached
+  function unlock() { behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); }
   window.lockChange = () => { changing = true; show('change'); };
   window.lockReset = name => { if (mode !== 'enter' || Date.now() - askedAt > 120000) return; askedAt = 0; show('set1', `${name} said yes. Choose a new code.`); };   // the other phone approved
   async function full() {
@@ -646,10 +680,11 @@
   else if (ss('lockDecoy')) show('calc');
   else if (!(Date.now() - +(ss('lockSeen') || 0) < AWAY)) show('enter');   // a reload a moment ago (an update) stays open
   setInterval(() => { if (!document.hidden && !mode) ss('lockSeen', String(Date.now())); }, 1000);
-  const away = () => { if (!awayAt) awayAt = Date.now(); if (!mode) ss('lockSeen', String(Date.now())); };
+  const away = () => { if (!awayAt) awayAt = Date.now(); if (!mode && !document.hidden) ss('lockSeen', String(Date.now())); };   // a page closed while already in the background is not "just used"
   const back = () => { if (awayAt && Date.now() - awayAt >= AWAY && !mode) show(saved() ? 'enter' : 'set1'); awayAt = 0; };
   document.addEventListener('visibilitychange', () => document.hidden ? away() : back());
   addEventListener('pagehide', away); addEventListener('pageshow', e => { if (e.persisted) back(); });
+  document.addEventListener('DOMContentLoaded', () => { if (mode) behind(true); });   // the app below is only built after this runs
 })();
 </script>
 <main>
@@ -667,7 +702,7 @@
     <p class="note" id="heroText"></p>
     <div id="heroSlot"></div>
   </section>
-  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game">Truth or Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="ludo">Ludo</button><button role="tab" data-p="watch">Watch</button></nav>
+  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="chat" aria-selected="false">Chat</button><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game" aria-label="Truth or Dare"><span class="tdl">Truth or </span>Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="ludo">Ludo</button><button role="tab" data-p="watch">Watch</button></nav>
   <p class="warn" id="batWarn" role="alert" hidden></p>
   <section class="ask glass" id="alertAsk" hidden>
     <b>💗 Get Thinking of you alerts</b>
@@ -801,14 +836,16 @@
   </section>
 </main>
 
+<div class="msgMenu" id="msgMenu" role="menu" hidden></div>
 <div class="dock" id="dock"><div class="dock-in">
   <div class="chatTop"><button class="clearChat" id="clearChat" hidden>Clear chat</button><div class="chatWho"><b id="chatName"></b><small id="chatSeen"></small></div><button class="closeChat" id="closeChat">Close</button></div>
   <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
   <div class="peek" id="chatPeek"></div>
+  <div class="pinBar" id="pinBar" role="button" tabindex="0" hidden><span class="pinTicks" id="pinTicks"></span><div><b id="pinHead">Pinned message</b><span id="pinText"></span></div><svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg></div>
   <div class="msgs" id="msgs" aria-live="polite" title="Tap a message to answer it. Double tap to make the chat small."></div>
   <div class="typing" id="typing" hidden></div>
   <div class="quick glass" id="quick" hidden></div>
-  <div class="replyBar" id="replyBar" hidden><div><b id="replyWho"></b><span id="replyText"></span></div><button type="button" id="replyX" aria-label="Cancel the reply">✕</button></div>
+  <div class="replyBar" id="replyBar" hidden><div><b id="replyWho"></b><span id="replyText"></span></div><button type="button" class="replyPin" id="replyPin">Pin</button><button type="button" id="replyX" aria-label="Cancel the reply">✕</button></div>
   <div class="bar">
     <form class="compose glass" id="compose">
       <button type="button" class="icon" id="emojiBtn" aria-label="Emoji">
@@ -924,7 +961,7 @@ const SWAP = {   // a pattern meant for the other egg becomes this egg's closest
 };
 const fitMode = (kind, m) => SWAP[kind][m] || m;
 const HANDMADE = new Set(['sex', 'deep', 'fast', 'pound', 'shallow', 'grind', 'clit', 'nipple', 'suckle', 'bob', 'deepsuck', 'fastsuck', 'kiss', 'lick', 'licks', 'flutter', 'swirl']);   // these wander a little, the way a person does
-const EMOJI = ['😘', '😚', '😗', '😙', '🥰', '😊', '😄', '😂', '🤣', '🥲', '😢', '😭', '🥺', '😔', '💔', '🤗', '🫶', '❤️', '🔥', '🥵', '😈', '💋', '🫦', '👅', '💦', '🍑', '🍆', '🍒', '🌶️', '😏', '🤤', '😍', '❤️‍🔥', '💞', '🙈', '🥂', '🌹', '⛓️', '👀', '🖤', '💑'];
+const EMOJI = ['😘', '😚', '😗', '😙', '🥰', '😍', '😊', '😉', '😄', '😂', '🤣', '😋', '😜', '🤪', '😇', '🥳', '🥲', '🥹', '😢', '😭', '🥺', '😔', '😩', '😳', '🫣', '🤭', '🤫', '😴', '🙄', '😤', '😡', '🤯', '💔', '🤗', '🫂', '🫶', '❤️', '💕', '💖', '💗', '💓', '💘', '💝', '💞', '💌', '❤️‍🔥', '🔥', '🥵', '😈', '😏', '🤤', '💋', '🫦', '👅', '💦', '🍑', '🍆', '🍒', '🍓', '🌶️', '🍫', '🍷', '🥂', '☕', '🌹', '🌸', '🦋', '✨', '⭐', '🌙', '🌈', '🎉', '🎁', '💍', '📸', '🎶', '✈️', '🏠', '⛓️', '👀', '🙈', '🖤', '💑', '🤞', '🙏', '👏', '💪', '🤙', '👋', '💯'];
 const MAX_BEATS = 3.5, TICK_MS = 125, PARTNER_TIMEOUT_MS = 5000, DROP_STOP_MS = 30000;   // his settings keep running 30 s after his phone goes quiet
 
 const $ = id => document.getElementById(id);
@@ -1539,7 +1576,7 @@ let replyTo = null;   // the message being answered, shown above the box until s
 function setReply(c) {
   replyTo = c ? { id: c.id, x: c.text.slice(0, 100), w: c.who } : null;
   $('replyBar').hidden = !replyTo;
-  if (replyTo) { $('replyWho').textContent = c.who === 'me' ? 'You' : who(); $('replyText').textContent = replyTo.x; }
+  if (replyTo) { $('replyWho').textContent = c.who === 'me' ? 'You' : who(); $('replyText').textContent = replyTo.x; $('replyPin').textContent = pins[c.id] && pins[c.id].on ? 'Unpin' : 'Pin'; }
   fitDock();
 }
 const reOut = r => r && { id: r.id, x: r.x, w: r.w };   // sent as the sender sees it; the other phone swaps me and them
@@ -1550,7 +1587,7 @@ function sendChat(text) {
   const c = { id: b64url(rand(8)), who: 'me', text, at: Date.now(), st: 0, re: reOut(replyTo) };   // st: 0 waiting, 1 sent, 2 delivered, 3 seen
   if (!c.re) delete c.re;
   setReply(null);
-  chat.push(c); saveChat(); renderChat();
+  chat.push(c); saveChat(); renderChat(); chatFx(text);
   send({ t: 'msg', id: c.id, text, at: c.at, re: c.re }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
 }
 function cleanRe(r) {
@@ -1565,7 +1602,7 @@ function gotChat(m) {
     const re = cleanRe(m.re);
     chat.push({ id: m.id, who: 'them', text: m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}) });
     saveChat(); renderChat(); tap();
-    if (emojiOnly(m.text)) burst(m.text);
+    chatFx(m.text);
   }
   send({ t: 'ack', id: m.id, seen: !document.hidden });
 }
@@ -1587,27 +1624,139 @@ function renderChat() {
   const time = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   const quote = r => r ? `<span class="quote"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${esc(r.x)}</span></span>` : '';
-  $('msgs').innerHTML = chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) && !c.re ? 'big' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${esc(c.text)}<span class="meta">${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
+  $('msgs').innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) && !c.re ? 'big' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${esc(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
   $('msgs').scrollTop = $('msgs').scrollHeight;
   $('clearChat').hidden = !chat.length;
   $('chatGrab').hidden = !chat.length;
   fitDock();
 }
+const EMO_RE = /\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/gu;
+function miniBurst(text, from) {   // emoji inside a message: a few small ones float up from the bubble, nothing more
+  const list = [...new Set(text.match(EMO_RE) || [])].slice(0, 3);
+  if (!list.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const r = from ? from.getBoundingClientRect() : { left: innerWidth / 2 - 40, width: 80, top: innerHeight - 140 };
+  for (let i = 0; i < 7; i++) {
+    const n = document.createElement('div'); n.className = 'float mini'; n.textContent = list[i % list.length];
+    n.style.left = (r.left + Math.random() * Math.max(40, r.width) - 10) + 'px';
+    n.style.setProperty('--b', Math.max(40, innerHeight - r.top - 10) + 'px'); n.style.setProperty('--fs', (16 + Math.random() * 12) + 'px');
+    n.style.setProperty('--dx', (Math.random() * 60 - 30) + 'px'); n.style.setProperty('--r', (Math.random() * 40 - 20) + 'deg');
+    n.style.animationDelay = (i * .08) + 's'; n.style.animationDuration = (1.3 + Math.random() * .6) + 's';
+    document.body.appendChild(n); setTimeout(() => n.remove(), 2400);
+  }
+}
+const lastBubble = () => { const l = $('msgs').querySelectorAll('.bubble'); return l[l.length - 1]; };
+function chatFx(text) { if (emojiOnly(text)) burst(text); else if (EMO_RE.test(text)) { EMO_RE.lastIndex = 0; miniBurst(text, lastBubble()); } EMO_RE.lastIndex = 0; }
+let burstAt = 0;
 function burst(text) {   // full-screen moment: the emoji pops big in the middle, then a shower rises
+  const busy = Date.now() - burstAt < 1500; if (!busy) burstAt = Date.now();   // several at once: only the first gets the whole show
   const e = (text.match(/\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/u) || ['❤️'])[0];
   const add = (cls, txt, life) => { const n = document.createElement('div'); n.className = cls; n.textContent = txt; document.body.appendChild(n); setTimeout(() => n.remove(), life); return n; };
-  add('veil', '', 2900);
   add('pop', e, 2600);
-  for (const d of [0, .4]) add('ring', '', 2300).style.animationDelay = d + 's';   // heartbeat rings
+  if (busy) return;   // another moment is still playing: just the emoji
+  add('veil', '', 2900);
+  add('ring', '', 2300);   // one heartbeat ring
   if (navigator.vibrate) navigator.vibrate([70, 90, 140]);
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 14; i++) {   // 14 rising, not 30: the same moment for half the work
     const s = add('float', e, 4200);
     s.style.left = (2 + Math.random() * 92) + 'vw'; s.style.fontSize = (20 + Math.random() * 40) + 'px';
-    s.style.animationDelay = (.15 + i * .04) + 's'; s.style.animationDuration = (1.7 + Math.random() * 1.0) + 's';
+    s.style.animationDelay = (.15 + i * .07) + 's'; s.style.animationDuration = (1.7 + Math.random() * 1.0) + 's';
     s.style.setProperty('--dx', (Math.random() * 30 - 15) + 'vw'); s.style.setProperty('--r', (Math.random() * 60 - 30) + 'deg');
   }
 }
-function fitDock() { document.body.style.setProperty('--dock', $('dock').offsetHeight + 'px'); }
+// ---- pinned messages: as many as you like, on both phones, until one of you unpins (Clear chat keeps them)
+const PIN_SVG = '<svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg>';
+let pins = store.get('pins:' + room) || {}, pinAt = 0, menuFor = null, menuAt = 0, pressT = 0, pressAt = null;   // pins: id -> { x: text, w: whose, on, at: when changed }
+const pinList = () => Object.entries(pins).filter(([, p]) => p.on).sort((a, b) => b[1].at - a[1].at).map(([id, p]) => ({ id, ...p }));
+const pinLast = () => Math.max(0, ...Object.values(pins).map(p => p.at));
+function savePins() { store.set('pins:' + room, pins); renderPins(); renderChat(); }
+function setPin(c, on) {   // c: { id, x, w }; the newest change to each message wins on both phones
+  pins[c.id] = { x: c.x, w: c.w, on, at: Date.now() }; pinAt = 0; savePins(); tap();
+  send({ t: 'pin', id: c.id, x: c.x, w: c.w, on, at: pins[c.id].at });
+  notify(on ? 'Pinned for both of you.' : 'Unpinned for both of you.');
+}
+function gotPin(p) {   // from the other phone: "me" there is "them" here
+  if (!p || typeof p.id !== 'string' || !/^[\w-]{1,24}$/.test(p.id) || typeof p.x !== 'string' || !['me', 'them'].includes(p.w) || !Number.isFinite(p.at)) return false;
+  if (pins[p.id] && pins[p.id].at >= p.at) return false;
+  pins[p.id] = { x: p.x.slice(0, 200), w: p.w === 'me' ? 'them' : 'me', on: p.on === true, at: p.at };
+  return true;
+}
+function renderPins() {
+  const list = pinList(), bar = $('pinBar');
+  bar.hidden = !list.length;
+  if (list.length) {
+    pinAt %= list.length; const p = list[pinAt];
+    $('pinHead').textContent = list.length > 1 ? `Pinned message ${pinAt + 1} of ${list.length}` : 'Pinned message';
+    $('pinText').textContent = `${p.w === 'me' ? 'You' : who()}: ${p.x}`;
+    $('pinTicks').innerHTML = list.length > 1 ? list.slice(0, 5).map((_, i) => `<i class="${i === Math.min(pinAt, 4) ? 'on' : ''}"></i>`).join('') : '';
+  }
+  fitDock();
+}
+function jumpTo(id) {   // scroll the chat to a message and make it glow for a moment
+  const box = $('msgs'), el = box.querySelector(`.bubble[data-id="${CSS.escape(id)}"]`);
+  if (!el) { notify('That message is no longer in the chat, but it stays pinned.'); return; }
+  const br = box.getBoundingClientRect(), er = el.getBoundingClientRect();
+  box.scrollTo({ top: box.scrollTop + er.top - br.top - (br.height - er.height) / 2, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+function openMsgMenu(target, items) {   // a small menu next to what was held, growing out of it
+  const m = $('msgMenu'); m.innerHTML = '';
+  for (const [label, fn] of items) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = label; b.onclick = e => { e.stopPropagation(); closeMsgMenu(); fn(); }; m.appendChild(b); }
+  m.hidden = false;
+  const r = target.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight, below = r.bottom + 8 + mh < innerHeight - 8;
+  const top = below ? r.bottom + 8 : Math.max(8, r.top - 8 - mh), left = Math.min(innerWidth - mw - 12, Math.max(12, target.classList.contains('mine') ? r.right - mw : r.left));
+  m.style.top = top + 'px'; m.style.left = left + 'px';
+  m.style.setProperty('--ox', (r.left + r.width / 2 - left) + 'px'); m.style.setProperty('--oy', below ? '0px' : mh + 'px');
+  if (menuFor) menuFor.classList.remove('held');
+  menuFor = target; target.classList.add('held'); menuAt = Date.now();
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+function closeMsgMenu() { $('msgMenu').hidden = true; if (menuFor) menuFor.classList.remove('held'); menuFor = null; }
+function bubbleMenu(b) {
+  const c = chat.find(x => x.id === b.dataset.id); if (!c) return;
+  const on = !!(pins[c.id] && pins[c.id].on);
+  openMsgMenu(b, [
+    ['Reply', () => { openChat(); setReply(c); backToTyping(); }],
+    [on ? 'Unpin' : 'Pin', () => setPin({ id: c.id, x: c.text.slice(0, 200), w: c.who }, !on)],
+    ['Copy', () => { if (navigator.clipboard) navigator.clipboard.writeText(c.text).then(() => notify('Copied.')).catch(() => {}); }],
+  ]);
+}
+function holdToOpen(el, pick, open) {   // press and hold about half a second, without moving, opens the menu
+  el.addEventListener('pointerdown', ev => {
+    const t = pick(ev); if (!t) return;
+    clearTimeout(pressT); pressAt = { x: ev.clientX, y: ev.clientY };
+    pressT = setTimeout(() => { pressAt = null; open(t); }, 450);
+  });
+  el.addEventListener('pointermove', ev => { if (pressAt && Math.hypot(ev.clientX - pressAt.x, ev.clientY - pressAt.y) > 10) { clearTimeout(pressT); pressAt = null; } });
+  for (const e of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(e, () => { clearTimeout(pressT); pressAt = null; });
+  el.addEventListener('contextmenu', ev => { const t = pick(ev); if (!t) return; ev.preventDefault(); clearTimeout(pressT); pressAt = null; if (Date.now() - menuAt > 700) open(t); });   // Android's own long press opens Loveline's menu, never Chrome's
+}
+holdToOpen($('msgs'), ev => ev.target.closest('.bubble'), bubbleMenu);
+holdToOpen($('pinBar'), () => $('pinBar'), bar => {
+  const p = pinList()[pinAt]; if (!p) return;
+  openMsgMenu(bar, [['Go to message', () => jumpTo(p.id)], ['Unpin', () => setPin(p, false)]]);
+});
+$('pinBar').onclick = () => {   // jump to the pinned message; the next tap goes to the next one
+  if (Date.now() - menuAt < 700) return;
+  const list = pinList(); if (!list.length) return;
+  tap(); jumpTo(list[pinAt % list.length].id);
+  pinAt = (pinAt + 1) % list.length; renderPins();
+};
+addEventListener('pointerdown', ev => { if (!$('msgMenu').hidden && !ev.target.closest('#msgMenu')) closeMsgMenu(); }, true);
+$('msgs').addEventListener('scroll', () => { if (!$('msgMenu').hidden && Date.now() - menuAt > 300) closeMsgMenu(); }, { passive: true });
+async function securityCode() {   // the same 60 digits on both phones only if each holds the other's real key
+  const theirs = isRemote ? hostPair : pair;
+  if (!keys || !theirs) return null;
+  const both = [keys.pub, pubOnly(theirs.pub)].map(k => k.x + '.' + k.y).sort().join('|');
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(both)));
+  const parts = []; for (let i = 0; i < 12; i++) parts.push(String(((h[2 * i] << 8) | h[2 * i + 1]) % 100000).padStart(5, '0'));
+  return [0, 4, 8].map(i => parts.slice(i, i + 4).join(' ')).join('\n');
+}
+async function showCode() {
+  tap(); const c = await securityCode();
+  newAsk = null; $('newText').style.whiteSpace = 'pre-line';
+  newShow('End-to-end encrypted', c ? `Messages, drawings, videos and toy commands are locked with a key that only your two phones hold. The relay servers in between see only scrambled data.\n\nTo be sure nobody is in the middle, compare these numbers with ${who()}'s phone. If they match, you are safe.\n\n${c}` : `Your phones are not linked yet. The security code appears once they are.`, '', 'Done', () => {}, () => { newClose(); $('newText').style.whiteSpace = ''; });
+}
+function fitDock() { document.body.style.setProperty('--dock', $('dock').offsetHeight + 'px'); if (chatTab) chatTabRoom(); }
 
 // ---- touch pad: a finger drives Leo and Max live; lift it and they stop
 const PAD_DARES = [   // {S} her, {X} him, {A} Leo, {B} Max; she stays lying or sitting
@@ -1875,7 +2024,7 @@ function openPanel(p, fromPartner, quiet) {
   document.body.classList.toggle('panel', p !== 'play');
   document.body.classList.toggle('watching', p === 'watch');
   $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('towerPanel').hidden = p !== 'tower'; $('watchPanel').hidden = p !== 'watch'; $('ludoPanel').hidden = p !== 'ludo';
-  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p));
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === (chatTab ? 'chat' : p)));
   if (p === 'draw') sizeBoard();
   if (p === 'tower') towerOpen();
   if (p === 'ludo') ludoOpen();
@@ -1886,7 +2035,25 @@ function openPanel(p, fromPartner, quiet) {
 }
 const PANELS = { __proto__: null, draw: 'Draw', game: 'Truth or Dare', tower: 'Tower', watch: 'Watch', ludo: 'Ludo' };
 const okToLeave = p => panel !== 'watch' || p === 'watch' || !wstate.playing || confirm('Leave Watch? The video pauses on both phones.');
-document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { if (!okToLeave(b.dataset.p)) return; tap(); openPanel(b.dataset.p); });
+var chatTab = false;   // only on this phone: the other phone stays where it is
+function setChatTab() {
+  chatTab = true; document.body.classList.add('chatTab'); scrollTo({ top: 0 });
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === 'chat'));
+  openChat(); chatTabRoom(); $('msgs').scrollTop = $('msgs').scrollHeight;
+}
+function chatTabRoom() {   // the chat fills the space between the tabs and the bottom of the screen
+  if (!chatTab) return;
+  const top = $('tabs').getBoundingClientRect().bottom, rest = $('dock').offsetHeight - $('msgs').offsetHeight;
+  document.body.style.setProperty('--chatRoom', Math.max(160, innerHeight - Math.max(0, top) - rest - 18) + 'px');
+}
+addEventListener('resize', chatTabRoom);
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  if (b.dataset.p === 'chat') { tap(); if (!chatTab) setChatTab(); return; }
+  if (!okToLeave(b.dataset.p)) return;
+  tap();
+  if (chatTab) { closeChat(); if (b.dataset.p === panel) return; }
+  openPanel(b.dataset.p);
+});
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (okToLeave('play')) openPanel('play'); });
 
 // ---- drawing: both draw and erase on the same board at once; points are 0..1 so any screen size matches
@@ -1970,6 +2137,7 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   if (m.tv < towerV) send({ t: 'tower', tower, v: towerV });
   if (Number.isFinite(m.lv) && m.lv < ludoV) send({ t: 'ludo', l: ludo, v: ludoV });
   if ((myPush || '').slice(-16) !== (m.pu || '')) send({ t: 'pushsub', endpoint: myPush });
+  if (Number.isFinite(m.pk) && m.pk < pinLast()) send({ t: 'pins', all: pins });   // pins changed while the other phone was away
   if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
   if (Number.isInteger(m.lc) && m.lc !== libSize() && Date.now() - libSentAt > 5000) { libSentAt = Date.now(); sendLib(); }
 }
@@ -4089,7 +4257,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-021620';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-031408';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
@@ -4480,6 +4648,9 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'buzz') gotBuzz();
   if (m.t === 'buzzgot') notify(`${who()} got your 💗`);
   if (m.t === 'pushsub') gotPushSub(m);
+  if (m.t === 'pin' && gotPin(m)) { pinAt = 0; savePins(); notify(m.on ? `${who()} pinned a message.` : `${who()} unpinned a message.`); }
+  if (m.t === 'pins' && m.all && typeof m.all === 'object') { let got = false; for (const [id, p] of Object.entries(m.all).slice(0, 2000)) got = gotPin({ ...p, id }) || got; if (got) savePins(); }
+  if (m.t === 'pushdead') checkPush(true);   // the other phone found this phone's alert address dead: make a new one
   if (m.t === 'resync') resync();
   if (m.t === 'stroke' && m.s) gotWhole(m.s);
   if (m.t === 'vidfail') carryFor(m.id);
@@ -4769,18 +4940,25 @@ async function sendBuzz() {
   const btn = $('buzzBtn'), on = partnerOnline();
   if (btn.animate) btn.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' });
   if (on) send({ t: 'buzz' });
-  let woke = false;
+  let woke = false, why = partnerPush ? 'net' : 'off';
   if (partnerPush) {
     try {
       const r = await fetch(BUZZ, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: partnerPush }) }), a = await r.json();
       woke = a.status >= 200 && a.status < 300;
-      if (a.status === 404 || a.status === 410) { partnerPush = null; store.set('partnerPush:' + room, null); }
+      if (a.status === 404 || a.status === 410) { why = 'dead'; store.set('deadPush:' + room, partnerPush); partnerPush = null; store.set('partnerPush:' + room, null); send({ t: 'pushdead' }); render(); showAlerts(); }   // their phone's alert address no longer exists
+      else if (!woke) why = 'refused';
     } catch {}
   }
-  notify(on || woke ? 'Sent 💗' : `${who()} is away and has not turned on alerts, so this did not reach them.`);
+  notify(on || woke ? 'Sent 💗' : {
+    off: `${who()} is away and alerts are off on ${who()}'s phone, so this did not reach them. Ask ${who()} to open Loveline and turn alerts on.`,
+    dead: `${who()}'s phone stopped taking alerts (Chrome blocked them or they ran out), so this did not reach them. It mends itself the next time ${who()} opens Loveline.`,
+    net: 'Could not reach the alert service. Check your internet and try again.',
+    refused: 'The alert service turned this one down. Try again in a minute.',
+  }[why], 9000);
 }
 function gotPushSub(m) {
   if (m.endpoint !== null && !okEndpoint(m.endpoint)) return;
+  if (m.endpoint && m.endpoint === store.get('deadPush:' + room)) { send({ t: 'pushdead' }); return; }   // the same dead address again: ask for a new one
   partnerPush = m.endpoint; store.set('partnerPush:' + room, partnerPush);
   render(); showAlerts();
 }
@@ -4832,6 +5010,19 @@ async function alertsOn() {
   } catch { alertHelp('Alerts could not be turned on just now. Check your internet and try again.'); }
   showAlerts();
 }
+async function checkPush(renew) {   // alerts can stop without this phone knowing: Chrome blocked them, or the address ran out
+  if (!myPush || !navigator.serviceWorker || !('PushManager' in window) || !('Notification' in window)) return;
+  if (Notification.permission !== 'granted') {   // blocked: say so here, and tell the other phone the truth
+    myPush = null; store.set('myPush:' + room, null); send({ t: 'pushsub', endpoint: null }); showAlerts(); alertHelp(blockedText()); return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (sub && renew) { await sub.unsubscribe().catch(() => {}); sub = null; }
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(BUZZ_KEY) });   // allowed already, so no question pops up
+    if (sub.endpoint !== myPush) { myPush = sub.endpoint; store.set('myPush:' + room, myPush); send({ t: 'pushsub', endpoint: myPush }); showAlerts(); }
+  } catch {}
+}
 async function alertsOff() {
   try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch {}
   myPush = null; store.set('myPush:' + room, null); send({ t: 'pushsub', endpoint: null }); alertHelp(''); showAlerts();
@@ -4843,6 +5034,7 @@ document.querySelectorAll('.alertTest').forEach(b => b.onclick = () => { tap(); 
 $('alertAskGo').onclick = () => { tap(); alertsOn(); };
 $('alertAskNo').onclick = () => { alertAskLater = true; showAlerts(); };
 showAlerts();
+checkPush(); document.addEventListener('visibilitychange', () => { if (!document.hidden) checkPush(); });
 $('buzzBtn').onclick = () => sendBuzz();
 
 // ---- start
@@ -4856,7 +5048,15 @@ const keyboardUp = () => !window.visualViewport || innerHeight - visualViewport.
 document.addEventListener('pointerdown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) wasTyping = document.activeElement === $('text') && keyboardUp(); }, true);
 document.addEventListener('mousedown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) ev.preventDefault(); }, true);
 const backToTyping = () => { if (wasTyping) $('text').focus(); };
-$('quick').querySelectorAll('button').forEach(b => b.onclick = () => { sendChat(b.textContent); backToTyping(); });
+$('quick').querySelectorAll('button').forEach(b => b.onclick = () => {   // with words in the box: add it there; an empty box: send it on its own
+  const t = $('text'), e = b.textContent;
+  if (!t.value.trim()) { sendChat(e); backToTyping(); return; }
+  tap();
+  const a = t.selectionStart == null ? t.value.length : t.selectionStart, z = t.selectionEnd == null ? a : t.selectionEnd;
+  if (t.value.length - (z - a) + e.length > 500) return;
+  t.value = t.value.slice(0, a) + e + t.value.slice(z); t.setSelectionRange(a + e.length, a + e.length);
+  t.dispatchEvent(new Event('input')); backToTyping();
+});
 $('emojiBtn').onclick = () => { $('quick').hidden = !$('quick').hidden; fitDock(); backToTyping(); };
 $('text').oninput = () => {
   $('sendBtn').disabled = !$('text').value.trim();
@@ -4888,7 +5088,9 @@ $('clearForm').onsubmit = ev => { ev.preventDefault(); $('clearSheet').hidden = 
 let chatTapAt = 0, chatTapT = 0;
 const openChat = () => { if (chatIsOpen()) return; $('dock').classList.add('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
 $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap anywhere makes the chat small again
+  if (ev.target.closest('.e2e')) { showCode(); return; }
   const b = ev.target.closest('.bubble'), now = Date.now();
+  if (now - menuAt < 700) return;   // that was a long press: the menu is up
   if (now - chatTapAt < 300) { clearTimeout(chatTapT); chatTapAt = 0; if (chatIsOpen()) { tap(); closeChat(); } return; }
   chatTapAt = now;
   chatTapT = setTimeout(() => {
@@ -4898,11 +5100,25 @@ $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap a
   }, 260);
 };
 $('chatGrab').onclick = () => { tap(); chatIsOpen() ? closeChat() : openChat(); };
+let dockTapAt = 0;
+$('dock').addEventListener('click', ev => {   // a double tap on any empty part of the open chat makes it small again
+  if (!chatIsOpen() || ev.target.closest('#msgs, button, input, #quick, .pinBar, .replyBar')) return;
+  const now = Date.now();
+  if (now - dockTapAt < 300) { dockTapAt = 0; tap(); closeChat(); } else dockTapAt = now;
+});
 $('replyX').onclick = () => { setReply(null); backToTyping(); };
+$('replyPin').onclick = () => {   // pin or unpin the message being answered, then drop the reply
+  const c = replyTo && chat.find(x => x.id === replyTo.id); if (!c) return;
+  const on = !!(pins[c.id] && pins[c.id].on);
+  setReply(null); setPin({ id: c.id, x: c.text.slice(0, 200), w: c.who }, !on); backToTyping();
+};
 const chatIsOpen = () => $('dock').classList.contains('open');
-const closeChat = () => { $('dock').classList.remove('open'); fitDock(); };
+const closeChat = () => {
+  if (chatTab) { chatTab = false; document.body.classList.remove('chatTab'); document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === panel)); }
+  $('dock').classList.remove('open'); fitDock();
+};
 $('closeChat').onclick = () => { tap(); closeChat(); };
-addEventListener('pointerdown', ev => { if (chatIsOpen() && !ev.target.closest('#dock, .sheet')) closeChat(); });
+addEventListener('pointerdown', ev => { if (chatIsOpen() && !chatTab && !ev.target.closest('#dock, .sheet, #msgMenu')) closeChat(); });
 // The phone's Back button stays inside the app first: it closes the chat, then leaves the section, and only then leaves Loveline.
 const holdBack = () => addEventListener('pointerdown', () => history.pushState(null, ''), { once: true });   // browsers ignore this unless the person has touched the page
 holdBack();
@@ -4933,7 +5149,7 @@ function chatRoom() {   // how tall the chat may grow in Watch when no video is 
 }
 new ResizeObserver(chatRoom).observe($('watchPanel')); addEventListener('resize', chatRoom); addEventListener('scroll', chatRoom, { passive: true });   // how much of the screen the pinned video takes
 
-render(); renderChat();
+render(); renderChat(); renderPins();
 let parked = false;
 const bc = 'BroadcastChannel' in window ? new BroadcastChannel('closer') : null;
 function showPark(title, text, go, goFn, alt, altFn) {
@@ -5022,7 +5238,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16), wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16), pk: pinLast(), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
