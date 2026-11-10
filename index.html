@@ -2248,7 +2248,7 @@ const towerSway = t => tA * towerHt() + towerRock(t), towerWob = () => 0;   // t
 const towerTopX = t => towerBase() + towerSway(t);
 function towerStep(dt, count, now) {
   const k = Math.max(2.5, 16 - count * .25), eq = 16 * Math.max(-1.2, Math.min(1.2, ttip.lean)) * (.4 + .6 * Math.min(1, tower.sw)), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
-  const base = count < 5 ? 0 : count < 13 ? 1.2 : count < 23 ? 2.4 : 3.6;   // a straight tower sways a little from 5 floors, a bit more as it grows (the genre's own numbers)
+  const base = count < 5 ? 0 : Math.min(14, .6 * count);   // like the real game: from 5 floors the tower always sways, more as it grows (about half a box at 20+ floors)
   const want = base + 14 * towerHt() * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25)));   // plus the shared swing level and how crooked the top is
   tAmp += (want - tAmp) * Math.min(1, dt * 1.5);   // a perfect drop calms it over a second or two
   if (tcalm) { tA = eq; tV = 0; tAmp = 0; return; }
@@ -2259,7 +2259,8 @@ const TROPE = 40, TARM = TROPE + TH / 2;   // rope length, and from the pivot to
 const towerAmp = () => !tower.f ? 0 : (tower.f < 10 ? 30 : tower.f < 20 ? 40 : 45) * Math.PI / 180 + (towerV % 5) * Math.PI / 180;   // the first box hangs still; then 30, 40, 45 degrees (+0-4), wider as it grows, always inside the picture
 const towerPace = () => tower.f < 10 ? 5 : tower.f < 20 ? 4 : tower.f < 30 ? 3.5 : 3.7;   // one full swing in about 1.3 s, a little slower on the wide swings
 const towerAngle = t => towerAmp() * Math.sin(towerPace() * t);
-const towerSwingX = t => towerBase() + TARM * Math.sin(towerAngle(t));   // middle of the hanging box
+const TCRANE = 50;   // the crane stays put in the middle; the tower sways and drifts underneath it, so you time the drop against both
+const towerSwingX = t => TCRANE + TARM * Math.sin(towerAngle(t));   // middle of the hanging box
 const towerSwingV = t => TARM * Math.cos(towerAngle(t)) * towerAmp() * towerPace() * Math.cos(towerPace() * t);
 const towerBump = (el, big) => { if (!tcalm && el.animate) el.animate([{ transform: `scale(${big})` }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' }); };
 function renderTower() {
@@ -3088,7 +3089,7 @@ function drawTower() {
   const targetY = followY + tlook;
   tcamY += (targetY - tcamY) * Math.min(1, dt * (tdrag || tlv ? 30 : 5));
   const baseX = a ? a.base : towerBase();
-  tcamX += (baseX - tcamX) * Math.min(1, dt * 5);
+  tcamX += ((TCRANE + baseX) / 2 - tcamX) * Math.min(1, dt * 5);   // keep both the crane and the tower top in view
   const sx = x => (x - tcamX) * tz + 50, sy = y => Hu - TGROUND - (y - tcamY) * tz, hang = topY + 18;   // the next box always hangs just above the top floor, never beside lower ones
   tshake = Math.max(0, tshake - dt * 7);
   if (tower.c) { const left = comboLeft(); $('towerComboFill').style.transform = `scaleX(${left})`; $('towerCombo').classList.toggle('gone', !left); }   // the combo bar drains
@@ -3127,15 +3128,15 @@ function drawTower() {
   }
   if (a) {   // the box on its way down
     // let go from the rope: it falls straight down and turns level on the way
-    const p = Math.min(1, (now - a.t0) / TFALL), sn = Math.max(-1, Math.min(1, (a.xLand + a.rel - a.base) / TARM)), th0 = Math.asin(sn);
+    const p = Math.min(1, (now - a.t0) / TFALL), sn = Math.max(-1, Math.min(1, (a.xLand + a.rel - TCRANE) / TARM)), th0 = Math.asin(sn);
     const startY = hang + TH + TROPE - TARM * Math.cos(th0) - TH / 2, y = startY + (a.idx * TH - startY) * p * p;
     const rest = (1 - p) * (1 - p), off = a.kind === 'perfect' ? a.rel * (1 - p * p) : a.rel;
     towerFloor(c, sx(a.xLand + off), sy(y), a.o, a.kind === 'perfect', a.idx, 1, -th0 * rest);
-    const px = a.base, py = hang + TH + TROPE + (now - a.t0) * 40;   // the empty hook goes back up
+    const px = TCRANE, py = hang + TH + TROPE + (now - a.t0) * 40;   // the empty hook goes back up
     c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = .45; c.beginPath(); c.moveTo(sx(px), -2); c.lineTo(sx(px), sy(py)); c.stroke();
   } else if (now - tlanded > .3) {   // the next box hangs on the crane rope and swings
     const age = Math.min(1, (now - tlanded - .3) / .35), ease = 1 - (1 - age) * (1 - age), th = towerAngle(now), hx = towerSwingX(now);
-    const px = towerBase(), py = hang + TH + TROPE + (1 - ease) * 42 / tz, cy = py - TARM * Math.cos(th), by = cy - TH / 2;
+    const px = TCRANE, py = hang + TH + TROPE + (1 - ease) * 42 / tz, cy = py - TARM * Math.cos(th), by = cy - TH / 2;
     const ax = px + TROPE * Math.sin(th), ay = py - TROPE * Math.cos(th);   // where the rope holds the box
     const mine = tower.turn === myRole, o = tower.turn === 'host' ? 0 : 1;
     if (mine) {
