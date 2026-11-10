@@ -323,6 +323,9 @@
   .score small { display: block; font-size: 12px; color: var(--label2); font-variant-numeric: tabular-nums; }
   .score .ahead strong { color: var(--pink, #ff5c93); }
   .towerWrap { position: relative; overflow: hidden; border-radius: 16px; background: #241645; }
+  .towerNote { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 14px; background: rgba(28,12,52,.82); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: #fff; font: 600 14px/1.3 system-ui, sans-serif; text-align: center; pointer-events: none; animation: tnote 2.6s ease both; }
+  @keyframes tnote { 0% { opacity: 0; transform: translate(-50%, -6px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .towerNote { animation: none; } }
   #towerCanvas { display: block; width: 100%; height: clamp(260px, calc(100vh - 430px), 520px); height: clamp(260px, calc(100dvh - 430px), 520px); touch-action: none; }
   .towerHud { position: absolute; left: 10px; right: 10px; top: 8px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, .55); }
   .towerHud b { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
@@ -350,7 +353,6 @@
   #ludoRoll:active:not(:disabled) { transform: scale(.97); transition: transform 100ms ease-out; }
   .towerDrop:active:not(:disabled) { transform: scale(.97); transition: transform 100ms ease-out; }
   .towerDrop:disabled { opacity: 1; background: var(--fill); color: var(--label2); }
-  .towerDrop.shake:not(:disabled) { background: linear-gradient(135deg, #ff6b9d, #a65bff); }
   .hleft { display: flex; align-items: center; gap: 8px; min-width: 0; }
   #buzzBtn { flex: none; padding: 0; font-size: 19px; line-height: 1; }
   #buzzBtn:active { transform: scale(.92); transition: transform 100ms ease-out; }
@@ -578,12 +580,13 @@
     <p class="turn" id="towerTurn"></p>
     <div class="towerWrap">
       <canvas id="towerCanvas" aria-label="Our tower"></canvas>
+      <div class="towerNote" id="towerNote" hidden></div>
       <button class="towerView" id="towerView" aria-pressed="false" aria-label="Show the whole tower" title="Show the whole tower"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg></button>
       <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small><small class="tgoal" id="towerGoal"><span id="towerGoalTxt"></span><i><b id="towerGoalFill"></b></i></small><small class="tcombo" id="towerCombo" hidden><span id="towerComboTxt"></span><i><b id="towerComboFill"></b></i></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
-    <p class="gameRules">Take turns. You each have 3 lives. The first box hangs still; after that the crane swings faster and wider as the tower grows. Every floor brings 25 people, and each perfect drop in a row adds 25 more (50, 75, 100...). Perfect drops build straight up. From 5 floors, off-centre drops make the tower lean toward its heavy side and swing more; perfect drops straighten it, and 3 in a row stand it still. A box that misses falls off and costs you a life. When the tower leans too far, a bad drop slides off and costs a life too. The tower itself never falls and passes to the other one to fix. Lose all 3 lives and you get a dare. While the other one aims, you can shake the tower twice. Drag the tower to look up and down.</p>
+    <p class="gameRules">Take turns dropping boxes from the swinging crane. You each have 3 lives. The first box hangs still; the swing gets wider as the tower grows. Every floor brings 25 people, and each perfect drop in a row adds 25 more. Every 10 floors is a goal worth 100 people. Crooked drops make the tower lean and sway; perfect drops straighten it. A box that misses costs you a life, and so does a bad drop when the tower leans too far. The tower never falls and passes to the other one. Lose all 3 lives and you get a dare. Drag the tower to look up and down.</p>
   </section>
   <section class="panelBox glass" id="ludoPanel" hidden>
     <div class="panelHead"><b>Ludo</b><button class="done" data-close>Done</button></div>
@@ -2277,10 +2280,8 @@ function renderTower() {
   const goal = (Math.floor(floors / TGOAL) + 1) * TGOAL;
   $('towerGoalTxt').textContent = `🏁 ${goal - floors} to ${goal}`; $('towerGoalFill').style.transform = `scaleX(${(floors % TGOAL) / TGOAL})`;   // the next building height to reach
   $('towerCount').innerHTML = chip(myRole, 'You') + chip(otherRole, who());
-  const left = shakeTurn === towerV ? shakesLeft : 2;
-  $('towerDrop').disabled = !!tanim || !!tower.over || (!me && left <= 0);
-  $('towerDrop').textContent = tower.over ? 'Game over' : me ? 'Drop' : left > 0 ? `Shake it 〰️ (${left} left)` : `${who()}'s turn`;
-  $('towerDrop').classList.toggle('shake', !me);
+  $('towerDrop').disabled = !!tanim || !!tower.over || !me;
+  $('towerDrop').textContent = tower.over ? 'Game over' : me ? 'Drop' : `${who()} is building…`;
   $('towerNew').hidden = !floors;
 }
 function saveTower() { store.set('tower:' + room, { t: tower, v: towerV }); }
@@ -2311,6 +2312,11 @@ function standAt(i, x, y, r) {
   b.setNextKinematicTranslation({ x, y: y + TH / 2 }); b.setNextKinematicRotation(-r);
 }
 function standTrim(keep) { if (tworld) for (const [i, b] of tstand) if (!keep(i)) { tworld.removeRigidBody(b); tstand.delete(i); } }
+let tnoteT = 0;
+function towerNote(txt) {   // a clear message over the game, then it fades
+  const n = $('towerNote'); n.textContent = txt; n.hidden = false; n.style.animation = 'none'; void n.offsetWidth; n.style.animation = '';
+  clearTimeout(tnoteT); tnoteT = setTimeout(() => { n.hidden = true; }, 2700);
+}
 function towerBit(x, y, o) { if (tbits.length < 90) tbits.push({ x, y, vx: 0, vy: 0, life: 1, fade: 1, r: 1, col: '#fff', g: 0, ...o }); }
 function towerLand() {
   const a = tanim; if (!a) return;
@@ -2337,7 +2343,7 @@ function towerLand() {
     standTrim(i => i < tower.f);
     const down = a.slid ? Math.sign(ttip.lean) || side : side;   // a box on a tower that leans too far slides off down the lean
     fling({ x: a.xLand + a.rel, y: y + .2, o: a.o, p: 0, vx: down * (a.slid ? 30 : 4), vy: a.slid ? 4 : -6, rot: 0, vr: a.slid ? down * 1.4 : 0 });   // more than half over the edge: it tips over the corner and falls, or drops straight past if it missed completely
-    towerBit(a.xLand + a.rel, y + TH + 8, { txt: a.slid ? 'It leaned too far: the box slid off! -1 life 💔' : 'Missed: -1 life 💔', col: '#ff8a8a', vy: 12, fade: a.slid ? .7 : 1, size: a.slid ? 6 : 7 });
+    towerNote(`💔 ${a.o === (myRole === 'host' ? 0 : 1) ? 'You' : who()} lost a life: ${a.slid ? 'the tower leaned too far and the box slid off' : 'the box missed'}`);
     if (navigator.vibrate) navigator.vibrate(60);
     a.fell.forEach((k, i) => fling({ x: a.base + towerSway(tlanded), y: (a.idx - 1 - i) * TH, o: k[1], p: k[2], vx: (i % 2 ? 1 : -1) * (14 + i * 9), vy: 18 - i * 4, rot: 0, vr: (i % 2 ? 1 : -1) * 2.2 }));
     if (a.fell.length) { towerBit(a.base, a.idx * TH - 6, { txt: `Top ${a.fell.length} ${a.fell.length === 1 ? 'floor' : 'floors'} fell`, col: '#ffd0d0', vy: 9, fade: .7, size: 6 }); if (!tcalm) tshake = 3; if (navigator.vibrate) navigator.vibrate([90, 50, 90]); }
@@ -2377,7 +2383,6 @@ function applyTower(t, v, drop) {
   renderTower();
   return was;
 }
-let shakesLeft = 2, shakesGot = 0, shakeTurn = -1;
 // ---- Ludo for two
 const LG = 9, LN = 32, LRING = (() => {   // a 9 x 9 board: 32 squares round the edge, starting at her square, bottom middle
   const r = [], e = LG - 1, m = e / 2;
@@ -2981,26 +2986,6 @@ function drawBoardDie(c, W, cs, now) {
   const tv = ldie ? Math.pow(Math.max(0, 1 - (now - ldie.t0) / 1.3), 2) : ldrag ? 1 : 0;   // seen from the side while it rolls; flat from above once it stops, so only the rolled number shows
   drawCube(c, x, y - s * .1 * sc, s * sc, mmul(mmul(rotX(-.4 * tv), rotY(-.36 * tv)), M), LCOL[who] ? LCOL[who][1] : '#1c1c1e');
 }
-function towerKick(dir, mine) {   // a push from the side: the dropper has to time it again
-  if (!tcalm) { tV += dir * 24; tshake = 1.6; }
-  towerBit(tcamX, tcamY + 50, { txt: mine ? 'You shook it!' : `${who()} shook the tower!`, col: '#fff', vy: 6, fade: .8, size: 7 });
-  if (navigator.vibrate) navigator.vibrate(mine ? 30 : [40, 30, 80]);
-}
-function towerShake() {
-  if (tower.turn === myRole || tanim || !partnerOnline()) return;
-  if (shakeTurn !== towerV) { shakeTurn = towerV; shakesLeft = 2; }
-  if (shakesLeft <= 0) return;
-  shakesLeft--; tap();
-  const dir = Math.random() < .5 ? -1 : 1;
-  towerKick(dir, true); send({ t: 'towerShake', dir, v: towerV }); renderTower();
-}
-function gotShake(m) {   // only while it is my turn, at most twice per turn
-  if (m.v !== towerV || tower.turn !== myRole || ![1, -1].includes(m.dir)) return;
-  if (shakeTurn !== towerV) { shakeTurn = towerV; shakesGot = 0; }
-  if (shakesGot >= 2) return;
-  shakesGot++;
-  towerKick(m.dir, false);
-}
 function towerTap(force, swing) {
   if (tower.turn !== myRole || tanim || tower.over) return;
   const now = towerNow(), v0 = Number.isFinite(swing) ? swing : Number.isFinite(force) ? 0 : towerSwingV(now), x0 = Number.isFinite(force) ? force : towerSwingX(now), rel = x0 - towerTopX(now + TFALL), far = Math.abs(rel);
@@ -3138,8 +3123,8 @@ function drawTower() {
     const age = Math.min(1, (now - tlanded - .3) / .35), ease = 1 - (1 - age) * (1 - age), th = towerAngle(now), hx = towerSwingX(now);
     const px = TCRANE, py = hang + TH + TROPE + (1 - ease) * 42 / tz, cy = py - TARM * Math.cos(th), by = cy - TH / 2;
     const ax = px + TROPE * Math.sin(th), ay = py - TROPE * Math.cos(th);   // where the rope holds the box
-    const mine = tower.turn === myRole, o = tower.turn === 'host' ? 0 : 1;
-    c.globalAlpha = (mine ? 1 : .62) * ease;
+    const o = tower.turn === 'host' ? 0 : 1;
+    c.globalAlpha = ease;   // the other player's box is just as solid
     const far = 400, tx = ax - far * Math.sin(th), ty = ay + far * Math.cos(th), rw = Math.max(1.6, 1.3 * tz);   // like the real game: one long rope from high above, the box swings at its end
     c.lineCap = 'round'; c.strokeStyle = 'rgba(20,14,40,.85)'; c.lineWidth = rw + 1.4; c.beginPath(); c.moveTo(sx(tx), sy(ty)); c.lineTo(sx(ax), sy(ay)); c.stroke();
     c.strokeStyle = '#d9d2f5'; c.lineWidth = rw; c.stroke();
@@ -3177,8 +3162,8 @@ function towerLoop() { if (panel !== 'tower') { trun = 0; return; } trun = reque
 function towerOpen() { loadRapier(); renderTower(); tlast = towerNow(); tcamX = towerBase(); if (!trun) trun = requestAnimationFrame(towerLoop); }
 const towerReady = () => towerNow() - tlanded > .3;
 let tpress = null;
-$('towerDrop').onpointerdown = () => { if (tower.turn !== myRole) towerShake(); else if (towerReady()) towerTap(); };
-$('towerDrop').onclick = ev => { if (ev.detail) return; if (tower.turn !== myRole) towerShake(); else if (towerReady()) towerTap(); };   // a keyboard press has no finger
+$('towerDrop').onpointerdown = () => { if (towerReady()) towerTap(); };
+$('towerDrop').onclick = ev => { if (ev.detail) return; if (towerReady()) towerTap(); };   // a keyboard press has no finger
 const towerUnit = () => $('towerCanvas').clientWidth / 100 * tz;   // screen pixels in one tower unit
 const rubber = (x, d) => x * d * .55 / (d + .55 * Math.abs(x));
 $('towerCanvas').onpointerdown = ev => {
@@ -3938,6 +3923,17 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+const APP_V = 'v-20261110-213137';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+let avAt = 0;
+async function checkNewer() {
+  if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
+  try {
+    const t = await (await fetch('index.html?nc=' + Date.now(), { cache: 'no-store' })).text(), v = (t.match(/const APP_V = 'v-20261110-213137']+)'/) || [])[1];
+    if (v && v !== APP_V && (store.get('reloadedFor') !== v || Date.now() - (store.get('reloadedAt') || 0) > 600000)) { store.set('reloadedFor', v); store.set('reloadedAt', Date.now()); location.replace(location.pathname + '?u=' + Date.now() + location.hash); }
+  } catch {}
+}
+checkNewer(); setInterval(checkNewer, 60000);   // right when the app opens or refreshes, then every minute
+ document.addEventListener('visibilitychange', () => { if (!document.hidden) checkNewer(); });
 if (navigator.serviceWorker) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
   navigator.serviceWorker.addEventListener('controllerchange', () => applyState());
@@ -4305,10 +4301,10 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'pdare') gotPadDare(m);
   if (m.t === 'combo' && Number.isInteger(m.n) && m.n > 0) { notify(`${who()} tapped ${Math.min(m.n, 999)} in a row 🔥`); m.n >= 20 ? burst('🔥') : tap(); }
   if (m.t === 'draw') { gotDraw(m); theirFinger(m); }
+  if (m.t === 'facts' && typeof m.av === 'string' && m.av !== APP_V && Date.now() - avAt > 20000) { avAt = Date.now(); checkNewer(); }   // the other phone runs a different version: get the newest now, so both play the same game
   if (m.t === 'game') gotGame(m);
   if (m.t === 'cardBan') banCard(m.s, m.k, m.i);
   if (m.t === 'tower') gotTower(m);
-  if (m.t === 'towerShake') gotShake(m);
   if (m.t === 'ludo') gotLudo(m);
   if (m.t === 'newAsk') gotNewAsk(m);
   if (m.t === 'newAns') gotNewAns(m);
@@ -4858,7 +4854,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16), wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });

@@ -14,6 +14,7 @@ self.addEventListener('notificationclick', e => {
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => l.length ? l[0].focus() : self.clients.openWindow('./')));
 });
 self.addEventListener('fetch', e => {
+  if (e.request.mode === 'navigate') { e.respondWith(fetch(e.request, { cache: 'no-store' }).catch(() => fetch(e.request))); return; }   // every open or refresh loads the newest app from the server; the saved copy only when offline
   const m = new URL(e.request.url).pathname.match(/\/stream\/([\w-]+)\/([\w-]{12})$/);
   if (m && e.request.mode !== 'navigate') e.respondWith(serve(e.request, m[1], m[2]));
 });
