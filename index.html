@@ -146,6 +146,24 @@
   .clearChat { display: none; margin: 0 auto 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--red); font-size: 13px; font-weight: 600; }
   .dock.open .clearChat { display: block; }
   #clearSheet, #askSheet, #newSheet { z-index: 12; }
+  /* the end of a game: the loser and the winner each see where it goes next; taps pass through, so Stop always works */
+  .result { position: fixed; inset: 0; z-index: 13; display: grid; place-items: center; padding: 16px; pointer-events: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: resIn .35s ease-out; }
+  .result.lose { background: radial-gradient(circle at 50% 45%, rgba(255,45,85,.38), rgba(10,0,8,.78) 70%); }
+  .result.win { background: radial-gradient(circle at 50% 45%, rgba(255,200,80,.36), rgba(12,6,0,.74) 70%); }
+  .resCard { width: min(320px, 100%); padding: 26px 22px 22px; border-radius: 28px; text-align: center; background: rgba(28,22,40,.72); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+  .resIcon { font-size: 72px; line-height: 1; animation: resPop .6s cubic-bezier(.2,1.4,.4,1); }
+  .lose .resIcon { animation: resPop .6s cubic-bezier(.2,1.4,.4,1), resShake .5s .6s ease-in-out 2; }
+  .resCard h2 { margin: 12px 0 6px; font-size: 26px; letter-spacing: -.02em; }
+  .resCard p { margin: 0 0 16px; color: rgba(255,255,255,.78); font-size: 15px; }
+  .resBar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.14); overflow: hidden; }
+  .resBar i { display: block; height: 100%; transform: scaleX(0); transform-origin: left; border-radius: 3px; }
+  .lose .resBar i { background: linear-gradient(90deg, #ff6b9d, #ff2d55); }
+  .win .resBar i { background: linear-gradient(90deg, #ffe08a, #ffb347); }
+  .result[hidden] { display: none; }
+  @keyframes resIn { from { opacity: 0; } }
+  @keyframes resPop { from { transform: scale(.3); opacity: 0; } }
+  @keyframes resShake { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+  @media (prefers-reduced-motion: reduce) { .result, .resIcon, .lose .resIcon { animation: none; } }
   .newBar { height: 6px; margin: 4px 0 14px; border-radius: 3px; background: var(--fill); overflow: hidden; }
   .newBar i { display: block; height: 100%; background: var(--blue); transform-origin: left; transition: transform 100ms linear; }
   .primary.danger { background: var(--red); }
@@ -557,7 +575,7 @@
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
-    <p class="gameRules">Take turns. A perfect drop gives back a heart and keeps the tower still. Off-centre drops make it swing more, perfect drops calm it, and 3 perfect drops in a row stand it still. While the other one aims, you can shake the tower twice. Swing too far and the whole tower falls: whoever dropped last gets a dare. If the weight above a floor hangs past its edge, everything above it topples. After 3 misses the top 3 floors fall. Drag the tower to look up and down.</p>
+    <p class="gameRules">Take turns. You each have 3 lives. Perfect drops build straight up and win a life back. From 5 floors, off-centre drops make the tower lean toward its heavy side and swing more; perfect drops straighten it, and 3 in a row stand it still. A box that misses falls off and costs you a life. When the tower leans too far, a bad drop slides off and costs a life too. The tower itself never falls and passes to the other one to fix. Lose all 3 lives and you get a dare. While the other one aims, you can shake the tower twice. Drag the tower to look up and down.</p>
   </section>
   <section class="panelBox glass" id="ludoPanel" hidden>
     <div class="panelHead"><b>Ludo</b><button class="done" data-close>Done</button></div>
@@ -668,6 +686,7 @@
 </div></div>
 
 
+<div class="result" id="result" hidden aria-live="assertive"><div class="resCard"><div class="resIcon" id="resIcon"></div><h2 id="resTitle"></h2><p id="resText"></p><div class="resBar"><i id="resFill"></i></div></div></div>
 <div class="sheet" id="newSheet" hidden><form class="glass" onsubmit="return false">
   <div class="grabber"></div>
   <h2 id="newTitle"></h2>
@@ -1447,46 +1466,46 @@ function fitDock() { document.body.style.setProperty('--dock', $('dock').offsetH
 
 // ---- touch pad: a finger drives Leo and Max live; lift it and they stop
 const PAD_DARES = [   // {S} her, {X} him, {A} Leo, {B} Max; she stays lying or sitting
-  '{X}, {A} ko 10 second tak top par rakho. {S}, is dauran sirf {X} ka naam lo.',
-  '{S}, aankhen band karo. {X} dheere dheere upar le kar jayega. Jab bardasht na ho to "bas" kehna.',
-  '{X}, 15 taps karo. Har tap par {S} ek siskari bhare.',
-  '{S}, {B} ki suction ke saath apni sab se garam fantasy chat mein type karo. {X} har line par speed barhata jaye.',
-  '{X}, 30 second sirf neeche wale hissay mein khelo. {S} ko minnat karni hai ke upar le jao.',
-  '{S}, takiye ko kas ke pakro. {X} 20 second tak flutter par rakhega. Haath chhorna mana hai.',
-  '{X}, {S} jo lafz bole, usi rhythm mein tap karo.',
-  '{S}, jab {A} full par ho, {X} ko ek voice note bhejo.',
-  '{X}, {A} aur {B} ko baari baari chalao, 5 second ek, 5 second doosra. {S}, batao kaun zyada acha laga.',
-  '{S}, leti raho aur jab {X} upar jaye to kamar uthao, neeche aaye to wapas rakho.',
-  '{X}, pad par dil ki shape banao. {S}, mehsoos kar ke batao kya bana.',
-  '{S}, 1 minute tak awaaz nahi nikalni. {X} poori koshish karega ke nikal jaye.',
-  '{X}, teen baar upar le jao aur ain waqt par ruk jao. Chauthi baar {S} ki marzi.',
-  '{S}, chat mein ek line likho: kahan aur kaise chhuna chahti ho. {X} pad par bilkul waisa hi banaye.',
-  '{X}, 30 taps ek saath. Har 10 par {S} tumhara naam pukare.',
+  '{X}, {A} ko 10 second top par rakho. {S}, mic on rakho aur un 10 second mein sirf {X} ka naam lo.',
+  '{S}, mic on karo aur aankhen band karo. {X}, {A} ko dheere dheere upar le jao. {S}, jab bardasht na ho to mic par "bas" kaho; {X} usi waqt {A} ko 0 par le aaye.',
+  '{S}, mic on rakho. {X}, 15 taps karo. {S}, har tap par ek siskari bharo, 15 poori hone tak.',
+  '{X}, {B} chalate raho. {S}, apni sab se garam fantasy 4 lines mein chat mein type karo. {X}, har line aate hi {B} 10 barhao; chauthi line par dare poora.',
+  '{S}, mic on rakho. {X}, 30 second {A} sirf neeche ki speed par rakho. {S}, in 30 second mein mic par minnat karo ke upar le jao; {X} 30 second se pehle nahi maanega.',
+  '{S}, video call on karo aur takiya kas ke pakro. {X}, 20 second flutter chalao. {S}, camera par haath chhoota to {X} 10 second aur chalayega.',
+  '{S}, mic on karke 30 second dheere dheere {X} ka naam lo. {X}, har naam par usi rhythm mein ek tap karo.',
+  '{X}, {A} ko full par rakho jab tak {S} ka voice note na aa jaye. {S}, 10 second ka voice note bhejo: is waqt kaisa lag raha hai.',
+  '{X}, {A} aur {B} ko baari baari chalao, 5 second ek, 5 second doosra, 4 chakkar. {S}, phir chat mein us ka naam type karo jo zyada acha laga.',
+  '{S}, video call on karo. {X}, 30 second {A} upar neeche karo. {S}, jab {A} upar jaye to kamar uthao, neeche aaye to wapas rakho.',
+  '{X}, pad par chupke se ek shape banao: dil, star ya circle. {S}, mehsoos kar ke chat mein guess type karo. Galat ho to {X} dobara banaye; sahi guess par dare poora.',
+  '{S}, mic on rakho aur 1 minute tak awaaz nahi nikalni. {X}, poori koshish karo ke nikal jaye; mic par awaaz aayi to {S} haar gayi.',
+  '{X}, {A} ko teen baar top tak le jao aur pohanchte hi 0 par gira do. Chauthi baar {S} chat mein likhe "rukna" ya "mat rukna", aur {X} 20 second wahi kare.',
+  '{S}, chat mein ek line likho: kahan aur kaise chhuna chahti ho. {X}, line aate hi 30 second pad par bilkul waisa hi chalao.',
+  '{S}, mic on rakho. {X}, 30 taps karo aur har 10 taps ke baad 3 second ruko. {S}, har rukne par {X} ka naam pukaro, teen dafa.',
   '{X}, sab se neeche aur sab se dheeme se shuru karo. 1 minute mein top tak pohncho, beech mein rukna mana hai.',
-  '{X}, {S} ki saans ke saath chalo: saans andar to upar, saans bahar to neeche.',
-  '{S}, jab {A} aur {B} dono full par hon, {X} ke liye ek sexy line type karo.',
+  '{S}, mic on karke 1 minute gehri saans lo. {X}, saans andar to {A} upar, saans bahar to neeche, 1 minute tak.',
+  '{X}, {A} aur {B} dono full par rakho jab tak {S} ki line na aaye. {S}, chat mein {X} ke liye ek sexy line type karo.',
   '{X}, 20 second {A} tez aur {B} dheema, phir ulta. {S}, threesome ka maza lo.',
   '{S}, aankhen band karo, {X} 30 second {A} aur {B} dono chalayega. Phir jo mehsoos hua, 3 lafzon mein {X} ko type karo.',
-  '{X}, tab tak mat ruko jab tak {S} "please" na kahe.',
-  '{S}, pait ke bal let jao. {X} 30 second sirf {B} chalayega.',
+  '{S}, mic on rakho. {X}, {A} ko har 10 second 10 barhao. {S}, jab rukwana ho to mic par "please" kaho; sunte hi {X} {A} ko 0 par le aaye. Top tak pohnche to wahan 10 second rakh kar band.',
+  '{S}, pait ke bal let kar {X} ko ek photo bhejo. Photo aate hi {X} 30 second sirf {B} chalayega.',
   '{X}, apni ungli se pad par {S} ka naam likho, har harf ek lehar ki tarah.',
-  '{S}, chat mein ek line type karo tumhe ab kaisa chahiye. {X} bilkul waisa kare, ek lafz bhi idhar udhar nahi.',
-  '{X}, 5 lambi taps aur 5 chhoti. {S}, gin kar batao kitni thi.',
-  '{S}, jab {A} top par ho, awaaz mein ek chumma bhejo.',
+  '{S}, chat mein ek line type karo tumhe ab kaisa chahiye. {X}, 30 second bilkul waisa karo, ek lafz bhi idhar udhar nahi.',
+  '{X}, lambi aur chhoti taps mila kar kul 10 taps karo. {S}, gin kar chat mein likho kitni lambi thin aur kitni chhoti; {X} chat mein sahi ya galat likhe.',
+  '{X}, {A} ko top par rakho jab tak {S} ka voice note na aaye. {S}, voice note mein ek chumma bhejo.',
   '{X}, 45 second tak beech mein rakho, na upar na neeche. {S} ko tadpana hai.',
-  '{S}, jab tak {X} 20 taps poori na kar le, dono haath sar ke upar rakho.',
-  '{X}, top-right kone mein 5 second rakho, phir achanak ruk jao. {S} ki awaaz suno.',
-  '{S}, jab tak {B} chal raha ho, apni sab se garam yaad ka voice note record kar ke {X} ko bhejo. Beech mein rukna mana hai.',
-  '{X}, har 5 taps par {S} chat mein tumhe ek raaz type karegi.',
-  '{S}, {X} sirf tab barhaye jab tum "aur tez" kaho.',
+  '{S}, video call on karo aur dono haath sar ke upar rakho. {X}, 20 taps karo; 20 poori hone tak {S} ke haath neeche nahi aayenge.',
+  '{S}, mic on rakho. {X}, top-right kone mein 5 second rakho, phir achanak ruk jao aur {S} ki awaaz suno.',
+  '{X}, {B} chalate raho jab tak {S} ka voice note na aaye. {S}, apni sab se garam yaad ka voice note record kar ke {X} ko bhejo. Beech mein rukna mana hai.',
+  '{X}, 15 taps karo aur har 5 ke baad ruko. {S}, har rukne par chat mein {X} ko ek raaz type karo; teesre raaz par dare poora.',
+  '{X}, {A} dheema chalao. {S}, 1 minute tak jab bhi tez chahiye, chat mein "aur tez" type karo. {X}, sirf tab {A} 10 barhao.',
   '{X}, 1 minute bina ruke lehron mein khelo: upar neeche, upar neeche.',
-  '{S}, {A} aur {B} dono ke saath 30 second sirf {X} ka naam lo.',
+  '{S}, mic on rakho. {X}, 30 second {A} aur {B} dono chalao. {S}, un 30 second mic par sirf {X} ka naam lo.',
   '{X}, 10 second sab se tez flutter, phir 10 second khamoshi. Teen baar.',
   '{S}, 30 second pad tum sambhalo aur {X} ko dikhao tumhe kaisa pasand hai.',
-  '{X}, {S} ki pasandeeda speed dhoondo. Wo sirf "garam" ya "thanda" bolegi.',
-  '{S}, aakhri 10 second sabr karo. {X} ulti gintee karega aur zero par full.',
-  '{X}, {S} ke honton ka socho aur pad par dheere dheere chumne ki tarah taps karo.',
-  '{S}, {X} ko batao {A} ya {B}, aaj raat kaun tumhara pasandeeda hai. {X} usi ko 1 minute dega.',
+  '{S}, mic on rakho. {X}, {A} upar neeche kar ke {S} ki pasandeeda speed dhoondo. {S} sirf "garam" ya "thanda" bolegi, aur sahi milne par "yahi". {X}, phir 30 second wahi rakho.',
+  '{X}, chat mein ulti gintee bhejo: 3, 2, 1, 0. {S}, tab tak sabr karo. Zero aate hi {X} {A} aur {B} dono 10 second full par chalaye.',
+  '{X}, {S} ke honton ka socho aur pad par dheere dheere 20 taps karo, har tap ek chumme ki tarah.',
+  '{S}, chat mein {X} ko likho {A} ya {B}, aaj raat kaun tumhara pasandeeda hai. {X}, jawab aate hi usi ko 1 minute do.',
 ];
 let touchK = 'both', touchPrev = null, padDownAt = 0, padRelease = 0;
 const fingers = new Map();   // pointer id -> last point, so several fingers and quick taps all count
@@ -1935,78 +1954,78 @@ const CARDS = {
       'Aap kya chahti hain jo {X} zyada dafa kare, bed par ya bed se bahar?',
     ],
     dare: [
-      '{A} ko 40 par rakhwayein aur 1 minute tak bilkul hile baghair leti rahein.',
+      'Video call on karein, {A} ko 40 par rakhein ya {X} se rakhwayein, aur 1 minute camera ke saamne bilkul hile baghair leti rahein.',
       'Mic on karein. {X} 30 second {A} chalayega, aur is dauran aap sirf {X} ka naam le sakti hain, har dafa dheere.',
-      'Takiye ko apne darmiyan dabayein aur mic on karke 20 second {X} ko apni awaaz sunwayein.',
-      'Aankhein band karein, {X} {B} ko 20 second chalayega. Awaaz rokni mana hai.',
+      'Takiye ko apni taangon ke darmiyan dabayein aur mic on karke 20 second {X} ko apni awaaz sunwayein.',
+      'Mic on karein aur aankhein band karein. {X} {B} ko 20 second chalayega. Awaaz rokni mana hai.',
       '{X} ko voice note bhejein: "mujhe tum yahan chahiye", aur us jagah ka naam lein.',
       'Let kar apni ungliyon se apne honth chhuyein, 10 second ki video banayein aur {X} ko bhejein.',
-      '{X} ke liye ek sexy line type karein jab {A} 60 par ho.',
-      '{A} 50 par chalta rahega jab tak aap apni pasandeeda fantasy 5 jumlon mein chat mein type na kar lein.',
-      'Pait ke bal let jayein. {X} 30 second sirf {B} chalayega.',
-      'Jab tak {X} 10 tak gine, apne dono haath sar ke upar rakhein.',
-      '{X} {A} ko 3 dafa top tak le ja kar rokega. Har dafa usay ek "please" wala voice note bhejein, pehle se zyada tadap kar.',
+      '{A} ko 60 par rakhein ya {X} se rakhwayein, phir {X} ke liye chat mein ek sexy line type karein.',
+      '{A} ko 50 par rakhein ya {X} se rakhwayein; woh tab tak chalta rahega jab tak aap apni pasandeeda fantasy 5 jumlon mein chat mein type na kar lein.',
+      'Pait ke bal let kar {X} ko ek photo bhejein. Photo jaate hi {X} 30 second sirf {B} chalayega, aur aap mic on rakhein.',
+      'Video call on karein aur dono haath sar ke upar rakhein. {X} chat mein 1 se 10 tak gin kar bhejega; 10 aane tak haath neeche nahi.',
+      '{X} {A} ko 3 dafa top tak le ja kar 0 par rokega. Har dafa {A} rukte hi usay voice note bhejein: "please, dobara", har dafa pehle se zyada tadap kar. Teesre voice note par dare poora.',
       'Apne sab se sexy selfie angle mein pose karein, selfie lein aur {X} ko 3 lafzon ke saath bhejein.',
       'Mic on rakhein, {X} {A} aur {B} ko full karega 10 second. Jo nikle, nikle.',
-      '{B} chalta rahega jab tak aap 4 jumle chat mein type na kar lein: threesome mein doosra mard aap ke saath yeh karta hai.',
+      '{X} {B} chalata rahega jab tak aap 4 jumle chat mein type na kar lein: threesome mein doosra mard aap ke saath yeh karta hai.',
       'Video call par 30 second tak {X} ko dikhayein ke aap apni gardan par dheere se ungli kaise phirati hain.',
-      'Jab {A} 40 par chal raha ho, ek kahani ka voice note record karke {X} ko bhejein jis mein ek larki aur hum dono hon.',
-      '1 minute tak {X} jo bhi speed rakhe, aap shukriya kehti rahein.',
-      'Kamar uthayein jab {A} tez ho, neeche rakhein jab dheema ho. 30 second.',
-      'Leti leti apna ek kapra utaarein aur {X} ko type karein: "ek gaya".',
-      'Jab {A} 60 par ho, {X} ko voice note mein woh dirty lafz bhejein jo aap ne us se kabhi nahi kaha.',
-      'Jab {B} chal raha ho, {X} ko voice note bhejein: is suction se aap ko jo yaad aaya.',
+      '{A} ko 40 par rakhein ya {X} se rakhwayein, aur ek kahani ka voice note record karke {X} ko bhejein jis mein ek larki aur hum dono hon.',
+      'Mic on karein. 1 minute tak {X} jo bhi speed rakhe, har badlav par aap "shukriya" kahein.',
+      'Video call on karein. {X} 30 second {A} ko tez aur dheema karega; jab tez ho kamar uthayein, jab dheema ho neeche rakhein.',
+      'Leti leti apna ek kapra utaarein, us kapre ki photo {X} ko bhejein aur type karein: "ek gaya".',
+      '{A} ko 60 par rakhein ya {X} se rakhwayein, phir {X} ko voice note mein woh dirty lafz bhejein jo aap ne us se kabhi nahi kaha.',
+      '{X} se {B} chalwayein, aur jab woh chal raha ho, {X} ko voice note bhejein: is suction se aap ko jo yaad aaya.',
       'Pad ka control 30 second ke liye apne paas lein aur {X} ko dikhayein aap ko kaisa chahiye.',
-      'Takiye ko kas ke pakrein aur 20 second tak {X} ki marzi par chhor dein.',
-      'Ek voice note mein dheere se ek moan bhejein.',
+      'Video call on karein, takiya kas ke pakrein aur 20 second toys {X} ki marzi par chhor dein; aap khud kuch nahi badlengi.',
+      '{X} ko ek voice note mein dheere se ek moan bhejein.',
       '{X} ko 3 lines type karein: woh 3 cheezein jo aap us ke saath bed par karengi.',
-      'Aankhein band karke imagine karein {X} aap ke kaan mein bol raha hai, phir woh jumla type karein.',
-      'Apni thigh par ungliyan phirayein jab {X} {A} ko 50 par rakhe.',
+      'Aankhein band karke imagine karein {X} aap ke kaan mein bol raha hai, phir woh jumla {X} ko chat mein type karein.',
+      'Video call par 30 second apni thigh par ungliyan phirayein jab {X} {A} ko 50 par rakhe.',
       'Draw par do mardon ke saath apni pehli kiss ka scene banayein, stick figures bhi chalenge, aur {X} ko dikhayein.',
-      '1 minute tak sirf "aur" ya "bas" bolein. {X} usi hisaab se chalayega.',
-      'Mic on karke {X} ko apni saans sunwayein jab {B} chal raha ho.',
-      '{X} ke liye ek chhoti si poem banayein jis mein {A} aur {B} hon.',
+      'Mic on karein. 1 minute tak sirf "aur" ya "bas" bolein. {X} usi hisaab se chalayega.',
+      'Mic on karein. {X} 30 second {B} chalayega; is dauran {X} ko apni saans sunwayein.',
+      '{X} ke liye chat mein 4 line ki chhoti si poem type karein jis mein {A} aur {B} hon.',
       'Apni body ke sab se garam hissay par haath rakhein aur {X} ko us ka naam type karein.',
-      'Apne baal kholein, unhe khud pakrein aur {X} ko voice note bhejein: "aise pakro".',
-      '{X} ko ek kinky order dein jo woh agle 5 minute maane.',
-      'Draw mein mirror brush se ek larki aur apna threesome scene banayein. {X} 1 minute mein guess na kare to usay aap ki pasand ka pattern {A} par 2 minute chalana hoga.',
+      'Apne baal kholein, unhe khud pakar kar selfie lein aur {X} ko bhejein, saath voice note: "aise pakro".',
+      'Chat mein {X} ko ek kinky order type karein jo woh apne phone se kar sake: toys, voice note, photo ya Draw. Woh 5 minute ke andar poora kar ke dikhaye.',
+      'Draw mein mirror button on karke ek larki aur apna threesome scene banayein. {X} 1 minute mein chat mein sahi na likhe ke scene mein kaun kya kar raha hai, to usay aap ki pasand ka pattern {A} par 2 minute chalana hoga.',
       'Draw mein apni body ka khaka banayein aur hearts brush se 3 jagah nishaan lagayein jahan {X} ka haath chahiye. {X} har nishaan par {A} 10 second chalayega.',
-      '30 second tak ek lafz nahi: sirf awaaz, jab {X} pad chalaye.',
-      'Apne honth kaatein aur {X} ko us ka naam type karein jis ka soch rahi thin.',
-      '{X} se kahein ke woh pad par aap ka naam likhe, aur har harf mehsoos karein.',
+      'Mic on karein. 30 second tak ek lafz nahi, sirf awaaz, jab {X} pad chalaye.',
+      'Honth kaatte hue selfie lein aur {X} ko bhejein, saath us ka naam type karein jis ka soch rahi thin.',
+      'Chat mein {X} ko likhein: "pad par mera naam likho". Mic on rakhein aur jab tak naam poora na ho, har lehar par apni awaaz {X} ko sunwayein.',
       'Takiye ko {X} samjh kar gale lagayein, us ki photo lein aur chat mein ek line ke saath {X} ko bhejein.',
       'Woh pose banayein jis mein aap agli mulaqat par {X} ka intezar karengi, photo lein aur {X} ko bhejein.',
-      '{A} 30 par, {B} 70 par: 40 second tak sirf {X} ka shukriya ada karein.',
+      'Mic on karein. {A} 30 aur {B} 70 par khud rakhein ya {X} se rakhwayein; 40 second tak mic par sirf {X} ka shukriya ada karein.',
       'Ludo ki ek game khelein. Aap ki har goti katne par {X} {B} ko 10 second full par chalayega.',
       'Apni pasandeeda position mein let jayein aur 30 second mic par {X} ko apni saans sunwayein.',
       '{X} ko voice note bhejein: woh jumla jo aap oral ke dauran sunna chahti hain.',
-      'Aankhein band karke imagine karein do mard aap ko pyar kar rahe hain. {X} {A} par Storm aur {B} par Swirl 1 minute chalayega, aur mic on rahega.',
-      '20 second tak dheere dheere "{X}" kahein jab {A} upar ja raha ho.',
-      'Apne kandhe se kapra sarkayein aur {X} ko type karein: "ab tumhari baari".',
+      'Aankhein band karke imagine karein do mard aap ko pyar kar rahe hain. {X} {A} par Storm aur {B} par Circling tongue 1 minute chalayega, aur aap mic on rakhein.',
+      'Mic on karein. {X} 20 second {A} ko upar le jayega; is dauran dheere dheere "{X}" kahein.',
+      'Apne kandhe se kapra sarkayein, us ki photo {X} ko bhejein aur type karein: "ab tumhari baari".',
       'Watch mein {X} ki pasand ki ek chhoti video saath dekhein. {X} neeche wale controls se {A} aur {B} chalayega, aur video khatam hone tak aap rok nahi saktin.',
       'Tower ka ek round khelein. Haar gayin to {X} ko chat mein ek wada likh kar bhejein jo aap agli mulaqat mein poora karengi, jeet gayin to {X} aap ko likh kar dega.',
       '{X} ko voice note bhejein: 3 baatein jo aap ko us mein sab se zyada pasand hain.',
       '{X} ko voice note bhejein: woh lamha jab aap ko us se pyar hua.',
-      'Draw mein neon brush se apni perfect kiss banayein. {X} 3 guess mein na pehchane to usay aap ko 2 minute {B} par Kiss pattern dena hoga.',
+      'Draw mein neon brush se apni perfect kiss banayein, bina bataye ke kahan. {X} 3 guess mein chat mein sahi jagah na bataye to usay aap ko 2 minute {B} par "Kisses and a long suck" pattern dena hoga.',
       '{X} ke liye love song ki ek line ka voice note record karke chat mein bhejein.',
       '{X} ke liye abhi chat mein 3 line ka love letter likhein.',
       'Draw par dil banayein aur us mein woh jagah likhein jahan {X} aap ko kiss kare.',
-      'Takiye ko 1 minute gale lagayein, jaise woh {X} ho, phir voice note mein "miss you" kahein.',
-      'Voice note record karein jaise chhutti ki subah aap {X} ko jaga rahi hon.',
-      'Chat mein 3 jumlon mein {X} ke saath apni agli date plan karein, aur ek photo bhejein ke us din kya pehnengi.',
-      'Voice note record karein: aap {X} ke kapre ek ek karke utaar rahi hain.',
-      'Agli mulaqat ke pehle 5 minute 3 lines mein type karein.',
-      'Candle light wali shaam 4 lines mein likh kar bhejein, dinner se bed tak.',
+      'Takiye ko {X} samjh kar gale lagate hue selfie lein aur bhejein, phir voice note mein "miss you" kahein.',
+      'Voice note record karke {X} ko bhejein, jaise chhutti ki subah aap usay jaga rahi hon.',
+      'Chat mein 3 jumlon mein {X} ke saath apni agli date plan karein, aur us outfit ki photo bhejein jo us din pehnengi, gallery ya online se.',
+      'Voice note record karke {X} ko bhejein: aap us ke kapre ek ek karke utaar rahi hain.',
+      'Agli mulaqat ke pehle 5 minute 3 lines mein {X} ko chat mein type karein.',
+      'Candle light wali shaam 4 lines mein {X} ko chat mein likh kar bhejein, dinner se bed tak.',
       '{X} ko 3 alag tareeqon se "I love you" bhejein: ek voice note, ek Draw mein rainbow brush se, aur ek Thinking of you ke saath.',
       '{X} ki body ki woh cheez type karein jo aap ko bohat pasand hai, ek kiss emoji ke saath.',
       'Takiye par sar rakh kar {X} ke liye goodnight voice note record karein, jaise woh aap ke saath leta ho, aur bhej kar Thinking of you dabayein.',
-      'Mic on rakhein. {X} {A} ko dheema karega jab tak aap "bas" na kahein.',
-      'Apni collarbone par ungli phirayein aur {X} ko voice note bhejein: "yahan kiss karo".',
-      'Voice note record karein: {X} ko massage dena, shuru se aakhir tak.',
-      '5 jumlon mein {X} ke saath slow love making type karein, pehli kiss se aakhir tak.',
-      '{X} ko voice note bhejein: love making ke baad aap us par yahan sar rakh kar soyengi.',
+      'Mic on rakhein. {X} {A} ko top se dheere dheere neeche layega; jis speed par sab se acha lage, mic par "bas" kahein aur {X} 30 second wahi rakhe.',
+      'Apni collarbone par ungli rakh kar photo lein aur {X} ko bhejein, saath voice note: "yahan kiss karo".',
+      'Voice note record karke {X} ko bhejein: aap usay massage de rahi hain, shuru se aakhir tak.',
+      '{X} ko chat mein 5 jumlon mein us ke saath slow love making likhein, pehli kiss se aakhir tak.',
+      '{X} ko voice note bhejein: love making ke baad aap us par kahan sar rakh kar soyengi.',
       '{X} ki tasveer dekhein aur usay apna pehla khayal type karein.',
-      '1 minute tak mic on rakh kar {X} ke saath saans lein, bina kuch bole.',
+      'Video call on karke 1 minute {X} ke saath saans lein, bina kuch bole.',
       '{X} ko ek naya pyar ka naam type karein, ek dil ke saath.',
       'Apne future ke baare mein {X} ko ek khwahish likh kar bhejein.',
       '{X} ko kiss emoji bhejein aur us jagah ka naam likhein jahan woh lagi.',
@@ -2092,75 +2111,75 @@ const CARDS = {
     dare: [
       '{S} ko ek voice note bhejein: aap use abhi kahan choomna chahte hain.',
       'Pad par {S} ka naam likhein, har harf ek lehar ki tarah.',
-      '{A} ko 10 second top par rakhein, phir achanak ruk jayein. {S} ki awaaz suno.',
+      'Chat mein {S} ko likhein "mic on karo". Mic on hote hi {A} 10 second top par rakhein, phir achanak 0 par, aur {S} ki awaaz sunein.',
       '{S} ke liye 5 jumlon ki ek garam kahani type karein jis mein hum dono hon.',
-      '30 second tak sirf neeche wale hissay mein khelein. {S} ko beg karne dein.',
-      '{A} ko 40 par rakhein aur {S} ke liye ek dirty baat ka whisper voice note record karke bhejein. Woh sun le, tab tak {A} band nahi.',
+      'Chat mein {S} ko likhein "mic on karo". Phir 30 second {A} sirf neeche ki speed par rakhein; {S} mic par beg karegi, magar 30 second se pehle upar nahi.',
+      '{A} ko 40 par rakhein aur {S} ke liye ek dirty baat ka whisper voice note record karke bhejein. Jab tak {S} chat mein "sun liya" na likhe, {A} band nahi.',
       '{S} ko abhi apne kapron ki photo bhejein, sach sach, WhatsApp par.',
-      '{B} ko dheere se upar le jayein jab tak {S} "please" na kahe.',
-      'Ek threesome scene 4 jumlon mein type karein jis mein {S} aur do mard hon.',
-      '{S} ki saans ke saath pad chalayein: saans andar upar, bahar neeche. 1 minute.',
+      'Chat mein {S} ko likhein: "jab rukwana ho, please likhna". Phir {B} ko har 10 second 10 upar le jayein. {S} ka "please" chat mein aate hi {B} 0 par; top tak pohnche to 20 second rakh kar band karein.',
+      '{S} ko chat mein ek threesome scene 4 jumlon mein type karein jis mein woh aur do mard hon.',
+      'Chat mein {S} se mic on karwayein, phir 1 minute us ki saans ke saath {A} chalayein: saans andar upar, bahar neeche.',
       '{S} ko 3 lines type karein: woh 3 cheezein jo aap us ki body ke saath karenge.',
       'Ek larki ke saath {S} ka scene 3 jumlon mein chat mein type karein, aur har jumla bhejte hi {B} 10 second chalayein.',
-      'Pad par 20 taps karein. Har 5th tap par {S} ko chat mein ek raaz type karna hoga.',
-      '{S} ko ek kinky order dein jo woh agle 5 minute maane.',
+      'Pad par 20 taps karein aur har 5 ke baad ruk kar chat mein "raaz" likhein. {S} har dafa ek raaz type karegi; chautha raaz aane par dare poora.',
+      'Chat mein {S} ko ek kinky order type karein jo woh bed par leti leti kar sake aur photo, voice note ya mic se dikha sake. 5 minute mein poora.',
       '{A} tez aur {B} dheema 20 second, phir ulta. {S} ko jeetne wale ka naam type karna hoga.',
-      'Voice note mein {S} ka naam 5 dafa lein, har dafa gehra, aur har naam par {A} ek level upar le jayein.',
+      'Voice note mein {S} ka naam 5 dafa lein, har dafa gehra, aur har naam par {A} 10 upar le jayein.',
       '{S} ko voice note bhejein: agar paas hote to is waqt aap yeh kar rahe hote.',
-      '45 second tak beech mein rakhein, na upar na neeche. {S} ko tadpayein.',
-      '{S} ki pasandeeda speed dhoondein. Woh sirf "garam" ya "thanda" bolegi.',
+      '{A} ko 45 second tak beech mein rakhein, na upar na neeche. {S} ko tadpayein.',
+      'Chat mein {S} se mic on karwayein, phir {A} upar neeche kar ke us ki pasandeeda speed dhoondein. Woh sirf "garam" ya "thanda" bolegi, aur sahi milne par "yahi"; phir 30 second wahi rakhein.',
       'Pad par dil banayein, phir {S} ko ek emoji bhejna hoga jo us ka haal bataye.',
       '{S} ko ek wada likhein jo aap agli mulaqat mein poora karenge.',
-      'Teen dafa top tak le jayein aur ain waqt par ruk jayein. Chauthi dafa {S} ki marzi.',
+      '{A} ko teen dafa top tak le jayein aur pohanchte hi 0 par gira dein. Chauthi dafa {S} chat mein likhegi "rukna" ya "mat rukna"; 20 second wahi karein.',
       '{S} ko voice note bhejein: oral mein aap ko us se yeh chahiye.',
-      '10 second sab se tez flutter, phir 10 second khamoshi. Teen dafa.',
-      '{S} ke liye ek sexy poem banayein, 4 line.',
-      'Woh lafz {S} ko voice note mein bhejein jo aap ne kabhi bola nahi magar sochte hain, aur saath {B} 20 second Licking par chalayein.',
-      '{S} jo lafz bole, usi rhythm mein tap karein, 30 second.',
+      'Pad par 10 second sab se tez flutter, phir 10 second khamoshi. Teen dafa.',
+      '{S} ke liye chat mein 4 line ki sexy poem type karein.',
+      'Woh lafz {S} ko voice note mein bhejein jo aap ne kabhi bola nahi magar sochte hain, aur saath {B} 20 second Slow licks par chalayein.',
+      'Chat mein {S} se mic on karwayein. 30 second woh jo lafz bole, usi rhythm mein pad par tap karein.',
       'Draw mein 4 dabbon ki comic banayein: do mard hon to {S} ke saath aap ka scene. Stick figures bhi chalenge.',
-      '{S} se kahein woh apni pasandeeda position mein le jaye. Phir pad se usay rule karein.',
+      'Chat mein {S} se kahein ke apni pasandeeda position mein let kar photo bheje. Photo aate hi 1 minute pad se usay rule karein.',
       'Ek voice note mein {S} ke liye dheere se "meri ho" kahein.',
-      '{S} ko 1 minute ka kaam dein: sirf aap ka naam lena jab tak aap ruk na jayein.',
+      'Chat mein {S} ko likhein "mic on karo". Phir 1 minute {A} chalayein; is dauran woh mic par sirf aap ka naam le sakti hai.',
       '{A} ko {S} ki dhadkan ki tarah chalayein: dhak-dhak, 30 second.',
       '{S} ko us ki woh tasveer WhatsApp par bhejein jo aap ne sab se zyada dekhi hai.',
-      'Apni pasandeeda fantasy 5 jumlon mein chat mein type karein, aur har jumle ke saath {A} ko ek level upar le jayein.',
-      '{S} ko kahein ke woh ek kapra hataye, aur pad 20 second chalate rahein.',
-      '{S} ko 3 dafa tadpayein: upar le jayein, ruk jayein, aur "abhi nahi" kahein.',
-      'Ek larki aur {S} ka scene 4 jumlon mein type karein, jo aap plan karenge.',
-      '{S} ki kamar par haath imagine karein aur pad par wahi line kheenchein.',
-      'Mic on karke {S} ko apni saans sunwayein jab woh {B} mehsoos kar rahi ho.',
+      '{S} ko apni pasandeeda fantasy 5 jumlon mein chat mein type karein, aur har jumle ke saath {A} ko 10 upar le jayein.',
+      'Chat mein {S} ko likhein ke ek kapra hataye aur us ki photo bheje. Photo aane tak pad chalate rahein, phir 20 second aur.',
+      '{S} ko 3 dafa tadpayein: {A} upar le jayein, ruk jayein, aur har dafa chat mein "abhi nahi" type karein.',
+      '{S} ko chat mein 4 jumlon mein ek larki ke saath us ka scene type karein, jo aap plan karenge.',
+      '{S} ki kamar par haath imagine karein aur 20 second pad par wahi line kheenchein. Phir chat mein likhein haath kahan ruka.',
+      'Video call on karein, {B} chalayein aur 30 second {S} ko apni saans sunwayein.',
       '{S} ko voice note bhejein: us ka woh hissa jo aap sab se zyada miss karte hain.',
       '{S} ko 30 second ke liye control de dein aur dekhein woh kya chahti hai.',
       'Tower ka ek round khelein. Aap haarein to {S} ko apni ek sexy photo bhejein; {S} haare to usay 1 minute {B} full par milega.',
-      'Play mein ek pattern chunein aur {A} par 3 minute chalayein. {S} ko pattern ka naam guess karna hai; har galat guess par 1 minute aur.',
+      'Play mein ek pattern chunein aur {A} par 3 minute chalayein. {S} chat mein pattern ka naam guess karegi; har galat guess par 1 minute aur.',
       '{S} ko voice note bhejein: shower mein aap us ke saath yeh karenge.',
       'Watch mein ek gaana ya video saath lagayein aur poori video neeche wale controls se {A} aur {B} ko us ki beat par chalayein.',
       '{S} ko ek chhupi hui khwahish type karein jo aap ne aaj tak nahi kahi.',
       'Ludo ki ek game khelein. Jab bhi {S} chhakka laaye, {A} 15 second full par chalayein; aap haarein to {S} ko apni ek shirtless photo bhejein.',
-      '{S} ko kahein woh 30 second apni gardan par ungli phiraye, aur aap pad se us ke har move ke saath {A} upar neeche karein.',
+      'Video call on karein aur {S} se kahein 30 second apni gardan par ungli phiraye; aap pad se us ke har move ke saath {A} upar neeche karein.',
       '{S} ko ek date plan type karein jo bed par khatam ho.',
       '1 minute ka voice note record karein jo sirf aap ki awaaz se {S} ko garam kare. Bhejne ke baad {A} 10 second full par chalayein.',
       '{S} ko voice note bhejein: 3 baatein jo aap ko us mein sab se zyada pasand hain.',
       '{S} ko voice note bhejein: woh lamha jab aap ko us se pyar hua.',
-      'Draw mein neon brush se {S} ke saath apni perfect kiss banayein. {S} 3 guess mein pehchan le to usay 2 minute {B} par Kiss pattern milega.',
+      'Draw mein neon brush se {S} ke saath apni perfect kiss banayein, bina bataye ke kahan. {S} 3 guess mein chat mein sahi jagah bata de to usay 2 minute {B} par "Kisses and a long suck" pattern dein.',
       '{S} ke liye love song ki ek line ka voice note record karke chat mein bhejein.',
       '{S} ke liye abhi chat mein 3 line ka love letter likhein.',
       'Draw par dil banayein aur us mein woh jagah likhein jahan aap {S} ko kiss karenge.',
       '{S} ko voice note bhejein jaise woh abhi aap ki baahon mein ho.',
-      'Voice note record karein jaise chhutti ki subah aap {S} ko jaga rahe hon.',
+      'Voice note record karke {S} ko bhejein, jaise chhutti ki subah aap usay jaga rahe hon.',
       'Chat mein 3 jumlon mein {S} ke saath apni agli date plan karein, aur Draw mein us date ki ek chhoti si tasveer banayein.',
-      'Voice note record karein: aap {S} ke kapre ek ek karke utaar rahe hain.',
-      'Agli mulaqat ke pehle 5 minute 3 lines mein type karein.',
-      'Candle light wali shaam 4 lines mein likh kar bhejein, dinner se bed tak.',
+      'Voice note record karke {S} ko bhejein: aap us ke kapre ek ek karke utaar rahe hain.',
+      'Agli mulaqat ke pehle 5 minute 3 lines mein {S} ko chat mein type karein.',
+      'Candle light wali shaam 4 lines mein {S} ko chat mein likh kar bhejein, dinner se bed tak.',
       '{S} ko 3 alag tareeqon se "I love you" bhejein: ek voice note, ek Draw mein hearts brush se, aur ek {A} par Heartbeat pattern 30 second.',
       '{S} ki body ki woh cheez type karein jo aap ko bohat pasand hai, ek kiss emoji ke saath.',
       '{S} ke liye goodnight voice note record karein jaise woh aap ke saath leti ho, phir {A} par 1 minute Wave chala kar Thinking of you dabayein.',
       '{A} ko 1 minute sab se dheema chalayein aur saath {S} ko "kiss" type karte rahein.',
-      'Voice note record karein: {S} ko massage dena, shuru se aakhir tak.',
-      '5 jumlon mein {S} ke saath slow love making type karein, pehli kiss se aakhir tak.',
+      'Voice note record karke {S} ko bhejein: aap usay massage de rahe hain, shuru se aakhir tak.',
+      '{S} ko chat mein 5 jumlon mein us ke saath slow love making likhein, pehli kiss se aakhir tak.',
       '{S} ko voice note bhejein: love making ke baad aap usay aise baahon mein rakhenge.',
       '{S} ki tasveer dekhein aur usay apna pehla khayal type karein.',
-      '1 minute tak mic on rakh kar {S} ke saath saans lein, bina kuch bole.',
+      'Video call on karke 1 minute {S} ke saath saans lein, bina kuch bole.',
       '{S} ko ek naya pyar ka naam type karein, ek dil ke saath.',
       'Apne future ke baare mein {S} ko ek khwahish likh kar bhejein.',
       '{S} ko kiss emoji bhejein aur us jagah ka naam likhein jahan woh lagi.',
@@ -2172,7 +2191,8 @@ const myRole = isRemote ? 'remote' : 'host';
 // ---- Our Tower: we take turns dropping a floor. It stays saved on both phones and keeps growing.
 const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 2.2, TGROUND = 12, TOVER = .5, TCHECK = TKEEP;   // a box more than half off its floor falls; every floor carries the weight of all floors above it
 const TCOL = [['#ff6b9d', '#c2185b'], ['#7c86ff', '#3b3fc4']];   // her floors, his floors
-const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [], sw: 0, c: 0 });
+const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [], sw: 0, c: 0, lv: { host: TLIVES, remote: TLIVES }, over: null });
+const TLIVES = 3, TBREAK = 6, TRESULT_MS = 3600;   // each player's own lives (a missed box or a broken top costs the dropper one); shorter towers never break; how long the win/lose screen shows
 function cleanFloors(list, most) {
   if (!Array.isArray(list) || list.length > most) return null;
   const out = [];
@@ -2184,7 +2204,8 @@ function cleanTower(t) {
   const n = (x, top) => Number.isInteger(x) && x >= 0 && x <= top ? x : null, f = n(t.f, 1e6), hearts = n(t.hearts, 3), best = n(t.best, 1e6), b = cleanFloors(t.b, TKEEP);
   if (f === null || hearts === null || best === null || !b || b.length > f) return null;
   const sw = Number.isFinite(t.sw) ? Math.max(0, Math.min(1, t.sw)) : 0, c = n(t.c, 3) || 0;
-  return { f, hearts, turn: t.turn, best: Math.max(best, f), n: { host: n(t.n && t.n.host, 1e6) || 0, remote: n(t.n && t.n.remote, 1e6) || 0 }, b, sw, c };
+  const life = r => n(t.lv && t.lv[r], TLIVES) ?? TLIVES;
+  return { f, hearts, turn: t.turn, best: Math.max(best, f), n: { host: n(t.n && t.n.host, 1e6) || 0, remote: n(t.n && t.n.remote, 1e6) || 0 }, b, sw, c, lv: { host: life('host'), remote: life('remote') }, over: ['host', 'remote'].includes(t.over) ? t.over : null };
 }
 const savedTower = store.get('tower:' + room) || {};
 let tower = cleanTower(savedTower.t) || blankTower(), towerV = Number.isFinite(savedTower.v) ? savedTower.v : 0;
@@ -2216,7 +2237,7 @@ const towerHt = () => Math.max(0, Math.min(1, (tower.f - 4) / 20));   // a short
 const towerSway = t => (tA + towerRock(t)) * towerHt(), towerWob = () => 0;
 const towerTopX = t => towerBase() + towerSway(t);
 function towerStep(dt, count, now) {
-  const k = Math.max(2.5, 16 - count * .25), eq = 7 * Math.max(-1.2, Math.min(1.2, ttip.lean)), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
+  const k = Math.max(2.5, 16 - count * .25), eq = 16 * Math.max(-1.2, Math.min(1.2, ttip.lean)) * (.4 + .6 * Math.min(1, tower.sw)), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
   const want = 22 * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25)));   // the shared swing level, plus how crooked the top is, more for a taller tower
   tAmp += (want - tAmp) * Math.min(1, dt * 1.5);   // a perfect drop calms it over a second or two
   if (tcalm) { tA = eq; tV = 0; tAmp = 0; return; }
@@ -2232,17 +2253,18 @@ const towerSwingV = t => TARM * Math.cos(towerAngle(t)) * towerAmp() * towerPace
 const towerBump = (el, big) => { if (!tcalm && el.animate) el.animate([{ transform: `scale(${big})` }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' }); };
 function renderTower() {
   if (tanim) { $('towerDrop').disabled = true; return; }   // the numbers change when the box lands, not when it is let go
-  const me = tower.turn === myRole, floors = tower.f, hearts = Math.max(0, Math.min(3, tower.hearts));
+  const me = tower.turn === myRole, floors = tower.f, otherRole = myRole === 'host' ? 'remote' : 'host', lives = r => Math.max(0, Math.min(TLIVES, tower.lv[r]));
   $('towerFloors').textContent = floors;
   $('towerUnit').textContent = floors === 1 ? 'floor' : 'floors';
   $('towerBest').textContent = tower.best > floors ? `Best ${tower.best}` : '';
-  $('towerHearts').textContent = '❤️'.repeat(hearts) + '🤍'.repeat(3 - hearts);
-  $('towerTurn').textContent = (me ? 'Your turn. Tap when the box is over the tower.' : `${who()} is building…`);
-  const chip = (role, name) => `<span class="${role === 'host' ? 'her' : 'him'}">${esc(name)} ${tower.n[role]}</span>`, otherRole = myRole === 'host' ? 'remote' : 'host';
+  $('towerHearts').textContent = '❤️'.repeat(lives(myRole)) + '🤍'.repeat(TLIVES - lives(myRole));   // your own lives
+  const risk = floors >= TBREAK && tower.sw >= .7 ? ' Danger: it leans so far that a bad drop slides off and costs a life!' : tower.sw >= .4 ? ' It is leaning: perfect drops straighten it.' : '';
+  $('towerTurn').textContent = tower.over ? (tower.over === myRole ? 'Out of lives.' : `${who()} is out of lives.`) : (me ? 'Your turn. Tap when the box is over the tower.' : `${who()} is building…`) + risk;
+  const chip = (role, name) => `<span class="${role === 'host' ? 'her' : 'him'}">${esc(name)} ${'♥'.repeat(lives(role))}</span>`;
   $('towerCount').innerHTML = chip(myRole, 'You') + chip(otherRole, who());
   const left = shakeTurn === towerV ? shakesLeft : 2;
-  $('towerDrop').disabled = !!tanim || (!me && left <= 0);
-  $('towerDrop').textContent = me ? 'Drop' : left > 0 ? `Shake it 〰️ (${left} left)` : `${who()}'s turn`;
+  $('towerDrop').disabled = !!tanim || !!tower.over || (!me && left <= 0);
+  $('towerDrop').textContent = tower.over ? 'Game over' : me ? 'Drop' : left > 0 ? `Shake it 〰️ (${left} left)` : `${who()}'s turn`;
   $('towerDrop').classList.toggle('shake', !me);
   $('towerNew').hidden = !floors;
 }
@@ -2298,8 +2320,9 @@ function towerLand() {
     if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
   } else if (a.kind === 'miss') {
     standTrim(i => i < tower.f);
-    fling({ x: a.xLand + a.rel, y: y + .2, o: a.o, p: 0, vx: side * 4, vy: -6, rot: 0, vr: 0 });   // more than half over the edge: it tips over the corner and falls, or drops straight past if it missed completely
-    towerBit(a.xLand + a.rel, y + TH + 8, { txt: 'Missed', col: '#ff8a8a', vy: 12, fade: 1.2 });
+    const down = a.slid ? Math.sign(ttip.lean) || side : side;   // a box on a tower that leans too far slides off down the lean
+    fling({ x: a.xLand + a.rel, y: y + .2, o: a.o, p: 0, vx: down * (a.slid ? 30 : 4), vy: a.slid ? 4 : -6, rot: 0, vr: a.slid ? down * 1.4 : 0 });   // more than half over the edge: it tips over the corner and falls, or drops straight past if it missed completely
+    towerBit(a.xLand + a.rel, y + TH + 8, { txt: a.slid ? 'It leaned too far: the box slid off! -1 life 💔' : 'Missed: -1 life 💔', col: '#ff8a8a', vy: 12, fade: a.slid ? .7 : 1, size: a.slid ? 6 : 7 });
     if (navigator.vibrate) navigator.vibrate(60);
     a.fell.forEach((k, i) => fling({ x: a.base + towerSway(tlanded), y: (a.idx - 1 - i) * TH, o: k[1], p: k[2], vx: (i % 2 ? 1 : -1) * (14 + i * 9), vy: 18 - i * 4, rot: 0, vr: (i % 2 ? 1 : -1) * 2.2 }));
     if (a.fell.length) { towerBit(a.base, a.idx * TH - 6, { txt: `Top ${a.fell.length} ${a.fell.length === 1 ? 'floor' : 'floors'} fell`, col: '#ffd0d0', vy: 9, fade: .7, size: 6 }); if (!tcalm) tshake = 3; if (navigator.vibrate) navigator.vibrate([90, 50, 90]); }
@@ -2317,7 +2340,8 @@ function towerLand() {
     } else tap();
     if (tower.f && tower.f % 10 === 0) { burst('🏙️'); towerBit(a.land, y + TH + 16, { txt: `${tower.f} floors!`, col: '#fff', vy: 8, fade: .45, size: 9 }); }
   }
-  if (tower.turn === myRole && a.o !== (myRole === 'host' ? 0 : 1)) { towerBit(tcamX, tcamY + 44, { txt: 'Your turn', col: '#fff', vy: 3, fade: .55, size: 8 }); tap(); }
+  if (a.over) setTimeout(() => showResult(a.o ? 'remote' : 'host', 'Tower'), 1200);   // out of lives: the lose and win screens, then the punishment
+  else if (tower.turn === myRole && a.o !== (myRole === 'host' ? 0 : 1)) { towerBit(tcamX, tcamY + 44, { txt: 'Your turn', col: '#fff', vy: 3, fade: .55, size: 8 }); tap(); }
   renderTower();
   if (a.kind === 'collapse') towerBump($('towerFloors'), 1.5); else if (a.kind === 'miss' || a.kind === 'topple') towerBump($(a.kind === 'miss' ? 'towerHearts' : 'towerFloors'), 1.3); else { towerBump($('towerFloors'), 1.3); towerBump($('towerCount').children[a.o === (myRole === 'host' ? 0 : 1) ? 0 : 1], 1.18); }
 }
@@ -2330,7 +2354,7 @@ function applyTower(t, v, drop) {
     const below = kept ? tower.b[tower.b.length - 2] : top ? (drop.fell.length > 1 ? drop.fell[drop.fell.length - 2] : tower.b[tower.b.length - 1]) : drop.fell.length ? drop.fell[drop.fell.length - 1] : tower.b[tower.b.length - 1];
     const base = below ? below[0] : 50, xLand = base + towerSway(tl) + towerWob(tl);
     const idx = drop.kind === 'collapse' ? drop.fell.length - 1 : kept ? tower.f - 1 : top ? tower.f + drop.fell.length - 1 : tower.f + drop.fell.length;
-    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, combo: drop.combo, base, xLand, idx, land: xLand + (drop.kind === 'good' || top ? drop.rel : 0) };
+    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, combo: drop.combo, over: drop.over, slid: drop.slid, base, xLand, idx, land: xLand + (drop.kind === 'good' || top ? drop.rel : 0) };
   }
   renderTower();
   return was;
@@ -2553,7 +2577,7 @@ function applyLudo(l, v, act) {
     }
   }
   if (!l.win) lwin = null;
-  if (l.win && act && act.k === 'move' && !act.ex) { const at = (act.to - act.from) * 150 + 900; lwin = { r: l.win, t: performance.now() / 1000 + at / 1000 }; setTimeout(() => { if (l.win === myRole) burst('🏆'); lconfetti(); setTimeout(lconfetti, 700); if (navigator.vibrate) navigator.vibrate(l.win === myRole ? [80, 60, 80, 60, 260] : [200]); }, at); }   // the last piece lands on the heart, then the celebration
+  if (l.win && act && act.k === 'move' && !act.ex) { const at = (act.to - act.from) * 150 + 900; lwin = { r: l.win, t: performance.now() / 1000 + at / 1000 }; setTimeout(() => { lconfetti(); setTimeout(lconfetti, 700); }, at); setTimeout(() => showResult(other(l.win), 'Ludo'), at + 900); }   // the banner and confetti, then where it goes next: punishment for the loser, reward for the winner   // the last piece lands on the heart, then the celebration
   if (act && act.k === 'roll') lpop(act.d === 6 ? 'Six! 🎉' : `🎲 ${act.d}`, act.r || l.turn, -1, performance.now() / 1000 + 1.3);   // the number, in words too
   renderLudo();
 }
@@ -2952,40 +2976,42 @@ function gotShake(m) {   // only while it is my turn, at most twice per turn
   towerKick(m.dir, false);
 }
 function towerTap(force, swing) {
-  if (tower.turn !== myRole || tanim) return;
+  if (tower.turn !== myRole || tanim || tower.over) return;
   const now = towerNow(), v0 = Number.isFinite(swing) ? swing : Number.isFinite(force) ? 0 : towerSwingV(now), x0 = Number.isFinite(force) ? force : towerSwingX(now), rel = x0 - towerTopX(now + TFALL), far = Math.abs(rel);
   const me = myRole === 'host' ? 0 : 1, t = JSON.parse(JSON.stringify(tower));
   let kind = far <= TPERFECT ? 'perfect' : (!tower.f || far <= TW * TOVER) ? 'good' : 'miss';
-  let fell = [], combo = false;
-  if (kind === 'miss') {
-    t.c = 0;
-    t.hearts--;
-    if (t.hearts <= 0) { fell = t.b.splice(-3); t.f = Math.max(0, t.f - 3); t.hearts = 3; }
-  } else {
+  let fell = [], combo = false, slid = false;
+  t.lv = { ...t.lv };
+  if (kind === 'miss') { t.c = 0; t.lv[myRole]--; }   // the box falls off: the tower stays as it is, the dropper loses a life
+  else {
     t.f++; t.n[myRole]++;
     t.b.push([Math.round((towerBase() + (kind === 'perfect' ? 0 : rel)) * 10) / 10, me, kind === 'perfect' ? 1 : 0]);
     if (t.b.length > TKEEP) t.b.shift();
-    if (kind === 'perfect') t.hearts = Math.min(3, t.hearts + 1);
+    if (kind === 'perfect') t.lv[myRole] = Math.min(TLIVES, t.lv[myRole] + 1);   // a perfect drop wins a life back
     const ck = towerCrook(t.b), tall = .4 + .6 * Math.min(1, t.f / 30);   // how crooked the top is now, and how tall
-    t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 * (1 - .5 * ck) : (t.sw || 0) + (.06 + far / (TW * TOVER) * .3) * (1 + ck * 1.5 * tall)) * 100) / 100;   // off-centre adds swing, more on a crooked tall tower; perfect calms it, less when crooked
+    t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 * (1 - .5 * ck) : (t.sw || 0) + Math.min(.3, (.06 + far / (TW * TOVER) * .3) * (1 + ck * 1.5 * tall))) * 100) / 100;   // off-centre makes it lean and swing more (never more than .3 from one box); perfect steadies it
     t.c = kind === 'perfect' ? (t.c || 0) + 1 : 0;
-    if (t.c >= 3) { t.sw = 0; t.c = 0; combo = true; }   // three perfect drops in a row: the tower stands completely still again
-    const tip = towerTip(t.b);
-    if (t.sw >= 1) { kind = 'collapse'; fell = t.b.splice(0); t.f = 0; t.sw = 0; t.hearts = 3; }   // it swung too far: the whole tower comes down, and whoever dropped last loses
-    else if (tip.gives >= 0) { kind = 'topple'; fell = t.b.splice(tip.gives + 1); t.f -= fell.length; t.n[myRole]--; }   // the weight above a floor hangs over its edge: all of it slides off, the new box too
+    if (t.c >= 3) { t.sw = 0; t.c = 0; combo = true; }   // three perfect drops in a row: straight and still again
+    if (t.sw >= 1 && t.f > TBREAK) {   // bad drop after bad drop on a leaning, swinging tower: this box slides off; the tower stays and passes on
+      t.b.pop(); t.f--; t.n[myRole]--; t.sw = .95; t.c = 0; t.lv[myRole]--; kind = 'miss'; slid = true;
+    } else if (t.sw >= 1) t.sw = .95;   // a short tower always holds
   }
+  if (t.lv[myRole] <= 0) t.over = myRole;   // out of lives: this player lost the tower game
   t.best = Math.max(t.best, t.f); t.turn = myRole === 'host' ? 'remote' : 'host';
-  const drop = { rel: Math.round(rel * 10) / 10, v: Math.round(v0), kind, o: me, fell, combo }, v = nextV(towerV);
+  const drop = { rel: Math.round(rel * 10) / 10, v: Math.round(v0), kind, o: me, fell, combo, over: !!t.over, slid }, v = nextV(towerV);
   tback = true;   // dropping a box brings the camera back to the top
   applyTower(t, v, drop);
   send({ t: 'tower', tower: t, v, drop });
-  if (kind === 'collapse') setTimeout(() => loserDare(myRole), 3200);   // only the phone that dropped it deals the dare, so it happens once
+  if (t.over) setTimeout(() => {   // only the phone that lost deals the dare and starts a fresh tower, so both happen once
+    const nt = { ...tower, lv: { host: TLIVES, remote: TLIVES }, over: null }, nv = nextV(towerV); applyTower(nt, nv, null); send({ t: 'tower', tower: nt, v: nv });   // the same tower goes on, lives full again
+    loserDare(myRole);
+  }, TRESULT_MS + 1600);
 }
 function gotTower(m) {
   if (!(m.v > towerV)) return;
   const t = cleanTower(m.tower); if (!t) return;
   const d = m.drop, fell = d && cleanFloors(d.fell, TKEEP + 1);
-  const drop = d && ['perfect', 'good', 'miss', 'topple', 'collapse'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell, combo: d.combo === true } : null;
+  const drop = d && ['perfect', 'good', 'miss', 'topple', 'collapse'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell, combo: d.combo === true, over: d.over === true, slid: d.slid === true } : null;
   applyTower(t, m.v, drop);
   if (!drop) renderTower();
 }
@@ -3063,7 +3089,7 @@ function drawTower() {
   const gy = sy(0);
   if (gy < Hu + 2) { c.fillStyle = '#160d33'; c.fillRect(-6, gy, 112, Hu - gy + 6); c.fillStyle = '#ff6b9d'; c.fillRect(-6, gy, 112, .6); }
   towerStep(dt, count, now);
-  const top = towerSway(now), lean = i => top * (i + 1) / Math.max(1, count), tilt = 0;   // floors always stay upright; the higher a floor, the further it sways sideways
+  const top = towerSway(now), lean = i => top * (i + 1) / Math.max(1, count), tilt = Math.max(-.1, Math.min(.1, Math.atan2(top, Math.max(1, count) * TH)));   // one rigid stack leaning on its base: a short tower stays straight (top is 0 under 5 floors), never more than about 6 degrees
   const from = Math.max(0, Math.floor((tcamY - (TGROUND + 4) / tz) / TH) - 1);   // every floor still on screen, down to the bottom edge
   const fillX = shown[0] ? shown[0][0] : baseX;
   for (let i = from; i < count; i++) {
@@ -3218,7 +3244,7 @@ const PENALTIES = {
       '{X} ko 1 minute ki sexy voice note bhejein: aap us ke saath kya karna chahti hain.',
       '{X} ko Snapchat par apne kandhe ya collarbone ki photo bhejein.',
       '{X} ko WhatsApp par apni kamar ki photo bhejein, kapron ke saath.',
-      '{X} ko Snapchat par woh outfit dikhayein jo aap us ke liye pehnna chahti hain.',
+      '{X} ko Snapchat par us outfit ki photo bhejein, gallery ya online se, jo aap us ke liye pehnna chahti hain.',
       'Agle 2 minute {A} ka poora control {X} ko de dein.',
     ],
     spicy: [
@@ -3236,7 +3262,7 @@ const PENALTIES = {
       '{S} ko Snapchat par apni chest ki photo bhejein.',
       '{S} ko WhatsApp par gehri awaaz mein voice note bhejein: aap us ke baare mein kya soch rahe hain.',
       '{S} ko 1 minute ki sexy voice note bhejein: aap us ke saath kya karna chahte hain.',
-      '{S} ko Snapchat par apne haathon ki photo bhejein aur batayein woh kahan hote.',
+      '{S} ko Snapchat par apne haathon ki photo bhejein, caption mein likhein ke woh is waqt us ki body par kahan hote.',
       '{S} ko WhatsApp par apni body ki woh photo bhejein jo usay sab se pasand hai, kapron ke saath.',
       '{S} ko Snapchat par woh outfit dikhayein jo aap us ke liye pehnna chahte hain.',
       'Agle 2 minute {A} ka poora control {S} ko de dein.',
@@ -3299,6 +3325,19 @@ function turnFx(title, line) {   // the other phone must feel that it is now the
   document.body.appendChild(n); setTimeout(() => n.remove(), 3700);
 }
 function setGame(g, fromPartner) { game = { ...g, score: g.score || game.score }; store.set('gameScore:' + room, game.score); keep('game', game); renderGame(); g = game; if (!fromPartner) { gameV = nextV(gameV); keep('gameV', gameV); send({ t: 'game', game: g, v: gameV }); } }
+let resultTimer = 0;
+function showResult(loser, what) {   // shown on both phones: the loser sees their punishment coming, the winner sees the reward coming
+  const lost = loser === myRole, el = $('result'), fill = $('resFill');
+  el.className = 'result ' + (lost ? 'lose' : 'win');
+  $('resIcon').textContent = lost ? '💔' : '🏆';
+  $('resTitle').textContent = lost ? `You lost ${what}` : `You won ${what}!`;
+  $('resText').textContent = lost ? 'Your punishment is coming: get ready for a dare 😈' : `Your reward is coming: ${who()} gets a dare 😏`;
+  fill.style.transition = 'none'; fill.style.transform = 'scaleX(0)'; el.hidden = false; void fill.offsetWidth;
+  fill.style.transition = `transform ${TRESULT_MS}ms linear`; fill.style.transform = 'scaleX(1)';
+  if (navigator.vibrate) navigator.vibrate(lost ? [220, 90, 220] : [60, 40, 60, 40, 180]);
+  if (!lost) burst('🏆');
+  clearTimeout(resultTimer); resultTimer = setTimeout(() => { el.hidden = true; }, TRESULT_MS + 300);
+}
 function loserDare(loser) {   // the tower fell on their drop: both phones go to Truth or Dare and the loser gets a dare
   openPanel('game');
   if (game.pen || game.k) return;   // a card or forfeit is already on the table: it stays, the loser is next
