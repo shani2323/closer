@@ -327,6 +327,7 @@
   .towerHud { position: absolute; left: 10px; right: 10px; top: 8px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, .55); }
   .towerHud b { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .towerHud small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; }
+  .ludoWins { margin: -4px 0 8px; font-size: 13px; font-weight: 600; color: var(--label2, rgba(255,255,255,.7)); font-variant-numeric: tabular-nums; }
   #towerHearts { font-size: 17px; letter-spacing: 1px; }
   .towerView { position: absolute; left: 10px; bottom: 10px; width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 19px; background: rgba(20, 10, 40, .55); color: #fff; font: 600 13px/30px inherit;
                -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
@@ -571,15 +572,16 @@
     <div class="towerWrap">
       <canvas id="towerCanvas" aria-label="Our tower"></canvas>
       <button class="towerView" id="towerView" aria-pressed="false" aria-label="Show the whole tower" title="Show the whole tower"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg></button>
-      <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
+      <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small><small id="towerCombo"></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
-    <p class="gameRules">Take turns. You each have 3 lives. Perfect drops build straight up and win a life back. From 5 floors, off-centre drops make the tower lean toward its heavy side and swing more; perfect drops straighten it, and 3 in a row stand it still. A box that misses falls off and costs you a life. When the tower leans too far, a bad drop slides off and costs a life too. The tower itself never falls and passes to the other one to fix. Lose all 3 lives and you get a dare. While the other one aims, you can shake the tower twice. Drag the tower to look up and down.</p>
+    <p class="gameRules">Take turns. You each have 3 lives. People move in with every floor you add: more the straighter it lands, and perfect drops in a row bring 20, 40, then 60. Perfect drops build straight up and win a life back. From 5 floors, off-centre drops make the tower lean toward its heavy side and swing more; perfect drops straighten it, and 3 in a row stand it still. A box that misses falls off and costs you a life. When the tower leans too far, a bad drop slides off and costs a life too. The tower itself never falls and passes to the other one to fix. Lose all 3 lives and you get a dare. While the other one aims, you can shake the tower twice. Drag the tower to look up and down.</p>
   </section>
   <section class="panelBox glass" id="ludoPanel" hidden>
     <div class="panelHead"><b>Ludo</b><button class="done" data-close>Done</button></div>
     <p class="turn" id="ludoTurn" aria-live="polite"></p>
+    <p class="ludoWins" id="ludoWins"></p>
     <canvas id="ludoBoard" aria-label="Ludo board"></canvas>
     <div class="ludoDock"><button class="primary" id="ludoRoll">Roll</button><div class="lreact" id="lreact" aria-label="Reactions"><button type="button" data-e="😈" aria-label="Send 😈">😈</button><button type="button" data-e="😂" aria-label="Send 😂">😂</button><button type="button" data-e="😘" aria-label="Send 😘">😘</button><button type="button" data-e="🙈" aria-label="Send 🙈">🙈</button><button type="button" data-e="🔥" aria-label="Send 🔥">🔥</button></div></div>
     <button class="gameEnd" id="ludoNew" hidden>New game</button>
@@ -2191,7 +2193,7 @@ const myRole = isRemote ? 'remote' : 'host';
 // ---- Our Tower: we take turns dropping a floor. It stays saved on both phones and keeps growing.
 const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 2.2, TGROUND = 12, TOVER = .5, TCHECK = TKEEP;   // a box more than half off its floor falls; every floor carries the weight of all floors above it
 const TCOL = [['#ff6b9d', '#c2185b'], ['#7c86ff', '#3b3fc4']];   // her floors, his floors
-const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [], sw: 0, c: 0, lv: { host: TLIVES, remote: TLIVES }, over: null });
+const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [], sw: 0, c: 0, lv: { host: TLIVES, remote: TLIVES }, over: null, p: { host: 0, remote: 0 } });
 const TLIVES = 3, TBREAK = 6, TRESULT_MS = 3600;   // each player's own lives (a missed box or a broken top costs the dropper one); shorter towers never break; how long the win/lose screen shows
 function cleanFloors(list, most) {
   if (!Array.isArray(list) || list.length > most) return null;
@@ -2205,7 +2207,7 @@ function cleanTower(t) {
   if (f === null || hearts === null || best === null || !b || b.length > f) return null;
   const sw = Number.isFinite(t.sw) ? Math.max(0, Math.min(1, t.sw)) : 0, c = n(t.c, 3) || 0;
   const life = r => n(t.lv && t.lv[r], TLIVES) ?? TLIVES;
-  return { f, hearts, turn: t.turn, best: Math.max(best, f), n: { host: n(t.n && t.n.host, 1e6) || 0, remote: n(t.n && t.n.remote, 1e6) || 0 }, b, sw, c, lv: { host: life('host'), remote: life('remote') }, over: ['host', 'remote'].includes(t.over) ? t.over : null };
+  return { f, hearts, turn: t.turn, best: Math.max(best, f), n: { host: n(t.n && t.n.host, 1e6) || 0, remote: n(t.n && t.n.remote, 1e6) || 0 }, b, sw, c, lv: { host: life('host'), remote: life('remote') }, over: ['host', 'remote'].includes(t.over) ? t.over : null, p: { host: n(t.p && t.p.host, 1e9) || 0, remote: n(t.p && t.p.remote, 1e9) || 0 } };
 }
 const savedTower = store.get('tower:' + room) || {};
 let tower = cleanTower(savedTower.t) || blankTower(), towerV = Number.isFinite(savedTower.v) ? savedTower.v : 0;
@@ -2260,7 +2262,8 @@ function renderTower() {
   $('towerHearts').textContent = '❤️'.repeat(lives(myRole)) + '🤍'.repeat(TLIVES - lives(myRole));   // your own lives
   const risk = floors >= TBREAK && tower.sw >= .7 ? ' Danger: it leans so far that a bad drop slides off and costs a life!' : tower.sw >= .4 ? ' It is leaning: perfect drops straighten it.' : '';
   $('towerTurn').textContent = tower.over ? (tower.over === myRole ? 'Out of lives.' : `${who()} is out of lives.`) : (me ? 'Your turn. Tap when the box is over the tower.' : `${who()} is building…`) + risk;
-  const chip = (role, name) => `<span class="${role === 'host' ? 'her' : 'him'}">${esc(name)} ${'♥'.repeat(lives(role))}</span>`;
+  const chip = (role, name) => `<span class="${role === 'host' ? 'her' : 'him'}">${esc(name)} ${'♥'.repeat(lives(role))} · 👥${tower.p[role]}</span>`;
+  $('towerCombo').textContent = tower.c ? `Combo ${'●'.repeat(tower.c)}${'○'.repeat(3 - tower.c)}` : '';   // perfect drops in a row; the 3rd stands the tower still
   $('towerCount').innerHTML = chip(myRole, 'You') + chip(otherRole, who());
   const left = shakeTurn === towerV ? shakesLeft : 2;
   $('towerDrop').disabled = !!tanim || !!tower.over || (!me && left <= 0);
@@ -2338,6 +2341,7 @@ function towerLand() {
       for (let i = 0; i < 18; i++) towerBit(a.land, y + TH, { vx: (Math.random() - .5) * 60, vy: 12 + Math.random() * 34, g: 55, r: .7 + Math.random(), col: i % 2 ? '#ffe08a' : '#ff9ec4', fade: .9 });
       if (navigator.vibrate) navigator.vibrate([20, 40, 20]); else tap();
     } else tap();
+    if (a.g) towerBit(a.land + 16, y + TH + 2, { txt: `+${a.g} 👥`, col: '#bff3ff', vy: 10, fade: .9, size: 6 });   // people moving in
     if (tower.f && tower.f % 10 === 0) { burst('🏙️'); towerBit(a.land, y + TH + 16, { txt: `${tower.f} floors!`, col: '#fff', vy: 8, fade: .45, size: 9 }); }
   }
   if (a.over) setTimeout(() => showResult(a.o ? 'remote' : 'host', 'Tower'), 1200);   // out of lives: the lose and win screens, then the punishment
@@ -2354,7 +2358,7 @@ function applyTower(t, v, drop) {
     const below = kept ? tower.b[tower.b.length - 2] : top ? (drop.fell.length > 1 ? drop.fell[drop.fell.length - 2] : tower.b[tower.b.length - 1]) : drop.fell.length ? drop.fell[drop.fell.length - 1] : tower.b[tower.b.length - 1];
     const base = below ? below[0] : 50, xLand = base + towerSway(tl) + towerWob(tl);
     const idx = drop.kind === 'collapse' ? drop.fell.length - 1 : kept ? tower.f - 1 : top ? tower.f + drop.fell.length - 1 : tower.f + drop.fell.length;
-    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, combo: drop.combo, over: drop.over, slid: drop.slid, base, xLand, idx, land: xLand + (drop.kind === 'good' || top ? drop.rel : 0) };
+    tanim = { t0: now, kind: drop.kind, rel: drop.rel, v: drop.v, o: drop.o, fell: drop.fell, combo: drop.combo, over: drop.over, slid: drop.slid, g: drop.g, base, xLand, idx, land: xLand + (drop.kind === 'good' || top ? drop.rel : 0) };
   }
   renderTower();
   return was;
@@ -2382,8 +2386,12 @@ function lSpot(l) {   // a random empty ring square for a rocket or the skull: n
   const free = [...Array(LN).keys()].filter(a => !LSAFE.has(a) && !busy.has(a)), b = rand(2);
   return free[((b[0] << 8) | b[1]) % free.length];
 }
+function ludoWinsKept() {   // every Ludo win ever, kept on this phone too so a reset game never loses it
+  const w = store.get('ludoWins:' + room) || {}, n = x => Number.isInteger(x) && x >= 0 ? x : 0;
+  return { host: n(w.host), remote: n(w.remote) };
+}
 function blankLudo(turn, random) {
-  const l = { turn: turn || 'host', die: 0, rolled: false, pc: { host: [0, 0], remote: [0, 0] }, out: { host: [false, false], remote: [false, false] }, ev: { host: [false, false], remote: [false, false] }, sk: { host: 0, remote: 0 }, win: null, bo: [4, 20, 28], kl: [12, 30], cap: { host: false, remote: false } };
+  const l = { turn: turn || 'host', die: 0, rolled: false, pc: { host: [0, 0], remote: [0, 0] }, out: { host: [false, false], remote: [false, false] }, ev: { host: [false, false], remote: [false, false] }, sk: { host: 0, remote: 0 }, win: null, bo: [4, 20, 28], kl: [12, 30], cap: { host: false, remote: false }, wins: ludoWinsKept() };   // the win count carries over into every new game
   if (random) { l.bo = []; l.kl = []; for (let k = 0; k < 3; k++) l.bo.push(lSpot(l)); for (let k = 0; k < 2; k++) l.kl.push(lSpot(l)); }
   return l;
 }
@@ -2398,7 +2406,8 @@ function cleanLudo(l) {
   const kl = Array.isArray(l.kl) && l.kl.length === 2 && l.kl.every(a => sq(a) && !bo.includes(a)) && l.kl[0] !== l.kl[1] ? l.kl.slice() : [12, 30];
   const hits = r => l.sk && Number.isInteger(l.sk[r]) && l.sk[r] >= 0 && l.sk[r] <= 9 ? l.sk[r] : 0;   // how often a skull hit that side
   const evs = (r, o) => o.map((x, j) => x || !!(l.ev && Array.isArray(l.ev[r]) && l.ev[r][j] === true));   // been out before: no 6 needed to come out again
-  return { turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, ev: { host: evs('host', outs('host')), remote: evs('remote', outs('remote')) }, sk: { host: hits('host'), remote: hits('remote') }, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) } };
+  const won = r => l.wins && Number.isInteger(l.wins[r]) && l.wins[r] >= 0 && l.wins[r] < 1e6 ? l.wins[r] : ludoWinsKept()[r];
+  return { wins: { host: won('host'), remote: won('remote') }, turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, ev: { host: evs('host', outs('host')), remote: evs('remote', outs('remote')) }, sk: { host: hits('host'), remote: hits('remote') }, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) } };
 }
 const savedLudo = store.get('ludo:' + room) || {};
 let lrings = [], lflash = null, lhome = null, lwin = null, lkl = null, ludo = cleanLudo(savedLudo.l) || blankLudo(), ludoV = Number.isFinite(savedLudo.v) ? savedLudo.v : 0, lrun = 0, lhop = null, ldie = null, ltaps = [], lfly = null, lfx = [], lland = {}, lpops = [];
@@ -2474,6 +2483,7 @@ function ludoMove(i) {
   if (l.pc[me].every(q => q === LEND)) l.win = me;
   let lw = false;
   for (const r of [opp, me]) if (!l.win && !l.cap[r] && l.pc[other(r)].every(q => q >= LN)) { l.win = other(r); lw = true; }   // that side's path is locked and nothing is left on the ring to catch: the other side wins
+  if (l.win) l.wins = { ...l.wins, [l.win]: l.wins[l.win] + 1 };   // counted once, by the phone that made the winning move
   if (!l.win && !(l.die === 6 || caught)) l.turn = opp;
   if (killed) { l.kl[killed - 1] = -1; l.kl[killed - 1] = lSpot(l); killed = true; l.sk[me]++; if (l.sk[me] >= 2 && !l.cap[me]) { l.cap[me] = true; unlock = true; } }   // that skull jumps somewhere new; a second skull hit opens the heart path
   l.rolled = false;
@@ -2555,6 +2565,7 @@ function applyLudo(l, v, act) {
   if (l.kl.join() !== ludo.kl.join()) lkl = { from: ludo.kl.slice(), t: performance.now() / 1000 };
   if (l.bo.join() !== ludo.bo.join()) lbo = { from: ludo.bo.slice(), t: performance.now() / 1000 };
   ludo = l; ludoV = v; store.set('ludo:' + room, { l, v });
+  const kept = ludoWinsKept(); store.set('ludoWins:' + room, { host: Math.max(kept.host, l.wins.host), remote: Math.max(kept.remote, l.wins.remote) });
   if (act && panel === 'ludo' && !document.hidden) {
     if (act.k === 'roll') dieThrow(act.d, act.s, act.tv, act.p, act.r);
     if (act.k === 'roll' && act.gate) { lpop('🔓 Nobody can move: the path opens', act.r, -1, performance.now() / 1000 + 1.6); lrings.push({ cl: LLANE[act.r][0], col: '#ffd75e', t: performance.now() / 1000 + 1.6, sz: 2, fire: 'unlock' }); }
@@ -2585,6 +2596,7 @@ function renderLudo() {
   const me = ludo.turn === myRole, l = ludo, name = who();
   $('ludoTurn').textContent = l.win ? (l.win === myRole ? `You won! ${name} gets a dare.` : `${name} won. You get a dare.`)
     : lAim ? 'Pull back on the board and let go. Your piece goes the way you flick: hit theirs to catch it!' : lhit ? 'Hit!' : ldie ? (me ? 'Rolling…' : `${name} is rolling…`) : me ? (l.rolled ? `You rolled ${l.die}. Tap a glowing piece, or one moves by itself in a few seconds.` : l.out[myRole].some(Boolean) ? 'Your turn. Throw the die or shake your phone.' : 'Your turn. You need a 6 to bring a piece out.') : `${name} is playing…`;
+  $('ludoWins').textContent = `🏆 Wins: You ${l.wins[myRole]} · ${name} ${l.wins[other(myRole)]}`;
   const roll = $('ludoRoll');
   roll.disabled = !me || l.rolled || !!l.win || !!ldie;
   roll.textContent = l.win ? 'Game over' : lAim ? 'Flick it!' : ldie ? 'Rolling…' : me ? (l.rolled ? 'Pick a piece' : 'Roll') : `${name}'s turn`;
@@ -2980,7 +2992,7 @@ function towerTap(force, swing) {
   const now = towerNow(), v0 = Number.isFinite(swing) ? swing : Number.isFinite(force) ? 0 : towerSwingV(now), x0 = Number.isFinite(force) ? force : towerSwingX(now), rel = x0 - towerTopX(now + TFALL), far = Math.abs(rel);
   const me = myRole === 'host' ? 0 : 1, t = JSON.parse(JSON.stringify(tower));
   let kind = far <= TPERFECT ? 'perfect' : (!tower.f || far <= TW * TOVER) ? 'good' : 'miss';
-  let fell = [], combo = false, slid = false;
+  let fell = [], combo = false, slid = false, gain = 0;
   t.lv = { ...t.lv };
   if (kind === 'miss') { t.c = 0; t.lv[myRole]--; }   // the box falls off: the tower stays as it is, the dropper loses a life
   else {
@@ -2991,14 +3003,16 @@ function towerTap(force, swing) {
     const ck = towerCrook(t.b), tall = .4 + .6 * Math.min(1, t.f / 30);   // how crooked the top is now, and how tall
     t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 * (1 - .5 * ck) : (t.sw || 0) + Math.min(.3, (.06 + far / (TW * TOVER) * .3) * (1 + ck * 1.5 * tall))) * 100) / 100;   // off-centre makes it lean and swing more (never more than .3 from one box); perfect steadies it
     t.c = kind === 'perfect' ? (t.c || 0) + 1 : 0;
+    gain = kind === 'perfect' ? 20 * t.c : Math.max(2, Math.round(10 * (1 - far / (TW * TOVER))));   // people move in: more the straighter it lands, double and more for perfect drops in a row
+    t.p = { ...t.p, [myRole]: t.p[myRole] + gain };
     if (t.c >= 3) { t.sw = 0; t.c = 0; combo = true; }   // three perfect drops in a row: straight and still again
     if (t.sw >= 1 && t.f > TBREAK) {   // bad drop after bad drop on a leaning, swinging tower: this box slides off; the tower stays and passes on
-      t.b.pop(); t.f--; t.n[myRole]--; t.sw = .95; t.c = 0; t.lv[myRole]--; kind = 'miss'; slid = true;
+      t.b.pop(); t.f--; t.n[myRole]--; t.p = { ...t.p, [myRole]: t.p[myRole] - gain }; gain = 0; t.sw = .95; t.c = 0; t.lv[myRole]--; kind = 'miss'; slid = true;
     } else if (t.sw >= 1) t.sw = .95;   // a short tower always holds
   }
   if (t.lv[myRole] <= 0) t.over = myRole;   // out of lives: this player lost the tower game
   t.best = Math.max(t.best, t.f); t.turn = myRole === 'host' ? 'remote' : 'host';
-  const drop = { rel: Math.round(rel * 10) / 10, v: Math.round(v0), kind, o: me, fell, combo, over: !!t.over, slid }, v = nextV(towerV);
+  const drop = { rel: Math.round(rel * 10) / 10, v: Math.round(v0), kind, o: me, fell, combo, over: !!t.over, slid, g: kind === 'miss' ? 0 : gain }, v = nextV(towerV);
   tback = true;   // dropping a box brings the camera back to the top
   applyTower(t, v, drop);
   send({ t: 'tower', tower: t, v, drop });
@@ -3011,7 +3025,7 @@ function gotTower(m) {
   if (!(m.v > towerV)) return;
   const t = cleanTower(m.tower); if (!t) return;
   const d = m.drop, fell = d && cleanFloors(d.fell, TKEEP + 1);
-  const drop = d && ['perfect', 'good', 'miss', 'topple', 'collapse'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell, combo: d.combo === true, over: d.over === true, slid: d.slid === true } : null;
+  const drop = d && ['perfect', 'good', 'miss', 'topple', 'collapse'].includes(d.kind) && Number.isFinite(d.rel) && Math.abs(d.rel) < 1e4 && fell ? { rel: d.rel, v: Number.isFinite(d.v) ? Math.max(-200, Math.min(200, d.v)) : 0, kind: d.kind, o: d.o ? 1 : 0, fell, combo: d.combo === true, over: d.over === true, slid: d.slid === true, g: Number.isInteger(d.g) && d.g >= 0 && d.g < 1000 ? d.g : 0 } : null;
   applyTower(t, m.v, drop);
   if (!drop) renderTower();
 }
