@@ -168,6 +168,7 @@
   .newBar i { display: block; height: 100%; background: var(--blue); transform-origin: left; transition: transform 100ms linear; }
   .primary.danger { background: var(--red); }
   .ghost { width: 100%; height: 50px; margin-top: 8px; border: 0; border-radius: 14px; background: var(--fill); color: var(--blue); font-size: 17px; font-weight: 600; }
+  .ghost.danger { color: var(--red); }
   .bubble { max-width: 80%; padding: 6px 8px 5px 10px; border-radius: 10px 10px 10px 3px; font-size: 16px; line-height: 1.32; letter-spacing: -.01em;
             align-self: flex-start; overflow-wrap: anywhere; white-space: pre-wrap; background: #202c33; color: #e9edef; }
   .bubble.mine { align-self: flex-end; border-radius: 10px 10px 3px 10px; background: #005c4b; }
@@ -734,6 +735,7 @@
     <button class="primary">Save</button>
     <p class="sideNow" id="sideNow"></p>
     <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
+    <button type="button" class="ghost danger" id="resetAll">Reset all game scores</button>
   </form>
 </div>
 
@@ -2410,7 +2412,7 @@ function ludoWinsKept() {   // every Ludo win ever, kept on this phone too so a 
   return { host: n(w.host), remote: n(w.remote) };
 }
 function blankLudo(turn, random) {
-  const l = { turn: turn || 'host', die: 0, rolled: false, pc: { host: [0, 0], remote: [0, 0] }, out: { host: [false, false], remote: [false, false] }, ev: { host: [false, false], remote: [false, false] }, sk: { host: 0, remote: 0 }, win: null, bo: [4, 20, 28], kl: [12, 30], cap: { host: false, remote: false }, wins: ludoWinsKept() };   // the win count carries over into every new game
+  const l = { turn: turn || 'host', die: 0, rolled: false, pc: { host: [0, 0], remote: [0, 0] }, out: { host: [false, false], remote: [false, false] }, ev: { host: [false, false], remote: [false, false] }, sk: { host: 0, remote: 0 }, win: null, bo: [4, 20, 28], kl: [12, 30], cap: { host: false, remote: false }, wins: ludoWinsKept(), rs: +store.get('resetAt:' + room) || 0 };   // the win count carries over into every new game
   if (random) { l.bo = []; l.kl = []; for (let k = 0; k < 3; k++) l.bo.push(lSpot(l)); for (let k = 0; k < 2; k++) l.kl.push(lSpot(l)); }
   return l;
 }
@@ -2426,7 +2428,7 @@ function cleanLudo(l) {
   const hits = r => l.sk && Number.isInteger(l.sk[r]) && l.sk[r] >= 0 && l.sk[r] <= 9 ? l.sk[r] : 0;   // how often a skull hit that side
   const evs = (r, o) => o.map((x, j) => x || !!(l.ev && Array.isArray(l.ev[r]) && l.ev[r][j] === true));   // been out before: no 6 needed to come out again
   const won = r => l.wins && Number.isInteger(l.wins[r]) && l.wins[r] >= 0 && l.wins[r] < 1e6 ? l.wins[r] : ludoWinsKept()[r];
-  return { wins: { host: won('host'), remote: won('remote') }, turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, ev: { host: evs('host', outs('host')), remote: evs('remote', outs('remote')) }, sk: { host: hits('host'), remote: hits('remote') }, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) } };
+  return { rs: Number.isFinite(l.rs) && l.rs > 0 ? l.rs : 0, wins: { host: won('host'), remote: won('remote') }, turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, ev: { host: evs('host', outs('host')), remote: evs('remote', outs('remote')) }, sk: { host: hits('host'), remote: hits('remote') }, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) } };
 }
 const savedLudo = store.get('ludo:' + room) || {};
 let lrings = [], lflash = null, lhome = null, lwin = null, lkl = null, ludo = cleanLudo(savedLudo.l) || blankLudo(), ludoV = Number.isFinite(savedLudo.v) ? savedLudo.v : 0, lrun = 0, lhop = null, ldie = null, ltaps = [], lfly = null, lfx = [], lland = {}, lpops = [];
@@ -2584,6 +2586,7 @@ function applyLudo(l, v, act) {
   if (l.kl.join() !== ludo.kl.join()) lkl = { from: ludo.kl.slice(), t: performance.now() / 1000 };
   if (l.bo.join() !== ludo.bo.join()) lbo = { from: ludo.bo.slice(), t: performance.now() / 1000 };
   ludo = l; ludoV = v; store.set('ludo:' + room, { l, v });
+  if (l.rs > (+store.get('resetAt:' + room) || 0)) { wipeScores(l.rs); notify(`${who()} reset all game scores. Every game starts fresh.`); }   // the other phone pressed Reset, maybe while this one was away
   const kept = ludoWinsKept(); store.set('ludoWins:' + room, { host: Math.max(kept.host, l.wins.host), remote: Math.max(kept.remote, l.wins.remote) });
   if (act && panel === 'ludo' && !document.hidden) {
     if (act.k === 'roll') dieThrow(act.d, act.s, act.tv, act.p, act.r);
@@ -3202,6 +3205,20 @@ $('towerNew').onclick = () => { tap(); askNew('tower'); };
 const NEWG = {
   ludo: { what: 'This Ludo game ends on both phones.', done: () => !!ludo.win, reset: () => ludoCommit(blankLudo(other(ludo.win || myRole), true), null) },   // the loser, or the other one, starts
   tower: { what: 'This tower comes down on both phones. Your best height stays.', done: () => !tower.f, reset: () => { const t = blankTower(tower.best), v = nextV(towerV); t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v }); } }
+};
+function wipeScores(rs) {   // what only this phone keeps: every Ludo win and the tap streak best
+  store.set('resetAt:' + room, rs); store.set('ludoWins:' + room, { host: 0, remote: 0 });
+  tapBest = 0; store.set('tapBest', 0);
+  for (const k in usedCards) delete usedCards[k];
+}
+$('resetAll').onclick = () => {
+  tap();
+  if (!confirm('Reset all game scores? Tower, Ludo and Truth or Dare start fresh on both phones. The tower, best height, people, Ludo wins and points all go back to zero. This cannot be undone.')) return;
+  wipeScores(Date.now());
+  ludoCommit(blankLudo(ludo.turn), null);   // carries the reset to the other phone, now or when it comes back
+  const t = blankTower(0), v = nextV(towerV); t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v });
+  setGame({ turn: game.turn, k: null, i: -1, score: blankScore() });
+  $('nameSheet').hidden = true; notify('All game scores reset on both phones. Every game starts fresh.');
 };
 let newAsk = null, newTick = 0;
 function newShow(title, text, yes, no, onYes, onNo) {
@@ -3923,7 +3940,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261110-214209';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261110-232152';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
