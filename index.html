@@ -503,6 +503,32 @@
   .float { position: fixed; bottom: -60px; z-index: 8; font-size: 34px; pointer-events: none; animation: rise 2.4s cubic-bezier(.2, .6, .3, 1) both; }
   @keyframes rise { from { transform: none; opacity: 0; } 12% { opacity: 1; } to { transform: translate(var(--dx, 0), -95vh) rotate(var(--r, 0deg)) scale(1.3); opacity: 0; } }
   [hidden] { display: none !important; }
+  .lock { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: radial-gradient(120% 80% at 50% 0%, #2a1636 0%, #000 70%); color: #fff; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+  .lockPad { display: grid; justify-items: center; width: min(320px, 100%); padding: 0 16px; }
+  .lockPad svg { width: 22px; height: 22px; opacity: .9; }
+  .lockTitle { margin: 14px 0 18px; font-size: 20px; font-weight: 500; letter-spacing: -.01em; }
+  .lockDots { display: flex; gap: 22px; height: 14px; }
+  .lockDots i { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #fff; transition: background-color .12s; }
+  .lockDots i.on { background: #fff; }
+  .lockDots.shake { animation: lshake .42s cubic-bezier(.36, .07, .19, .97); }
+  @keyframes lshake { 20%, 60% { transform: translateX(-12px); } 40%, 80% { transform: translateX(12px); } }
+  .lockHint { min-height: 20px; margin: 14px 0 26px; font-size: 14px; color: var(--label2); text-align: center; }
+  .lockKeys { display: grid; grid-template-columns: repeat(3, 78px); gap: 16px 24px; }
+  .lockKeys button { width: 78px; height: 78px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; font: 400 34px/1 -apple-system, system-ui, sans-serif; transition: background-color .35s; }
+  .lockKeys button:active { background: rgba(255, 255, 255, .45); transition: none; }
+  .lockKeys button.word { background: none; font-size: 16px; font-weight: 500; }
+  .lockKeys button.word:active { opacity: .5; background: none; }
+  .calc { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px 16px max(24px, env(safe-area-inset-bottom)); background: #000; }
+  .calc output { padding: 0 10px; font-size: 76px; font-weight: 300; text-align: right; white-space: nowrap; overflow: hidden; letter-spacing: -.02em; }
+  .calc output.long { font-size: 52px; }
+  .calcKeys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .calcKeys button { aspect-ratio: 1; border: 0; border-radius: 999px; background: #333; color: #fff; font: 400 32px/1 -apple-system, system-ui, sans-serif; transition: filter .3s, background-color .2s, color .2s; }
+  .calcKeys button:active { filter: brightness(1.6); transition: none; }
+  .calcKeys .fn { background: #a5a5a5; color: #000; font-size: 26px; }
+  .calcKeys .op { background: #ff9f0a; font-size: 36px; }
+  .calcKeys .op.sel { background: #fff; color: #ff9f0a; }
+  .calcKeys .zero { grid-column: span 2; aspect-ratio: auto; text-align: left; padding-left: 30px; }
+  @media (prefers-reduced-motion: reduce) { .lockDots.shake { animation: none; } }
   .splash { position: fixed; inset: 0; z-index: 20; display: grid; place-content: center; gap: 6px; text-align: center; pointer-events: none; background: #000;
             animation: splash 1.1s cubic-bezier(.2, .8, .2, 1) forwards; }
   .splash b { font-size: 40px; font-weight: 700; letter-spacing: -.03em; }
@@ -523,6 +549,109 @@
 </style>
 </head>
 <body>
+<div class="lock" id="lock" hidden>
+  <div class="lockPad" id="lockPad">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>
+    <p class="lockTitle" id="lockTitle" role="status">Enter passcode</p>
+    <div class="lockDots" id="lockDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <p class="lockHint" id="lockHint"></p>
+    <div class="lockKeys" id="lockKeys"><button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button><button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button><button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button><button class="word" id="lockCancel">Cancel</button><button data-d="0">0</button><button class="word" id="lockDel">Delete</button></div>
+  </div>
+  <div class="calc" id="calc" hidden>
+    <output id="calcOut">0</output>
+    <div class="calcKeys" id="calcKeys"><button class="fn" data-c="C">AC</button><button class="fn" data-c="neg">±</button><button class="fn" data-c="%">%</button><button class="op" data-c="/">÷</button><button data-c="7">7</button><button data-c="8">8</button><button data-c="9">9</button><button class="op" data-c="*">×</button><button data-c="4">4</button><button data-c="5">5</button><button data-c="6">6</button><button class="op" data-c="-">−</button><button data-c="1">1</button><button data-c="2">2</button><button data-c="3">3</button><button class="op" data-c="+">+</button><button class="zero" data-c="0">0</button><button data-c=".">.</button><button class="op" data-c="=">=</button></div>
+  </div>
+</div>
+<script>
+// The lock: a 4-digit passcode, chosen on first open, asked on every open and after 10 s away. A wrong code opens a working
+// calculator; typing the code and then = on it opens Loveline. The app keeps running underneath, so toys and calls carry on.
+(() => {
+  if (window.__noLock) return;
+  const $l = id => document.getElementById(id), KEY = 'closer:lock', AWAY = 10000, title = document.title;
+  const saved = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); return v && v.h && v.s ? v : null; } catch { return null; } };
+  const ss = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); v === null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} };
+  const hash = async (code, salt) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + code)))].map(x => x.toString(16).padStart(2, '0')).join('');
+  const buzz = () => { try { navigator.vibrate && navigator.vibrate(8); } catch {} };
+  let mode = null, typed = '', first = '', awayAt = 0, busy = false, changing = false, askedAt = 0;
+  const TITLES = { set1: 'Choose a 4-digit passcode', set2: 'Enter it again', change: 'Choose a new 4-digit passcode', enter: 'Enter passcode' };
+  function dots() { [...$l('lockDots').children].forEach((d, i) => d.classList.toggle('on', i < typed.length)); }
+  function show(m, hint) {
+    mode = m; typed = ''; dots();
+    $l('lock').hidden = false; $l('calc').hidden = m !== 'calc'; $l('lockPad').hidden = m === 'calc';
+    if (m === 'calc') { document.title = 'Calculator'; ss('lockDecoy', '1'); calcReset(); }
+    else { document.title = title; $l('lockTitle').textContent = TITLES[m]; $l('lockHint').textContent = hint || (m === 'set1' ? 'You will need it every time Loveline opens.' : ''); }
+    $l('lockCancel').textContent = m === 'enter' ? 'Forgot?' : 'Cancel';
+    $l('lockCancel').style.visibility = m === 'enter' || (changing && m !== 'calc') ? 'visible' : 'hidden';   // only a change of passcode can be cancelled
+    try { document.activeElement && document.activeElement.blur(); } catch {}
+  }
+  function unlock() { mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); }
+  window.lockChange = () => { changing = true; show('change'); };
+  window.lockReset = name => { if (mode !== 'enter' || Date.now() - askedAt > 120000) return; askedAt = 0; show('set1', `${name} said yes. Choose a new code.`); };   // the other phone approved
+  async function full() {
+    if (mode === 'set1' || mode === 'change') { first = typed; show('set2'); return; }
+    if (mode === 'set2') {
+      if (typed !== first) {
+        first = ''; show(changing ? 'change' : 'set1', 'They did not match. Try again.');
+        const d = $l('lockDots'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake');
+        try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch {}
+        return;
+      }
+      const s = [...crypto.getRandomValues(new Uint8Array(12))].map(x => x.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem(KEY, JSON.stringify({ s, h: await hash(typed, s) })); unlock(); return;
+    }
+    const v = saved(); busy = true;
+    const ok = !!v && await hash(typed, v.s) === v.h; busy = false;
+    ok ? unlock() : show('calc');   // a wrong code: only a calculator
+  }
+  $l('lockKeys').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || busy || !mode || mode === 'calc') return;
+    buzz();
+    if (b.id === 'lockDel') { typed = typed.slice(0, -1); dots(); return; }
+    if (b.id === 'lockCancel') {
+      if (mode === 'enter') { const say = window.lockAskHelp ? window.lockAskHelp() : null; if (say) { if (say.asked) askedAt = Date.now(); $l('lockHint').textContent = say.text; } return; }   // forgot: the other phone must say yes
+      if (changing) unlock(); return;
+    }
+    if (typed.length >= 4) return;
+    typed += b.dataset.d; dots();
+    if (typed.length === 4) { busy = true; setTimeout(() => { busy = false; full(); }, 120); }   // let the last dot fill first
+  });
+  // the calculator: works like a plain pocket one
+  let cur = '0', acc = null, op = null, fresh = true, tail = '';
+  const fmt = n => !isFinite(n) ? 'Error' : Math.abs(n) >= 1e12 || (n !== 0 && Math.abs(n) < 1e-9) ? n.toExponential(5) : String(+n.toPrecision(12));
+  const calc = (a, b, o) => o === '+' ? a + b : o === '-' ? a - b : o === '*' ? a * b : a / b;
+  function calcShow() { const o = $l('calcOut'); o.textContent = cur.replace('-', '−'); o.classList.toggle('long', cur.length > 7); document.querySelectorAll('#calcKeys .op').forEach(b => b.classList.toggle('sel', fresh && b.dataset.c === op)); }
+  function calcReset() { cur = '0'; acc = null; op = null; fresh = true; tail = ''; calcShow(); }
+  $l('calcKeys').addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b || mode !== 'calc') return;
+    const c = b.dataset.c; buzz();
+    if (/^[0-9]$/.test(c)) { tail = (tail + c).slice(-4); if (fresh || cur === '0' || cur === 'Error') { cur = c; fresh = false; } else if (cur.replace(/[-.]/g, '').length < 12) cur += c; }
+    else if (c === '.') { tail = ''; if (fresh || cur === 'Error') { cur = '0.'; fresh = false; } else if (!cur.includes('.')) cur += '.'; }
+    else if (c === 'C') calcReset();
+    else if (c === 'neg') { tail = ''; if (cur !== '0' && cur !== 'Error') cur = cur[0] === '-' ? cur.slice(1) : '-' + cur; }
+    else if (c === '%') { tail = ''; if (cur !== 'Error') { cur = fmt(+cur / 100); fresh = true; } }
+    else if (c === '=') {
+      const v = saved(), t = tail; tail = '';
+      if (t.length === 4 && v && await hash(t, v.s) === v.h) { unlock(); return; }   // the code, then =: back into Loveline
+      if (op && cur !== 'Error') { cur = fmt(calc(acc, +cur, op)); op = null; acc = null; fresh = true; }
+    } else {   // + - * /
+      tail = '';
+      if (cur === 'Error') return calcShow();
+      if (op && !fresh) cur = fmt(calc(acc, +cur, op));
+      acc = +cur; op = c; fresh = true;
+    }
+    calcShow();
+  });
+  // when to lock: every fresh open, and after 10 seconds away (another app, the home screen, the screen off)
+  if (!saved()) show('set1');
+  else if (ss('lockDecoy')) show('calc');
+  else if (!(Date.now() - +(ss('lockSeen') || 0) < AWAY)) show('enter');   // a reload a moment ago (an update) stays open
+  setInterval(() => { if (!document.hidden && !mode) ss('lockSeen', String(Date.now())); }, 1000);
+  const away = () => { if (!awayAt) awayAt = Date.now(); if (!mode) ss('lockSeen', String(Date.now())); };
+  const back = () => { if (awayAt && Date.now() - awayAt >= AWAY && !mode) show(saved() ? 'enter' : 'set1'); awayAt = 0; };
+  document.addEventListener('visibilitychange', () => document.hidden ? away() : back());
+  addEventListener('pagehide', away); addEventListener('pageshow', e => { if (e.persisted) back(); });
+})();
+</script>
 <main>
   <header>
     <div class="hleft"><h1>Loveline</h1><button class="me glass" id="buzzBtn" aria-label="Send Thinking of you" hidden>💗</button></div>
@@ -736,6 +865,7 @@
     <button class="primary">Save</button>
     <p class="sideNow" id="sideNow"></p>
     <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
+    <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
     <button type="button" class="ghost danger" id="resetAll">Reset all game scores</button>
   </form>
 </div>
@@ -3207,6 +3337,8 @@ const NEWG = {
   ludo: { what: 'This Ludo game ends on both phones.', done: () => !!ludo.win, reset: () => ludoCommit(blankLudo(other(ludo.win || myRole), true), null) },   // the loser, or the other one, starts
   tower: { what: 'This tower comes down on both phones. Your best height stays.', done: () => !tower.f, reset: () => { const t = blankTower(tower.best), v = nextV(towerV); t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v }); } }
 };
+window.lockAskHelp = () => partnerOnline() ? (send({ t: 'lockAsk' }), { asked: true, text: `Asked ${who()}. When ${who()} says yes, you can choose a new code.` }) : { asked: false, text: `${who()} must have Loveline open to say yes. Try again then.` };
+$('lockChangeBtn').onclick = () => { tap(); $('nameSheet').hidden = true; if (window.lockChange) window.lockChange(); };
 function wipeScores(rs) {   // what only this phone keeps: every Ludo win and the tap streak best
   store.set('resetAt:' + room, rs); store.set('ludoWins:' + room, { host: 0, remote: 0 });
   tapBest = 0; store.set('tapBest', 0);
@@ -3957,7 +4089,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-003738';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-021620';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
@@ -4338,6 +4470,8 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'facts' && typeof m.av === 'string' && m.av !== APP_V && Date.now() - avAt > 20000) { avAt = Date.now(); checkNewer(); }   // the other phone runs a different version: get the newest now, so both play the same game
   if (m.t === 'game') gotGame(m);
   if (m.t === 'cardBan') banCard(m.s, m.k, m.i);
+  if (m.t === 'lockAsk') newShow(`${who()} forgot their passcode`, `Let ${who()} choose a new one? Say yes only if ${who()} really asked you.`, 'Yes, let them', 'No', () => { newClose(); send({ t: 'lockOk' }); }, () => newClose());
+  if (m.t === 'lockOk' && window.lockReset) window.lockReset(who());
   if (m.t === 'tower') gotTower(m);
   if (m.t === 'ludo') gotLudo(m);
   if (m.t === 'newAsk') gotNewAsk(m);
@@ -4652,7 +4786,7 @@ function gotPushSub(m) {
 }
 const fromB64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
 const blockedText = () => /iPhone|iPad/.test(navigator.userAgent) ? 'Alerts are off for Loveline. Open Settings, then Notifications, then Loveline, and turn on Allow Notifications. Then turn alerts on again here.'
-  : 'Chrome is blocking alerts for this site, even if notifications are on in your phone settings. Open the Chrome app, tap ⋮ at the top right, then Settings, Site settings, Notifications. Find shani2323.github.io and set it to Allow. If it is not listed: Site settings, All sites, shani2323.github.io, Clear and reset. Then come back here and turn alerts on again.';
+  : 'Chrome is blocking alerts for this site, even if notifications are on in your phone settings. Open the Chrome app, tap ⋮ at the top right, then Settings, Site settings, Notifications. Find shani2323.github.io and set it to Allow. If it is not listed: Site settings, All sites, shani2323.github.io, Notifications, Allow. Never press Clear and reset there: it deletes Loveline from this phone. Then come back here and turn alerts on again.';
 let alertAskLater = false;   // "Not now" lasts until Loveline is opened again
 let testAt = 0;   // when this phone asked for a test alert
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => {   // the alert arrived while Loveline is open: a test must still show as a real alert
