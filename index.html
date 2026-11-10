@@ -2198,7 +2198,7 @@ const CARDS = {
 };
 const myRole = isRemote ? 'remote' : 'host';
 // ---- Our Tower: we take turns dropping a floor. It stays saved on both phones and keeps growing.
-const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 3.4, TGROUND = 12, TOVER = .5, TCHECK = TKEEP;   // a box more than half off its floor falls; every floor carries the weight of all floors above it
+const TW = 34, TH = 17, TFALL = .3, TKEEP = 60, TPERFECT = 3.4, TGROUND = 12, TOVER = .5, TCHECK = TKEEP;   // a box more than half off its floor falls; every floor carries the weight of all floors above it
 const TCOL = [['#ff6b9d', '#c2185b'], ['#7c86ff', '#3b3fc4']];   // her floors, his floors
 const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [], sw: 0, c: 0, lv: { host: TLIVES, remote: TLIVES }, over: null, p: { host: 0, remote: 0 } });
 const TLIVES = 3, TBREAK = 6, TRESULT_MS = 3600, TGOAL = 10, TCOMBO_MS = 8000, TCOMBO_MAX = 5;   // each player's own lives (a missed box or a broken top costs the dropper one); shorter towers never break; how long the win/lose screen shows
@@ -2247,17 +2247,17 @@ const towerHt = () => Math.max(0, Math.min(1, (tower.f - 4) / 20));   // a short
 const towerSway = t => tA * towerHt() + towerRock(t), towerWob = () => 0;   // the lean grows with height; the sway itself is already sized for the height
 const towerTopX = t => towerBase() + towerSway(t);
 function towerStep(dt, count, now) {
-  const k = Math.max(2.5, 16 - count * .25), eq = 16 * Math.max(-1.2, Math.min(1.2, ttip.lean)) * (.4 + .6 * Math.min(1, tower.sw)), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
-  const base = count < 5 ? 0 : Math.min(14, .6 * count);   // like the real game: from 5 floors the tower always sways, more as it grows (about half a box at 20+ floors)
-  const want = base + 14 * towerHt() * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25)));   // plus the shared swing level and how crooked the top is
+  const k = Math.max(2.5, 16 - count * .25), eq = Math.max(-10, Math.min(10, 16 * ttip.lean * (.4 + .6 * Math.min(1, tower.sw)))), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
+  const base = count < 5 ? 0 : Math.min(5, .25 * count);   // measured from the real game: from 5 floors the top sways, up to about 0.15 of a box each way when tall
+  const want = Math.min(10, base + 8 * towerHt() * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25))));   // bad drops add more, never past 0.3 of a box   // plus the shared swing level and how crooked the top is
   tAmp += (want - tAmp) * Math.min(1, dt * 1.5);   // a perfect drop calms it over a second or two
   if (tcalm) { tA = eq; tV = 0; tAmp = 0; return; }
   for (let n = 0; n < 4; n++) { const h = dt / 4; tV += (-k * (tA - eq) - 1.3 * tV + wind) * h; tA += tV * h; }
 }
 // The next box hangs on a crane rope and swings like a pendulum; it swings wider and faster as the tower grows
 const TROPE = 40, TARM = TROPE + TH / 2;   // rope length, and from the pivot to the middle of the box
-const towerAmp = () => !tower.f ? 0 : (tower.f < 10 ? 30 : tower.f < 20 ? 40 : 45) * Math.PI / 180 + (towerV % 5) * Math.PI / 180;   // the first box hangs still; then 30, 40, 45 degrees (+0-4), wider as it grows, always inside the picture
-const towerPace = () => tower.f < 10 ? 5 : tower.f < 20 ? 4 : tower.f < 30 ? 3.5 : 3.7;   // one full swing in about 1.3 s, a little slower on the wide swings
+const towerAmp = () => !tower.f ? 0 : (tower.f < 10 ? 20 : tower.f < 20 ? 26 : 31) * Math.PI / 180 + (towerV % 3) * Math.PI / 180;   // measured from the real game: the box swings about half a box each way when low, 3/4 of a box when tall; the first box hangs still
+const towerPace = () => 3.3;   // measured from the real game: one full swing in about 1.9 s
 const towerAngle = t => towerAmp() * Math.sin(towerPace() * t);
 const TCRANE = 50;   // the crane stays put in the middle; the tower sways and drifts underneath it, so you time the drop against both
 const towerSwingX = t => TCRANE + TARM * Math.sin(towerAngle(t));   // middle of the hanging box
@@ -2358,7 +2358,7 @@ function towerLand() {
     if (tower.f && tower.f % TGOAL === 0) { towerBit(a.land, y + TH + 26, { txt: `🏁 ${tower.f} floors reached! +100 👥`, col: '#ffe08a', vy: 6, fade: .45, size: 8 }); burst('🎉'); }
   }
   if (a.over) setTimeout(() => showResult(a.o ? 'remote' : 'host', 'Tower'), 1200);   // out of lives: the lose and win screens, then the punishment
-  else if (tower.turn === myRole && a.o !== (myRole === 'host' ? 0 : 1)) { towerBit(tcamX, tcamY + 44, { txt: 'Your turn', col: '#fff', vy: 3, fade: .55, size: 8 }); tap(); }
+  else if (tower.turn === myRole && a.o !== (myRole === 'host' ? 0 : 1)) tap();   // the line above the game already says it is your turn; nothing written over the tower
   renderTower();
   if (a.kind === 'collapse') towerBump($('towerFloors'), 1.5); else if (a.kind === 'miss' || a.kind === 'topple') towerBump($(a.kind === 'miss' ? 'towerHearts' : 'towerFloors'), 1.3); else { towerBump($('towerFloors'), 1.3); towerBump($('towerCount').children[a.o === (myRole === 'host' ? 0 : 1) ? 0 : 1], 1.18); }
 }
@@ -3014,13 +3014,13 @@ function towerTap(force, swing) {
     t.b.push([Math.round((towerBase() + (kind === 'perfect' ? 0 : rel)) * 10) / 10, me, kind === 'perfect' ? 1 : 0]);
     if (t.b.length > TKEEP) t.b.shift();
     const ck = towerCrook(t.b), tall = .4 + .6 * Math.min(1, t.f / 30);   // how crooked the top is now, and how tall
-    t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 * (1 - .5 * ck) : (t.sw || 0) + Math.min(.3, (.06 + far / (TW * TOVER) * .3) * (1 + ck * 1.5 * tall))) * 100) / 100;   // off-centre makes it lean and swing more (never more than .3 from one box); perfect steadies it
+    t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 * (1 - .5 * ck) : (t.sw || 0) + (far <= TW * .25 ? .02 : Math.min(.2, (.05 + far / (TW * TOVER) * .15) * (1 + ck * tall)))) * 100) / 100;   // like the real game: a drop near the middle barely adds wobble; a clearly crooked one (over a quarter of a box off) adds up to .2; perfect steadies it
     t.c = kind === 'perfect' ? (comboLeft() > 0 ? t.c || 0 : 0) + 1 : 0;   // the streak only continues if the combo bar has not run out
     gain = 25 + (kind === 'perfect' ? 25 * Math.min(TCOMBO_MAX, t.c) : 0) + (t.f % TGOAL === 0 ? 100 : 0);   // 25 a floor, 25 more per perfect in the streak (up to x5), 100 for reaching a goal height
     t.p = { ...t.p, [myRole]: t.p[myRole] + gain };
     if (t.c === 3) { t.sw = 0; combo = true; }   // three perfect drops in a row: straight and still again
     if (t.sw >= 1 && t.f > TBREAK) {   // bad drop after bad drop on a leaning, swinging tower: this box slides off; the tower stays and passes on
-      t.b.pop(); t.f--; t.n[myRole]--; t.p = { ...t.p, [myRole]: t.p[myRole] - gain }; gain = 0; t.sw = .95; t.c = 0; t.lv[myRole]--; kind = 'miss'; slid = true;
+      t.b.pop(); t.f--; t.n[myRole]--; t.p = { ...t.p, [myRole]: t.p[myRole] - gain }; gain = 0; t.sw = .6; t.c = 0; t.lv[myRole]--; kind = 'miss'; slid = true;
     } else if (t.sw >= 1) t.sw = .95;   // a short tower always holds
   }
   if (t.lv[myRole] <= 0) t.over = myRole;   // out of lives: this player lost the tower game
@@ -3030,7 +3030,7 @@ function towerTap(force, swing) {
   applyTower(t, v, drop);
   send({ t: 'tower', tower: t, v, drop });
   if (t.over) setTimeout(() => {   // only the phone that lost deals the dare and starts a fresh tower, so both happen once
-    const nt = { ...tower, lv: { host: TLIVES, remote: TLIVES }, over: null }, nv = nextV(towerV); applyTower(nt, nv, null); send({ t: 'tower', tower: nt, v: nv });   // the same tower goes on, lives full again
+    const nt = { ...tower, lv: { host: TLIVES, remote: TLIVES }, over: null, sw: Math.min(tower.sw, .3) }, nv = nextV(towerV); applyTower(nt, nv, null); send({ t: 'tower', tower: nt, v: nv });   // the same tower goes on, lives full again
     loserDare(myRole);
   }, TRESULT_MS + 1600);
 }
@@ -3139,16 +3139,13 @@ function drawTower() {
     const px = TCRANE, py = hang + TH + TROPE + (1 - ease) * 42 / tz, cy = py - TARM * Math.cos(th), by = cy - TH / 2;
     const ax = px + TROPE * Math.sin(th), ay = py - TROPE * Math.cos(th);   // where the rope holds the box
     const mine = tower.turn === myRole, o = tower.turn === 'host' ? 0 : 1;
-    if (mine) {
-      const far = Math.abs(hx - towerTopX(now + TFALL)), good = !count || far <= TW * .62, aim = far <= TPERFECT ? '255,224,138' : good ? '255,255,255' : '255,120,120';
-      const beam = c.createLinearGradient(0, sy(by), 0, sy(topY));
-      beam.addColorStop(0, `rgba(${aim},0)`); beam.addColorStop(1, `rgba(${aim},${far <= TPERFECT ? .34 : .16})`);
-      c.globalAlpha = ease; c.fillStyle = beam; c.fillRect(sx(hx) - TW * tz / 2, sy(by), TW * tz, sy(topY) - sy(by));
-      c.fillStyle = `rgba(${aim},.9)`; c.fillRect(sx(hx) - TW * tz / 2, sy(topY) - .8, TW * tz, .8);
-    }
     c.globalAlpha = (mine ? 1 : .62) * ease;
-    c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = .45 * Math.max(.6, tz); c.beginPath(); c.moveTo(sx(px), -2); c.lineTo(sx(px), sy(py)); c.lineTo(sx(ax), sy(ay)); c.stroke();   // cable from the crane, then the swinging rope
-    c.fillStyle = '#e8e2ff'; c.beginPath(); c.arc(sx(px), sy(py), 1.4 * Math.max(.6, tz), 0, 7); c.fill();
+    const far = 400, tx = ax - far * Math.sin(th), ty = ay + far * Math.cos(th), rw = Math.max(1.6, 1.3 * tz);   // like the real game: one long rope from high above, the box swings at its end
+    c.lineCap = 'round'; c.strokeStyle = 'rgba(20,14,40,.85)'; c.lineWidth = rw + 1.4; c.beginPath(); c.moveTo(sx(tx), sy(ty)); c.lineTo(sx(ax), sy(ay)); c.stroke();
+    c.strokeStyle = '#d9d2f5'; c.lineWidth = rw; c.stroke();
+    const cs = Math.cos(-th), sn = Math.sin(-th), corner = d => { const dx = d * TW * .32, dy = -TH / 2; return [sx(hx) + (dx * cs - dy * sn) * tz, sy(by) - TH * tz / 2 + (dx * sn + dy * cs) * tz]; };   // two sling straps from the hook to the box
+    c.strokeStyle = 'rgba(217,210,245,.8)'; c.lineWidth = Math.max(.8, .5 * tz); c.beginPath();
+    for (const d of [-1, 1]) { const [qx, qy] = corner(d); c.moveTo(sx(ax), sy(ay) + 1.2 * tz); c.lineTo(qx, qy); } c.stroke(); c.lineCap = 'butt';
     towerFloor(c, sx(hx), sy(by), o, 0, count, 1, -th);
     towerHeart(c, sx(ax), sy(ay) + 1.2 * tz, 2.4 * Math.max(.6, tz), TCOL[o][0]);   // the hook is a little heart
     c.globalAlpha = 1;
