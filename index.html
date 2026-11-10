@@ -570,9 +570,10 @@
     <div class="pick" id="after" hidden><button id="cardDone">Done ✓</button><button id="cardSkip">Skip</button></div>
     <button class="cardBan" id="cardBan" hidden>🚫 Never show this card</button>
     <div class="pick" id="penBtns" hidden><button id="penDone">I sent it ✓</button><button id="penOther">Choose another</button></div>
+    <div class="pick" id="dareCheck" hidden><button id="dareOk">Done properly ✓</button><button id="dareLie">Not done: a lie</button></div>
     <div class="pick" id="penCheck" hidden><button id="penGot">Got it ✓</button><button id="penNot">Not yet</button></div>
     <button class="gameEnd" id="gameEnd" hidden>Finish and see who won</button>
-    <p class="gameRules">After 3 truths in a row, the next pick must be a dare. Skip a dare and you get a penalty. The game waits until your partner confirms it arrived. You can always choose another penalty.</p>
+    <p class="gameRules">After 3 truths in a row, the next pick must be a dare. Skip a dare and you get a penalty. The game waits until your partner confirms it arrived. You can always choose another penalty. A dare for losing Tower or Ludo earns no point: your partner judges it, and a dare not done properly counts as a lie, which takes a point away.</p>
     <label class="row"><span>Nude photo penalties for me</span><input type="checkbox" class="switch" id="spicyPen"></label>
   </section>
 
@@ -587,7 +588,7 @@
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
-    <p class="gameRules">Take turns dropping boxes from the swinging crane. You each have 3 lives. The first box hangs still; the swing gets wider as the tower grows. Every floor brings 25 people, and each perfect drop in a row adds 25 more. Every 10 floors is a goal worth 100 people. Crooked drops make the tower lean and sway; perfect drops straighten it. A box that misses costs you a life, and so does a bad drop when the tower leans too far. The tower never falls and passes to the other one. Lose all 3 lives and you get a dare. Drag the tower to look up and down.</p>
+    <p class="gameRules">Take turns dropping boxes from the swinging crane. You each have 3 lives. The first box hangs still; the swing gets wider as the tower grows. Every floor brings 25 people, and each perfect drop in a row adds 25 more. Every 10 floors is a goal worth 100 people. Crooked drops make the tower lean and sway; perfect drops straighten it. A box that misses costs you a life, and so does a bad drop when the tower leans too far. The tower never falls and passes to the other one. Lose all 3 lives and you get a dare, then a new tower starts. Drag the tower to look up and down.</p>
   </section>
   <section class="panelBox glass" id="ludoPanel" hidden>
     <div class="panelHead"><b>Ludo</b><button class="done" data-close>Done</button></div>
@@ -596,7 +597,7 @@
     <canvas id="ludoBoard" aria-label="Ludo board"></canvas>
     <div class="ludoDock"><button class="primary" id="ludoRoll">Roll</button><div class="lreact" id="lreact" aria-label="Reactions"><button type="button" data-e="😈" aria-label="Send 😈">😈</button><button type="button" data-e="😂" aria-label="Send 😂">😂</button><button type="button" data-e="😘" aria-label="Send 😘">😘</button><button type="button" data-e="🙈" aria-label="Send 🙈">🙈</button><button type="button" data-e="🔥" aria-label="Send 🔥">🔥</button></div></div>
     <button class="gameEnd" id="ludoNew" hidden>New game</button>
-    <details class="ludoHelp"><summary>How to play</summary><p class="gameRules">Two pieces each, a queen and a rook. Each waits in your base until you roll a 6 for it, only the first time: after that any number brings it out again. Throw the die across the board with your finger, shake your phone, or tap Roll. Then tap a glowing piece. There are three 🚀 and two 💀. A 🚀 jumps you 3 ahead, then flies to a new random square. Land on a 💀 and that piece goes back to base. The rockets and the skulls jump to new random squares at random moments: never next to each other, never under a piece, never on the paths to the heart. Land on the other's piece and you flick yours into it (pull back, let go: harder pull, harder hit) to send it back to base; stars and start squares are safe. A 6 or a catch rolls again. The die is fair but helpful: a number that catches a piece within 6 squares, or a 6 for a piece's first start, comes up a little more often. Every square counts, stars and starts too. Go once round the ring (the arrows show the way), then turn into your own coloured path to the heart. That path stays locked 🔒 until you catch one of the other's pieces, or a 💀 hits you twice. Until then your pieces wait in front of it, unless that roll catches a piece just past it: a number too big for every piece passes the turn. If all the other's pieces are already on their heart path while yours is still locked, they win. Bring both pieces onto the heart with an exact roll to win. The loser gets a dare.</p></details>
+    <details class="ludoHelp"><summary>How to play</summary><p class="gameRules">Two pieces each, a queen and a rook. Each waits in your base until you roll a 6 for it, only the first time: after that any number brings it out again. Throw the die across the board with your finger, shake your phone, or tap Roll. Then tap a glowing piece. There are three 🚀 and two 💀. A 🚀 jumps you 3 ahead, then flies to a new random square. Land on a 💀 and that piece goes back to base. The rockets and the skulls jump to new random squares at random moments: never next to each other, never under a piece, never on the paths to the heart. Land on the other's piece and you flick yours into it (pull back, let go: harder pull, harder hit) to send it back to base; stars and start squares are safe. A 6 or a catch rolls again. The die is fair but helpful: a number that catches a piece within 6 squares, or a 6 for a piece's first start, comes up a little more often. Every square counts, stars and starts too. Go once round the ring (the arrows show the way), then turn into your own coloured path to the heart. That path stays locked 🔒 until you catch one of the other's pieces, or a 💀 hits you twice. Until then your pieces wait in front of it, unless that roll catches a piece just past it: a number too big for every piece passes the turn. If all the other's pieces are already on their heart path while yours is still locked, they win. Bring both pieces onto the heart with an exact roll to win. The loser gets a dare, then a new game starts.</p></details>
   </section>
 
   <section class="panelBox glass" id="watchPanel" hidden>
@@ -2517,7 +2518,7 @@ function ludoMove(i) {
     renderLudo(); return;
   }
   ludoCommit(l, act);
-  if (l.win) setTimeout(() => loserDare(other(l.win)), (to - from) * 150 + 5200);   // after the celebration; only the winner's phone deals the dare, so it happens once
+  if (l.win) setTimeout(() => { if (ludo.win) NEWG.ludo.reset(); loserDare(other(l.win)); }, (to - from) * 150 + 5200);   // a new game starts (the loser first, wins kept)   // after the celebration; only the winner's phone deals the dare, so it happens once
 }
 let lAim = null, aimDrag = null, lhit = null, lglide = null, lbo = null, lnextSpot = 0;
 const cellXY = ([x, y]) => { const cs = boardW() / LG; return [(x + .5) * cs, (y + .5) * cs]; };
@@ -3018,7 +3019,7 @@ function towerTap(force, swing) {
   applyTower(t, v, drop);
   send({ t: 'tower', tower: t, v, drop });
   if (t.over) setTimeout(() => {   // only the phone that lost deals the dare and starts a fresh tower, so both happen once
-    const nt = { ...tower, lv: { host: TLIVES, remote: TLIVES }, over: null, sw: Math.min(tower.sw, .3) }, nv = nextV(towerV); applyTower(nt, nv, null); send({ t: 'tower', tower: nt, v: nv });   // the same tower goes on, lives full again
+    const nt = blankTower(tower.best), nv = nextV(towerV); nt.turn = myRole; applyTower(nt, nv, null); send({ t: 'tower', tower: nt, v: nv });   // a new tower starts, the loser drops first; the best height stays
     loserDare(myRole);
   }, TRESULT_MS + 1600);
 }
@@ -3308,9 +3309,9 @@ const newPen = old => {   // never the same one twice in a row
   const left = all.filter(x => !old || x.l !== old.l || x.i !== old.i);
   return left[Math.floor(Math.random() * left.length)];
 };
-const blankScore = () => ({ host: { t: 0, d: 0, s: 0, p: 0, r: 0 }, remote: { t: 0, d: 0, s: 0, p: 0, r: 0 } });
-const cleanScore = s => { const n = x => Number.isInteger(x) && x >= 0 && x < 10000 ? x : 0, one = o => ({ t: n(o && o.t), d: n(o && o.d), s: n(o && o.s), p: n(o && o.p), r: n(o && o.r) }); return s && typeof s === 'object' ? { host: one(s.host), remote: one(s.remote) } : null; };
-const points = o => o.t + o.d;   // a done truth or dare is one point; a skip is none
+const blankScore = () => ({ host: { t: 0, d: 0, s: 0, p: 0, r: 0, l: 0 }, remote: { t: 0, d: 0, s: 0, p: 0, r: 0, l: 0 } });
+const cleanScore = s => { const n = x => Number.isInteger(x) && x >= 0 && x < 10000 ? x : 0, one = o => ({ t: n(o && o.t), d: n(o && o.d), s: n(o && o.s), p: n(o && o.p), r: n(o && o.r), l: n(o && o.l) }); return s && typeof s === 'object' ? { host: one(s.host), remote: one(s.remote) } : null; };
+const points = o => o.t + o.d - o.l;   // a done truth or dare is one point; a skip is none; a lie takes one away
 const many = (n, one, more) => `${n} ${n === 1 ? one : more}`;
 let game = { turn: 'host', k: null, i: -1, score: cleanScore(store.get('gameScore:' + room)) || blankScore() };
 const usedCards = {};   // a fresh shuffled deck each session per player and kind; no repeats until every card is used
@@ -3331,20 +3332,21 @@ function renderGame() {
   const over = game.over && !card ? game.over : null, otherRole = myRole === 'host' ? 'remote' : 'host', pen = !card && penText(game);
   const mustDare = game.score[game.turn].r >= MAX_TRUTHS;
   $('card').innerHTML = card
-    ? `<div><small>${game.k === 'truth' ? 'Truth' : 'Dare'} for ${mineTurn ? 'you' : esc(who())}</small>${esc(card)}</div>`
+    ? `<div><small>${game.chk ? (mineTurn ? `Waiting for ${esc(who())} to judge it` : `${esc(who())} says it is done. Done properly?`) : game.fo ? `Dare for ${mineTurn ? 'you' : esc(who())} for losing: no point, ${mineTurn ? esc(who()) : 'you'} judge${mineTurn ? 's' : ''} it` : `${game.k === 'truth' ? 'Truth' : 'Dare'} for ${mineTurn ? 'you' : esc(who())}`}</small>${esc(card)}</div>`
     : pen ? `<div><small>${game.pen.sent ? (mineTurn ? `Waiting for ${esc(who())} to check` : `${esc(who())} says it is sent`) : `Penalty for ${mineTurn ? 'you' : esc(who())}`}</small>${esc(pen)}</div>`
     : `<div><small>${over ? 'Game over' : mustDare ? '3 truths in a row' : mineTurn ? 'Your pick' : 'Waiting'}</small>${over ? esc(winnerText(over)) + '<br>' : ''}${mustDare ? (mineTurn ? 'This one must be a dare.' : esc(who()) + ' must pick a dare.') : mineTurn ? 'Truth or dare?' : esc(who()) + ' is choosing…'}</div>`;
   $('pick').hidden = !!card || !!pen || !mineTurn;
-  $('after').hidden = !card || !mineTurn;   // only the person whose card it is can finish it
+  $('after').hidden = !card || !mineTurn || !!game.chk;   // only the person whose card it is can finish it
   const sent = !!(pen && game.pen.sent);
   $('penBtns').hidden = !pen || !mineTurn || sent;
   $('penCheck').hidden = !pen || mineTurn || !sent;   // the other phone confirms; the game waits until it does
   $('pickTruth').disabled = mustDare; $('pickTruth').textContent = mustDare ? 'Truth 🔒' : 'Truth';
   $('spicyPen').checked = store.get('spicyPen', true);
-  const side = (name, o, ahead) => `<div class="${ahead ? 'ahead' : ''}"><b>${esc(name)}</b><strong>${points(o)}</strong><small>${many(o.t, 'truth', 'truths')}, ${many(o.d, 'dare', 'dares')}, ${many(o.s, 'skip', 'skips')}${o.p ? `, ${many(o.p, 'penalty', 'penalties')}` : ''}</small></div>`;
+  const side = (name, o, ahead) => `<div class="${ahead ? 'ahead' : ''}"><b>${esc(name)}</b><strong>${points(o)}</strong><small>${many(o.t, 'truth', 'truths')}, ${many(o.d, 'dare', 'dares')}, ${many(o.s, 'skip', 'skips')}${o.p ? `, ${many(o.p, 'penalty', 'penalties')}` : ''}${o.l ? `, ${many(o.l, 'lie', 'lies')}` : ''}</small></div>`;
   const a = game.score[myRole], b = game.score[otherRole];
   $('gameScore').innerHTML = side('You', a, points(a) > points(b)) + side(who(), b, points(b) > points(a));
-  $('gameEnd').hidden = !(points(a) + points(b) + a.s + b.s);
+  $('gameEnd').hidden = !(a.t + a.d + b.t + b.d + a.s + b.s + a.l + b.l);
+  $('dareCheck').hidden = !card || mineTurn || !game.chk;   // a lost-game dare: the other phone judges it
   $('cardBan').hidden = !game.k || game.i < 0 || !!game.pen;
 }
 function winnerText(o) {
@@ -3374,7 +3376,7 @@ function showResult(loser, what) {   // shown on both phones: the loser sees the
 function loserDare(loser) {   // the tower fell on their drop: both phones go to Truth or Dare and the loser gets a dare
   openPanel('game');
   if (game.pen || game.k) return;   // a card or forfeit is already on the table: it stays, the loser is next
-  setGame({ turn: loser, k: null, i: -1, score: game.score });
+  setGame({ turn: loser, k: null, i: -1, score: game.score, fo: true });   // a dare for losing: no point, the winner judges it
   pickCard('dare');
 }
 function pickCard(k) {   // her turn: cards for her with the eggs; his turn: cards for him, far away
@@ -3385,7 +3387,7 @@ function pickCard(k) {   // her turn: cards for her with the eggs; his turn: car
   if (!left.length) left = all;
   const i = left[Math.floor(Math.random() * left.length)];
   u.add(i);
-  tap(); setGame({ turn: game.turn, k, i, score: game.score });
+  tap(); setGame({ turn: game.turn, k, i, score: game.score, fo: game.fo && k === 'dare' });
 }
 function gotGame(m) {
   const g = m.game || {};
@@ -3395,10 +3397,13 @@ function gotGame(m) {
   if (!(m.v > gameV)) return;
   gameV = m.v; keep('gameV', gameV);
   if (g.k) used(g.turn, g.k).add(g.i);   // the partner's card is used up here too
-  const did = ['done', 'skip', 'skipdare', 'pensent', 'pennot', 'penalty'].includes(g.did) ? g.did : null, kind = g.kind === 'truth' ? 'truth' : 'dare', pen = !g.k && g.pen && ['sweet', 'spicy'].includes(g.pen.l) && Number.isInteger(g.pen.i) && g.pen.i >= 0 ? { l: g.pen.l, i: g.pen.i, sent: !!g.pen.sent } : undefined, over = g.over && cleanScore({ host: { t: g.over.host }, remote: { t: g.over.remote } });
-  setGame({ turn: g.turn, k: g.k, i: g.k ? g.i : -1, score: cleanScore(g.score) || game.score, pen, over: over ? { host: over.host.t, remote: over.remote.t } : undefined }, true);
-  if (g.k) tap();
+  const did = ['done', 'skip', 'skipdare', 'pensent', 'pennot', 'penalty', 'fodone', 'fook', 'folie'].includes(g.did) ? g.did : null, kind = g.kind === 'truth' ? 'truth' : 'dare', pen = !g.k && g.pen && ['sweet', 'spicy'].includes(g.pen.l) && Number.isInteger(g.pen.i) && g.pen.i >= 0 ? { l: g.pen.l, i: g.pen.i, sent: !!g.pen.sent } : undefined, over = g.over && cleanScore({ host: { t: g.over.host }, remote: { t: g.over.remote } });
+  setGame({ turn: g.turn, k: g.k, i: g.k ? g.i : -1, score: cleanScore(g.score) || game.score, pen, fo: g.fo === true && g.k === 'dare' || undefined, chk: g.chk === true && g.k === 'dare' || undefined, over: over ? { host: over.host.t, remote: over.remote.t } : undefined }, true);
+  if (g.k && did !== 'fodone') tap();
   if (over && !g.k) burst('🏆');
+  else if (did === 'fodone' && g.turn !== myRole) turnFx(`${who()} says the dare is done`, 'Done properly? You judge it');
+  else if (did === 'fook' && g.turn !== myRole) turnFx(`${who()} accepted your dare 🔥`, `${who()}'s turn`);
+  else if (did === 'folie' && g.turn !== myRole) turnFx(`${who()} says you did not do it 🙈`, 'Counted as a lie: one point off');
   else if (did === 'skipdare' && g.turn !== myRole) turnFx(`${who()} skipped the dare 😈`, 'Penalty time');
   else if (did === 'pensent' && g.turn !== myRole) turnFx(`${who()} sent the penalty 📸`, 'Check it, then press Got it');
   else if (did === 'pennot' && g.turn === myRole) turnFx(`${who()} has not got it yet 🙈`, 'Send it, then press I sent it');
@@ -3407,12 +3412,24 @@ function gotGame(m) {
 }
 const nextTurn = did => {
   if (game.turn !== myRole || !game.k) return;
+  if (game.fo) {   // a dare for losing a game: done goes to the other phone to judge; skipped means a penalty; neither is counted
+    tap();
+    if (did === 'done') { if (!game.chk) setGame({ ...game, did: 'fodone', chk: true }); }
+    else setGame({ turn: myRole, k: null, i: -1, score: game.score, did: 'skipdare', pen: newPen() });
+    return;
+  }
   const score = cleanScore(game.score), me = score[myRole];
   if (did === 'skip') me.s++; else if (game.k === 'truth') me.t++; else me.d++;
   me.r = game.k === 'truth' ? me.r + 1 : 0;   // a skipped truth still counts toward the 3
   tap();
   if (did === 'skip' && game.k === 'dare') { setGame({ turn: myRole, k: null, i: -1, score, did: 'skipdare', pen: newPen() }); return; }
   setGame({ turn: myRole === 'host' ? 'remote' : 'host', k: null, i: -1, score, did, kind: game.k });
+};
+$('dareOk').onclick = () => { if (game.turn !== myRole && game.chk) { tap(); setGame({ turn: myRole, k: null, i: -1, score: game.score, did: 'fook' }); } };
+$('dareLie').onclick = () => {
+  if (game.turn === myRole || !game.chk) return;
+  const score = cleanScore(game.score); score[game.turn].l++;
+  tap(); setGame({ turn: myRole, k: null, i: -1, score, did: 'folie' });
 };
 $('penDone').onclick = () => { if (game.turn === myRole && game.pen && !game.pen.sent) { tap(); setGame({ ...game, did: 'pensent', pen: { ...game.pen, sent: true } }); } };
 $('penGot').onclick = () => {
@@ -3940,7 +3957,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261110-232152';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-003738';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
