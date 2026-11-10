@@ -3923,12 +3923,12 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261110-213137';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261110-214209';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
   try {
-    const t = await (await fetch('index.html?nc=' + Date.now(), { cache: 'no-store' })).text(), v = (t.match(/const APP_V = 'v-20261110-213137']+)'/) || [])[1];
+    const t = await (await fetch('index.html?nc=' + Date.now(), { cache: 'no-store' })).text(), v = (t.match(/const APP_V = '([^']+)'/) || [])[1];
     if (v && v !== APP_V && (store.get('reloadedFor') !== v || Date.now() - (store.get('reloadedAt') || 0) > 600000)) { store.set('reloadedFor', v); store.set('reloadedAt', Date.now()); location.replace(location.pathname + '?u=' + Date.now() + location.hash); }
   } catch {}
 }
