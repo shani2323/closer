@@ -327,6 +327,12 @@
   .towerHud { position: absolute; left: 10px; right: 10px; top: 8px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, .55); }
   .towerHud b { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .towerHud small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; }
+  .tgoal i, .tcombo i { display: block; width: 92px; height: 5px; margin-top: 3px; border-radius: 3px; background: rgba(255,255,255,.25); overflow: hidden; }
+  .tgoal b, .tcombo b { display: block; height: 100%; transform-origin: left; border-radius: 3px; background: #fff; }
+  .tcombo b { background: linear-gradient(90deg, #ffe08a, #ffb347); }
+  .tcombo.gone { opacity: .35; }
+  .tcombo[hidden] { display: none; }
+  .cardBan { display: block; margin: 8px auto 0; padding: 6px 12px; border: 0; background: none; color: var(--label2, rgba(255,255,255,.6)); font-size: 13px; }
   .ludoWins { margin: -4px 0 8px; font-size: 13px; font-weight: 600; color: var(--label2, rgba(255,255,255,.7)); font-variant-numeric: tabular-nums; }
   #towerHearts { font-size: 17px; letter-spacing: 1px; }
   .towerView { position: absolute; left: 10px; bottom: 10px; width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 19px; background: rgba(20, 10, 40, .55); color: #fff; font: 600 13px/30px inherit;
@@ -559,6 +565,7 @@
     <div class="card" id="card"></div>
     <div class="pick" id="pick"><button class="truth" id="pickTruth">Truth</button><button class="dare" id="pickDare">Dare</button></div>
     <div class="pick" id="after" hidden><button id="cardDone">Done ✓</button><button id="cardSkip">Skip</button></div>
+    <button class="cardBan" id="cardBan" hidden>🚫 Never show this card</button>
     <div class="pick" id="penBtns" hidden><button id="penDone">I sent it ✓</button><button id="penOther">Choose another</button></div>
     <div class="pick" id="penCheck" hidden><button id="penGot">Got it ✓</button><button id="penNot">Not yet</button></div>
     <button class="gameEnd" id="gameEnd" hidden>Finish and see who won</button>
@@ -572,7 +579,7 @@
     <div class="towerWrap">
       <canvas id="towerCanvas" aria-label="Our tower"></canvas>
       <button class="towerView" id="towerView" aria-pressed="false" aria-label="Show the whole tower" title="Show the whole tower"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg></button>
-      <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small><small id="towerCombo"></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
+      <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small><small class="tgoal" id="towerGoal"><span id="towerGoalTxt"></span><i><b id="towerGoalFill"></b></i></small><small class="tcombo" id="towerCombo" hidden><span id="towerComboTxt"></span><i><b id="towerComboFill"></b></i></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
@@ -1956,14 +1963,14 @@ const CARDS = {
       'Aap kya chahti hain jo {X} zyada dafa kare, bed par ya bed se bahar?',
     ],
     dare: [
-      '{A} on karwa kar {X} ko ek slow voice note bhejein jis mein sirf us ka naam ho, jaisa bhi nikle.',
-      'Mic on karein aur {X} se kahein {B} chalaye; jab tak woh khud band na kare, aap sirf us ka naam lengi.',
-      'Video call par aankhein band karke let jayein aur {A} {X} ke haath mein chhor dein; jab woh band kare, aankhein khol kar usay ek kiss bhejein.',
-      '{X} ko chat mein likhein ke aaj raat {A} chahiye ya {B}, aur kyun. Woh jo chalaye, us ke chalte hi mic par usay shukriya kahein.',
-      '{B} chalte waqt {X} ko ek selfie bhejein, bina kuch likhe; chehra khud bata dega.',
-      'Mic on karke {X} se kahein "mujhe tadpao". Woh {A} se jo bhi kare, aap rokne ko nahi kahengi jab tak woh khud na ruke.',
-      '{A} ke chalte hue {X} ko chat mein sirf ek lafz type karein jo is waqt aap ka haal bataye.',
-      'Video call par {X} ko dikhayein ke {B} chalne par aap takiya kaise pakarti hain, jab tak woh band na kare.',
+      'Voice note mein {X} ko teen cheezein batayein jo aap ko us mein sab se zyada pasand hain.',
+      'Chat mein {X} ke saath ek fantasy shuru karein: aap pehla jumla likhein, woh agla; teen baari ke baad rukein.',
+      'Chat mein {X} ko apni shaadi ke din ka ek sapna likhein: jagah, kapre aur pehla dance.',
+      'Ek seductive voice note mein {X} ko batayein ke agli mulaqat par aap us ke kaan mein sab se pehle kya whisper karengi.',
+      'Chat mein {X} ko woh paanch cheezein likhein jo aap dono agle saal saath karna chahti hain.',
+      'Video call par lights dheemi karke {X} ko sirf apna silhouette dikhayein, jab tak woh "wow" na likhe.',
+      'Voice note mein {X} ke liye ek goodnight kahani sunayein jis mein aap dono hero aur heroine hon.',
+      'Chat mein {X} ko likhein ke agar woh is waqt aap ke saath kambal mein hota, to aap pehle kya karti.',
       '{X} ke liye kisi love song ki ek line gaa kar voice note bhejein, sur ki fikar na karein.',
       'Apne kamre ki koi cheez jo aap ko {X} ki yaad dilati hai, us ki photo lein aur chat mein batayein kyun.',
       '{X} ke liye chat mein ek chhota sa love letter likhein jo "Mere {X}," se shuru ho.',
@@ -2111,14 +2118,14 @@ const CARDS = {
       'Aap kya chahte hain jo {S} zyada dafa kare, bed par ya bed se bahar?',
     ],
     dare: [
-      '{S} ko chat mein likhein "aankhein band karo", phir {A} apni marzi se chalayein jab tak woh mic ya chat par aap ka naam na le.',
-      'Whisper voice note bhejein: "{B} on kar raha hoon". Us ke sunte hi chala dein, jab tak woh "bas" na likhe.',
-      'Video call par {S} ko dekhte hue {A} chalayein; jab woh muskuraye, band kar ke usay ek kiss bhejein.',
-      '{S} se mic on karwayein aur {A} dheere dheere badhayein; jab woh "aur" kahe, ruk jayein aur chat mein likhein "abhi nahi".',
-      '{B} halka sa chalayein jab tak {S} chat mein ek sexy line na bheje; line aate hi band karke usay shukriya ka voice note bhejein.',
-      'Goodnight se pehle {A} ek lamhe ke liye chala kar band karein aur chat mein likhein: "yeh meri goodnight kiss thi".',
-      'Video call par {S} se kahein aap ki aankhon mein dekhe, phir {B} chalayein; jo pehle nazar hataye, woh haara.',
-      '{S} ko chat mein poochein: {A} ya {B}? Woh jo chune, call par ek gaana saath sunte hue gaana khatam hone tak chalayein.',
+      'Voice note mein {S} ko teen cheezein batayein jo aap ko us mein sab se zyada pasand hain.',
+      'Chat mein {S} ke saath ek fantasy shuru karein: aap pehla jumla likhein, woh agla; teen baari ke baad rukein.',
+      'Chat mein {S} ko apni shaadi ke din ka ek sapna likhein: jagah, kapre aur pehla dance.',
+      'Ek gehri, seductive voice note mein {S} ko batayein ke agli mulaqat par aap us ke kaan mein sab se pehle kya whisper karenge.',
+      'Chat mein {S} ko woh paanch cheezein likhein jo aap dono agle saal saath karna chahte hain.',
+      'Video call par lights dheemi karke {S} ko sirf apna silhouette dikhayein, jab tak woh "wow" na likhe.',
+      'Voice note mein {S} ke liye ek goodnight kahani sunayein jis mein aap dono hero aur heroine hon.',
+      'Chat mein {S} ko likhein ke agar woh is waqt aap ke saath kambal mein hoti, to aap pehle kya karte.',
       '{S} ke liye kisi love song ki ek line gaa kar voice note bhejein, besura ho to aur acha.',
       'Apne kamre ki koi cheez jo aap ko {S} ki yaad dilati hai, us ki photo bhejein aur wajah likhein.',
       'Chat mein {S} ke liye ek chhota sa love letter likhein jo "Meri {S}," se shuru ho.',
@@ -2194,7 +2201,7 @@ const myRole = isRemote ? 'remote' : 'host';
 const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 3.4, TGROUND = 12, TOVER = .5, TCHECK = TKEEP;   // a box more than half off its floor falls; every floor carries the weight of all floors above it
 const TCOL = [['#ff6b9d', '#c2185b'], ['#7c86ff', '#3b3fc4']];   // her floors, his floors
 const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [], sw: 0, c: 0, lv: { host: TLIVES, remote: TLIVES }, over: null, p: { host: 0, remote: 0 } });
-const TLIVES = 3, TBREAK = 6, TRESULT_MS = 3600;   // each player's own lives (a missed box or a broken top costs the dropper one); shorter towers never break; how long the win/lose screen shows
+const TLIVES = 3, TBREAK = 6, TRESULT_MS = 3600, TGOAL = 10, TCOMBO_MS = 8000, TCOMBO_MAX = 5;   // each player's own lives (a missed box or a broken top costs the dropper one); shorter towers never break; how long the win/lose screen shows
 function cleanFloors(list, most) {
   if (!Array.isArray(list) || list.length > most) return null;
   const out = [];
@@ -2205,12 +2212,13 @@ function cleanTower(t) {
   if (!t || typeof t !== 'object' || !['host', 'remote'].includes(t.turn)) return null;
   const n = (x, top) => Number.isInteger(x) && x >= 0 && x <= top ? x : null, f = n(t.f, 1e6), hearts = n(t.hearts, 3), best = n(t.best, 1e6), b = cleanFloors(t.b, TKEEP);
   if (f === null || hearts === null || best === null || !b || b.length > f) return null;
-  const sw = Number.isFinite(t.sw) ? Math.max(0, Math.min(1, t.sw)) : 0, c = n(t.c, 3) || 0;
+  const sw = Number.isFinite(t.sw) ? Math.max(0, Math.min(1, t.sw)) : 0, c = n(t.c, 999) || 0;
   const life = r => n(t.lv && t.lv[r], TLIVES) ?? TLIVES;
   return { f, hearts, turn: t.turn, best: Math.max(best, f), n: { host: n(t.n && t.n.host, 1e6) || 0, remote: n(t.n && t.n.remote, 1e6) || 0 }, b, sw, c, lv: { host: life('host'), remote: life('remote') }, over: ['host', 'remote'].includes(t.over) ? t.over : null, p: { host: n(t.p && t.p.host, 1e9) || 0, remote: n(t.p && t.p.remote, 1e9) || 0 } };
 }
 const savedTower = store.get('tower:' + room) || {};
 let tower = cleanTower(savedTower.t) || blankTower(), towerV = Number.isFinite(savedTower.v) ? savedTower.v : 0;
+let tcomboAt = 0; const comboLeft = () => Math.max(0, 1 - (performance.now() - tcomboAt) / TCOMBO_MS);   // how much of the combo bar is left
 let tanim = null, tlanded = 0, trun = 0, tlast = 0, tcamX = 50, tcamY = 0, tz = 1, twhole = false, tlook = 0, tlv = 0, tdrag = null, tback = false, tshake = 0, tA = 0, tV = 0, tsquash = -9, tbits = [], tdrops = [];
 const tcalm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const towerNow = () => performance.now() / 1000;
@@ -2264,7 +2272,9 @@ function renderTower() {
   const risk = floors >= TBREAK && tower.sw >= .7 ? ' Danger: it leans so far that a bad drop slides off and costs a life!' : tower.sw >= .4 ? ' It is leaning: perfect drops straighten it.' : '';
   $('towerTurn').textContent = tower.over ? (tower.over === myRole ? 'Out of lives.' : `${who()} is out of lives.`) : (me ? 'Your turn. Tap when the box is over the tower.' : `${who()} is building…`) + risk;
   const chip = (role, name) => `<span class="${role === 'host' ? 'her' : 'him'}">${esc(name)} ${'♥'.repeat(lives(role))} · 👥${tower.p[role]}</span>`;
-  $('towerCombo').textContent = tower.c ? `Combo ${'●'.repeat(tower.c)}${'○'.repeat(3 - tower.c)}` : '';   // perfect drops in a row; the 3rd stands the tower still
+  $('towerCombo').hidden = !tower.c; $('towerComboTxt').textContent = `⭐ Combo ×${Math.min(TCOMBO_MAX, tower.c)}`;   // perfect drops in a row; the bar drains, the next perfect drop must come in time; the 3rd stands the tower still
+  const goal = (Math.floor(floors / TGOAL) + 1) * TGOAL;
+  $('towerGoalTxt').textContent = `🏁 ${goal - floors} to ${goal}`; $('towerGoalFill').style.transform = `scaleX(${(floors % TGOAL) / TGOAL})`;   // the next building height to reach
   $('towerCount').innerHTML = chip(myRole, 'You') + chip(otherRole, who());
   const left = shakeTurn === towerV ? shakesLeft : 2;
   $('towerDrop').disabled = !!tanim || !!tower.over || (!me && left <= 0);
@@ -2343,7 +2353,8 @@ function towerLand() {
       if (navigator.vibrate) navigator.vibrate([20, 40, 20]); else tap();
     } else tap();
     if (a.g) towerBit(a.land + 16, y + TH + 2, { txt: `+${a.g} 👥`, col: '#bff3ff', vy: 10, fade: .9, size: 6 });   // people moving in
-    if (tower.f && tower.f % 10 === 0) { burst('🏙️'); towerBit(a.land, y + TH + 16, { txt: `${tower.f} floors!`, col: '#fff', vy: 8, fade: .45, size: 9 }); }
+    for (let k = 0; k < Math.min(6, Math.round(a.g / 25)); k++) towerBit(a.land + (Math.random() - .5) * 70, y + TH + 60 + k * 9, { txt: '🪂', col: '#fff', vx: (Math.random() - .5) * 6, vy: -24 - Math.random() * 6, fade: .55, size: 5 });   // and they float down onto the tower
+    if (tower.f && tower.f % TGOAL === 0) { towerBit(a.land, y + TH + 26, { txt: `🏁 ${tower.f} floors reached! +100 👥`, col: '#ffe08a', vy: 6, fade: .45, size: 8 }); burst('🎉'); }
   }
   if (a.over) setTimeout(() => showResult(a.o ? 'remote' : 'host', 'Tower'), 1200);   // out of lives: the lose and win screens, then the punishment
   else if (tower.turn === myRole && a.o !== (myRole === 'host' ? 0 : 1)) { towerBit(tcamX, tcamY + 44, { txt: 'Your turn', col: '#fff', vy: 3, fade: .55, size: 8 }); tap(); }
@@ -2353,6 +2364,7 @@ function towerLand() {
 function applyTower(t, v, drop) {
   if (tanim) towerLand();
   const was = tower.b.length;
+  if (t.c !== tower.c || towerV !== v) tcomboAt = performance.now();   // the combo bar starts full when a drop lands
   tower = t; towerV = v; saveTower(); ttip = towerTip(tower.b); tcrook = towerCrook(tower.b);
   if (drop && panel === 'tower' && !document.hidden) {
     const kept = drop.kind === 'good' || drop.kind === 'perfect', top = drop.kind === 'topple' || drop.kind === 'collapse', now = towerNow(), tl = now + TFALL;
@@ -3002,10 +3014,10 @@ function towerTap(force, swing) {
     if (t.b.length > TKEEP) t.b.shift();
     const ck = towerCrook(t.b), tall = .4 + .6 * Math.min(1, t.f / 30);   // how crooked the top is now, and how tall
     t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 * (1 - .5 * ck) : (t.sw || 0) + Math.min(.3, (.06 + far / (TW * TOVER) * .3) * (1 + ck * 1.5 * tall))) * 100) / 100;   // off-centre makes it lean and swing more (never more than .3 from one box); perfect steadies it
-    t.c = kind === 'perfect' ? (t.c || 0) + 1 : 0;
-    gain = 25 + (kind === 'perfect' ? 25 * t.c : 0);   // 25 for every floor, plus 25 for each perfect drop in the current streak
+    t.c = kind === 'perfect' ? (comboLeft() > 0 ? t.c || 0 : 0) + 1 : 0;   // the streak only continues if the combo bar has not run out
+    gain = 25 + (kind === 'perfect' ? 25 * Math.min(TCOMBO_MAX, t.c) : 0) + (t.f % TGOAL === 0 ? 100 : 0);   // 25 a floor, 25 more per perfect in the streak (up to x5), 100 for reaching a goal height
     t.p = { ...t.p, [myRole]: t.p[myRole] + gain };
-    if (t.c >= 3) { t.sw = 0; t.c = 0; combo = true; }   // three perfect drops in a row: straight and still again
+    if (t.c === 3) { t.sw = 0; combo = true; }   // three perfect drops in a row: straight and still again
     if (t.sw >= 1 && t.f > TBREAK) {   // bad drop after bad drop on a leaning, swinging tower: this box slides off; the tower stays and passes on
       t.b.pop(); t.f--; t.n[myRole]--; t.p = { ...t.p, [myRole]: t.p[myRole] - gain }; gain = 0; t.sw = .95; t.c = 0; t.lv[myRole]--; kind = 'miss'; slid = true;
     } else if (t.sw >= 1) t.sw = .95;   // a short tower always holds
@@ -3079,6 +3091,7 @@ function drawTower() {
   tcamX += (baseX - tcamX) * Math.min(1, dt * 5);
   const sx = x => (x - tcamX) * tz + 50, sy = y => Hu - TGROUND - (y - tcamY) * tz, hang = topY + 18;   // the next box always hangs just above the top floor, never beside lower ones
   tshake = Math.max(0, tshake - dt * 7);
+  if (tower.c) { const left = comboLeft(); $('towerComboFill').style.transform = `scaleX(${left})`; $('towerCombo').classList.toggle('gone', !left); }   // the combo bar drains
   c.setTransform(s, 0, 0, s, 0, 0);
   const sky = c.createLinearGradient(0, 0, 0, Hu), lvl = tower.f;
   sky.addColorStop(0, towerSky(lvl, 2)); sky.addColorStop(1, towerSky(lvl, 1)); c.fillStyle = sky; c.fillRect(0, 0, 100, Hu);
@@ -3303,6 +3316,11 @@ let game = { turn: 'host', k: null, i: -1, score: cleanScore(store.get('gameScor
 const usedCards = {};   // a fresh shuffled deck each session per player and kind; no repeats until every card is used
 const deck = (turn, k) => ['host', 'remote'].includes(turn) && ['truth', 'dare'].includes(k) ? CARDS[turn][k] : null;   // only real decks
 const used = (turn, k) => usedCards[turn + k] || (usedCards[turn + k] = new Set());
+const bannedCards = (turn, k) => new Set((store.get('cardBan:' + room) || {})[turn + k] || []);
+function banCard(turn, k, i) {   // kept on both phones for good
+  if (!deck(turn, k) || !Number.isInteger(i) || i < 0 || i >= deck(turn, k).length) return;
+  const all = store.get('cardBan:' + room) || {}, list = new Set(all[turn + k] || []); list.add(i); all[turn + k] = [...list]; store.set('cardBan:' + room, all);
+}
 function fillCard(t) {   // names instead of placeholders: her, him, and each egg
   return t.replace(/\{A\}/g, label('vib')).replace(/\{B\}/g, label('suc'))
     .replace(/\{S\}/g, isRemote ? partnerName || 'her' : myName).replace(/\{X\}/g, isRemote ? myName : partnerName || 'him');
@@ -3327,6 +3345,7 @@ function renderGame() {
   const a = game.score[myRole], b = game.score[otherRole];
   $('gameScore').innerHTML = side('You', a, points(a) > points(b)) + side(who(), b, points(b) > points(a));
   $('gameEnd').hidden = !(points(a) + points(b) + a.s + b.s);
+  $('cardBan').hidden = !game.k || game.i < 0 || !!game.pen;
 }
 function winnerText(o) {
   const mine = o[myRole], theirs = o[myRole === 'host' ? 'remote' : 'host'];
@@ -3360,9 +3379,10 @@ function loserDare(loser) {   // the tower fell on their drop: both phones go to
 }
 function pickCard(k) {   // her turn: cards for her with the eggs; his turn: cards for him, far away
   if (game.pen || (k === 'truth' && game.score[game.turn].r >= MAX_TRUTHS)) return;
-  const n = deck(game.turn, k).length, u = used(game.turn, k);
-  if (u.size >= n) u.clear();
-  const left = [...Array(n).keys()].filter(x => !u.has(x));
+  const n = deck(game.turn, k).length, u = used(game.turn, k), ban = bannedCards(game.turn, k), all = [...Array(n).keys()];
+  let left = all.filter(x => !u.has(x) && !ban.has(x));   // a card either of you banned never comes back
+  if (!left.length) { u.clear(); left = all.filter(x => !ban.has(x)); }
+  if (!left.length) left = all;
   const i = left[Math.floor(Math.random() * left.length)];
   u.add(i);
   tap(); setGame({ turn: game.turn, k, i, score: game.score });
@@ -3407,6 +3427,12 @@ $('pickTruth').onclick = () => pickCard('truth');
 $('pickDare').onclick = () => pickCard('dare');
 $('cardDone').onclick = () => nextTurn('done');
 $('cardSkip').onclick = () => nextTurn('skip');
+$('cardBan').onclick = () => {   // a bad card: gone for good on both phones, and a new one of the same kind, no penalty
+  if (!game.k || game.i < 0) return;
+  banCard(game.turn, game.k, game.i); send({ t: 'cardBan', s: game.turn, k: game.k, i: game.i });
+  notify('That card will never show again. Here is another one.');
+  pickCard(game.k);
+};
 $('gameEnd').onclick = () => {
   if (!confirm('Finish this game and show who won? The score starts again.')) return;
   const over = { host: points(game.score.host), remote: points(game.score.remote) };
@@ -4282,6 +4308,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'combo' && Number.isInteger(m.n) && m.n > 0) { notify(`${who()} tapped ${Math.min(m.n, 999)} in a row 🔥`); m.n >= 20 ? burst('🔥') : tap(); }
   if (m.t === 'draw') { gotDraw(m); theirFinger(m); }
   if (m.t === 'game') gotGame(m);
+  if (m.t === 'cardBan') banCard(m.s, m.k, m.i);
   if (m.t === 'tower') gotTower(m);
   if (m.t === 'towerShake') gotShake(m);
   if (m.t === 'ludo') gotLudo(m);
