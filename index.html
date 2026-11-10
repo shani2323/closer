@@ -576,7 +576,7 @@
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
-    <p class="gameRules">Take turns. You each have 3 lives. People move in with every floor you add: more the straighter it lands, and perfect drops in a row bring 20, 40, then 60. Perfect drops build straight up and win a life back. From 5 floors, off-centre drops make the tower lean toward its heavy side and swing more; perfect drops straighten it, and 3 in a row stand it still. A box that misses falls off and costs you a life. When the tower leans too far, a bad drop slides off and costs a life too. The tower itself never falls and passes to the other one to fix. Lose all 3 lives and you get a dare. While the other one aims, you can shake the tower twice. Drag the tower to look up and down.</p>
+    <p class="gameRules">Take turns. You each have 3 lives. The first box hangs still; after that the crane swings faster and wider as the tower grows. Every floor brings 25 people, and each perfect drop in a row adds 25 more (50, 75, 100...). Perfect drops build straight up. From 5 floors, off-centre drops make the tower lean toward its heavy side and swing more; perfect drops straighten it, and 3 in a row stand it still. A box that misses falls off and costs you a life. When the tower leans too far, a bad drop slides off and costs a life too. The tower itself never falls and passes to the other one to fix. Lose all 3 lives and you get a dare. While the other one aims, you can shake the tower twice. Drag the tower to look up and down.</p>
   </section>
   <section class="panelBox glass" id="ludoPanel" hidden>
     <div class="panelHead"><b>Ludo</b><button class="done" data-close>Done</button></div>
@@ -2191,7 +2191,7 @@ const CARDS = {
 };
 const myRole = isRemote ? 'remote' : 'host';
 // ---- Our Tower: we take turns dropping a floor. It stays saved on both phones and keeps growing.
-const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 2.2, TGROUND = 12, TOVER = .5, TCHECK = TKEEP;   // a box more than half off its floor falls; every floor carries the weight of all floors above it
+const TW = 34, TH = 17, TFALL = .42, TKEEP = 60, TPERFECT = 3.4, TGROUND = 12, TOVER = .5, TCHECK = TKEEP;   // a box more than half off its floor falls; every floor carries the weight of all floors above it
 const TCOL = [['#ff6b9d', '#c2185b'], ['#7c86ff', '#3b3fc4']];   // her floors, his floors
 const blankTower = best => ({ f: 0, hearts: 3, turn: 'host', best: best || 0, n: { host: 0, remote: 0 }, b: [], sw: 0, c: 0, lv: { host: TLIVES, remote: TLIVES }, over: null, p: { host: 0, remote: 0 } });
 const TLIVES = 3, TBREAK = 6, TRESULT_MS = 3600;   // each player's own lives (a missed box or a broken top costs the dropper one); shorter towers never break; how long the win/lose screen shows
@@ -2236,19 +2236,20 @@ let ttip = towerTip(tower.b), tcrook = towerCrook(tower.b);
 let tAmp = 0;   // how far the top swings now; it eases toward the shared swing level
 const towerRock = t => tAmp * Math.sin(t * Math.max(1.1, 2.6 - tower.b.length * .03));   // taller swings slower
 const towerHt = () => Math.max(0, Math.min(1, (tower.f - 4) / 20));   // a short tower stands still; from 5 floors it starts to sway, more the taller it gets
-const towerSway = t => (tA + towerRock(t)) * towerHt(), towerWob = () => 0;
+const towerSway = t => tA * towerHt() + towerRock(t), towerWob = () => 0;   // the lean grows with height; the sway itself is already sized for the height
 const towerTopX = t => towerBase() + towerSway(t);
 function towerStep(dt, count, now) {
   const k = Math.max(2.5, 16 - count * .25), eq = 16 * Math.max(-1.2, Math.min(1.2, ttip.lean)) * (.4 + .6 * Math.min(1, tower.sw)), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
-  const want = 22 * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25)));   // the shared swing level, plus how crooked the top is, more for a taller tower
+  const base = count < 5 ? 0 : count < 13 ? 1.2 : count < 23 ? 2.4 : 3.6;   // a straight tower sways a little from 5 floors, a bit more as it grows (the genre's own numbers)
+  const want = base + 14 * towerHt() * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25)));   // plus the shared swing level and how crooked the top is
   tAmp += (want - tAmp) * Math.min(1, dt * 1.5);   // a perfect drop calms it over a second or two
   if (tcalm) { tA = eq; tV = 0; tAmp = 0; return; }
   for (let n = 0; n < 4; n++) { const h = dt / 4; tV += (-k * (tA - eq) - 1.3 * tV + wind) * h; tA += tV * h; }
 }
 // The next box hangs on a crane rope and swings like a pendulum; it swings wider and faster as the tower grows
 const TROPE = 40, TARM = TROPE + TH / 2;   // rope length, and from the pivot to the middle of the box
-const towerAmp = () => tower.f < 10 ? .42 : tower.f < 20 ? .52 : .62;
-const towerPace = () => 2.4 + Math.min(tower.f, 60) * .02;
+const towerAmp = () => !tower.f ? 0 : (tower.f < 10 ? 30 : tower.f < 20 ? 40 : 45) * Math.PI / 180 + (towerV % 5) * Math.PI / 180;   // the first box hangs still; then 30, 40, 45 degrees (+0-4), wider as it grows, always inside the picture
+const towerPace = () => tower.f < 10 ? 5 : tower.f < 20 ? 4 : tower.f < 30 ? 3.5 : 3.7;   // one full swing in about 1.3 s, a little slower on the wide swings
 const towerAngle = t => towerAmp() * Math.sin(towerPace() * t);
 const towerSwingX = t => towerBase() + TARM * Math.sin(towerAngle(t));   // middle of the hanging box
 const towerSwingV = t => TARM * Math.cos(towerAngle(t)) * towerAmp() * towerPace() * Math.cos(towerPace() * t);
@@ -2999,11 +3000,10 @@ function towerTap(force, swing) {
     t.f++; t.n[myRole]++;
     t.b.push([Math.round((towerBase() + (kind === 'perfect' ? 0 : rel)) * 10) / 10, me, kind === 'perfect' ? 1 : 0]);
     if (t.b.length > TKEEP) t.b.shift();
-    if (kind === 'perfect') t.lv[myRole] = Math.min(TLIVES, t.lv[myRole] + 1);   // a perfect drop wins a life back
     const ck = towerCrook(t.b), tall = .4 + .6 * Math.min(1, t.f / 30);   // how crooked the top is now, and how tall
     t.sw = Math.round(Math.max(0, kind === 'perfect' ? (t.sw || 0) - .35 * (1 - .5 * ck) : (t.sw || 0) + Math.min(.3, (.06 + far / (TW * TOVER) * .3) * (1 + ck * 1.5 * tall))) * 100) / 100;   // off-centre makes it lean and swing more (never more than .3 from one box); perfect steadies it
     t.c = kind === 'perfect' ? (t.c || 0) + 1 : 0;
-    gain = kind === 'perfect' ? 20 * t.c : Math.max(2, Math.round(10 * (1 - far / (TW * TOVER))));   // people move in: more the straighter it lands, double and more for perfect drops in a row
+    gain = 25 + (kind === 'perfect' ? 25 * t.c : 0);   // 25 for every floor, plus 25 for each perfect drop in the current streak
     t.p = { ...t.p, [myRole]: t.p[myRole] + gain };
     if (t.c >= 3) { t.sw = 0; t.c = 0; combo = true; }   // three perfect drops in a row: straight and still again
     if (t.sw >= 1 && t.f > TBREAK) {   // bad drop after bad drop on a leaning, swinging tower: this box slides off; the tower stays and passes on
