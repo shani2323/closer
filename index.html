@@ -629,11 +629,11 @@
     $l('lock').classList.remove('cover'); $l('lock').hidden = false; $l('calc').hidden = m !== 'calc'; $l('lockPad').hidden = m === 'calc'; behind(true);
     if (m === 'calc') { document.title = 'Calculator'; ss('lockDecoy', '1'); calcReset(); }
     else { document.title = title; $l('lockTitle').textContent = TITLES[m]; $l('lockHint').textContent = hint || (m === 'set1' ? 'You will need it every time Loveline opens.' : ''); }
-    $l('lockCancel').textContent = m === 'enter' ? 'Forgot?' : 'Cancel';
-    $l('lockCancel').style.visibility = m === 'enter' || (changing && m !== 'calc') ? 'visible' : 'hidden';   // only a change of passcode can be cancelled
+    $l('lockCancel').textContent = 'Cancel';
+    $l('lockCancel').style.visibility = changing && m !== 'calc' ? 'visible' : 'hidden';   // only a change of passcode can be cancelled; no Forgot (Xed 11 Nov)
     try { document.activeElement && document.activeElement.blur(); } catch {}
   }
-  function behind(off) { for (const el of document.body.children) if (el.id !== 'lock' && el.tagName !== 'SCRIPT') el.inert = off; }   // nothing behind the lock can be tapped or reached
+  function behind(off) { if (!$l('lock')) return; for (const el of document.body.children) if (el.id !== 'lock' && el.tagName !== 'SCRIPT') el.inert = off; }   // nothing behind the lock can be tapped or reached
   function cover(on) { if (mode) return; $l('lock').classList.toggle('cover', on); $l('lock').hidden = !on; }
   function unlock() { $l('lock').classList.remove('cover'); behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); }
   window.lockChange = () => { changing = true; show('change'); };
@@ -659,7 +659,6 @@
     buzz();
     if (b.id === 'lockDel') { typed = typed.slice(0, -1); dots(); return; }
     if (b.id === 'lockCancel') {
-      if (mode === 'enter') { const say = window.lockAskHelp ? window.lockAskHelp() : null; if (say) { if (say.asked) askedAt = Date.now(); $l('lockHint').textContent = say.text; } return; }   // forgot: the other phone must say yes
       if (changing) unlock(); return;
     }
     if (typed.length >= 4) return;
@@ -4304,7 +4303,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-094632';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-095345';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
