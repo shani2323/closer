@@ -196,7 +196,7 @@
   .quick button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; font-size: 26px; line-height: 1; }
   .bar { display: flex; gap: 8px; align-items: center; }
   .compose { flex: 1; min-width: 0; display: flex; align-items: center; height: 52px; padding: 0 5px 0 4px; border-radius: 26px; }
-  .compose input { flex: 1; min-width: 0; height: 44px; border: 0; background: none; padding: 0 6px; font-size: 17px; outline: none; }
+  .compose input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; padding: 0 6px; font-size: 17px; outline: none; }
   .compose input::placeholder { color: var(--label3); }
   .icon { flex: none; width: 42px; height: 42px; border: 0; border-radius: 50%; background: none; display: grid; place-items: center; color: var(--label2); }
   .icon svg { width: 24px; height: 24px; }
@@ -581,6 +581,26 @@
   .msgMenu button { display: block; width: 100%; padding: 12px 16px; border: 0; background: none; color: var(--label); font-size: 16px; text-align: left; }
   .msgMenu button + button { border-top: .5px solid rgba(255, 255, 255, .12); }
   .msgMenu button:active { background: rgba(255, 255, 255, .12); }
+  /* reactions: a row of faces on top of the hold menu, and a small badge hanging off the bubble */
+  .msgMenu .rxRow { display: flex; gap: 2px; max-width: min(320px, calc(100vw - 24px)); overflow-x: auto; padding: 4px 6px 6px; border-bottom: .5px solid rgba(255, 255, 255, .12); scrollbar-width: none; }
+  .msgMenu .rxRow::-webkit-scrollbar { display: none; }
+  .msgMenu .rxRow button { flex: none; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 50%; font-size: 25px; line-height: 1; text-align: center; }
+  .msgMenu .rxRow button.on { background: rgba(255, 255, 255, .2); }
+  .msgMenu .rxRow button:active { transform: scale(1.25); transition: transform 90ms ease-out; }
+  .bubble.rxd { position: relative; margin-bottom: 14px; }
+  .rx { position: absolute; bottom: -15px; left: 8px; display: flex; align-items: center; gap: 1px; padding: 1px 5px; border-radius: 11px; background: #202c33; box-shadow: 0 0 0 2px var(--bg); font-size: 14px; line-height: 18px; white-space: nowrap; }
+  .bubble.mine .rx { left: auto; right: 8px; }
+  .rx small { font-size: 11px; color: var(--label2); margin-left: 2px; }
+  .quote { cursor: pointer; }
+  /* back to the newest messages, after scrolling up */
+  .toEndWrap { position: relative; height: 0; }
+  .toEnd { position: absolute; right: 6px; bottom: 10px; z-index: 2; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: rgba(44, 44, 46, .94); color: var(--label); box-shadow: 0 4px 14px rgba(0, 0, 0, .45);
+           opacity: 0; transform: translateY(8px) scale(.85); pointer-events: none; transition: opacity .18s ease-out, transform .3s cubic-bezier(.2, .8, .2, 1); }
+  .toEnd.on { opacity: 1; transform: none; pointer-events: auto; }
+  .toEnd:active { transform: scale(.92); }
+  .toEnd svg { width: 22px; height: 22px; }
+  .toEnd b { position: absolute; top: -5px; left: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #25d366; color: #0b141a; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .toEnd { transition: opacity .15s; transform: none; } }
   @keyframes menuIn { from { opacity: 0; transform: scale(.85); } }
   @media (prefers-reduced-motion: reduce) { .msgMenu { animation: none; } .bubble.flash { animation: none; outline: 2px solid var(--label3); } }
   @media (prefers-reduced-transparency: reduce) { .msgMenu { background: #2c2c2e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
@@ -863,7 +883,8 @@
   <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
   <div class="peek" id="chatPeek"></div>
   <div class="pinBar" id="pinBar" role="button" tabindex="0" hidden><span class="pinTicks" id="pinTicks"></span><div><b id="pinHead">Pinned message</b><span id="pinText"></span></div><svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg></div>
-  <div class="msgs" id="msgs" aria-live="polite" title="Tap a message to answer it. Double tap to make the chat small."></div>
+  <div class="msgs" id="msgs" aria-live="polite" title="Tap a message to answer it. Hold it to react. Double tap to make the chat small."></div>
+  <div class="toEndWrap"><button type="button" class="toEnd" id="toEnd" aria-label="Go to the newest messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><b id="toEndN" hidden></b></button></div>
   <div class="typing" id="typing" hidden></div>
   <div class="quick glass" id="quick" hidden></div>
   <div class="replyBar" id="replyBar" hidden><div><b id="replyWho"></b><span id="replyText"></span></div><button type="button" class="replyPin" id="replyPin">Pin</button><button type="button" id="replyX" aria-label="Cancel the reply">✕</button></div>
@@ -1809,6 +1830,8 @@ function sendChat(text) {
   const c = { id: b64url(rand(8)), who: 'me', text, at: Date.now(), st: 0, re: reOut(replyTo) };   // st: 0 waiting, 1 sent, 2 delivered, 3 seen
   if (!c.re) delete c.re;
   setReply(null);
+  if (!$('quick').hidden) { $('quick').hidden = true; fitDock(); }   // the emoji panel closes once something is sent
+  toEndNext = true;
   chat.push(c); saveChat(); renderChat(); chatFx(text);
   send({ t: 'msg', id: c.id, text, at: c.at, re: c.re }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
 }
@@ -1824,6 +1847,7 @@ function gotChat(m) {
     const re = cleanRe(m.re);
     chat.push({ id: m.id, who: 'them', text: m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}) });
     saveChat(); renderChat(); tap();
+    if ($('toEnd').classList.contains('on')) { newBelow++; toEndState(); }   // reading older messages: count the new ones on the arrow
     chatFx(m.text);
   }
   send({ t: 'ack', id: m.id, seen: !document.hidden });
@@ -1863,13 +1887,42 @@ function gotSeen() {
 function resendChat() {
   if (!partnerOnline()) return;
   for (const c of chat) if (c.who === 'me' && (c.st || 0) < 2 && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re });
+  for (const c of chat) if (c.rxAt && c.rxAt.me && Date.now() - c.rxAt.me < 86400000) send({ t: 'react', id: c.id, e: (c.rx && c.rx.me) || '', at: c.rxAt.me });   // reactions made while the other phone was away
+}
+// ---- reactions: hold a message, pick a face; the same face again takes it off. Each phone has one reaction per message.
+const REACTS = ['❤️', '😍', '😘', '🥰', '🔥', '🫦', '😂', '👍', '😮', '😢', '🙏', '😡', '🤬', '😤', '💔'];
+function react(c, e) {
+  c.rx = c.rx || {}; c.rxAt = c.rxAt || {};
+  if (c.rx.me === e) e = '';
+  if (e) c.rx.me = e; else delete c.rx.me;
+  c.rxAt.me = Date.now(); tap(); saveChat(); renderChat();
+  send({ t: 'react', id: c.id, e, at: c.rxAt.me });
+}
+function gotReact(m) {
+  const c = typeof m.id === 'string' && chat.find(x => x.id === m.id);
+  if (!c || !Number.isFinite(m.at) || typeof m.e !== 'string' || (m.e && !REACTS.includes(m.e)) || (c.rxAt && c.rxAt.them >= m.at)) return;
+  c.rx = c.rx || {}; c.rxAt = c.rxAt || {};
+  if (m.e) c.rx.them = m.e; else delete c.rx.them;
+  c.rxAt.them = m.at; saveChat(); renderChat();
+  if (m.e) { tap(); miniBurst(m.e, $('msgs').querySelector(`.bubble[data-id="${CSS.escape(c.id)}"]`)); }
+}
+let toEndNext = false, newBelow = 0;   // toEndNext: the next draw goes to the newest message (this phone just sent one)
+function toEndState() {   // the down arrow shows once you are well above the newest message
+  const box = $('msgs'), far = box.scrollHeight - box.scrollTop - box.clientHeight > 250;
+  if (!far) newBelow = 0;
+  $('toEnd').classList.toggle('on', far);
+  $('toEndN').hidden = !newBelow; $('toEndN').textContent = newBelow > 99 ? '99+' : newBelow;
 }
 function renderChat() {
   const time = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: PK });
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
-  const quote = r => r ? `<span class="quote"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${esc(r.x)}</span></span>` : '';
-  $('msgs').innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) && !c.re ? 'big' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${esc(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
-  $('msgs').scrollTop = $('msgs').scrollHeight;
+  const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${esc(r.x)}</span></span>` : '';
+  const rxs = c => { const l = [c.rx && c.rx.them, c.rx && c.rx.me].filter(Boolean); return !l.length ? '' : `<span class="rx" role="button" aria-label="Reactions">${l[1] && l[0] === l[1] ? esc(l[0]) + '<small>2</small>' : l.map(esc).join('')}</span>`; };
+  const box = $('msgs'), keep = box.scrollTop, toEnd = toEndNext || !$('dock').classList.contains('open') || box.scrollHeight - box.scrollTop - box.clientHeight < 80;   // reading older messages: stay where you are
+  toEndNext = false;
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + chat.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) && !c.re ? 'big' : ''} ${r ? 'rxd' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${esc(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>${r}</div>`; }).join('');
+  box.scrollTop = toEnd ? box.scrollHeight : keep;
+  toEndState();
   $('clearChat').hidden = !chat.length;
   $('chatGrab').hidden = !chat.length;
   fitDock();
@@ -1935,15 +1988,16 @@ function renderPins() {
   }
   fitDock();
 }
-function jumpTo(id) {   // scroll the chat to a message and make it glow for a moment
+function jumpTo(id, gone = 'That message is no longer in the chat, but it stays pinned.') {   // scroll the chat to a message and make it glow for a moment
   const box = $('msgs'), el = box.querySelector(`.bubble[data-id="${CSS.escape(id)}"]`);
-  if (!el) { notify('That message is no longer in the chat, but it stays pinned.'); return; }
+  if (!el) { notify(gone); return; }
   const br = box.getBoundingClientRect(), er = el.getBoundingClientRect();
   box.scrollTo({ top: box.scrollTop + er.top - br.top - (br.height - er.height) / 2, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
 }
-function openMsgMenu(target, items) {   // a small menu next to what was held, growing out of it
+function openMsgMenu(target, items, head) {   // a small menu next to what was held, growing out of it; head: an optional row above the items
   const m = $('msgMenu'); m.innerHTML = '';
+  if (head) m.appendChild(head);
   for (const [label, fn] of items) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = label; b.onclick = e => { e.stopPropagation(); closeMsgMenu(); fn(); }; m.appendChild(b); }
   m.hidden = false;
   const r = target.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight, below = r.bottom + 8 + mh < innerHeight - 8;
@@ -1957,12 +2011,14 @@ function openMsgMenu(target, items) {   // a small menu next to what was held, g
 function closeMsgMenu() { $('msgMenu').hidden = true; if (menuFor) menuFor.classList.remove('held'); menuFor = null; }
 function bubbleMenu(b) {
   const c = chat.find(x => x.id === b.dataset.id); if (!c) return;
-  const on = !!(pins[c.id] && pins[c.id].on);
+  const on = !!(pins[c.id] && pins[c.id].on), row = document.createElement('div');
+  row.className = 'rxRow'; row.setAttribute('aria-label', 'React');
+  for (const e of REACTS) { const x = document.createElement('button'); x.type = 'button'; x.textContent = e; x.setAttribute('aria-label', 'React ' + e); if (c.rx && c.rx.me === e) x.className = 'on'; x.onclick = ev => { ev.stopPropagation(); closeMsgMenu(); react(c, e); }; row.appendChild(x); }
   openMsgMenu(b, [
     ['Reply', () => { openChat(); setReply(c); backToTyping(); }],
     [on ? 'Unpin' : 'Pin', () => setPin({ id: c.id, x: c.text.slice(0, 200), w: c.who }, !on)],
     ['Copy', () => { if (navigator.clipboard) navigator.clipboard.writeText(c.text).then(() => notify('Copied.')).catch(() => {}); }],
-  ]);
+  ], row);
 }
 function holdToOpen(el, pick, open) {   // press and hold about half a second, without moving, opens the menu
   el.addEventListener('pointerdown', ev => {
@@ -4507,7 +4563,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-175105';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-221546';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -4884,6 +4940,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'msg') gotChat(m);
   if (m.t === 'clearchat') gotClear(m);
   if (m.t === 'ack') gotAck(m);
+  if (m.t === 'react') gotReact(m);
   if (m.t === 'seen') gotSeen();
   if (m.t === 'typing') typingUntil = Date.now() + 3500;
   if (m.t === 'listening') partnerListening = !!m.on;
@@ -5355,11 +5412,23 @@ $('buzzBtn').onclick = () => sendBuzz();
 // ---- start
 $('quick').innerHTML = EMOJI.map(e => `<button type="button" aria-label="Send ${e}">${e}</button>`).join('');
 // Pressing Send or an emoji must not take the cursor out of the message box, or the phone closes its keyboard.
-const KEEPS_KEYBOARD = '#sendBtn, #emojiBtn, #quick button, #buzzBtn, .bubble, #replyX';
+const KEEPS_KEYBOARD = '#sendBtn, #emojiBtn, #quick button, #buzzBtn, .bubble, #replyX, #toEnd';
 let wasTyping = false;
 // The keyboard opens only when the message box itself is tapped. Android can hide the keyboard and leave the box selected,
-// so "typing" also needs the keyboard to be taking up the screen.
-const keyboardUp = () => !window.visualViewport || innerHeight - visualViewport.height > 120;
+// so "typing" also needs the keyboard to be taking up the screen. The page shrinks when the keyboard opens
+// (resizes-content), so it is measured against the tallest the page has been, not against the page itself.
+let fullH = innerHeight;
+addEventListener('resize', () => { fullH = Math.max(fullH, innerHeight); });
+matchMedia('(orientation: portrait)').addEventListener('change', () => { fullH = 0; });   // turned the phone: learn the new full height
+const keyboardUp = () => Math.min(innerHeight, window.visualViewport ? visualViewport.height : innerHeight) < fullH - 120;
+// A tap on the box while it is still selected but the keyboard was put away: let go first, so the tap brings the keyboard back.
+$('text').addEventListener('pointerdown', () => { if (document.activeElement === $('text') && !keyboardUp()) $('text').blur(); });
+// The whole rounded box counts, not just the line of text inside it.
+$('compose').addEventListener('click', ev => { if (!ev.target.closest('button, input')) $('text').focus(); });
+const sendTyped = () => { sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
+$('text').addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.keyCode === 13) && !ev.shiftKey) { ev.preventDefault(); sendTyped(); } });   // the keyboard's Enter sends
+$('msgs').addEventListener('scroll', toEndState, { passive: true });
+$('toEnd').onclick = () => { tap(); newBelow = 0; const box = $('msgs'); box.scrollTo({ top: box.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); backToTyping(); };
 document.addEventListener('pointerdown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) wasTyping = document.activeElement === $('text') && keyboardUp(); }, true);
 document.addEventListener('mousedown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) ev.preventDefault(); }, true);
 const backToTyping = () => { if (wasTyping) $('text').focus(); };
@@ -5392,7 +5461,7 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
   if (muted) { notify('Your headphones changed, so the sound was muted. Put them back in to keep listening.'); render(); }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
-$('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };   // Send keeps the box selected by itself, so an open keyboard stays open and a closed one stays closed
+$('compose').onsubmit = ev => { ev.preventDefault(); sendTyped(); };   // Send keeps the box selected by itself, so an open keyboard stays open and a closed one stays closed
 $('clearChat').onclick = ev => { ev.stopPropagation(); tap(); $('clearSheet').hidden = false; };
 $('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askNo').textContent = 'Refuse'; if (lobbyMode) return lobbySubmit(); const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
 $('askNo').onclick = () => { $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askNo').textContent = 'Refuse'; if (lobbyMode) return lobbyCancel(); if (asking) { refused.add(asking.from); if (!isRemote) send({ t: 'busy', to: asking.from, no: true }, true); logLink('a new phone or page was refused'); } asking = null; };
@@ -5407,6 +5476,13 @@ $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap a
   if (ev.target.closest('.e2e')) { showCode(); return; }
   const b = ev.target.closest('.bubble'), now = Date.now();
   if (now - menuAt < 700) return;   // that was a long press: the menu is up
+  if (ev.target.closest('.rx') && b) { tap(); bubbleMenu(b); return; }   // the reaction badge: change or take off your reaction
+  const q = ev.target.closest('.quote');
+  if (q && q.dataset.re) {   // the quoted part of a reply: go to the message it answers
+    tap(); const was = chatIsOpen(); openChat();
+    setTimeout(() => jumpTo(q.dataset.re, 'That message is no longer in the chat.'), was ? 0 : 320);   // a small chat grows first
+    return;
+  }
   if (now - chatTapAt < 300) { clearTimeout(chatTapT); chatTapAt = 0; if (chatIsOpen()) { tap(); closeChat(); } return; }
   chatTapAt = now;
   chatTapT = setTimeout(() => {
