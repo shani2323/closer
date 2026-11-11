@@ -584,7 +584,8 @@
   /* reactions: a row of faces on top of the hold menu, and a small badge hanging off the bubble */
   .msgMenu .rxRow { display: flex; gap: 2px; max-width: min(320px, calc(100vw - 24px)); overflow-x: auto; padding: 4px 6px 6px; border-bottom: .5px solid rgba(255, 255, 255, .12); scrollbar-width: none; }
   .msgMenu .rxRow::-webkit-scrollbar { display: none; }
-  .msgMenu .rxRow button { flex: none; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 50%; font-size: 25px; line-height: 1; text-align: center; }
+  .msgMenu .rxRow { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }   /* the faded edge says more faces are further along */
+  .msgMenu .rxRow button { flex: none; width: 37px; height: 40px; padding: 0; border: 0; border-radius: 50%; font-size: 23px; line-height: 1; text-align: center; }
   .msgMenu .rxRow button.on { background: rgba(255, 255, 255, .2); }
   .msgMenu .rxRow button:active { transform: scale(1.25); transition: transform 90ms ease-out; }
   .bubble.rxd { position: relative; margin-bottom: 14px; }
@@ -4563,7 +4564,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-221546';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-222238';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
