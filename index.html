@@ -1043,7 +1043,7 @@ const room = hp.get('r');
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist().then(ok => logLink(ok ? 'storage kept' : 'storage may be cleared by the phone')); } catch {}   // ask Chrome and Safari never to auto-delete the chat, the pairing and the scores
 let partnerPush = store.get('partnerPush:' + room) || null, myPush = store.get('myPush:' + room) || null;
 // Her link always opens her side and his link his. A link for the other side of this couple asks first, so a mistake costs one press.
-const askSide = !firstVisit && lastSide && lastSide !== (isRemote ? 'remote' : 'host') && ((store.get('hostRoom') || {}).r === room || roomOf(store.get('lastRemote')) === room);
+const askSide = !firstVisit && lastSide && lastSide !== (isRemote ? 'remote' : 'host');   // any link for the other side asks first, so one phone never runs both sides (11 Nov: his phone had her side in a Chrome tab and kept finding itself)
 if (!isRemote && !firstVisit && !askSide) store.set('hostRoom', { r: room, k: hp.get('k') });
 if (isRemote && !askSide) store.set('lastRemote', location.href);
 if (!firstVisit && !askSide) store.set('role', isRemote ? 'remote' : 'host');
@@ -4507,7 +4507,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-161051';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-175105';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5646,16 +5646,18 @@ else {
 let leaving = false;
 // One phone, one room (11 Nov: her phone had the home-screen app and a Chrome tab open in two different rooms, so his phone was
 // moved back and forth between them for ever). Every Loveline window on a phone follows the room that phone used last.
-function followRoom() {
+function followRoom() {   // also one side: Xed's own phone had her side in a Chrome tab and his side in the app, and kept finding itself
   if (leaving) return;
-  const want = isRemote ? store.get('lastRemote') : store.get('hostRoom'), r = isRemote ? roomOf(want) : want && want.r;
-  if (!r || r === room || (!isRemote && !want.k)) return;
-  leaving = true; logLink('another Loveline window on this phone uses another room: following it');
-  location.replace(isRemote ? want : location.pathname + '#h=1&r=' + want.r + '&k=' + want.k); location.reload();
+  const role = store.get('role'), side = role === 'remote' || role === 'host' ? role : isRemote ? 'remote' : 'host';
+  const want = side === 'remote' ? store.get('lastRemote') : store.get('hostRoom'), r = side === 'remote' ? roomOf(want) : want && want.r;
+  if (!r || (side === 'host' && !want.k) || (r === room && side === (isRemote ? 'remote' : 'host'))) return;
+  leaving = true; logLink(side === (isRemote ? 'remote' : 'host') ? 'another Loveline window on this phone uses another room: following it' : `this phone was switched to ${side === 'remote' ? 'his' : 'her'} side in another window: following it`);
+  if (!isRemote) stopAll();   // her toys stop before this window leaves her side
+  location.replace(side === 'remote' ? want : location.pathname + '#h=1&r=' + want.r + '&k=' + want.k); location.reload();
 }
-addEventListener('storage', e => { if (e.key === 'closer:' + (isRemote ? 'lastRemote' : 'hostRoom')) followRoom(); });
+addEventListener('storage', e => { if (['closer:role', 'closer:lastRemote', 'closer:hostRoom'].includes(e.key)) followRoom(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) followRoom(); });
-const otherSide =isRemote ? location.pathname + '#h=1&r=' + room + '&k=' + hp.get('k') : shareUrl;   // either side can always become the other one
+const otherSide = isRemote ? location.pathname + '#h=1&r=' + room + '&k=' + hp.get('k') : shareUrl;   // either side can always become the other one
 document.querySelectorAll('.switchSide').forEach(b => {
   b.hidden = false; b.textContent = `Switch this phone to ${isRemote ? 'her' : 'his'} side`;
   b.onclick = () => {
