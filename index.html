@@ -48,11 +48,6 @@
   .hdr { display: flex; align-items: center; gap: 8px; }
   @media (max-width: 370px) { h1 { font-size: 24px; } .hdr, .hleft { gap: 5px; } .stop { padding: 0 10px 0 9px; gap: 5px; } .me { padding: 0 11px; } }   /* small phones: everything on the title line still fits */
   .me { min-height: 36px; padding: 0 14px; border-radius: 18px; font-size: 15px; font-weight: 500; }
-  .me.refresh { display: grid; place-items: center; width: 36px; padding: 0; }   /* the installed app window has no browser refresh */
-  .me.refresh:active { transform: scale(.92); }
-  .me.refresh.spin svg { animation: rspin .7s linear infinite; }
-  @keyframes rspin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .me.refresh.spin svg { animation: none; opacity: .5; } }
 
   .status { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; }
   .status li { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; font-size: 13px; letter-spacing: -.005em;
@@ -522,6 +517,7 @@
   .float { position: fixed; bottom: -60px; z-index: 8; font-size: 34px; pointer-events: none; animation: rise 2.4s cubic-bezier(.2, .6, .3, 1) both; }
   @keyframes rise { from { transform: none; opacity: 0; } 12% { opacity: 1; } to { transform: translate(var(--dx, 0), -95vh) rotate(var(--r, 0deg)) scale(1.3); opacity: 0; } }
   [hidden] { display: none !important; }
+  .lock.cover > * { visibility: hidden; }   /* leaving the app: a plain cover at once, so nothing shows in the app switcher or on the way back */
   .lock { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: radial-gradient(120% 80% at 50% 0%, #2a1636 0%, #000 70%); color: #fff; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
   .lockPad { display: grid; justify-items: center; width: min(320px, 100%); padding: 0 16px; }
   .lockPad svg { width: 22px; height: 22px; opacity: .9; }
@@ -616,12 +612,21 @@
   const ss = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); v === null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} };
   const hash = async (code, salt) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + code)))].map(x => x.toString(16).padStart(2, '0')).join('');
   const buzz = () => { try { navigator.vibrate && navigator.vibrate(8); } catch {} };
+  const storeV = async code => { try { localStorage.setItem('closer:lockv', await hash(code, 'loveline-shared')); dispatchEvent(new Event('lockv')); } catch {} };   // equal on both phones only when both use the same passcode
+  let retry = false, cand = null, candV = null;   // a wiped or new phone whose passcode the other phone refused: only the calculator shows
+  window.lockV = () => { if (candV) return candV; try { return localStorage.getItem('closer:lockv'); } catch { return null; } };
+  window.lockRefused = () => { retry = true; cand = candV = null; if (mode !== 'calc') show('calc'); };
+  window.lockJoined = async () => {   // the other phone accepted: a code tried on the calculator becomes this phone's passcode only now
+    if (!retry) return;
+    if (cand) { const s = [...crypto.getRandomValues(new Uint8Array(12))].map(x => x.toString(16).padStart(2, '0')).join(''); localStorage.setItem(KEY, JSON.stringify({ s, h: await hash(cand, s) })); const c = cand; cand = candV = null; await storeV(c); }
+    retry = false; unlock();
+  };
   let mode = null, typed = '', first = '', awayAt = 0, busy = false, changing = false, askedAt = 0;
   const TITLES = { set1: 'Choose a 4-digit passcode', set2: 'Enter it again', change: 'Choose a new 4-digit passcode', enter: 'Enter passcode' };
   function dots() { [...$l('lockDots').children].forEach((d, i) => d.classList.toggle('on', i < typed.length)); }
   function show(m, hint) {
     mode = m; typed = ''; dots();
-    $l('lock').hidden = false; $l('calc').hidden = m !== 'calc'; $l('lockPad').hidden = m === 'calc'; behind(true);
+    $l('lock').classList.remove('cover'); $l('lock').hidden = false; $l('calc').hidden = m !== 'calc'; $l('lockPad').hidden = m === 'calc'; behind(true);
     if (m === 'calc') { document.title = 'Calculator'; ss('lockDecoy', '1'); calcReset(); }
     else { document.title = title; $l('lockTitle').textContent = TITLES[m]; $l('lockHint').textContent = hint || (m === 'set1' ? 'You will need it every time Loveline opens.' : ''); }
     $l('lockCancel').textContent = m === 'enter' ? 'Forgot?' : 'Cancel';
@@ -629,7 +634,8 @@
     try { document.activeElement && document.activeElement.blur(); } catch {}
   }
   function behind(off) { for (const el of document.body.children) if (el.id !== 'lock' && el.tagName !== 'SCRIPT') el.inert = off; }   // nothing behind the lock can be tapped or reached
-  function unlock() { behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); }
+  function cover(on) { if (mode) return; $l('lock').classList.toggle('cover', on); $l('lock').hidden = !on; }
+  function unlock() { $l('lock').classList.remove('cover'); behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); }
   window.lockChange = () => { changing = true; show('change'); };
   window.lockReset = name => { if (mode !== 'enter' || Date.now() - askedAt > 120000) return; askedAt = 0; show('set1', `${name} said yes. Choose a new code.`); };   // the other phone approved
   async function full() {
@@ -642,11 +648,11 @@
         return;
       }
       const s = [...crypto.getRandomValues(new Uint8Array(12))].map(x => x.toString(16).padStart(2, '0')).join('');
-      localStorage.setItem(KEY, JSON.stringify({ s, h: await hash(typed, s) })); unlock(); return;
+      localStorage.setItem(KEY, JSON.stringify({ s, h: await hash(typed, s) })); await storeV(typed); unlock(); return;
     }
     const v = saved(); busy = true;
-    const ok = !!v && await hash(typed, v.s) === v.h; busy = false;
-    ok ? unlock() : show('calc');   // a wrong code: only a calculator
+    const code = typed, ok = !!v && await hash(code, v.s) === v.h; busy = false;
+    if (ok) { await storeV(code); unlock(); } else show('calc');   // a wrong code: only a calculator
   }
   $l('lockKeys').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || busy || !mode || mode === 'calc') return;
@@ -676,7 +682,8 @@
     else if (c === '%') { tail = ''; if (cur !== 'Error') { cur = fmt(+cur / 100); fresh = true; } }
     else if (c === '=') {
       const v = saved(), t = tail; tail = '';
-      if (t.length === 4 && v && await hash(t, v.s) === v.h) { unlock(); return; }   // the code, then =: back into Loveline
+      if (t.length === 4 && v && await hash(t, v.s) === v.h) { await storeV(t); unlock(); return; }
+      if (t.length === 4 && retry) { cand = t; candV = await hash(t, 'loveline-shared'); dispatchEvent(new Event('lockv')); }   // a code, then =: only tried with the other phone; nothing is saved unless it matches   // the code, then =: back into Loveline
       if (op && cur !== 'Error') { cur = fmt(calc(acc, +cur, op)); op = null; acc = null; fresh = true; }
     } else {   // + - * /
       tail = '';
@@ -691,10 +698,12 @@
   else if (ss('lockDecoy')) show('calc');
   else if (!(Date.now() - +(ss('lockSeen') || 0) < AWAY)) show('enter');   // a reload a moment ago (an update) stays open
   setInterval(() => { if (!document.hidden && !mode) ss('lockSeen', String(Date.now())); }, 1000);
-  const away = () => { if (!awayAt) awayAt = Date.now(); if (!mode && !document.hidden) ss('lockSeen', String(Date.now())); };   // a page closed while already in the background is not "just used"
-  const back = () => { if (awayAt && Date.now() - awayAt >= AWAY && !mode) show(saved() ? 'enter' : 'set1'); awayAt = 0; };
+  const away = () => { if (!awayAt) awayAt = Date.now(); if (!mode && !document.hidden) ss('lockSeen', String(Date.now())); cover(true); };   // a page closed while already in the background is not "just used"; the cover goes up the same instant
+  const back = () => { const long = awayAt && Date.now() - awayAt >= AWAY; awayAt = 0; if (long && !mode) show(saved() ? 'enter' : 'set1'); else cover(false); };   // under the cover the pad is already there: no peek
   document.addEventListener('visibilitychange', () => document.hidden ? away() : back());
   addEventListener('pagehide', away); addEventListener('pageshow', e => { if (e.persisted) back(); });
+  addEventListener('blur', () => setTimeout(() => { const a = document.activeElement; if (!document.hasFocus() && !(a && a.tagName === 'IFRAME')) away(); }, 0));   // the app switcher opening: cover before its preview is taken (a tap into a video frame is not leaving)
+  addEventListener('focus', () => { if (!document.hidden) back(); });
   document.addEventListener('DOMContentLoaded', () => { if (mode) behind(true); });   // the app below is only built after this runs
 })();
 </script>
@@ -703,7 +712,6 @@
     <div class="hleft"><h1>Loveline</h1><button class="me glass" id="buzzBtn" aria-label="Send Thinking of you" hidden>💗</button></div>
     <div class="hdr">
       <button class="stop" id="stop" aria-label="Stop everything">Stop</button>
-      <button class="me glass refresh" id="refreshBtn" aria-label="Refresh Loveline" title="Refresh"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
     </div>
   </header>
@@ -900,8 +908,8 @@
   <form id="clearForm" class="glass">
     <div class="grabber"></div>
     <h2>Clear chat?</h2>
-    <p>Every message is deleted on both phones. This cannot be undone.</p>
-    <button class="primary danger" id="clearYes">Clear for both of us</button>
+    <p>Every message is deleted on this phone only, and never comes back here. Your partner keeps their copy.</p>
+    <button class="primary danger" id="clearYes">Clear on this phone</button>
     <button type="button" class="ghost" id="clearNo">Cancel</button>
   </form>
 </div>
@@ -1029,6 +1037,7 @@ if (!hp.has('r') || !hp.has('k')) {
   history.replaceState(null, '', '#' + hp);
 }
 const room = hp.get('r');
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist().then(ok => logLink(ok ? 'storage kept' : 'storage may be cleared by the phone')); } catch {}   // ask Chrome and Safari never to auto-delete the chat, the pairing and the scores
 let partnerPush = store.get('partnerPush:' + room) || null, myPush = store.get('myPush:' + room) || null;
 // Her link always opens her side and his link his. A link for the other side of this couple asks first, so a mistake costs one press.
 const askSide = !firstVisit && lastSide && lastSide !== (isRemote ? 'remote' : 'host') && ((store.get('hostRoom') || {}).r === room || roomOf(store.get('lastRemote')) === room);
@@ -1317,7 +1326,10 @@ function render() {
 
   if (isRemote) {
     const [t, p] = clockOff ? ['The two phone clocks disagree', `They are ${Math.abs(clockOff)} minutes apart. Turn on automatic date and time on both phones.`]
+      : blocked === 'code' ? ['Passcode does not match', `This phone's passcode is not the same as ${who()}'s. Tap your name, then Change passcode, and use the one you both use.`]
+      : blocked === 'tries' ? ['Too many wrong passcodes', 'Wait 10 minutes, then try again.']
       : blocked === 'no' ? ['This phone was refused', `${who()} did not allow this phone.`]
+      : blocked && lockOn() ? ['Checking your passcode', `${who()}'s phone is checking that this phone uses the same passcode. It only takes a moment.`]
       : blocked ? ['Asking to connect', `${who()} has to tap Allow on the other phone. This happens on a new phone or in a private tab.`]
       : !online && Date.now() - startedAt > 8000 ? ["This phone can't reach the internet", 'No connection server answers from this network. Try switching between Wi-Fi and mobile data. You will connect by yourself.']
       : !partnerOnline() ? ["Waiting for your partner's phone", 'Loveline is closed or asleep on the other phone. Ask your partner to open it. You will connect by yourself.']
@@ -1461,7 +1473,7 @@ async function handle(txt) {
     return;
   }
   clockOff = 0;
-  if (viaLink !== ['hello', 'welcome', 'busy', 'clock', 'here'].includes(m.t)) return;
+  if (viaLink !== ['hello', 'welcome', 'busy', 'clock', 'here', 'prove', 'proof'].includes(m.t)) return;
   if (['state', 'set', 'stop', 'lead', 'rename', 'mix', 'wplay', 'wbeat', 'vlib'].includes(m.t)) {   // a copy can arrive late by the slower route: never let it undo a newer change
     const slot = m.t + (m.egg || '');
     if (m.ts < (lastTs[slot] || 0)) return;
@@ -1573,10 +1585,10 @@ function clearChat() {
   lastClear = { id: b64url(rand(6)), ids, at: Date.now() }; store.set('lastClear:' + room, lastClear);
   forgetIds(['clear:' + lastClear.id]);
   $('dock').classList.remove('open'); renderChat();
-  send({ t: 'clearchat', id: lastClear.id, ids });
-  notify('Chat cleared on both phones.');
+  notify(`Chat cleared on this phone. ${who()} still has their copy.`);
 }
-function gotClear(m) {
+function gotClear(m) {   // a clear is for the phone that tapped it only (since 11 Nov): one from an older copy of the app is ignored
+  return;
   if (typeof m.id !== 'string' || !Array.isArray(m.ids) || cleared.has('clear:' + m.id)) return;
   const ids = m.ids.filter(x => typeof x === 'string').slice(0, 600);
   forgetIds([...ids, 'clear:' + m.id]);
@@ -1619,6 +1631,28 @@ function gotChat(m) {
     chatFx(m.text);
   }
   send({ t: 'ack', id: m.id, seen: !document.hidden });
+}
+// Chat history heals itself: if one phone lost messages (a new install, cleared phone storage), the other phone sends them back.
+const chatSig = () => { const all = [...new Set([...chat.map(c => c.id), ...[...cleared].filter(x => !x.startsWith('clear:'))])]; let h = 2166136261; for (const id of all.sort()) for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return all.length + ':' + (h >>> 0).toString(36); };
+let chatIdsAt = 0;
+function sendChatIds() { if (Date.now() - chatIdsAt < 15000) return; chatIdsAt = Date.now(); send({ t: 'chatids', ids: [...new Set([...chat.map(c => c.id), ...[...cleared].filter(x => !x.startsWith('clear:'))])] }); }   // cleared here counts as had: never sent back
+function gotChatIds(m) {   // send back what the other phone is missing
+  if (!Array.isArray(m.ids)) return;
+  const have = new Set(m.ids.filter(x => typeof x === 'string').slice(0, 1000));
+  const miss = chat.filter(c => !have.has(c.id) && !cleared.has(c.id)).map(c => ({ id: c.id, w: c.who, x: c.text, at: c.at, ...(c.re ? { re: reOut(c.re) } : {}) }));
+  for (let i = 0; i < miss.length; i += 20) send({ t: 'chathist', items: miss.slice(i, i + 20) });
+  sendChatIds();   // and ask for what this phone is missing
+}
+function gotChatHist(m) {
+  if (!Array.isArray(m.items)) return;
+  let n = 0;
+  for (const it of m.items.slice(0, 200)) {
+    if (!it || typeof it.id !== 'string' || it.id.length > 24 || typeof it.x !== 'string' || !['me', 'them'].includes(it.w)) continue;
+    if (cleared.has(it.id) || chat.some(c => c.id === it.id)) continue;
+    const re = cleanRe(it.re), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(re ? { re } : {}) };
+    const at = chat.findIndex(o => o.at > c.at); at < 0 ? chat.push(c) : chat.splice(at, 0, c); n++;
+  }
+  if (n) { saveChat(); renderChat(); notify(`${n} message${n > 1 ? 's' : ''} brought back from ${who()}'s phone.`); }
 }
 function gotAck(m) {
   const c = chat.find(c => c.id === m.id && c.who === 'me');
@@ -2139,7 +2173,6 @@ function flushDraw() {   // send new points about 20 times a second while drawin
 }
 setInterval(flushDraw, 50);
 function resync() {   // the other phone came back: send what is open here so both screens match again
-  if (lastClear && Date.now() - lastClear.at < 86400000) send({ t: 'clearchat', id: lastClear.id, ids: lastClear.ids });   // a phone that was away clears too
   for (const x of strokes) send({ t: 'stroke', s: { id: x.id, c: x.c, w: x.w, e: x.e, b: x.b, m: x.m, pts: x.pts } });
 }
 const libSize = () => Object.keys(vidMap).length + gone.size;
@@ -2151,6 +2184,7 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   if (Number.isFinite(m.lv) && m.lv < ludoV) send({ t: 'ludo', l: ludo, v: ludoV });
   if ((myPush || '').slice(-16) !== (m.pu || '')) send({ t: 'pushsub', endpoint: myPush });
   if (Number.isFinite(m.pk) && m.pk < pinLast()) send({ t: 'pins', all: pins });   // pins changed while the other phone was away
+  if (typeof m.cs === 'string' && m.cs !== chatSig()) sendChatIds();   // the two chats differ: swap what is missing
   if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
   if (Number.isInteger(m.lc) && m.lc !== libSize() && Date.now() - libSentAt > 5000) { libSentAt = Date.now(); sendLib(); }
 }
@@ -4270,7 +4304,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-080258';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-094010';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
@@ -4579,13 +4613,14 @@ function takeHost(m) {   // this phone now talks to that page; its clock is the 
   const other = !hostPair || hostPair.id !== m.from;
   hostPair = { id: m.from, pub: pubOnly(m.pub) }; store.set('hostPair:' + room, hostPair);
   if (other) { for (const k in lastTs) delete lastTs[k]; lastSeenTs = 0; logLink(`now with her page, ${eggCount(m)} eggs on it`); }
-  return derive(hostPair.pub).then(k => { pairKey = k; blocked = false; gotName(m.name); seen(m); resendChat(); render(); });
+  return derive(hostPair.pub).then(k => { pairKey = k; blocked = false; gotName(m.name); seen(m); resendChat(); render(); if (window.lockJoined) window.lockJoined(); });
 }
 function newHost(m) {   // her page has a key this phone has not seen: only he can say yes, so nobody else with the link can pull him away
   if (refused.has(m.from) || (asking && asking.from === m.from)) return;
   const quiet = !asking; asking = m;
   wait(quiet ? 4000 : 0).then(() => {   // her usual page normally answers first: then there is nothing to ask
     if (asking !== m || (partnerOnline() && !(eggCount(m) > eggsOn()))) { if (asking === m) asking = null; return; }
+    if (lockOn()) { asking = null; askProof(m, takeHost); return; }   // a passcode decides, no tap
     logLink('a new page of hers asked to connect'); tap();
     $('askTitle').textContent = 'Connect to this page?';
     $('askText').textContent = `${typeof m.name === 'string' && m.name ? m.name.slice(0, 24) : 'Someone with your link'} opened Loveline on a new phone or tab${eggCount(m) ? ` and has ${label('vib')} and ${label('suc')} there` : ''}. Connect only if this is really your partner.`;
@@ -4596,7 +4631,10 @@ async function fromHost(m, viaLink) {
   if (viaLink) {
     if (m.t === 'here') { if ((!hostPair || m.from !== hostPair.id) && eggCount(m) > eggsOn() && Date.now() - helloAt > 3000) hello(); return; }   // another page of hers has more eggs than the one this phone is with
     if (m.to !== me) return;
-    if (m.t === 'busy' && !partnerOnline()) { blocked = m.no ? 'no' : 'ask'; render(); }
+    if (m.t === 'prove') { answerProve(m); return; }
+    if (m.t === 'proof') { await gotProof(m); return; }
+    if (m.t === 'busy' && m.why === 'code' && m.from === askedBy && !hostPair) { refusedV = myV(); if (window.lockRefused) window.lockRefused(); }
+    if (m.t === 'busy' && !partnerOnline() && !(blocked === 'code' && !m.why && myV() === refusedV)) { blocked = m.why === 'code' || m.why === 'tries' ? m.why : m.no ? 'no' : 'ask'; render(); }   // a refused passcode stays shown until it is changed
     if (m.t === 'welcome' && typeof m.from === 'string') {
       if (hostPair && !sameKey(hostPair.pub, m.pub)) { if (!partnerOnline() || eggCount(m) > eggsOn()) newHost(m); return; }
       await takeHost(m);
@@ -4645,6 +4683,8 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'listening') partnerListening = !!m.on;
   if (m.t === 'panel') gotPanel(m);
   if (m.t === 'facts') gotFacts(m);
+  if (m.t === 'chatids') gotChatIds(m);
+  if (m.t === 'chathist') gotChatHist(m);
   if (m.t === 'pdare') gotPadDare(m);
   if (m.t === 'combo' && Number.isInteger(m.n) && m.n > 0) { notify(`${who()} tapped ${Math.min(m.n, 999)} in a row 🔥`); m.n >= 20 ? burst('🔥') : tap(); }
   if (m.t === 'draw') { gotDraw(m); theirFinger(m); }
@@ -4697,22 +4737,60 @@ async function letIn(m) {
   await send({ t: 'welcome', to: m.from, pub: keys.pub, name: myName, eggs: Object.values(state).filter(e => e.connected).length }, true);
   publishState(); resendChat(); render();
 }
+// A wiped or new phone gets back in with no tap, only when it uses the same passcode as this phone (Xed 11 Nov). This phone sends a
+// one-time question; the new phone answers with its passcode mixed into it. The passcode never travels. 5 wrong answers: 10 minutes shut.
+const lockOn = () => typeof window.lockV === 'function', myV = () => lockOn() ? window.lockV() : null;
+const sha = async t => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map(x => x.toString(16).padStart(2, '0')).join('');
+const proving = new Map();
+let proveFails = [], proveAsk = null, refusedV = null;
+function askProof(m, ok) {
+  const now = Date.now(); proveFails = proveFails.filter(t => now - t < 600000);
+  if (proveFails.length >= 5) { send({ t: 'busy', to: m.from, no: true, why: 'tries' }, true); return; }
+  let p = proving.get(m.from);
+  if (!p || now - p.at > 60000) { p = { ch: b64url(rand(16)), at: now }; proving.set(m.from, p); }
+  p.m = m; p.ok = ok;
+  send({ t: 'prove', to: m.from, ch: p.ch }, true);
+}
+async function gotProof(m) {
+  const p = proving.get(m.from), v = myV();
+  if (!p || typeof m.p !== 'string' || !v) return;   // no question out, or this phone has not been unlocked since the update (asked again once it is)
+  proving.delete(m.from);
+  if (m.p === await sha(v + ':' + p.ch)) { logLink('a wiped or new phone used the right passcode and joined'); p.ok(p.m); }
+  else { proveFails.push(Date.now()); logLink('a new phone used a different passcode: kept out'); send({ t: 'busy', to: m.from, no: true, why: 'code' }, true); }
+}
+let askedBy = null;
+async function answerProve(m) {   // on the new phone only: a phone already paired never answers (a link holder cannot use this to reach the lock)
+  if (isRemote ? !!hostPair : !(pair && pair.id === m.from)) return;
+  proveAsk = m; askedBy = m.from; const v = myV();
+  if (!v || v === refusedV) return;   // no passcode chosen yet, or this one was already refused: answered when it changes
+  proveAsk = null;
+  send({ t: 'proof', to: m.from, p: await sha(v + ':' + m.ch) }, true);
+}
+addEventListener('lockv', () => {
+  if (proveAsk) answerProve(proveAsk);   // the passcode was just chosen or changed here
+  for (const [id, p] of proving) send({ t: 'prove', to: id, ch: p.ch }, true);   // this phone can check now: ask again
+});
 function newPhone(m) {   // the link is right but the phone is new (other phone, private tab, wiped browser): only she can say yes
   if (refused.has(m.from)) { send({ t: 'busy', to: m.from, no: true }, true); return; }
   send({ t: 'busy', to: m.from }, true);
+  if (lockOn()) { askProof(m, letIn); return; }   // a passcode decides, no tap
   if (!asking) { logLink('a new phone asked to connect'); tap(); }
   asking = m;
   $('askText').textContent = `${typeof m.name === 'string' && m.name ? m.name.slice(0, 24) : 'Someone with your link'} is trying to hold your remote from a new phone or a private tab. It will replace the phone paired now.`;
   $('askSheet').hidden = false;
 }
 async function fromRemote(m, viaLink) {
-  if (viaLink) {   // hello: pair the first phone, refuse any other
+  if (viaLink) {   // hello: pair the first phone; a new one needs the same passcode
+    if (m.t === 'prove') { if (m.to === me) answerProve(m); return; }
+    if (m.t === 'proof') { if (m.to === me) await gotProof(m); return; }
+    if (m.t === 'busy') { if (m.to === me && m.why === 'code' && m.from === askedBy && pair && pair.id === m.from) { refusedV = myV(); if (window.lockRefused) window.lockRefused(); } return; }   // only the calculator shows
     if (pair && !(pair.id === m.from && sameKey(pair.pub, m.pub))) newPhone(m);
     else await letIn(m);
     return;
   }
   if (!pair || m.from !== pair.id) return;
   seen(m);
+  if (window.lockJoined) window.lockJoined();   // he talks to this page: its passcode was accepted
   gotName(m.name);
   if (m.t === 'stop') {   // repeated until she confirms: acted on once per press; his own later moves still count
     const at = Number.isFinite(m.at) ? Math.min(m.at, m.ts) : m.ts;
@@ -5145,13 +5223,6 @@ addEventListener('popstate', () => {
 });
 $('splashSide').textContent = isRemote ? 'His side' : 'Her side';
 setTimeout(() => $('splash').remove(), 1300);
-$('refreshBtn').onclick = async () => {   // a full fresh load: newest app, newest helper, same private link
-  if (outQ.length && !confirm('A video is still sending. Refresh anyway? It carries on after.')) return;
-  tap(); $('refreshBtn').classList.add('spin');
-  try { const regs = navigator.serviceWorker && navigator.serviceWorker.getRegistrations ? await navigator.serviceWorker.getRegistrations() : []; await Promise.all(regs.map(r => r.update().catch(() => {}))); } catch {}
-  try { if (window.caches) for (const k of await caches.keys()) await caches.delete(k); } catch {}
-  leaving = true; location.replace(location.pathname + '?u=' + Date.now() + location.hash);
-};
 $('meBtn').onclick = () => { $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
 $('nameForm').onsubmit = ev => {
   ev.preventDefault();
@@ -5260,7 +5331,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16), pk: pinLast(), wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16), pk: pinLast(), cs: chatSig(), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
