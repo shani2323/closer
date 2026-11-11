@@ -897,8 +897,9 @@
 <div class="sheet" id="askSheet" hidden>
   <form id="askForm" class="glass">
     <div class="grabber"></div>
-    <h2 id="askTitle">Allow this phone?</h2>
+    <h2 id="askSheetTitle">Allow this phone?</h2>
     <p id="askText"></p>
+    <input id="askName" class="field" autocomplete="off" autocapitalize="words" aria-label="Your partner's name" placeholder="Your partner's name" hidden>
     <button class="primary" id="askYes">Allow</button>
     <button type="button" class="ghost" id="askNo">Refuse</button>
   </form>
@@ -1382,6 +1383,60 @@ async function unseal(text, key) {
 }
 
 const topicFromHost = `closer-v2/${room}/h`, topicFromRemote = `closer-v2/${room}/c`;
+// ---- find each other by the shared passcode (Xed 11 Nov): a phone that is not paired looks for a phone with the same passcode on the
+// other side; one tap on either phone connects them. Everything in this lobby is locked with the passcode, so only the two of you see it.
+let lobbyT = null, lobbyKey = null, lobbyV = null, lobbyAsk = null;
+const lobbyNo = new Set(), lobbyOn = () => !partnerOnline();   // the partner is not here: maybe the two phones are in different rooms
+async function lobbySend(obj) {
+  if (!lobbyKey) return;
+  const t = await seal({ ...obj, from: me, ts: Date.now() }, lobbyKey);
+  for (const c of clients) if (c.connected) c.publish(lobbyT, t);
+}
+async function lobbyTick() {
+  const v = typeof myV === 'function' ? myV() : null;
+  if (!v || !online || !lobbyOn()) return;
+  if (v !== lobbyV) {   // join the lobby of this passcode
+    if (lobbyT) for (const c of clients) if (c.connected) c.unsubscribe(lobbyT);
+    lobbyV = v; lobbyT = 'closer-v2/lobby/' + (await sha('lobby-topic:' + v)).slice(0, 32);
+    lobbyKey = await crypto.subtle.importKey('raw', new Uint8Array((await sha('lobby-key:' + v)).match(/../g).map(h => parseInt(h, 16))), 'AES-GCM', false, ['encrypt', 'decrypt']);
+    for (const c of clients) if (c.connected) c.subscribe(lobbyT);
+  }
+  lobbySend({ t: 'here', side: isRemote ? 'remote' : 'host', name: myName, room });
+}
+setInterval(lobbyTick, 5000);
+async function gotLobby(txt) {
+  const m = lobbyKey && await unseal(txt, lobbyKey).catch(() => null);
+  if (!m || m.from === me || !(Math.abs(Date.now() - m.ts) < 120000) || !lobbyOn()) return;
+  const nm = typeof m.name === 'string' && m.name ? m.name.slice(0, 24) : 'Your partner';
+  if (m.t === 'here') {
+    if (m.room === room || lobbyNo.has(m.from) || (lobbyAsk && lobbyAsk.from === m.from) || !$('askSheet').hidden) return;
+    if (m.side === (isRemote ? 'remote' : 'host')) { if (!lobbyAsk) notify(`${nm}'s phone has your passcode but is on the same side as this one. One of you: tap your name, then switch side.`); return; }
+    lobbyAsk = m; lobbyAsk.tries = 0; tap(); logLink('a phone with the same passcode was found');
+    $('askSheetTitle').textContent = 'Connect your partner?';   // their name is not shown: typing it is the check (capitals do not matter)
+    $('askText').textContent = "A phone using your passcode is waiting. Type your partner's name, as they set it, to connect.";
+    $('askName').value = ''; $('askName').hidden = false;
+    $('askYes').textContent = 'Connect'; $('askSheet').hidden = false;
+  }
+  if (m.to !== me) return;
+  if (m.t === 'want' && !isRemote) { logLink('the phone with the same passcode said connect'); lobbySend({ t: 'link', to: m.from, link: shareUrl }); $('askSheet').hidden = true; lobbyAsk = null; }
+  if (m.t === 'link' && isRemote && typeof m.link === 'string') {
+    const part = m.link.split('#')[1] || '', q = new URLSearchParams(part);
+    if (!q.get('r') || !q.get('k') || q.has('h')) return;
+    logLink('joined her room through the passcode lobby'); store.set('lastRemote', location.origin + location.pathname + '#' + part); store.set('role', 'remote');
+    leaving = true; location.replace(location.pathname + '#' + part); location.reload();
+  }
+}
+function lobbyConfirm() {   // either phone can say yes, with the right name
+  const m = lobbyAsk; if (!m) return;
+  const typed = $('askName').value.trim().toLowerCase(), want = (typeof m.name === 'string' ? m.name : '').trim().toLowerCase();
+  if (!want || typed !== want) {
+    if (++m.tries >= 5) { lobbyNo.add(m.from); lobbyAsk = null; $('askName').hidden = true; notify('That name did not match 5 times. This phone is ignored now.'); return; }
+    $('askText').textContent = "That name does not match. Type your partner's name exactly as they set it (capitals do not matter)."; $('askSheet').hidden = false; return;
+  }
+  lobbyAsk = null; $('askName').hidden = true;
+  isRemote ? lobbySend({ t: 'want', to: m.from }) : lobbySend({ t: 'link', to: m.from, link: shareUrl });
+  notify(`Connecting to ${typeof m.name === 'string' && m.name ? m.name.slice(0, 24) : 'your partner'}…`);
+}
 async function startNet() {
   linkKey = await crypto.subtle.importKey('raw', unb64url(hp.get('k')), 'AES-GCM', false, ['encrypt', 'decrypt']);
   keys = await loadKeys();
@@ -1395,6 +1450,7 @@ async function startNet() {
       c.heardAt = Date.now(); c.pingAt = 0; c.lag = 0;
       c.subscribe(echoTopic(i));
       c.subscribe(isRemote ? topicFromHost : topicFromRemote);
+      if (lobbyT) c.subscribe(lobbyT);
       if (i < 2) c.subscribe(fileIn);
       const first = !online; online = true;
       if (first) { logLink('relay reached'); isRemote ? hello() : publishState(); }
@@ -1405,6 +1461,7 @@ async function startNet() {
       online = false; logLink('all relays lost'); render();
     });
     c.on('message', (topic, payload) => {
+      if (topic === lobbyT) { gotLobby(payload.toString()); return; }
       if (topic === echoTopic(i)) { c.echoes = true; c.heardAt = Date.now(); c.lag = c.heardAt - +payload.toString(); return; }
       topic === fileIn ? slowIn(payload.toString()) : incoming(payload.toString());
     });
@@ -4303,7 +4360,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-095345';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-102229';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
@@ -4621,7 +4678,7 @@ function newHost(m) {   // her page has a key this phone has not seen: only he c
     if (asking !== m || (partnerOnline() && !(eggCount(m) > eggsOn()))) { if (asking === m) asking = null; return; }
     if (lockOn()) { asking = null; askProof(m, takeHost); return; }   // a passcode decides, no tap
     logLink('a new page of hers asked to connect'); tap();
-    $('askTitle').textContent = 'Connect to this page?';
+    $('askSheetTitle').textContent = 'Connect to this page?';
     $('askText').textContent = `${typeof m.name === 'string' && m.name ? m.name.slice(0, 24) : 'Someone with your link'} opened Loveline on a new phone or tab${eggCount(m) ? ` and has ${label('vib')} and ${label('suc')} there` : ''}. Connect only if this is really your partner.`;
     $('askSheet').hidden = false;
   });
@@ -5173,8 +5230,8 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
 document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
 $('compose').onsubmit = ev => { ev.preventDefault(); sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };   // Send keeps the box selected by itself, so an open keyboard stays open and a closed one stays closed
 $('clearChat').onclick = ev => { ev.stopPropagation(); tap(); $('clearSheet').hidden = false; };
-$('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
-$('askNo').onclick = () => { $('askSheet').hidden = true; if (asking) { refused.add(asking.from); if (!isRemote) send({ t: 'busy', to: asking.from, no: true }, true); logLink('a new phone or page was refused'); } asking = null; };
+$('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; if (lobbyAsk) return lobbyConfirm(); const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
+$('askNo').onclick = () => { $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askName').hidden = true; if (lobbyAsk) { lobbyNo.add(lobbyAsk.from); lobbyAsk = null; return; } if (asking) { refused.add(asking.from); if (!isRemote) send({ t: 'busy', to: asking.from, no: true }, true); logLink('a new phone or page was refused'); } asking = null; };
 for (const b of document.querySelectorAll('.copyReport')) b.onclick = async () => { try { await navigator.clipboard.writeText(linkReport()); notify('Connection report copied. Paste it to Claude.'); } catch { notify('Could not copy. Try again with this page on screen.'); } };
 $('clearNo').onclick = () => { $('clearSheet').hidden = true; };
 $('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
