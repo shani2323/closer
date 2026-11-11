@@ -121,6 +121,7 @@
 
   /* floating chat + dock */
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; padding: 18px 12px calc(10px + env(safe-area-inset-bottom)); }
+  body:not(.kbUp) .dock { padding-bottom: calc(10px + max(env(safe-area-inset-bottom), 22px)); }   /* keyboard closed: keep the message box above the phone's swipe-home strip, where a touch makes Android take the app away (the privacy cover showed) */
   .dock::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: rgba(0, 0, 0, .55);
                   -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
                   -webkit-mask-image: linear-gradient(transparent, #000 26px); mask-image: linear-gradient(transparent, #000 26px); }
@@ -4586,7 +4587,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-235023';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-013711';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5448,6 +5449,8 @@ const keyboardUp = () => Math.min(innerHeight, window.visualViewport ? visualVie
 $('text').addEventListener('focus', () => setTimeout(() => { if (document.activeElement === $('text') && !keyboardUp()) logLink('message box tapped, keyboard did not open'); }, 1200));
 // The whole rounded box counts, not just the line of text inside it.
 $('compose').addEventListener('click', ev => { if (!ev.target.closest('button, input')) $('text').focus(); });
+$('dock').addEventListener('click', ev => { const bar = document.querySelector('#dock .bar'); if (!ev.target.closest('button, input, .msgs, .quick, .replyBar, .pinBar, .chatTop') && ev.clientY >= bar.getBoundingClientRect().top - 4) $('text').focus(); });   // the space just around and under the box opens typing too
+addEventListener('resize', () => document.body.classList.toggle('kbUp', keyboardUp()));
 const sendTyped = () => { sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
 $('text').addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.keyCode === 13) && !ev.shiftKey) { ev.preventDefault(); sendTyped(); } });   // the keyboard's Enter sends
 $('msgs').addEventListener('scroll', toEndState, { passive: true });
