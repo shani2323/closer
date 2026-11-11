@@ -1907,11 +1907,12 @@ function gotReact(m) {
   c.rxAt.them = m.at; saveChat(); renderChat();
   if (m.e) { tap(); miniBurst(m.e, $('msgs').querySelector(`.bubble[data-id="${CSS.escape(c.id)}"]`)); }
 }
-let toEndNext = false, newBelow = 0;   // toEndNext: the next draw goes to the newest message (this phone just sent one)
+let toEndNext = false, newBelow = 0, backTo = null, backAt = 0;   // backTo: the reply you tapped a quote on; the arrow returns there first   // toEndNext: the next draw goes to the newest message (this phone just sent one)
 function toEndState() {   // the down arrow shows once you are well above the newest message
   const box = $('msgs'), far = box.scrollHeight - box.scrollTop - box.clientHeight > 250;
   if (!far) newBelow = 0;
-  $('toEnd').classList.toggle('on', far);
+  if (box.scrollHeight - box.scrollTop - box.clientHeight < 80 && Date.now() - backAt > 1500) backTo = null;   // back at the newest: nothing to return to (not while the jump is still scrolling away)
+  $('toEnd').classList.toggle('on', far || !!backTo);
   $('toEndN').hidden = !newBelow; $('toEndN').textContent = newBelow > 99 ? '99+' : newBelow;
 }
 function renderChat() {
@@ -4564,7 +4565,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-222238';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-222750';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5429,7 +5430,9 @@ $('compose').addEventListener('click', ev => { if (!ev.target.closest('button, i
 const sendTyped = () => { sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
 $('text').addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.keyCode === 13) && !ev.shiftKey) { ev.preventDefault(); sendTyped(); } });   // the keyboard's Enter sends
 $('msgs').addEventListener('scroll', toEndState, { passive: true });
-$('toEnd').onclick = () => { tap(); newBelow = 0; const box = $('msgs'); box.scrollTo({ top: box.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); backToTyping(); };
+$('toEnd').onclick = () => {
+  if (backTo) { const id = backTo; backTo = null; tap(); jumpTo(id, 'That message is no longer in the chat.'); setTimeout(toEndState, 600); return; }   // first back to the reply you came from
+  tap(); newBelow = 0; const box = $('msgs'); box.scrollTo({ top: box.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); backToTyping(); };
 document.addEventListener('pointerdown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) wasTyping = document.activeElement === $('text') && keyboardUp(); }, true);
 document.addEventListener('mousedown', ev => { if (ev.target.closest(KEEPS_KEYBOARD)) ev.preventDefault(); }, true);
 const backToTyping = () => { if (wasTyping) $('text').focus(); };
@@ -5481,7 +5484,9 @@ $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap a
   const q = ev.target.closest('.quote');
   if (q && q.dataset.re) {   // the quoted part of a reply: go to the message it answers
     tap(); const was = chatIsOpen(); openChat();
-    setTimeout(() => jumpTo(q.dataset.re, 'That message is no longer in the chat.'), was ? 0 : 320);   // a small chat grows first
+    $('text').blur();   // reading, not typing: the keyboard stays down until the message box itself is tapped
+    if (!backTo && b) { backTo = b.dataset.id; backAt = Date.now(); }   // the down arrow brings you back to this reply first
+    setTimeout(() => { jumpTo(q.dataset.re, 'That message is no longer in the chat.'); toEndState(); }, was ? 0 : 320);   // a small chat grows first
     return;
   }
   if (now - chatTapAt < 300) { clearTimeout(chatTapT); chatTapAt = 0; if (chatIsOpen()) { tap(); closeChat(); } return; }
