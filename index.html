@@ -1256,11 +1256,26 @@ const toySeen = store.get('toySeen:' + room, {}) || {};   // when each toy was l
 function noteToys() { let ch = false; for (const k in KINDS) if (state[k] && state[k].connected) { toySeen[k] = Date.now(); ch = true; } if (ch && Date.now() - (noteToys.at || 0) > 10000) { noteToys.at = Date.now(); store.set('toySeen:' + room, toySeen); } }   // saved at most every 10 s
 steady(() => { noteToys(); if (!partnerOnline() || Object.keys(KINDS).some(k => state[k] && !state[k].connected)) render(); }, 20000);   // keeps "5 min ago" fresh while she or a toy is away
 const who = () => partnerName || 'Your partner';
+const LONG_AWAY_MS = 3 * 3600e3;   // away this long: "just you" mode
+let wasAlone = null, shownOnline = null, aloneMoved = false, longGone = false;
+steady(() => { if (partnerOnline() !== shownOnline) render(); }, 1000);   // online / away shows within a second, not up to 20
 
 function render() {
   const onKinds = Object.keys(KINDS).filter(k => state[k].connected), solo = onKinds.length === 1;
   const together = isRemote || partnerOnline(), trio = onKinds.length === 2;
-  document.body.classList.toggle('alone', !together);
+  // The toys-only "just you" screen: a phone never linked to a partner, or a partner gone 3 hours or more. A short absence
+  // (a few seconds, minutes, an hour) changes nothing: both phones stay where they were (Xed 11 Nov).
+  const longAway = !together && seenAt() > 0 && Date.now() - seenAt() >= LONG_AWAY_MS, alone = !together && ((!pair && !partnerName) || longAway);   // no last-seen time known yet counts as a short absence
+  document.body.classList.toggle('alone', alone);
+  shownOnline = partnerOnline();
+  longGone = longAway;
+  if (longAway && !wasAlone) {   // gone for hours, into "just you": Play; this phone's section counts as oldest, so the partner's phone decides when back
+    aloneMoved = true; panelV = 0; keep('panelV', 0);
+    if (!['play', 'watch'].includes(panel)) openPanel('play', true, true);
+    if (wasAlone === false) notify(`${who()} has been away a while. It's just you for now.`);
+  }
+  if (!alone && wasAlone && aloneMoved) { aloneMoved = false; if (panel === 'play') openPanel('chat', true, true); }   // the partner is back: home is the chat, unless their phone shows another section
+  wasAlone = alone;
   $('buzzBtn').hidden = !isRemote && !partnerOnline() && !partnerName && !partnerPush;
   document.body.classList.toggle('trio', trio);
   const noEggs = !onKinds.length, btn = $('connect');   // nothing on yet: one clear first step, no Stop, no empty controls
@@ -1291,7 +1306,7 @@ function render() {
   if (seenTogether !== null && together !== seenTogether) {   // partner mode switches on and off by itself
     if (together) { notify(`${who()} is here. You're together now 💞`); burst('💞'); }
     else if (panel === 'watch') notify(`${who()}'s connection dropped. Your video keeps going.`);   // a lost connection never ends what is on screen
-    else { if (panel !== 'play') { openPanel('play', true, true); panelV = 0; keep('panelV', 0); } notify(`${who()} left. It's just you for now.`); }   // only for now: when he is back his phone shows this one what is open
+    else notify(`${who()} is away. You stay where you are, and messages reach ${who()} when back.`);   // never moves the section: both phones stay where they were until one of you changes it (Xed 11 Nov)
   }
   if (seenTrio !== null && trio && !seenTrio) { notify(`${label('vib')} and ${label('suc')} are both with you. Threesome on 🔥`); burst('🔥'); }
   seenTogether = together; seenTrio = trio;
@@ -4565,7 +4580,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-222750';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-232728';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5549,7 +5564,7 @@ new ResizeObserver(chatRoom).observe($('watchPanel')); addEventListener('resize'
 
 render(); renderChat(); renderPins();
 { const was = kept('panel'), at = kept('panelV') || 0, inGame = ['draw', 'game', 'tower', 'ludo', 'watch'].includes(was) && Date.now() - at < 10 * 60e3;   // Loveline opens on the chat; a refresh in the middle of a game goes back into it
-  openPanel(inGame ? was : window.__homePlay ? 'play' : 'chat', true, true); }
+  openPanel(inGame ? was : window.__homePlay || longGone ? 'play' : 'chat', true, true); }
 let parked = false;
 const bc = 'BroadcastChannel' in window ? new BroadcastChannel('closer') : null;
 function showPark(title, text, go, goFn, alt, altFn) {
