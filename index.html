@@ -4507,7 +4507,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-152338';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-161051';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5516,7 +5516,11 @@ async function begin() {
   if (navigator.locks) {
     let held = await holdTab(steal);
     for (let i = 0; i < 10 && !held; i++) { await wait(500); held = await holdTab(false); }   // a refresh on a slow phone can take seconds to let go
-    if (!held) { alreadyOpen(); return; }
+    if (!held) {   // the other window may only be reloading or closing: start here by itself as soon as it lets go
+      alreadyOpen();
+      const retry = setInterval(async () => { if (!document.hidden && await holdTab(false)) { clearInterval(retry); location.reload(); } }, 3000);
+      return;
+    }
   } else if (bc) {   // is Loveline already running in another tab on this phone?
     let busy = false;
     const h = e => { if (e.data.t === 'here') busy = true; };
@@ -5640,7 +5644,18 @@ else {
   window.addEventListener('pagehide', () => stopAll());
 }
 let leaving = false;
-const otherSide = isRemote ? location.pathname + '#h=1&r=' + room + '&k=' + hp.get('k') : shareUrl;   // either side can always become the other one
+// One phone, one room (11 Nov: her phone had the home-screen app and a Chrome tab open in two different rooms, so his phone was
+// moved back and forth between them for ever). Every Loveline window on a phone follows the room that phone used last.
+function followRoom() {
+  if (leaving) return;
+  const want = isRemote ? store.get('lastRemote') : store.get('hostRoom'), r = isRemote ? roomOf(want) : want && want.r;
+  if (!r || r === room || (!isRemote && !want.k)) return;
+  leaving = true; logLink('another Loveline window on this phone uses another room: following it');
+  location.replace(isRemote ? want : location.pathname + '#h=1&r=' + want.r + '&k=' + want.k); location.reload();
+}
+addEventListener('storage', e => { if (e.key === 'closer:' + (isRemote ? 'lastRemote' : 'hostRoom')) followRoom(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) followRoom(); });
+const otherSide =isRemote ? location.pathname + '#h=1&r=' + room + '&k=' + hp.get('k') : shareUrl;   // either side can always become the other one
 document.querySelectorAll('.switchSide').forEach(b => {
   b.hidden = false; b.textContent = `Switch this phone to ${isRemote ? 'her' : 'his'} side`;
   b.onclick = () => {
