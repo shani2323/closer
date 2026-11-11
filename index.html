@@ -1413,7 +1413,9 @@ function tryPay(k, tag) {   // every phone that has not proven the passcode cost
 }
 function lobbyPausedNote() { if (lobbyPaused) return; lobbyPaused = true; notify('Finding is paused on this phone: 5 phones tried a different passcode. To look again, tap "Find my partner\'s phone" in Play.', 9000); }
 const lobbyLooking = () => online && !document.hidden && $('lock').hidden && $('nameSheet').hidden && !partnerOnline();   // never while connected, never behind the lock
-const lobbyHello = () => ({ t: 'ok', name: myName, side: isRemote ? 'remote' : 'host', rh: lobbyRh });
+const phoneId = store.get('phoneId') || (() => { const x = b64url(rand(9)); store.set('phoneId', x); return x; })();   // the same in every Loveline window on this phone, so two windows never pair with each other
+let lobbyStuck = false;
+const lobbyHello = () => ({ t: 'ok', name: myName, side: isRemote ? 'remote' : 'host', rh: lobbyRh, pid: phoneId, av: APP_V });
 const lobbyReset = () => { lobbyMode = null; lobbyAsk = null; lobbyShown = ''; $('askSheetTitle').textContent = 'Allow this phone?'; };
 function lobbySend(obj) { const t = JSON.stringify({ ...obj, from: lobbyId }); for (const c of clients) if (c.connected) c.publish(LOBBY_T, t); }
 function lobbyReady() {   // this phone's half of the passcode proof, made again whenever the passcode changes; resolves false with no passcode
@@ -1503,8 +1505,13 @@ async function gotLobby(txt) {
   if (!p.told) lobbyBox(m.from, lobbyHello());   // answer once, so the other phone knows this one is genuine too
   if (!lobbyLooking()) return;
   if (b.t === 'ok') {
+    if (b.pid === phoneId) { if (!p.self) { p.self = true; logLink('another Loveline window on this same phone: ignored'); } return; }
+    p.side = b.side; p.av = b.av;
+    if (!p.said) { p.said = true; logLink(`found ${b.side === 'host' ? 'her' : 'his'} side, ${b.rh === lobbyRh ? 'same room' : 'other room'}, ${b.av === APP_V ? 'same version' : 'other version ' + b.av}`); }
+    if (b.av !== APP_V) { if (Date.now() - avAt > 20000) { avAt = Date.now(); checkNewer(); } return; }   // both phones must run the same copy first; the older one updates itself
     if (b.rh === lobbyRh || lobbyOk.has(m.from) || p.sideNo) return;   // same room: the normal connection is on its way
     const nm = typeof b.name === 'string' && b.name.trim() ? b.name.trim().slice(0, 24) : 'your partner', sig = b.side + '|' + nm, same = b.side === (isRemote ? 'remote' : 'host');
+    if (!same && !isRemote) { if (!p.noted) { p.noted = true; notify(`Found ${nm}. When ${nm} taps Connect, the phones connect. Nothing to tap here.`, 8000); } return; }   // her phone never asks and never moves (Xed 11 Nov: she got no box)
     if (!same && lobbyYes.has(sig.toLowerCase())) { lobbyOk.add(m.from); lobbyBox(m.from, { t: 'go' }); return; }   // Connect was tapped for this partner already; they only opened the app again
     if (!same && lobbyNot.has(sig.toLowerCase())) return;
     if (lobbyMode) { const q = lobbyPeers.get(lobbyAsk); if (lobbyAsk === m.from ? lobbyShown === sig : q && Date.now() - q.at < 13000) return; }   // the question stays, unless its phone is gone or changed its name or side
@@ -1518,19 +1525,25 @@ async function gotLobby(txt) {
     } else {
       lobbyMode = 'connect';
       $('askSheetTitle').textContent = `Connect to ${nm}?`;
-      $('askText').textContent = `${nm} has your passcode and is waiting. Tap Connect on both phones.` + (partnerName && nm.toLowerCase() !== partnerName.trim().toLowerCase() ? ` Your partner was called ${partnerName} here before.` : '');
+      $('askText').textContent = `${nm} has your passcode. Tap Connect and this phone joins ${nm}'s.` + (partnerName && nm.toLowerCase() !== partnerName.trim().toLowerCase() ? ` Your partner was called ${partnerName} here before.` : '');
       $('askYes').textContent = 'Connect';
     }
     $('askNo').textContent = 'Not now';
     $('askSheet').hidden = false;
     return;
   }
-  if (!lobbyOk.has(m.from)) return;   // nothing moves before Connect was tapped on this phone
-  if (b.t === 'go' && lobbyGives(p)) { lobbyBox(m.from, { t: 'link', r: room, k: hp.get('k') }); if (!p.gave) { p.gave = true; logLink('room handed to the partner phone'); } }
+  if (b.t === 'go') {   // his phone tapped Connect and proved the passcode: her phone hands over its room, no tap (as when a wiped phone comes back with the right passcode)
+    if (lobbyGives(p) && p.side === 'remote' && p.av === APP_V) { lobbyBox(m.from, { t: 'link', r: room, k: hp.get('k') }); if (!p.gave) { p.gave = true; logLink('room handed to his phone'); } }
+    return;
+  }
+  if (!lobbyOk.has(m.from)) return;   // his phone moves only after Connect was tapped on it
   if (b.t === 'link' && !leaving && !lobbyGives(p) && b.r !== room && /^[\w-]{8,64}$/.test(b.r) && /^[\w-]{20,64}$/.test(b.k)) {
+    const moves = store.get('lobbyMoves', []).filter(t => Date.now() - t < 180000);
+    if (moves.length >= 2) { if (!lobbyStuck) { lobbyStuck = true; logLink('moved twice in 3 minutes: not moving again'); notify('Connecting got stuck, so this phone stopped moving. Open Play and tap "Find my partner\'s phone" to try again.', 9000); } return; }   // a safety stop: never reload in circles
+    moves.push(Date.now()); store.set('lobbyMoves', moves);
     const part = (isRemote ? '' : 'h=1&') + 'r=' + b.r + '&k=' + b.k;
-    logLink('joined the partner room without a link');
-    if (isRemote) {
+    logLink('joined her room without a link');
+    if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
       store.set('lastRemote', location.origin + location.pathname + '#' + part); store.set('hostPair:' + b.r, null);
       for (const k of ['chat', 'chatCleared', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
         const was = store.get(k + ':' + room), there = store.get(k + ':' + b.r);
@@ -1538,7 +1551,7 @@ async function gotLobby(txt) {
         if (k === 'chat' && Array.isArray(there) && there.length) { const all = new Map(); for (const c of [...there, ...was]) if (c && c.id) all.set(c.id, c); store.set('chat:' + b.r, [...all.values()].sort((a, c) => a.at - c.at).slice(-200)); }
         else if (there == null || (Array.isArray(there) && !there.length)) store.set(k + ':' + b.r, was);
       }
-    } else {   // an old pairing kept for her room would stop this phone from answering her passcode check
+    } else {
       stopAll(); store.set('hostRoom', { r: b.r, k: b.k }); }
     store.set('role', isRemote ? 'remote' : 'host');
     leaving = true; location.replace(location.pathname + '#' + part); location.reload();
@@ -1553,13 +1566,13 @@ function lobbySubmit() {
     leaving = true; setTimeout(() => { location.replace(otherSide); location.reload(); }, 400);
     return;
   }
-  lobbyYes.add(sig); lobbyOk.add(id); lobbyBox(id, { t: 'go' }); notify('Connecting. Tap Connect on the other phone too.', 8000);
+  lobbyYes.add(sig); lobbyOk.add(id); lobbyBox(id, { t: 'go' }); notify('Connecting. This phone reloads once.', 8000);
 }
 function lobbyCancel() { const p = lobbyPeers.get(lobbyAsk); if (lobbyMode === 'connect') { lobbyNo.add(lobbyAsk); lobbyNot.add(lobbyShown.toLowerCase()); } else if (p) p.sideNo = true; lobbyReset(); }
 function lobbyFind() {
   if (!myV()) return notify('Set a passcode first, the same one on both phones. Then tap this again.', 7000);
   if (partnerOnline()) return notify(`${who()} is connected already.`);
-  store.set('lobbyStrikes', []); store.set('proveStrikes', []); lobbyNo.clear(); lobbyNot.clear(); lobbyPeers.clear(); lobbyManual = true; lobbyPaused = false; lobbyTick();
+  store.set('lobbyStrikes', []); store.set('proveStrikes', []); store.set('lobbyMoves', []); lobbyStuck = false; lobbyOk.clear(); lobbyYes.clear(); lobbyNo.clear(); lobbyNot.clear(); lobbyPeers.clear(); lobbyManual = true; lobbyPaused = false; lobbyTick();
   notify("Looking for your partner's phone. Keep Loveline open on both phones, with the same passcode.", 7000);
 }
 async function startNet() {
@@ -4494,8 +4507,9 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-144753';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-152338';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
+logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
   try {
