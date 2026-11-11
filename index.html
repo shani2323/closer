@@ -4586,11 +4586,11 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-233530';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-235023';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
-  if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
+  if (document.hidden || $('text').value || document.activeElement === $('text') || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing (or about to) or watching
   try {
     const t = await (await fetch('index.html?nc=' + Date.now(), { cache: 'no-store' })).text(), v = (t.match(/const APP_V = '([^']+)'/) || [])[1];
     if (isRemote ? mayRun || hearing || mic : Object.values(state).some(e => e.connected && e.level)) return;   // never while a toy runs: a reload would drop her toys' Bluetooth mid-session, and his sound
@@ -5444,8 +5444,8 @@ let fullH = innerHeight;
 addEventListener('resize', () => { fullH = Math.max(fullH, innerHeight); });
 matchMedia('(orientation: portrait)').addEventListener('change', () => { fullH = 0; });   // turned the phone: learn the new full height
 const keyboardUp = () => Math.min(innerHeight, window.visualViewport ? visualViewport.height : innerHeight) < fullH - 120;
-// A tap on the box while it is still selected but the keyboard was put away: let go first, so the tap brings the keyboard back.
-$('text').addEventListener('pointerdown', () => { if (document.activeElement === $('text') && !keyboardUp()) $('text').blur(); });
+// If the keyboard still does not come up on a tap, the connection report says so (to find any cause left).
+$('text').addEventListener('focus', () => setTimeout(() => { if (document.activeElement === $('text') && !keyboardUp()) logLink('message box tapped, keyboard did not open'); }, 1200));
 // The whole rounded box counts, not just the line of text inside it.
 $('compose').addEventListener('click', ev => { if (!ev.target.closest('button, input')) $('text').focus(); });
 const sendTyped = () => { sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
@@ -5539,7 +5539,15 @@ const closeChat = () => {
 $('closeChat').onclick = () => { tap(); closeChat(); };
 addEventListener('pointerdown', ev => { if (chatIsOpen() && !chatTab && !ev.target.closest('#dock, .sheet, #msgMenu')) closeChat(); });
 // The phone's Back button stays inside the app first: it closes the chat, then leaves the section, and only then leaves Loveline.
-const holdBack = () => addEventListener('pointerdown', () => history.pushState(null, ''), { once: true });   // browsers ignore this unless the person has touched the page
+// The extra history step is added after a finished tap, never during one and never while typing: changing the history in the
+// middle of a touch made Android drop the keyboard, so the message box needed a second tap (Xed 11 Nov).
+const holdBack = () => {
+  const arm = ev => {
+    if (ev.target.closest('input, textarea') || document.activeElement === $('text')) return;   // typing, or about to: later
+    removeEventListener('click', arm, true); setTimeout(() => history.pushState(null, ''), 0);
+  };
+  addEventListener('click', arm, true);
+};
 holdBack();
 addEventListener('popstate', () => {
   if (location.hash !== startHash) return;
