@@ -46,7 +46,13 @@
   .me { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   header.small h1 { font-size: 22px; }
   .hdr { display: flex; align-items: center; gap: 8px; }
+  @media (max-width: 370px) { h1 { font-size: 24px; } .hdr, .hleft { gap: 5px; } .stop { padding: 0 10px 0 9px; gap: 5px; } .me { padding: 0 11px; } }   /* small phones: everything on the title line still fits */
   .me { min-height: 36px; padding: 0 14px; border-radius: 18px; font-size: 15px; font-weight: 500; }
+  .me.refresh { display: grid; place-items: center; width: 36px; padding: 0; }   /* the installed app window has no browser refresh */
+  .me.refresh:active { transform: scale(.92); }
+  .me.refresh.spin svg { animation: rspin .7s linear infinite; }
+  @keyframes rspin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .me.refresh.spin svg { animation: none; opacity: .5; } }
 
   .status { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; }
   .status li { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; font-size: 13px; letter-spacing: -.005em;
@@ -77,7 +83,7 @@
   input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border: 0; border-radius: 50%; background: #fff; }
   .mode { position: relative; display: block; margin-top: 8px; }
   .modeSel { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; padding: 0 28px 0 12px; border: 0; border-radius: 17px;
-             background: var(--fill); color: var(--label); font: 500 15px/34px inherit; letter-spacing: -.01em; text-align: center; text-align-last: center; }
+             background: var(--fill); color: var(--label); font-family: inherit; font-weight: 500; font-size: 15px; line-height: 34px; letter-spacing: -.01em; text-align: center; text-align-last: center; }
   .modeSel option { background: #1c1c1e; }
   .mode svg { position: absolute; right: 11px; top: 11px; width: 12px; height: 12px; color: var(--label2); pointer-events: none; }
   .strength, .speed { display: block; text-align: left; }
@@ -124,6 +130,8 @@
                   -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
                   -webkit-mask-image: linear-gradient(transparent, #000 26px); mask-image: linear-gradient(transparent, #000 26px); }
   .dock-in { max-width: 480px; margin: 0 auto; }
+  body.chatTab main > :not(header):not(#tabs):not(#batWarn):not(#alertAsk):not(#listenAsk) { display: none !important; }   /* cards that need a tap still show, above the chat */
+  body.chatTab #alertAsk, body.chatTab #listenAsk { margin-top: 8px; }   /* the Chat section: title, tabs, then only the conversation */
   body.chatTab .dock::before { top: -14px; background: var(--bg); -webkit-mask-image: none; mask-image: none; }   /* the Chat tab: the conversation fills everything under the tabs */
   body.chatTab .dock.open .msgs { max-height: var(--chatRoom, 60dvh) !important; min-height: var(--chatRoom, 60dvh); overflow: auto !important; }
   .e2e { display: block; align-self: center; max-width: 88%; margin: 2px auto 8px; padding: 6px 10px; border: 0; border-radius: 8px; background: rgba(255, 214, 10, .12); color: #e9d58c; font-family: inherit; font-size: 12px; line-height: 1.35; text-align: center; }
@@ -252,7 +260,7 @@
   .tdare { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .tdare p { flex: 1; margin: 0; font-size: 14px; line-height: 1.35; color: var(--label2); }
   .tdare p.on { color: var(--label); font-weight: 500; }
-  .dareBtn { flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font: 600 14px/34px inherit; }
+  .dareBtn { flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font-family: inherit; font-weight: 600; font-size: 14px; line-height: 34px; }
   .hot { position: absolute; width: 0; height: 0; pointer-events: none; }
   .hot::before { content: ''; position: absolute; left: -40px; top: -40px; width: 80px; height: 80px; border-radius: 50%;
                  background: radial-gradient(circle, rgba(255, 230, 160, .95), rgba(255, 90, 60, .7) 35%, rgba(255, 40, 120, 0) 70%); animation: hotglow .7s ease-out forwards; }
@@ -265,7 +273,7 @@
   .combo.on { opacity: 1; } .combo.bump { animation: bump .18s ease-out; }
   @keyframes bump { 50% { transform: scale(1.25); } }
   .tchips { display: flex; flex: 1; flex-wrap: wrap; gap: 8px; }
-  .tchip { height: 34px; padding: 0 14px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font: 600 15px/34px inherit; }
+  .tchip { height: 34px; padding: 0 14px; border: 0; border-radius: 17px; background: var(--fill); color: var(--label); font-family: inherit; font-weight: 600; font-size: 15px; line-height: 34px; }
   .tchip[aria-pressed=true] { background: linear-gradient(120deg, #ff5e9a, #a65bff); color: #fff; }
   .pad { position: relative; height: clamp(260px, 46vh, 420px); border-radius: 22px; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none;
          background: radial-gradient(130% 90% at 100% 0%, rgba(255, 70, 140, .55), transparent 62%), linear-gradient(0deg, rgba(30, 14, 46, .95), rgba(120, 40, 120, .5)), #0b0710;
@@ -310,8 +318,10 @@
               background: radial-gradient(circle, #fff 0 25%, rgba(255, 122, 184, .9) 45%, rgba(255, 122, 184, 0) 70%); transition: left 60ms linear, top 60ms linear; }
   .brushes { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
   .brushes::-webkit-scrollbar { display: none; }
-  .brushes button { flex: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 20px; background: var(--fill); color: var(--label); font: 20px/1 inherit; }
+  .brushes button { flex: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 20px; background: var(--fill); color: var(--label); font-family: inherit; font-size: 20px; line-height: 1; }
   .brushes { justify-content: space-between; }
+  @media (max-width: 370px) { .brushes { gap: 4px; overflow: visible; } .brushes button { flex: 0 1 40px; min-width: 0; height: auto; aspect-ratio: 1; font-size: 17px; } }   /* small phones: every brush in view, none scrolled away */
+  body.chatTab #chatGrab { display: none; }   /* the Chat section is already full size: no handle to drag */
   #sizeBtn i { display: block; border-radius: 50%; background: currentColor; }
   .brushes button[aria-pressed=true] { background: #fff; color: #000; }
   .brushes button:active { transform: scale(.96); transition: transform 100ms ease-out; }
@@ -347,7 +357,7 @@
   .cardBan { display: block; margin: 8px auto 0; padding: 6px 12px; border: 0; background: none; color: var(--label2, rgba(255,255,255,.6)); font-size: 13px; }
   .ludoWins { margin: -4px 0 8px; font-size: 13px; font-weight: 600; color: var(--label2, rgba(255,255,255,.7)); font-variant-numeric: tabular-nums; }
   #towerHearts { font-size: 17px; letter-spacing: 1px; }
-  .towerView { position: absolute; left: 10px; bottom: 10px; width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 19px; background: rgba(20, 10, 40, .55); color: #fff; font: 600 13px/30px inherit;
+  .towerView { position: absolute; left: 10px; bottom: 10px; width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 19px; background: rgba(20, 10, 40, .55); color: #fff; font-family: inherit; font-weight: 600; font-size: 13px; line-height: 30px;
                -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
   .towerView[aria-pressed=true] { background: #fff; color: #000; }
   .towerView:active { transform: scale(.96); transition: transform 100ms ease-out; }
@@ -410,6 +420,7 @@
   .vhead b { font-size: 17px; letter-spacing: -.02em; }
   .vadd { display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 22px; background: var(--blue); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
   .vadds { display: flex; gap: 8px; }
+  @media (max-width: 370px) { .vhead b { font-size: 16px; white-space: nowrap; } .vadds { gap: 6px; } .vadd { height: 38px; padding: 0 11px; font-size: 14px; white-space: nowrap; } }
   .vadd.quiet { background: var(--fill); color: var(--label); border: 0; }
   .vadd:active { transform: scale(.97); transition: transform 100ms ease-out; }
   .linkrow { display: flex; gap: 8px; margin: 0 2px 10px; }
@@ -433,7 +444,7 @@
   .wmode { flex: 1; min-width: 0; overflow: hidden; font-size: 15px; font-weight: 600; letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
   .wgrid { grid-column: 1 / 3; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; animation: wgridIn .28s cubic-bezier(.2, .8, .2, 1); }
   .wgrid[hidden] { display: none; }
-  .wgrid button { display: grid; justify-items: center; gap: 1px; min-width: 0; padding: 4px 3px; border: 0; border-radius: 10px; background: var(--fill); color: var(--label); font: 500 10px/1.15 inherit; }
+  .wgrid button { display: grid; justify-items: center; gap: 1px; min-width: 0; padding: 4px 3px; border: 0; border-radius: 10px; background: var(--fill); color: var(--label); font-family: inherit; font-weight: 500; font-size: 10px; line-height: 1.15; }
   .wgrid button span { max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: center; }
   .wgrid button b { font-size: 19px; line-height: 1.1; font-weight: 400; }
   .wgrid button[aria-pressed=true] { background: #fff; color: #000; }
@@ -463,7 +474,7 @@
   .wrow input { flex: 1; min-width: 0; }
   .wrow b { width: 30px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
   .wtabs { display: flex; gap: 6px; margin-bottom: 8px; }
-  .wtabs button { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font: 600 13px/30px inherit; }
+  .wtabs button { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font-family: inherit; font-weight: 600; font-size: 13px; line-height: 30px; }
   .wtabs button[aria-pressed=true] { background: linear-gradient(120deg, #ff5e9a, #a65bff); color: #fff; }
   .wtabs button:active, .wchips button:active { transform: scale(.96); transition: transform 100ms ease-out; }
   #wMix { margin-left: auto; }
@@ -473,7 +484,7 @@
   .wname { margin: 0 2px 6px; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
   .wchips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; overscroll-behavior-x: contain; }
   .wchips::-webkit-scrollbar { display: none; }
-  .wchips button { flex: none; height: 30px; padding: 0 11px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font: 500 13px/30px inherit; }
+  .wchips button { flex: none; height: 30px; padding: 0 11px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font-family: inherit; font-weight: 500; font-size: 13px; line-height: 30px; }
   .wchips button[aria-pressed=true] { background: #fff; color: #000; font-weight: 600; }
   .wspd { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--label2); }
   .wspd input { flex: 1; min-width: 0; }
@@ -647,7 +658,7 @@
     }
     if (typed.length >= 4) return;
     typed += b.dataset.d; dots();
-    if (typed.length === 4) { busy = true; setTimeout(() => { busy = false; full(); }, 120); }   // let the last dot fill first
+    if (typed.length === 4) { if (mode === 'set1' || mode === 'change') full(); else { busy = true; setTimeout(() => { busy = false; full(); }, 120); } }   // choosing: straight on to "again", so fast typing loses nothing; checking: let the last dot fill first
   });
   // the calculator: works like a plain pocket one
   let cur = '0', acc = null, op = null, fresh = true, tail = '';
@@ -692,6 +703,7 @@
     <div class="hleft"><h1>Loveline</h1><button class="me glass" id="buzzBtn" aria-label="Send Thinking of you" hidden>💗</button></div>
     <div class="hdr">
       <button class="stop" id="stop" aria-label="Stop everything">Stop</button>
+      <button class="me glass refresh" id="refreshBtn" aria-label="Refresh Loveline" title="Refresh"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
     </div>
   </header>
@@ -1189,11 +1201,13 @@ function change(kind, m, fromMix, always) {   // a change made on this phone
 const partnerOnline = () => Date.now() - partnerSeen < PARTNER_TIMEOUT_MS;
 let seenSaved = 0;
 const seenAt = () => partnerSeen || store.get('seenAt:' + room, 0);
+const PK = 'Asia/Karachi';   // every time shown is Pakistan time, on both phones
+const pkDay = t => Date.parse(new Date(t).toLocaleDateString('en-CA', { timeZone: PK }));
 function seenText(t, short) {   // WhatsApp style: "last seen today at 10:15 PM"; short for the small chip: "5 min ago"
   if (!t) return '';
-  const d = new Date(t), mins = Math.floor((Date.now() - t) / 60000), now = new Date();
-  const days = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
-  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), date = d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  const d = new Date(t), mins = Math.floor((Date.now() - t) / 60000);
+  const days = Math.round((pkDay(Date.now()) - pkDay(t)) / 864e5);
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: PK }), date = d.toLocaleDateString([], { day: 'numeric', month: 'short', timeZone: PK });
   if (short) return mins < 1 ? 'just now' : mins < 60 ? `${mins} min ago` : days === 0 ? time : days === 1 ? 'yesterday' : date;
   return 'last seen ' + (mins < 1 ? 'just now' : days === 0 ? `today at ${time}` : days === 1 ? `yesterday at ${time}` : `${date} at ${time}`);
 }
@@ -1621,7 +1635,7 @@ function resendChat() {
   for (const c of chat) if (c.who === 'me' && (c.st || 0) < 2 && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re });
 }
 function renderChat() {
-  const time = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const time = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: PK });
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   const quote = r => r ? `<span class="quote"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${esc(r.x)}</span></span>` : '';
   $('msgs').innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + chat.map(c => `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) && !c.re ? 'big' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${esc(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span></div>`).join('');
@@ -2015,46 +2029,45 @@ const myTie = Math.random();   // two changes in the same moment still have one 
 const nextV = v => Math.max(Date.now(), Math.floor(v) + 1) + myTie;
 function gotPanel(m) { if (!(m.v > panelV)) return; panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); }
 function openPanel(p, fromPartner, quiet) {
-  if (!['play', 'draw', 'game', 'tower', 'watch', 'ludo'].includes(p)) return;
+  if (!['chat', 'play', 'draw', 'game', 'tower', 'watch', 'ludo'].includes(p)) return;
   const changed = p !== panel, was = panel;
   if (panel === 'watch' && p !== 'watch') leaveWatch();
   if (p !== panel && !$('touchSheet').hidden) closeTouch();
   panel = p; keep('panel', p);
+  const wasChat = chatTab; chatTab = p === 'chat';
+  document.body.classList.toggle('chatTab', chatTab);
+  if (wasChat && !chatTab) { $('dock').classList.remove('open'); fitDock(); }
   if (changed) scrollTo({ top: 0 });   // a section always opens at its top, never half hidden under the title bar
   document.body.classList.toggle('panel', p !== 'play');
   document.body.classList.toggle('watching', p === 'watch');
   $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('towerPanel').hidden = p !== 'tower'; $('watchPanel').hidden = p !== 'watch'; $('ludoPanel').hidden = p !== 'ludo';
-  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === (chatTab ? 'chat' : p)));
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p));
   if (p === 'draw') sizeBoard();
   if (p === 'tower') towerOpen();
   if (p === 'ludo') ludoOpen();
   if (p === 'watch') { renderVids(); renderPlayer(); }
   renderGame();
+  if (chatTab) { openChat(); scrollTo({ top: 0 }); chatTabRoom(); requestAnimationFrame(chatTabRoom); $('msgs').scrollTop = $('msgs').scrollHeight; }   // the conversation fills everything under the title
   if (!fromPartner) { panelV = nextV(panelV); keep('panelV', panelV); send({ t: 'panel', p, v: panelV }); }
-  else if (changed && !quiet) { tap(); notify(p === 'play' ? `${who()} left ${PANELS[was]}.${was === 'watch' ? ' The video paused.' : ''}` : `${who()} opened ${PANELS[p]}.`); }
+  else if (changed && !quiet) {   // a game left for Chat or Play: "left"; a game opened: "opened"; Chat <-> Play: nothing to say
+    const game = x => x !== 'chat' && x !== 'play';
+    if (game(p)) { tap(); notify(`${who()} opened ${PANELS[p]}.`); }
+    else if (game(was)) { tap(); notify(`${who()} left ${PANELS[was]}.${was === 'watch' ? ' The video paused.' : ''}`); }
+  }
 }
-const PANELS = { __proto__: null, draw: 'Draw', game: 'Truth or Dare', tower: 'Tower', watch: 'Watch', ludo: 'Ludo' };
+const PANELS = { __proto__: null, chat: 'Chat', play: 'Play', draw: 'Draw', game: 'Truth or Dare', tower: 'Tower', watch: 'Watch', ludo: 'Ludo' };
 const okToLeave = p => panel !== 'watch' || p === 'watch' || !wstate.playing || confirm('Leave Watch? The video pauses on both phones.');
-var chatTab = false;   // only on this phone: the other phone stays where it is
-function setChatTab() {
-  chatTab = true; document.body.classList.add('chatTab'); scrollTo({ top: 0 });
-  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === 'chat'));
-  openChat(); chatTabRoom(); $('msgs').scrollTop = $('msgs').scrollHeight;
-}
+var chatTab = false;   // the Chat section is open
+function setChatTab() { openPanel('chat'); }
 function chatTabRoom() {   // the chat fills the space between the tabs and the bottom of the screen
   if (!chatTab) return;
-  const top = $('tabs').getBoundingClientRect().bottom, rest = $('dock').offsetHeight - $('msgs').offsetHeight;
+  const top = Math.max(...['tabs', 'batWarn', 'alertAsk', 'listenAsk'].map(id => $(id)).filter(e => !e.hidden).map(e => e.getBoundingClientRect().bottom)), rest = $('dock').offsetHeight - $('msgs').offsetHeight;
   document.body.style.setProperty('--chatRoom', Math.max(160, innerHeight - Math.max(0, top) - rest - 18) + 'px');
 }
 addEventListener('resize', chatTabRoom);
-document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
-  if (b.dataset.p === 'chat') { tap(); if (!chatTab) setChatTab(); return; }
-  if (!okToLeave(b.dataset.p)) return;
-  tap();
-  if (chatTab) { closeChat(); if (b.dataset.p === panel) return; }
-  openPanel(b.dataset.p);
-});
-document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (okToLeave('play')) openPanel('play'); });
+new MutationObserver(() => chatTabRoom()).observe(document.querySelector('main'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });   // a card above the chat came or went
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { if (!okToLeave(b.dataset.p)) return; tap(); openPanel(b.dataset.p); });
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (okToLeave('chat')) openPanel('chat'); });   // Done goes home: the chat
 
 // ---- drawing: both draw and erase on the same board at once; points are 0..1 so any screen size matches
 const board = $('board'), bctx = board.getContext('2d');
@@ -4257,7 +4270,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-031408';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-080258';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
@@ -5114,7 +5127,7 @@ $('replyPin').onclick = () => {   // pin or unpin the message being answered, th
 };
 const chatIsOpen = () => $('dock').classList.contains('open');
 const closeChat = () => {
-  if (chatTab) { chatTab = false; document.body.classList.remove('chatTab'); document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === panel)); }
+  if (chatTab) { openPanel('play'); return; }   // closing the Chat section goes to Play, on both phones
   $('dock').classList.remove('open'); fitDock();
 };
 $('closeChat').onclick = () => { tap(); closeChat(); };
@@ -5124,14 +5137,21 @@ const holdBack = () => addEventListener('pointerdown', () => history.pushState(n
 holdBack();
 addEventListener('popstate', () => {
   if (location.hash !== startHash) return;
-  if (chatIsOpen()) closeChat();
-  else if (panel !== 'play') { if (okToLeave('play')) openPanel('play'); }
+  if (chatIsOpen() && !chatTab) closeChat();
+  else if (panel !== 'chat') { if (okToLeave('chat')) openPanel('chat'); }
   else if (outQ.length) { if (confirm('Your video is still sending. Leave Loveline?')) { leaving = true; history.back(); return; } }
   else { holdBack(); return; }
   history.pushState(null, '');
 });
 $('splashSide').textContent = isRemote ? 'His side' : 'Her side';
 setTimeout(() => $('splash').remove(), 1300);
+$('refreshBtn').onclick = async () => {   // a full fresh load: newest app, newest helper, same private link
+  if (outQ.length && !confirm('A video is still sending. Refresh anyway? It carries on after.')) return;
+  tap(); $('refreshBtn').classList.add('spin');
+  try { const regs = navigator.serviceWorker && navigator.serviceWorker.getRegistrations ? await navigator.serviceWorker.getRegistrations() : []; await Promise.all(regs.map(r => r.update().catch(() => {}))); } catch {}
+  try { if (window.caches) for (const k of await caches.keys()) await caches.delete(k); } catch {}
+  leaving = true; location.replace(location.pathname + '?u=' + Date.now() + location.hash);
+};
 $('meBtn').onclick = () => { $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
 $('nameForm').onsubmit = ev => {
   ev.preventDefault();
@@ -5150,6 +5170,8 @@ function chatRoom() {   // how tall the chat may grow in Watch when no video is 
 new ResizeObserver(chatRoom).observe($('watchPanel')); addEventListener('resize', chatRoom); addEventListener('scroll', chatRoom, { passive: true });   // how much of the screen the pinned video takes
 
 render(); renderChat(); renderPins();
+{ const was = kept('panel'), at = kept('panelV') || 0, inGame = ['draw', 'game', 'tower', 'ludo', 'watch'].includes(was) && Date.now() - at < 10 * 60e3;   // Loveline opens on the chat; a refresh in the middle of a game goes back into it
+  openPanel(inGame ? was : window.__homePlay ? 'play' : 'chat', true, true); }
 let parked = false;
 const bc = 'BroadcastChannel' in window ? new BroadcastChannel('closer') : null;
 function showPark(title, text, go, goFn, alt, altFn) {
