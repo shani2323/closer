@@ -617,8 +617,8 @@
   window.lockV = () => { if (candV) return candV; try { return localStorage.getItem('closer:lockv'); } catch { return null; } };
   window.lockRefused = () => { retry = true; cand = candV = null; if (mode !== 'calc') show('calc'); };
   window.lockJoined = async () => {   // the other phone accepted: a code tried on the calculator becomes this phone's passcode only now
-    if (!retry) return;
-    if (cand) { const s = [...crypto.getRandomValues(new Uint8Array(12))].map(x => x.toString(16).padStart(2, '0')).join(''); localStorage.setItem(KEY, JSON.stringify({ s, h: await hash(cand, s) })); const c = cand; cand = candV = null; await storeV(c); }
+    if (!retry || !cand) return;   // only a code tried on the calculator and accepted by the other phone opens it
+    { const s = [...crypto.getRandomValues(new Uint8Array(12))].map(x => x.toString(16).padStart(2, '0')).join(''); localStorage.setItem(KEY, JSON.stringify({ s, h: await hash(cand, s) })); const c = cand; cand = candV = null; await storeV(c); }
     retry = false; unlock();
   };
   let mode = null, typed = '', first = '', awayAt = 0, busy = false, changing = false, askedAt = 0;
@@ -4304,7 +4304,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261111-094010';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261111-094632';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 async function checkNewer() {
   if (document.hidden || $('text').value || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing or watching
@@ -4749,13 +4749,15 @@ function askProof(m, ok) {
   let p = proving.get(m.from);
   if (!p || now - p.at > 60000) { p = { ch: b64url(rand(16)), at: now }; proving.set(m.from, p); }
   p.m = m; p.ok = ok;
-  send({ t: 'prove', to: m.from, ch: p.ch }, true);
+  send({ t: 'prove', to: m.from, ch: p.ch, pub: keys.pub }, true);
 }
 async function gotProof(m) {
   const p = proving.get(m.from), v = myV();
-  if (!p || typeof m.p !== 'string' || !v) return;   // no question out, or this phone has not been unlocked since the update (asked again once it is)
+  if (!p || typeof m.box !== 'string' || !v || !p.m || !p.m.pub) return;   // no question out, or this phone has not been unlocked since the update (asked again once it is)
+  const got = await unseal(m.box, await derive(pubOnly(p.m.pub))).catch(() => null);   // only this phone and the new one can open it
+  if (!got || typeof got.p !== 'string') return;
   proving.delete(m.from);
-  if (m.p === await sha(v + ':' + p.ch)) { logLink('a wiped or new phone used the right passcode and joined'); p.ok(p.m); }
+  if (got.p === await sha(v + ':' + p.ch)) { logLink('a wiped or new phone used the right passcode and joined'); p.ok(p.m); }
   else { proveFails.push(Date.now()); logLink('a new phone used a different passcode: kept out'); send({ t: 'busy', to: m.from, no: true, why: 'code' }, true); }
 }
 let askedBy = null;
@@ -4764,11 +4766,13 @@ async function answerProve(m) {   // on the new phone only: a phone already pair
   proveAsk = m; askedBy = m.from; const v = myV();
   if (!v || v === refusedV) return;   // no passcode chosen yet, or this one was already refused: answered when it changes
   proveAsk = null;
-  send({ t: 'proof', to: m.from, p: await sha(v + ':' + m.ch) }, true);
+  if (!m.pub || typeof m.ch !== 'string') return;
+  const k = await derive(pubOnly(m.pub));   // sealed to the asking phone: someone else with the link cannot read it and guess the code
+  send({ t: 'proof', to: m.from, box: await seal({ p: await sha(v + ':' + m.ch) }, k) }, true);
 }
 addEventListener('lockv', () => {
   if (proveAsk) answerProve(proveAsk);   // the passcode was just chosen or changed here
-  for (const [id, p] of proving) send({ t: 'prove', to: id, ch: p.ch }, true);   // this phone can check now: ask again
+  for (const [id, p] of proving) send({ t: 'prove', to: id, ch: p.ch, pub: keys.pub }, true);   // this phone can check now: ask again
 });
 function newPhone(m) {   // the link is right but the phone is new (other phone, private tab, wiped browser): only she can say yes
   if (refused.has(m.from)) { send({ t: 'busy', to: m.from, no: true }, true); return; }
