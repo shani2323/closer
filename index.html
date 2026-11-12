@@ -4608,11 +4608,11 @@ $('vidList').onclick = ev => {
 let wstate = { id: null, playing: false, pos: 0, base: 0, v: 0, from: '' };
 let toyRanAt = 0;   // the 15 s auto-lock waits while a video plays in Watch; on her phone also while a toy runs, or ran in the last minute (pauses between patterns)
 window.lockHold = () => {
-  if (panel === 'watch' && wstate.playing) return true;
+  if (panel === 'watch' && wstate.playing && here() && !vid.paused && !vid.ended) return true;   // Xed 12 Nov: only a video really moving on this phone, not paused, ended or still loading
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
   if (playP && playP !== panel) { playP = null; playN = 0; }   // left the game: its turns no longer count
-  if (toy || ['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo'].includes(panel) && inPlay())) return 180000;   // Xed 12 Nov: Play, Draw, a game really in play (2+ turns), or any toy connected (both phones): 3 minutes
+  if (['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo'].includes(panel) && inPlay())) return 180000;   // Xed 12 Nov: only the section on screen counts: Play, Draw, or a game really in play (2+ turns) wait 3 minutes; Chat and Watch 15 s even with a toy connected
   return false;
 };
 let loadedId = null, vidUrl = null, applyQ = Promise.resolve(), beatAt = 0, scrubbing = false;
@@ -4655,7 +4655,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-164044';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-164923';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
