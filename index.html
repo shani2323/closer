@@ -338,10 +338,17 @@
   .score small { display: block; font-size: 12px; color: var(--label2); font-variant-numeric: tabular-nums; }
   .score .ahead strong { color: var(--pink, #ff5c93); }
   .towerWrap { position: relative; overflow: hidden; border-radius: 16px; background: #241645; }
+  .treact { margin-top: 8px; }   /* Xed 12 Nov: the Ludo reactions in Tower too */
+  .tfloat { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 3; }
+  .tfloat > div { position: absolute; bottom: 14%; transform: translateX(-50%); animation: tfUp 2.2s ease-out both; }
+  .tfloat .tfe { font-size: 34px; line-height: 1; }
+  .tfloat .tfb { padding: 7px 14px; border-radius: 18px; background: rgba(20, 20, 24, .82); color: #fff; font: 700 16px/1.2 system-ui, sans-serif; white-space: nowrap; }
+  @keyframes tfUp { 0% { opacity: 0; transform: translate(-50%, 12px) scale(.8); } 12% { opacity: 1; transform: translate(-50%, 0) scale(1.1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -240px) scale(1); } }
+  @media (prefers-reduced-motion: reduce) { .tfloat > div { animation: tfFade 2.2s both; } @keyframes tfFade { 0%, 100% { opacity: 0; } 15%, 75% { opacity: 1; } } }
   .towerNote { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 14px; background: rgba(28,12,52,.82); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: #fff; font: 600 14px/1.3 system-ui, sans-serif; text-align: center; pointer-events: none; animation: tnote 2.6s ease both; }
   @keyframes tnote { 0% { opacity: 0; transform: translate(-50%, -6px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .towerNote { animation: none; } }
-  #towerCanvas { display: block; width: 100%; height: clamp(260px, calc(100vh - 430px), 520px); height: clamp(260px, calc(100dvh - 430px), 520px); touch-action: none; }
+  #towerCanvas { display: block; width: 100%; height: clamp(260px, calc(100vh - 500px), 520px); height: clamp(260px, calc(100dvh - 500px), 520px); touch-action: none; }
   .towerHud { position: absolute; left: 10px; right: 10px; top: 8px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, .55); }
   .towerHud b { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .towerHud small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; }
@@ -809,10 +816,13 @@
     <div class="towerWrap">
       <canvas id="towerCanvas" aria-label="Our tower"></canvas>
       <div class="towerNote" id="towerNote" hidden></div>
+      <div class="tfloat" id="tfloat" aria-hidden="true"></div>
       <button class="towerView" id="towerView" aria-pressed="false" aria-label="Show the whole tower" title="Show the whole tower"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg></button>
       <div class="towerHud"><div><b id="towerFloors">0</b> <span id="towerUnit">floors</span><small id="towerBest"></small><small class="tgoal" id="towerGoal"><span id="towerGoalTxt"></span><i><b id="towerGoalFill"></b></i></small><small class="tcombo" id="towerCombo" hidden><span id="towerComboTxt"></span><i><b id="towerComboFill"></b></i></small></div><div class="towerRight"><div id="towerHearts"></div><div class="towerChips" id="towerCount"></div></div></div>
     </div>
     <button class="primary towerDrop" id="towerDrop">Drop</button>
+    <div class="lreact treact" id="treact" aria-label="Reactions"></div>
+    <div class="lphr" id="tphr" aria-label="Fun phrases"></div>
     <button class="gameEnd" id="towerNew" hidden>Start a new tower</button>
   </section>
   <section class="panelBox glass" id="ludoPanel" hidden>
@@ -2894,16 +2904,16 @@ const towerSway = t => tA * towerHt() + towerRock(t), towerWob = () => 0;   // t
 const towerTopX = t => towerBase() + towerSway(t);
 function towerStep(dt, count, now) {
   const k = Math.max(2.5, 16 - count * .25), eq = Math.max(-10, Math.min(10, 16 * ttip.lean * (.4 + .6 * Math.min(1, tower.sw)))), wind = 5 * Math.min(1, ttip.risk) * Math.sin(.9 * now);
-  const base = count < 5 ? 0 : Math.min(5, .25 * count);   // measured from the real game: from 5 floors the top sways, up to about 0.15 of a box each way when tall
-  const want = Math.min(10, base + 8 * towerHt() * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25))));   // bad drops add more, never past 0.3 of a box   // plus the shared swing level and how crooked the top is
+  const base = count < 5 ? 0 : Math.min(8, .25 * count);   // Xed 12 Nov: the tilt keeps growing a little past 20 floors, up to 32   // measured from the real game: from 5 floors the top sways, up to about 0.15 of a box each way when tall
+  const want = Math.min(13, base + 8 * towerHt() * Math.min(1.2, tower.sw + tcrook * 1.6 * (.4 + .6 * Math.min(1, count / 25))));   // bad drops add more, never past 0.3 of a box   // plus the shared swing level and how crooked the top is
   tAmp += (want - tAmp) * Math.min(1, dt * 1.5);   // a perfect drop calms it over a second or two
   if (tcalm) { tA = eq; tV = 0; tAmp = 0; return; }
   for (let n = 0; n < 4; n++) { const h = dt / 4; tV += (-k * (tA - eq) - 1.3 * tV + wind) * h; tA += tV * h; }
 }
 // The next box hangs on a crane rope and swings like a pendulum; it swings wider and faster as the tower grows
 const TROPE = 40, TARM = TROPE + TH / 2;   // rope length, and from the pivot to the middle of the box
-const towerAmp = () => !tower.f ? 0 : (tower.f < 10 ? 20 : tower.f < 20 ? 26 : 31) * Math.PI / 180 + (towerV % 3) * Math.PI / 180;   // measured from the real game: the box swings about half a box each way when low, 3/4 of a box when tall; the first box hangs still
-const towerPace = () => 3.3;   // measured from the real game: one full swing in about 1.9 s
+const towerAmp = () => !tower.f ? 0 : (20 + Math.min(16, tower.f * .4)) * Math.PI / 180 + (towerV % 3) * Math.PI / 180;   // Xed 12 Nov: wider a little with every floor (20 degrees at the start, 26 at 15 floors, 31 at 28, up to 36), not in big steps   // measured from the real game: the box swings about half a box each way when low, 3/4 of a box when tall; the first box hangs still
+const towerPace = () => 3.3 * (1 + Math.min(.5, Math.max(0, tower.f - 3) * .012));   // Xed 12 Nov: a bit quicker with every floor from the 4th: one full swing in 1.9 s at the start, 1.6 s at 25 floors, 1.3 s from 45
 const towerAngle = t => towerAmp() * Math.sin(towerPace() * t);
 const TCRANE = 50;   // the crane stays put in the middle; the tower sways and drifts underneath it, so you time the drop against both
 const towerSwingX = t => TCRANE + TARM * Math.sin(towerAngle(t));   // middle of the hanging box
@@ -3494,6 +3504,18 @@ function ludoReact(e, mine) {
   for (let k = ph ? 1 : 0; k < 3; k++) lreacts.push({ e: em, x: (mine ? .7 : .3) + (Math.random() - .5) * .25, t0: performance.now() / 1000 + k * .12 });
   if (!mine && navigator.vibrate) navigator.vibrate(20);
 }
+// Tower gets the same reactions: built from the same list, floating up over the tower
+$('treact').innerHTML = LREACT.filter(e => !e.includes(' ')).map(e => `<button type="button" data-e="${e}" aria-label="Send ${e}">${e}</button>`).join('');
+$('tphr').innerHTML = LREACT.filter(e => e.includes(' ')).map(e => `<button type="button" data-e="${e}">${e}</button>`).join('');
+function towerReact(e, mine) {
+  if (!LREACT.includes(e)) return;
+  const box = $('tfloat'), ph = e.includes(' '), em = ph ? e.slice(e.lastIndexOf(' ') + 1) : e;
+  const add = (txt, cls, x, delay) => { const d = document.createElement('div'); d.className = cls; d.textContent = txt; d.style.left = x + '%'; d.style.animationDelay = delay + 's'; box.appendChild(d); setTimeout(() => d.remove(), 2300 + delay * 1000); };
+  if (ph) add(e, 'tfb', mine ? 60 : 40, 0);
+  for (let k = ph ? 1 : 0; k < 3; k++) add(em, 'tfe', (mine ? 70 : 30) + (Math.random() - .5) * 25, k * .12);
+  if (!mine && navigator.vibrate) navigator.vibrate(20);
+}
+document.querySelectorAll('#treact button, #tphr button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); towerReact(b.dataset.e, true); send({ t: 'towerReact', e: b.dataset.e }); });
 document.querySelectorAll('#lreact button, #lphr button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); ludoReact(b.dataset.e, true); send({ t: 'ludoReact', e: b.dataset.e }); });
 // the die lives on the board, in the open space inside the ring; pick it up anywhere there and throw it
 let lfar = null, lfarAt = 0;   // Xed 12 Nov: the other phone's die while they hold and shake it, seen live here
@@ -4625,7 +4647,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-160307';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-162742';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5023,6 +5045,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'newAsk') gotNewAsk(m);
   if (m.t === 'newAns') gotNewAns(m);
   if (m.t === 'ludoReact' && panel === 'ludo') ludoReact(m.e, false);
+  if (m.t === 'towerReact' && panel === 'tower') towerReact(m.e, false);
   if (m.t === 'ldrag') gotLdrag(m);
   if (m.t === 'buzz') gotBuzz();
   if (m.t === 'buzzgot') notify(`${who()} got your 💗`);
