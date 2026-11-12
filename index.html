@@ -742,8 +742,9 @@
   const IDLE = 15000; let lastAct = Date.now();
   for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'wheel']) addEventListener(ev, () => { lastAct = Date.now(); }, { capture: true, passive: true });
   setInterval(() => {
-    if (mode || document.hidden || (window.lockHold && window.lockHold())) { lastAct = Date.now(); return; }
-    if (Date.now() - lastAct >= IDLE) show(saved() ? 'enter' : 'set1');
+    const h = window.lockHold ? window.lockHold() : false;   // true: never now; a number: wait that long instead of 15 s
+    if (mode || document.hidden || h === true) { lastAct = Date.now(); return; }
+    if (Date.now() - lastAct >= (typeof h === 'number' ? h : IDLE)) show(saved() ? 'enter' : 'set1');
   }, 1000);
   document.addEventListener('DOMContentLoaded', () => { if (mode) behind(true); });   // the app below is only built after this runs
 })();
@@ -3078,11 +3079,7 @@ const lMax = (l, r) => l.cap[r] ? LEND : LN - 1;   // locked: a piece waits on t
 const ludoMoves = (l, r) => !l.rolled || l.win ? [] : [0, 1].filter(i => l.out[r][i] ? l.pc[r][i] < LEND && (l.pc[r][i] + l.die <= lMax(l, r) || (!l.cap[r] && l.pc[r][i] < LN && lCatch(l, r, i))) : l.die === 6 || l.ev[r][i]);   // in the base: a 6 brings it out the first time; after that any number does
 function ludoRoll(flick, at, held) {
   if (ludo.turn !== myRole || ludo.rolled || ludo.win || ldie || ldrag) return;
-  const w = [1, 1, 1, 1, 1, 1];   // random, but helpful: a number that catches a piece in reach, or a first 6, comes up a little more often
-  for (let n = 1; n <= 6; n++) { const t = { ...ludo, die: n, rolled: true }; if (ludoMoves(t, myRole).some(i => lCatch(t, myRole, i))) w[n - 1] += 1.2; }
-  if ([0, 1].some(i => !ludo.out[myRole][i] && !ludo.ev[myRole][i])) w[5] += 1;
-  const u = rand(4).reduce((a, x) => a * 256 + x, 0) / 2 ** 32 * w.reduce((a, x) => a + x, 0);
-  let d = 1; for (let acc = w[0]; acc <= u && d < 6; acc += w[d], d++);
+  let d; do d = rand(1)[0]; while (d >= 252); d = d % 6 + 1;   // Xed 12 Nov: plainly fair, every number 1 in 6 however the die is thrown (it used to favour 6s and catching numbers)
   const l = JSON.parse(JSON.stringify(ludo));
   l.die = d; l.rolled = true;
   let gate = false;
@@ -4568,9 +4565,10 @@ let wstate = { id: null, playing: false, pos: 0, base: 0, v: 0, from: '' };
 let toyRanAt = 0;   // the 15 s auto-lock waits while a video plays in Watch; on her phone also while a toy runs, or ran in the last minute (pauses between patterns)
 window.lockHold = () => {
   if (panel === 'watch' && wstate.playing) return true;
-  if (isRemote) return false;
-  if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now();
-  return Object.values(state).some(e => e.connected) && Date.now() - toyRanAt < 60000;
+  const toy = Object.values(state).some(e => e.connected);
+  if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
+  if (toy || ['play', 'game', 'tower', 'ludo', 'draw'].includes(panel)) return 180000;   // Xed 12 Nov: games, Play and Draw, or any toy connected (both phones): 3 minutes
+  return false;
 };
 let loadedId = null, vidUrl = null, applyQ = Promise.resolve(), beatAt = 0, scrubbing = false;
 const lag = m => Math.min(1000, Math.max(0, Date.now() - (+m.ts || Date.now())));   // time the message spent on the way, at most 1 s
@@ -4612,7 +4610,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-151430';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-154830';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
