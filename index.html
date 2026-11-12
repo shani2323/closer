@@ -1269,7 +1269,8 @@ function change(kind, m, fromMix, always) {   // a change made on this phone
 
 const partnerOnline = () => Date.now() - partnerSeen < PARTNER_TIMEOUT_MS;
 let seenSaved = 0;
-const seenAt = () => partnerSeen || store.get('seenAt:' + room, 0);
+let partnerBgAt = +store.get('bgAt:' + room, 0) || 0;   // when the other phone put Loveline in the background (0 = on screen)
+const seenAt = () => partnerBgAt || partnerSeen || store.get('seenAt:' + room, 0);   // in the background: since it left the screen
 const PK = 'Asia/Karachi';   // every time shown is Pakistan time, on both phones
 function seenText(t) {   // Xed 12 Nov: how long ago, not a clock time: "not seen for 3 h", "not seen for 2 days"
   if (!t) return '';
@@ -1293,7 +1294,18 @@ let wasAlone = null, shownOnline = null, aloneMoved = false, longGone = false;
 // What the screen says: still "online" through a short gap (an app switch, a weak signal), on both phones, for 30 s (Xed 11 Nov).
 // Only the words: the toys and the controls still go by the real 5 s rule.
 const SHOW_GRACE_MS = 30000;
-const partnerShown = () => Date.now() - partnerSeen < SHOW_GRACE_MS;
+// Xed 12 Nov: online means Loveline is on the other screen. In the background (another app, screen off) it still runs and talks,
+// but after 30 s there both phones show the other as away; "not seen for" counts from when it left the screen.
+let hidAt = document.hidden ? Date.now() : 0;
+const partnerShown = () => Date.now() - partnerSeen < SHOW_GRACE_MS && !(partnerBgAt && Date.now() - partnerBgAt >= SHOW_GRACE_MS);
+const sayFront = () => send({ t: 'front', fg: !document.hidden, bg: document.hidden ? Date.now() - hidAt : 0 });
+document.addEventListener('visibilitychange', () => { hidAt = document.hidden ? Date.now() : 0; sayFront(); });
+steady(sayFront, 10000);   // repeated, so a lost one is mended within 10 s
+function gotFront(m) {
+  const at = m.fg ? 0 : Date.now() - Math.max(0, Math.min(+m.bg || 0, 7 * 864e5));
+  if (m.fg ? !partnerBgAt : partnerBgAt && partnerBgAt <= at) return;
+  partnerBgAt = at; store.set('bgAt:' + room, at); render();
+}
 let meOnlineAt = 0;
 const meShown = () => online || Date.now() - meOnlineAt < SHOW_GRACE_MS;
 steady(() => { if (online) meOnlineAt = Date.now(); if (partnerShown() + ',' + meShown() !== shownOnline) render(); }, 1000);   // online / away shows within a second of the 30 s, not up to 20 s late
@@ -4707,7 +4719,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-192049';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-193115';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5081,6 +5093,7 @@ async function fromHost(m, viaLink) {
   render();
 }
 function common(m) {   // messages both phones handle the same way
+  if (m.t === 'front') gotFront(m);
   if (m.t === 'msg') gotChat(m);
   if (m.t === 'clearchat') gotClear(m);
   if (m.t === 'ack') gotAck(m);
@@ -5423,7 +5436,7 @@ function startKeepAlive() {   // Chrome does not put a tab to sleep while it pla
   b.setUint32(24, rate, true); b.setUint32(28, rate * 2, true); b.setUint16(32, 2, true); b.setUint16(34, 16, true); txt(36, 'data'); b.setUint32(40, n * 2, true);
   for (let i = 0; i < n; i++) b.setInt16(44 + i * 2, 40 * Math.sin(2 * Math.PI * 30 * i / rate), true);
   keepAlive = new Audio(URL.createObjectURL(new Blob([b], { type: 'audio/wav' }))); keepAlive.loop = true; keepAlive.play().catch(() => {});
-  if (navigator.mediaSession) { navigator.mediaSession.metadata = new MediaMetadata({ title: 'Calculator' }); navigator.mediaSession.setActionHandler('pause', () => keepAlive.play().catch(() => {})); }
+  if (navigator.mediaSession) { navigator.mediaSession.metadata = new MediaMetadata({ title: 'Loveline' }); navigator.mediaSession.setActionHandler('pause', () => keepAlive.play().catch(() => {})); }
 }
 let wakeLock = null;
 async function keepScreenOn() { try { wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
@@ -5488,7 +5501,7 @@ let testAt = 0;   // when this phone asked for a test alert
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => {   // the alert arrived while Loveline is open: a test must still show as a real alert
   if (!e.data || e.data.t !== 'pushed' || Date.now() - testAt > 30000) return;
   testAt = 0;
-  navigator.serviceWorker.ready.then(r => r.showNotification('Calculator', { body: 'Your saved result is ready', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' })).catch(() => {});
+  navigator.serviceWorker.ready.then(r => r.showNotification('Loveline', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' })).catch(() => {});
 });
 function alertHelp(text) { document.querySelectorAll('.alertHelp').forEach(p => { p.textContent = text || ''; p.hidden = !text; }); }
 function showAlerts() {

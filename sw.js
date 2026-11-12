@@ -7,7 +7,7 @@ self.addEventListener('message', e => { if (e.data && e.data.t === 'testAlert') 
 self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of you, with the app closed. The message is fixed here, so no words travel through the helper.
   const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   if (Date.now() > testUntil && open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) { open.forEach(c => c.postMessage({ t: 'pushed' })); return; }   // the open page shows its own heart (and shows a test alert itself if this helper restarted and forgot the test); an iPhone must always be shown something
-  await self.registration.showNotification('Calculator', { body: 'Your saved result is ready', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
+  await self.registration.showNotification('Loveline', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
 })()));
 self.addEventListener('notificationclick', e => {
   e.notification.close();
