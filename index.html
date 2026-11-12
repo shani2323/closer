@@ -528,10 +528,22 @@
   .lockDots i.on { background: #fff; }
   .lockDots.shake { animation: lshake .42s cubic-bezier(.36, .07, .19, .97); }
   @keyframes lshake { 20%, 60% { transform: translateX(-12px); } 40%, 80% { transform: translateX(12px); } }
+  /* Xed 12 Nov: on the passcode screen, small glass notices like a phone's lock screen: the other one is online, messages wait. No names, no words from the chat */
+  .lockNote { position: absolute; top: calc(env(safe-area-inset-top) + 26px); left: 16px; right: 16px; display: grid; justify-items: center; gap: 8px; pointer-events: none; }
+  .lockNote > div { display: flex; align-items: center; gap: 9px; max-width: 100%; padding: 9px 15px 9px 12px; border-radius: 18px; background: rgba(255, 255, 255, .11); border: 1px solid rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); box-shadow: 0 6px 24px rgba(0, 0, 0, .35); font-size: 14px; font-weight: 600; letter-spacing: .005em; color: rgba(255, 255, 255, .94); animation: lnIn .42s cubic-bezier(.2, .9, .3, 1) both; }
+  .lockNote .on { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .lockNote .ic { flex: none; font-size: 16px; line-height: 1; }
+  .lockNote b { min-width: 22px; padding: 2px 7px; border-radius: 11px; background: #ff375f; font-size: 12.5px; text-align: center; }
+  .lockNote .bump { animation: lnPop .35s cubic-bezier(.3, 1.4, .5, 1); }
+  @keyframes lnIn { from { opacity: 0; transform: translateY(-8px) scale(.96); filter: blur(4px); } }
+  @keyframes lnPop { 50% { transform: scale(1.18); } }
+  @media (max-height: 700px) { .lockNote { top: calc(env(safe-area-inset-top) + 10px); gap: 6px; } .lockNote > div { padding: 6px 12px 6px 10px; font-size: 13px; } }
+  @media (prefers-reduced-motion: reduce) { .lockNote > div, .lockNote .bump { animation: lnFade .3s both; } @keyframes lnFade { from { opacity: 0; } } }
   .lockHint { min-height: 20px; margin: 14px 0 26px; font-size: 14px; color: var(--label2); text-align: center; }
   .lockKeys { display: grid; grid-template-columns: repeat(3, 78px); gap: 16px 24px; }
   .lockKeys button { width: 78px; height: 78px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; font: 400 34px/1 -apple-system, system-ui, sans-serif; transition: background-color .35s; }
   .lockKeys button:active { background: rgba(255, 255, 255, .45); transition: none; }
+  @media (max-height: 700px) { .lockHint { margin: 10px 0 18px; } .lockKeys { grid-template-columns: repeat(3, 66px); gap: 12px 22px; } .lockKeys button { width: 66px; height: 66px; font-size: 30px; } }   /* short phones: a smaller pad leaves room for the lock-screen notices */
   .lockKeys button.word { background: none; font-size: 16px; font-weight: 500; }
   .lockKeys button.word:active { opacity: .5; background: none; }
   .calc { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 16px 16px max(24px, env(safe-area-inset-bottom)); background: #000; }
@@ -612,6 +624,7 @@
 </head>
 <body>
 <div class="lock" id="lock" hidden>
+  <div class="lockNote" id="lockNote" aria-live="polite"></div>
   <div class="lockPad" id="lockPad">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>
     <p class="lockTitle" id="lockTitle" role="status">Enter passcode</p>
@@ -1244,14 +1257,11 @@ const partnerOnline = () => Date.now() - partnerSeen < PARTNER_TIMEOUT_MS;
 let seenSaved = 0;
 const seenAt = () => partnerSeen || store.get('seenAt:' + room, 0);
 const PK = 'Asia/Karachi';   // every time shown is Pakistan time, on both phones
-const pkDay = t => Date.parse(new Date(t).toLocaleDateString('en-CA', { timeZone: PK }));
-function seenText(t, short) {   // WhatsApp style: "last seen today at 10:15 PM"; short for the small chip: "5 min ago"
+function seenText(t) {   // Xed 12 Nov: how long ago, not a clock time: "not seen for 3 h", "not seen for 2 days"
   if (!t) return '';
-  const d = new Date(t), mins = Math.floor((Date.now() - t) / 60000);
-  const days = Math.round((pkDay(Date.now()) - pkDay(t)) / 864e5);
-  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: PK }), date = d.toLocaleDateString([], { day: 'numeric', month: 'short', timeZone: PK });
-  if (short) return mins < 1 ? 'just now' : mins < 60 ? `${mins} min ago` : days === 0 ? time : days === 1 ? 'yesterday' : date;
-  return 'last seen ' + (mins < 1 ? 'just now' : days === 0 ? `today at ${time}` : days === 1 ? `yesterday at ${time}` : `${date} at ${time}`);
+  const mins = Math.floor((Date.now() - t) / 60000), h = Math.floor(mins / 60), d = Math.floor(h / 24);
+  const ago = mins < 60 ? `${Math.max(mins, 1)} min` : h < 24 ? `${h} h` : d === 1 ? '1 day' : `${d} days`;
+  return mins < 1 ? 'last seen just now' : `not seen for ${ago}`;
 }
 function renderSeen() {   // the chat header: her name, and online or when she was last here
   $('chatName').textContent = who();
@@ -1351,8 +1361,8 @@ function render() {
   renderWatchCtl(canControl);
   const items = [
     [myName || 'You', meShown(), meShown() ? '' : ', offline'],
-    [who(), partnerShown(), partnerShown() ? '' : seenAt() ? `, seen ${seenText(seenAt(), true)}` : isRemote ? ', waiting' : ', not here'],
-    ...(solo ? onKinds : Object.keys(KINDS)).map(k => [faces[k] + ' ' + label(k), state[k].connected, state[k].connected ? (state[k].battery != null ? ` ${state[k].battery}%` : '') : toySeen[k] ? `, off, seen ${seenText(toySeen[k], true)}` : ', off']),
+    [who(), partnerShown(), partnerShown() ? '' : seenAt() ? `, ${seenText(seenAt())}` : isRemote ? ', waiting' : ', not here'],
+    ...(solo ? onKinds : Object.keys(KINDS)).map(k => [faces[k] + ' ' + label(k), state[k].connected, state[k].connected ? (state[k].battery != null ? ` ${state[k].battery}%` : '') : toySeen[k] ? `, off, ${seenText(toySeen[k])}` : ', off']),
   ];
   renderSeen(); noteToys();
   $('status').innerHTML = items.map(([n, on, extra]) => `<li class="${on ? 'on' : ''}"><span class="dot"></span>${esc(n)}${esc(extra)}</li>`).join('');
@@ -1879,6 +1889,7 @@ function gotChat(m) {
     saveChat(); renderChat(); tap();
     if ($('toEnd').classList.contains('on')) { newBelow++; toEndState(); }   // reading older messages: count the new ones on the arrow
     chatFx(m.text);
+    if (!chatInFront()) { unseen++; store.set('unseen:' + room, unseen); lockNote(true); }
   }
   send({ t: 'ack', id: m.id, seen: !document.hidden });
 }
@@ -1945,7 +1956,7 @@ function toEndState() {   // the down arrow shows once you are well above the ne
   $('toEndN').hidden = !newBelow; $('toEndN').textContent = newBelow > 99 ? '99+' : newBelow;
 }
 function renderChat() {
-  const time = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: PK });
+  const time = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });   // 10:15 PM, never 22:15 (Xed 12 Nov)
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${esc(r.x)}</span></span>` : '';
   const rxs = c => { const l = [c.rx && c.rx.them, c.rx && c.rx.me].filter(Boolean); return !l.length ? '' : `<span class="rx" role="button" aria-label="Reactions">${l[1] && l[0] === l[1] ? esc(l[0]) + '<small>2</small>' : l.map(esc).join('')}</span>`; };
@@ -4601,7 +4612,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-125942';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-151430';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5549,6 +5560,26 @@ $('replyPin').onclick = () => {   // pin or unpin the message being answered, th
   setReply(null); setPin({ id: c.id, x: c.text.slice(0, 200), w: c.who }, !on); backToTyping();
 };
 const chatIsOpen = () => $('dock').classList.contains('open');
+// Xed 12 Nov: the passcode screen tells, with no name and no words from the chat, that the other one is online and how many of
+// their messages are waiting unseen. Not on the calculator (it must look like only a calculator), not on the plain cover.
+let unseen = +store.get('unseen:' + room) || 0, noteSeed = 0, noteWas = '';
+function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen(); }
+const ONLINE_LINES = ['Someone special is online', 'Your favourite person is here', 'Someone is thinking of you', 'Your person just showed up'];
+const MSG_LINES = [n => n === 1 ? 'A little note is waiting for you' : 'Little notes are waiting for you', n => n === 1 ? 'Someone left you a whisper' : 'Whispers need your attention', n => n === 1 ? 'A sweet message is missing you' : 'Sweet messages are missing you'];   // the count is on the red badge
+function lockNote(bump) {
+  const el = $('lockNote'), on = !$('lock').hidden && !$('lock').classList.contains('cover') && $('calc').hidden;
+  if (!on) { if (noteWas) { el.textContent = ''; noteWas = ''; noteSeed++; } return; }
+  const live = partnerShown(), key = `${live}|${unseen}`;
+  if (key === noteWas && !bump) return;
+  const first = !noteWas; noteWas = key;
+  const rows = [];
+  if (live) rows.push(`<div data-k="on"><span class="on"></span>${ONLINE_LINES[noteSeed % ONLINE_LINES.length]}</div>`);
+  if (unseen) rows.push(`<div data-k="msg"><span class="ic">💌</span>${MSG_LINES[noteSeed % MSG_LINES.length](unseen)}<b class="${bump && !first ? 'bump' : ''}">${unseen > 99 ? '99+' : unseen}</b></div>`);
+  const had = new Set([...el.children].map(d => d.dataset.k));
+  el.innerHTML = rows.join('');
+  for (const d of el.children) if (had.has(d.dataset.k)) d.style.animation = 'none';   // only a new notice slides in; a changed count just pops
+}
+setInterval(() => { if (unseen && chatInFront()) { unseen = 0; store.set('unseen:' + room, 0); } lockNote(); }, 1000);
 const closeChat = () => {
   if (chatTab) { openPanel('play'); return; }   // closing the Chat section goes to Play, on both phones
   $('dock').classList.remove('open'); fitDock();
