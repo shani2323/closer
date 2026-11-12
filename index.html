@@ -2362,6 +2362,11 @@ $('mixBtn').onclick = () => {
 
 // ---- shared tabs: whatever one phone opens, the other opens too; Leo and Max stay in view as a slim strip
 let panel = 'play';
+// Xed 12 Nov: Ludo, Tower and Truth or Dare count as really being played after 2 turns (by either of you) in that section;
+// leaving the section starts the count again. Only then does the auto-lock wait 3 minutes there.
+let playP = null, playN = 0;
+function played(p) { if (panel !== p) return; if (playP !== p) { playP = p; playN = 0; } playN++; }
+const inPlay = () => playP === panel && playN >= 2;
 let panelV = 0, gameV = 0, libSentAt = 0;
 const myTie = Math.random();   // two changes in the same moment still have one winner
 const nextV = v => Math.max(Date.now(), Math.floor(v) + 1) + myTie;
@@ -3022,6 +3027,7 @@ function towerLand() {
   if (a.kind === 'collapse') towerBump($('towerFloors'), 1.5); else if (a.kind === 'miss' || a.kind === 'topple') towerBump($(a.kind === 'miss' ? 'towerHearts' : 'towerFloors'), 1.3); else { towerBump($('towerFloors'), 1.3); towerBump($('towerCount').children[a.o === (myRole === 'host' ? 0 : 1) ? 0 : 1], 1.18); }
 }
 function applyTower(t, v, drop) {
+  if (drop) played('tower');
   if (tanim) towerLand();
   const was = tower.b.length;
   if (t.c !== tower.c || towerV !== v) tcomboAt = performance.now();   // the combo bar starts full when a drop lands
@@ -3232,6 +3238,7 @@ function gotLudo(m) {
   applyLudo(l, m.v, act);
 }
 function applyLudo(l, v, act) {
+  if (act && act.k === 'roll') played('ludo');
   if (l.kl.join() !== ludo.kl.join()) lkl = { from: ludo.kl.slice(), t: performance.now() / 1000 };
   if (l.bo.join() !== ludo.bo.join()) lbo = { from: ludo.bo.slice(), t: performance.now() / 1000 };
   ludo = l; ludoV = v; store.set('ludo:' + room, { l, v });
@@ -4041,7 +4048,7 @@ function turnFx(title, line) {   // the other phone must feel that it is now the
   if (line) { const s = document.createElement('small'); s.textContent = line; n.appendChild(s); }
   document.body.appendChild(n); setTimeout(() => n.remove(), 3700);
 }
-function setGame(g, fromPartner) { game = { ...g, score: g.score || game.score }; store.set('gameScore:' + room, game.score); keep('game', game); renderGame(); g = game; if (!fromPartner) { gameV = nextV(gameV); keep('gameV', gameV); send({ t: 'game', game: g, v: gameV }); } }
+function setGame(g, fromPartner) { if (g.k && !(game.k === g.k && game.i === g.i && game.turn === g.turn)) played('game'); game = { ...g, score: g.score || game.score }; store.set('gameScore:' + room, game.score); keep('game', game); renderGame(); g = game; if (!fromPartner) { gameV = nextV(gameV); keep('gameV', gameV); send({ t: 'game', game: g, v: gameV }); } }
 let resultTimer = 0;
 function showResult(loser, what) {   // shown on both phones: the loser sees their punishment coming, the winner sees the reward coming
   const lost = loser === myRole, el = $('result'), fill = $('resFill');
@@ -4604,7 +4611,8 @@ window.lockHold = () => {
   if (panel === 'watch' && wstate.playing) return true;
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
-  if (toy || ['play', 'game', 'tower', 'ludo', 'draw'].includes(panel)) return 180000;   // Xed 12 Nov: games, Play and Draw, or any toy connected (both phones): 3 minutes
+  if (playP && playP !== panel) { playP = null; playN = 0; }   // left the game: its turns no longer count
+  if (toy || ['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo'].includes(panel) && inPlay())) return 180000;   // Xed 12 Nov: Play, Draw, a game really in play (2+ turns), or any toy connected (both phones): 3 minutes
   return false;
 };
 let loadedId = null, vidUrl = null, applyQ = Promise.resolve(), beatAt = 0, scrubbing = false;
@@ -4647,7 +4655,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-162742';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-164044';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
