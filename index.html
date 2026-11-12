@@ -756,7 +756,7 @@
   addEventListener('blur', () => setTimeout(() => { const a = document.activeElement; if (!document.hasFocus() && !(a && a.tagName === 'IFRAME')) away(); }, 0));   // the app switcher opening: cover before its preview is taken (a tap into a video frame is not leaving)
   addEventListener('focus', () => { if (!document.hidden) back(); });
   // Xed 12 Nov: lock after 15 s with no touch or typing. Held off while a video plays in Watch, and on her phone while a toy is in use (lockHold, set by the app below)
-  const IDLE = 15000; let lastAct = Date.now();
+  const IDLE = 30000;   // Xed 12 Nov: 30 s by default (was 15 s); games, Play, Draw and Watch keep their own rules let lastAct = Date.now();
   for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'wheel']) addEventListener(ev, () => { lastAct = Date.now(); }, { capture: true, passive: true });
   setInterval(() => {
     const h = window.lockHold ? window.lockHold() : false;   // true: never now; a number: wait that long instead of 15 s
@@ -3154,23 +3154,25 @@ function cleanLudo(l) {
   const hits = r => l.sk && Number.isInteger(l.sk[r]) && l.sk[r] >= 0 && l.sk[r] <= 9 ? l.sk[r] : 0;   // how often a skull hit that side
   const evs = (r, o) => o.map((x, j) => x || !!(l.ev && Array.isArray(l.ev[r]) && l.ev[r][j] === true));   // been out before: no 6 needed to come out again
   const won = r => l.wins && Number.isInteger(l.wins[r]) && l.wins[r] >= 0 && l.wins[r] < 1e6 ? l.wins[r] : ludoWinsKept()[r];
-  return { rs: Number.isFinite(l.rs) && l.rs > 0 ? l.rs : 0, wins: { host: won('host'), remote: won('remote') }, turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, ev: { host: evs('host', outs('host')), remote: evs('remote', outs('remote')) }, sk: { host: hits('host'), remote: hits('remote') }, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) } };
+  return { rs: Number.isFinite(l.rs) && l.rs > 0 ? l.rs : 0, wins: { host: won('host'), remote: won('remote') }, turn: l.turn, die: Number.isInteger(l.die) && l.die >= 0 && l.die <= 6 ? l.die : 0, rolled: l.rolled === true, pc, out: { host: outs('host'), remote: outs('remote') }, win: ['host', 'remote'].includes(l.win) ? l.win : null, bo, kl, ev: { host: evs('host', outs('host')), remote: evs('remote', outs('remote')) }, sk: { host: hits('host'), remote: hits('remote') }, cap: { host: !!(l.cap && l.cap.host === true) || h.some(q => q >= LN), remote: !!(l.cap && l.cap.remote === true) || m.some(q => q >= LN) }, lap: l.lap === true };
 }
 const savedLudo = store.get('ludo:' + room) || {};
 let lrings = [], lflash = null, lhome = null, lwin = null, lkl = null, ludo = cleanLudo(savedLudo.l) || blankLudo(), ludoV = Number.isFinite(savedLudo.v) ? savedLudo.v : 0, lrun = 0, lhop = null, ldie = null, ltaps = [], lfly = null, lfx = [], lland = {}, lpops = [];
 let lAutoN = 0; const LAUTO_MS = 8000;   // a roll with two choices plays itself after 8 s without a tap
-const lMax = (l, r) => l.cap[r] ? LEND : LN - 1;   // locked: a piece waits on the last ring square before its heart path
+const lMax = (l, r) => l.cap[r] ? LEND : l.lap ? Infinity : LN - 1;   // Xed 12 Nov: once both got stuck before their heart path, locked pieces go round again from the start   // locked: a piece waits on the last ring square before its heart path
 const ludoMoves = (l, r) => !l.rolled || l.win ? [] : [0, 1].filter(i => l.out[r][i] ? l.pc[r][i] < LEND && (l.pc[r][i] + l.die <= lMax(l, r) || (!l.cap[r] && l.pc[r][i] < LN && lCatch(l, r, i))) : l.die === 6 || l.ev[r][i]);   // in the base: a 6 brings it out the first time; after that any number does
 function ludoRoll(flick, at, held) {
   if (ludo.turn !== myRole || ludo.rolled || ludo.win || ldie || ldrag) return;
   let d; do d = rand(1)[0]; while (d >= 252); d = d % 6 + 1;   // Xed 12 Nov: plainly fair, every number 1 in 6 however the die is thrown (it used to favour 6s and catching numbers)
   const l = JSON.parse(JSON.stringify(ludo));
+  if (myRole === 'host' && rand(1)[0] < 26) {   // Xed 12 Nov: a little help for her, about 1 roll in 10 (26 of 256): the number that does her the most good
+    const good = n => { const t = { ...l, die: n, rolled: true }, ms = ludoMoves(t, 'host'); if (!ms.length) return 0; return Math.max(...ms.map(i => (t.out.host[i] && t.pc.host[i] < LN && lCatch(t, 'host', i) ? 1000 : 0) + (t.out.host[i] && t.pc.host[i] + n === LEND ? 500 : 0) + (!t.out.host[i] ? 200 : 0))) + (n === 6 ? 100 : 0) + n; };
+    d = [1, 2, 3, 4, 5, 6].reduce((a, b) => good(b) > good(a) ? b : a);
+  }
   l.die = d; l.rolled = true;
   let gate = false;
-  if (!ludoMoves(l, myRole).length) {   // no piece can use this number: the turn passes
-    l.rolled = false; l.turn = other(myRole);
-    if (!l.cap[myRole] && lStuck(l, myRole) && lStuck(l, other(myRole))) { l.cap[myRole] = true; gate = true; }   // nobody can ever move again: this side's path opens so the game goes on
-  }
+  if (!l.lap && !l.cap.host && !l.cap.remote && lStuck(l, 'host') && lStuck(l, 'remote')) { l.lap = true; gate = true; }   // Xed 12 Nov: nobody could ever move again: both go round once more, starting with this roll
+  if (!ludoMoves(l, myRole).length) { l.rolled = false; l.turn = other(myRole); }   // no piece can use this number: the turn passes
   lheld = held || null;
   if (!flick) {
     const side = Math.floor(Math.random() * 4), t = .2 + Math.random() * .6, [lo, hi] = dieBox(1), q = lo + (hi - lo) * t;
@@ -3212,7 +3214,7 @@ const lStuck = (l, r) => [1, 2, 3, 4, 5, 6].every(d => !ludoMoves({ ...l, die: d
 function ludoMove(i) {
   if (lAim || lhit || ludo.turn !== myRole || !ludoMoves(ludo, myRole).includes(i)) return;
   const l = JSON.parse(JSON.stringify(ludo)), me = myRole, opp = other(me), from = l.pc[me][i], ex = !l.out[me][i];
-  let to = from, boost = false, nb = 0, caught = false, killed = false, cj = -1, cp = 0, wrap = false, unlock = false;
+  let to = from, boost = false, nb = 0, caught = false, killed = false, cj = -1, cp = 0, wrap = false, unlock = false, act0gate = false;
   if (ex) { l.out[me][i] = true; l.ev[me][i] = true; }   // out onto its start square
   else {
     const st = lStep(l, me, i), at = st.land;   // a rocket on the landing square jumps 3 more
@@ -3224,13 +3226,14 @@ function ludoMove(i) {
     if (boost) { for (const b of st.bis) l.bo[b] = -1; for (const b of st.bis) l.bo[b] = lSpot(l); }   // the used rockets fly off to new random squares
   }
   if (l.pc[me].every(q => q === LEND)) l.win = me;
+  if (!l.lap && !l.cap.host && !l.cap.remote && lStuck(l, 'host') && lStuck(l, 'remote')) { l.lap = true; act0gate = true; }   // both now wait on their last square: another lap at once
   let lw = false;
   for (const r of [opp, me]) if (!l.win && !l.cap[r] && l.pc[other(r)].every(q => q >= LN)) { l.win = other(r); lw = true; }   // that side's path is locked and nothing is left on the ring to catch: the other side wins
   if (l.win) l.wins = { ...l.wins, [l.win]: l.wins[l.win] + 1 };   // counted once, by the phone that made the winning move
   if (!l.win && !(l.die === 6 || caught)) l.turn = opp;
   if (killed) { l.kl[killed - 1] = -1; l.kl[killed - 1] = lSpot(l); killed = true; l.sk[me]++; if (l.sk[me] >= 2 && !l.cap[me]) { l.cap[me] = true; unlock = true; } }   // that skull jumps somewhere new; a second skull hit opens the heart path
   l.rolled = false;
-  const act = { k: 'move', r: me, i, from, to, caught, boost, nb, cj, cp, ex, killed, wrap, unlock, lw };
+  const act = { k: 'move', r: me, i, from, to, caught, boost, nb, cj, cp, ex, killed, wrap, unlock, lw, lap: act0gate };
   tap();
   if (caught) {   // hop up to the square before theirs, then you flick your piece into it
     lAim = { l, act, t: performance.now() / 1000, pre: JSON.parse(JSON.stringify(ludo)), missTo: wrap ? from : to - 1 };   // pre: the board if the flick misses
@@ -3303,7 +3306,7 @@ function gotLudo(m) {
   const rs0 = +store.get('resetAt:' + room) || 0;
   if (l.rs < rs0) { ludoV = Math.max(ludoV, m.v); ludoCommit({ ...ludo, rs: rs0, wins: ludoWinsKept() }, null); return; }   // a game from before this phone's Reset: the Reset wins and is sent again
   const a = m.act || {}, act = a.k === 'roll' && Number.isInteger(a.d) && a.d >= 1 && a.d <= 6 ? { k: 'roll', d: a.d, gate: a.gate === true, s: Number.isInteger(a.s) ? a.s & 255 : 0, tv: Array.isArray(a.tv) && a.tv.length === 2 && a.tv.every(Number.isFinite) ? a.tv.map(v => Math.max(-8, Math.min(8, v))) : null, p: Array.isArray(a.p) && a.p.length === 2 && a.p.every(n => Number.isFinite(n) && n >= 0 && n <= 1) ? a.p.slice() : null, r: ['host', 'remote'].includes(a.r) ? a.r : null }
-    : a.k === 'move' && ['host', 'remote'].includes(a.r) && [0, 1].includes(a.i) && Number.isInteger(a.from) && Number.isInteger(a.to) && a.from >= 0 && a.from < LEND && (a.ex === true ? a.from === 0 && a.to === 0 : a.to > a.from && a.to - a.from <= 15 && (a.wrap === true || a.to <= LEND)) ? { k: 'move', r: a.r, i: a.i, from: a.from, to: a.to, ex: a.ex === true, wrap: a.wrap === true, unlock: a.unlock === true, killed: a.killed === true, caught: a.caught === true, miss: a.miss === true && a.caught !== true, lw: a.lw === true, fl: Array.isArray(a.fl) && a.fl.length === 3 && a.fl.every(Number.isFinite) ? [Math.max(-1, Math.min(1, a.fl[0])), Math.max(-1, Math.min(1, a.fl[1])), Math.max(.2, Math.min(1, a.fl[2]))] : null, boost: a.boost === true, nb: a.boost === true ? ([1, 2, 3].includes(a.nb) ? a.nb : 1) : 0, cj: [0, 1].includes(a.cj) ? a.cj : -1, cp: Number.isInteger(a.cp) && a.cp >= 0 && a.cp < LN ? a.cp : 0 } : null;
+    : a.k === 'move' && ['host', 'remote'].includes(a.r) && [0, 1].includes(a.i) && Number.isInteger(a.from) && Number.isInteger(a.to) && a.from >= 0 && a.from < LEND && (a.ex === true ? a.from === 0 && a.to === 0 : a.to > a.from && a.to - a.from <= 15 && (a.wrap === true || a.to <= LEND)) ? { k: 'move', r: a.r, i: a.i, from: a.from, to: a.to, ex: a.ex === true, wrap: a.wrap === true, unlock: a.unlock === true, killed: a.killed === true, caught: a.caught === true, miss: a.miss === true && a.caught !== true, lw: a.lw === true, lap: a.lap === true, fl: Array.isArray(a.fl) && a.fl.length === 3 && a.fl.every(Number.isFinite) ? [Math.max(-1, Math.min(1, a.fl[0])), Math.max(-1, Math.min(1, a.fl[1])), Math.max(.2, Math.min(1, a.fl[2]))] : null, boost: a.boost === true, nb: a.boost === true ? ([1, 2, 3].includes(a.nb) ? a.nb : 1) : 0, cj: [0, 1].includes(a.cj) ? a.cj : -1, cp: Number.isInteger(a.cp) && a.cp >= 0 && a.cp < LN ? a.cp : 0 } : null;
   applyLudo(l, m.v, act);
 }
 function applyLudo(l, v, act) {
@@ -3315,7 +3318,7 @@ function applyLudo(l, v, act) {
   const kept = ludoWinsKept(); store.set('ludoWins:' + room, { host: Math.max(kept.host, l.wins.host), remote: Math.max(kept.remote, l.wins.remote) });
   if (act && panel === 'ludo' && !document.hidden) {
     if (act.k === 'roll') dieThrow(act.d, act.s, act.tv, act.p, act.r);
-    if (act.k === 'roll' && act.gate) { lpop('🔓 Nobody can move: the path opens', act.r, -1, performance.now() / 1000 + 1.6); lrings.push({ cl: LLANE[act.r][0], col: '#ffd75e', t: performance.now() / 1000 + 1.6, sz: 2, fire: 'unlock' }); }
+    if ((act.k === 'roll' && act.gate) || (act.k === 'move' && act.lap)) lpop('🔁 Both stuck: go round again!', act.r, -1, performance.now() / 1000 + (act.k === 'roll' ? 1.6 : 1));
     if (act.k === 'move') {
       const t0 = performance.now() / 1000, n = act.to - act.from;
       const sq = q => act.wrap ? q % LN : q, mine = act.r === myRole, flick = (act.caught || act.miss) && act.fl && act.cj >= 0;
@@ -4724,7 +4727,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-201519';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-234353';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
