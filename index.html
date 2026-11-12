@@ -725,6 +725,13 @@
   addEventListener('pagehide', away); addEventListener('pageshow', e => { if (e.persisted) back(); });
   addEventListener('blur', () => setTimeout(() => { const a = document.activeElement; if (!document.hasFocus() && !(a && a.tagName === 'IFRAME')) away(); }, 0));   // the app switcher opening: cover before its preview is taken (a tap into a video frame is not leaving)
   addEventListener('focus', () => { if (!document.hidden) back(); });
+  // Xed 12 Nov: lock after 15 s with no touch or typing. Held off while a video plays in Watch, and on her phone while a toy is in use (lockHold, set by the app below)
+  const IDLE = 15000; let lastAct = Date.now();
+  for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'wheel']) addEventListener(ev, () => { lastAct = Date.now(); }, { capture: true, passive: true });
+  setInterval(() => {
+    if (mode || document.hidden || (window.lockHold && window.lockHold())) { lastAct = Date.now(); return; }
+    if (Date.now() - lastAct >= IDLE) show(saved() ? 'enter' : 'set1');
+  }, 1000);
   document.addEventListener('DOMContentLoaded', () => { if (mode) behind(true); });   // the app below is only built after this runs
 })();
 </script>
@@ -4547,6 +4554,13 @@ $('vidList').onclick = ev => {
 
 // the player: the latest action wins on both phones (a counter that always moves forward, ties broken by phone id)
 let wstate = { id: null, playing: false, pos: 0, base: 0, v: 0, from: '' };
+let toyRanAt = 0;   // the 15 s auto-lock waits while a video plays in Watch; on her phone also while a toy runs, or ran in the last minute (pauses between patterns)
+window.lockHold = () => {
+  if (panel === 'watch' && wstate.playing) return true;
+  if (isRemote) return false;
+  if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now();
+  return Object.values(state).some(e => e.connected) && Date.now() - toyRanAt < 60000;
+};
 let loadedId = null, vidUrl = null, applyQ = Promise.resolve(), beatAt = 0, scrubbing = false;
 const lag = m => Math.min(1000, Math.max(0, Date.now() - (+m.ts || Date.now())));   // time the message spent on the way, at most 1 s
 const target = () => wstate.pos + (wstate.playing ? (performance.now() - wstate.base) / 1000 : 0);
@@ -4587,7 +4601,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-013711';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-125942';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
