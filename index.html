@@ -752,11 +752,13 @@
   addEventListener('click', e => { if (e.target && e.target.type === 'file') pickAt = Date.now(); }, true);
   const lockNow = () => { if (mode || !saved() || Date.now() - pickAt < 120000) return; ss('lockSeen', '0'); show('enter'); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) { away(); lockNow(); } else { back(); pickAt = 0; } });
-  addEventListener('pagehide', () => { away(); if (document.hidden) lockNow(); });   // a reload on screen (an update) stays open addEventListener('pageshow', e => { if (e.persisted) back(); });
+  addEventListener('pagehide', () => { away(); if (document.hidden) lockNow(); });   // a reload on screen (an update) stays open
+  addEventListener('pageshow', e => { if (e.persisted) back(); });
   addEventListener('blur', () => setTimeout(() => { const a = document.activeElement; if (!document.hasFocus() && !(a && a.tagName === 'IFRAME')) away(); }, 0));   // the app switcher opening: cover before its preview is taken (a tap into a video frame is not leaving)
   addEventListener('focus', () => { if (!document.hidden) back(); });
   // Xed 12 Nov: lock after 15 s with no touch or typing. Held off while a video plays in Watch, and on her phone while a toy is in use (lockHold, set by the app below)
-  const IDLE = 30000;   // Xed 12 Nov: 30 s by default (was 15 s); games, Play, Draw and Watch keep their own rules let lastAct = Date.now();
+  const IDLE = 30000;   // Xed 12 Nov: 30 s by default (was 15 s); games, Play, Draw and Watch keep their own rules
+  let lastAct = Date.now();
   for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'wheel']) addEventListener(ev, () => { lastAct = Date.now(); }, { capture: true, passive: true });
   setInterval(() => {
     const h = window.lockHold ? window.lockHold() : false;   // true: never now; a number: wait that long instead of 15 s
@@ -4727,7 +4729,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-234353';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-234820';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
