@@ -746,8 +746,13 @@
   setInterval(() => { if (!document.hidden && !mode) ss('lockSeen', String(Date.now())); }, 1000);
   const away = () => { if (!awayAt) awayAt = Date.now(); if (!mode && !document.hidden) ss('lockSeen', String(Date.now())); cover(true); };   // a page closed while already in the background is not "just used"; the cover goes up the same instant
   const back = () => { const long = awayAt && Date.now() - awayAt >= AWAY; awayAt = 0; if (long && !mode) show(saved() ? 'enter' : 'set1'); else cover(false); };   // under the cover the pad is already there: no peek
-  document.addEventListener('visibilitychange', () => document.hidden ? away() : back());
-  addEventListener('pagehide', away); addEventListener('pageshow', e => { if (e.persisted) back(); });
+  // Xed 12 Nov: the phone's screen locked, turned off, home, another app: Loveline locks at once, not after 10 s.
+  // Only choosing a video from the gallery (the phone's file picker hides the app) does not lock.
+  let pickAt = 0;
+  addEventListener('click', e => { if (e.target && e.target.type === 'file') pickAt = Date.now(); }, true);
+  const lockNow = () => { if (mode || !saved() || Date.now() - pickAt < 120000) return; ss('lockSeen', '0'); show('enter'); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { away(); lockNow(); } else { back(); pickAt = 0; } });
+  addEventListener('pagehide', () => { away(); if (document.hidden) lockNow(); });   // a reload on screen (an update) stays open addEventListener('pageshow', e => { if (e.persisted) back(); });
   addEventListener('blur', () => setTimeout(() => { const a = document.activeElement; if (!document.hasFocus() && !(a && a.tagName === 'IFRAME')) away(); }, 0));   // the app switcher opening: cover before its preview is taken (a tap into a video frame is not leaving)
   addEventListener('focus', () => { if (!document.hidden) back(); });
   // Xed 12 Nov: lock after 15 s with no touch or typing. Held off while a video plays in Watch, and on her phone while a toy is in use (lockHold, set by the app below)
@@ -4719,7 +4724,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-193856';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-201519';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
