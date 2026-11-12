@@ -530,6 +530,7 @@
   .lock { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: radial-gradient(120% 80% at 50% 0%, #2a1636 0%, #000 70%); color: #fff; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
   .lockPad { display: grid; justify-items: center; width: min(320px, 100%); padding: 0 16px; }
   .lockPad svg { width: 22px; height: 22px; opacity: .9; }
+  @media (min-height: 701px) { .lockNote:not(:empty) + .lockPad { padding-top: 96px; } }   /* Xed 12 Nov: notices showing: the lock icon moves below them, never touching */
   .lockTitle { margin: 14px 0 18px; font-size: 20px; font-weight: 500; letter-spacing: -.01em; }
   .lockDots { display: flex; gap: 22px; height: 14px; }
   .lockDots i { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #fff; transition: background-color .12s; }
@@ -540,12 +541,15 @@
   .lockNote { position: absolute; top: calc(env(safe-area-inset-top) + 26px); left: 16px; right: 16px; display: grid; justify-items: center; gap: 8px; pointer-events: none; }
   .lockNote > div { display: flex; align-items: center; gap: 9px; max-width: 100%; padding: 9px 15px 9px 12px; border-radius: 18px; background: rgba(255, 255, 255, .11); border: 1px solid rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); box-shadow: 0 6px 24px rgba(0, 0, 0, .35); font-size: 14px; font-weight: 600; letter-spacing: .005em; color: rgba(255, 255, 255, .94); animation: lnIn .42s cubic-bezier(.2, .9, .3, 1) both; }
   .lockNote .on { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
-  .lockNote .ic { flex: none; font-size: 16px; line-height: 1; }
+  .lockNote .ic { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: rgba(255, 255, 255, .16); font-size: 15px; line-height: 1; }
+  .lockNote .tx { display: grid; gap: 1px; text-align: left; min-width: 0; }
+  .lockNote small { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; opacity: .62; }
+  .lockNote small .on { width: 6px; height: 6px; }
   .lockNote b { min-width: 22px; padding: 2px 7px; border-radius: 11px; background: #ff375f; font-size: 12.5px; text-align: center; }
   .lockNote .bump { animation: lnPop .35s cubic-bezier(.3, 1.4, .5, 1); }
   @keyframes lnIn { from { opacity: 0; transform: translateY(-8px) scale(.96); filter: blur(4px); } }
   @keyframes lnPop { 50% { transform: scale(1.18); } }
-  @media (max-height: 700px) { .lockNote { top: calc(env(safe-area-inset-top) + 10px); gap: 6px; } .lockNote > div { padding: 6px 12px 6px 10px; font-size: 13px; } }
+  @media (max-height: 700px) { .lockNote { top: calc(env(safe-area-inset-top) + 10px); gap: 6px; } .lockNote > div { padding: 6px 12px 6px 10px; font-size: 13px; } .lockNote small { display: none; } .lockNote .ic { width: 22px; height: 22px; font-size: 13px; } }   /* small phone: one line each, so the keypad stays clear */
   @media (prefers-reduced-motion: reduce) { .lockNote > div, .lockNote .bump { animation: lnFade .3s both; } @keyframes lnFade { from { opacity: 0; } } }
   .lockHint { min-height: 20px; margin: 14px 0 26px; font-size: 14px; color: var(--label2); text-align: center; }
   .lockKeys { display: grid; grid-template-columns: repeat(3, 78px); gap: 16px 24px; }
@@ -1660,6 +1664,8 @@ async function startNet() {
       c.subscribe(echoTopic(i));
       c.subscribe(isRemote ? topicFromHost : topicFromRemote);
       c.subscribe(LOBBY_T);
+      c.subscribe(boardTopic);   // the relay sends its kept copy of the drawing straight away
+      if (boardDirty) setTimeout(publishBoard, 3000);   // drawn while this phone had no connection
       if (i < 2) c.subscribe(fileIn);
       const first = !online; online = true;
       if (first) { logLink('relay reached'); isRemote ? hello() : publishState(); }
@@ -1671,6 +1677,7 @@ async function startNet() {
     });
     c.on('message', (topic, payload) => {
       if (topic === LOBBY_T) { gotLobby(payload.toString()); return; }
+      if (topic === boardTopic) { gotBoard(payload.toString()); return; }
       if (topic === echoTopic(i)) { c.echoes = true; c.heardAt = Date.now(); c.lag = c.heardAt - +payload.toString(); return; }
       topic === fileIn ? slowIn(payload.toString()) : incoming(payload.toString());
     });
@@ -2463,26 +2470,64 @@ function theirFinger(m) {   // a glowing dot where the other person is drawing r
   clearTimeout(theirFinger.t); theirFinger.t = setTimeout(() => { dot.hidden = true; }, 700);
 }
 function redraw() { bctx.clearRect(0, 0, board.width, board.height); strokes.forEach(s => seg(s, 0)); }
+// Xed 12 Nov: a drawing stays until someone erases it, even overnight with both apps closed. Each phone keeps its own copy,
+// and the relays hold one sealed copy (only the two phones can open it), so a phone opened fresh gets it while the other sleeps.
+const boardTopic = `closer-v2/${room}/b`, lineOf = s => ({ id: s.id, c: s.c, w: s.w, e: s.e, b: s.b, m: s.m, st: s.t, pts: s.pts });
+let boardCut = 0, boardDirty = false, boardT = 0;
+{ const g = store.get('board:' + room, null); if (g && Array.isArray(g.s)) { boardCut = +g.cut || 0; strokes = g.s.filter(s => s && Array.isArray(s.pts) && (s.t || 0) > boardCut); } }
+function markBoard(mine) {   // save here soon; a change made on this phone also goes to the relays
+  if (mine) boardDirty = true;
+  clearTimeout(boardT); boardT = setTimeout(() => { store.set('board:' + room, { cut: boardCut, s: strokes.map(s => ({ ...lineOf(s), st: undefined, t: s.t })) }); if (boardDirty) publishBoard(); }, 1500);
+}
+async function publishBoard() {
+  if (!pairKey || !clients.some(c => c.connected)) return;
+  try {
+    const z = new Uint8Array(await new Response(new Blob([JSON.stringify({ cut: boardCut, s: strokes.map(lineOf) })]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    const iv = rand(12), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, pairKey, z)), out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+    let payload = ''; for (let i = 0; i < out.length; i += 8192) payload += String.fromCharCode(...out.subarray(i, i + 8192)); payload = btoa(payload);   // a big drawing is too long for b64() in one go
+    let sent = false;
+    for (const c of clients) if (c.connected) { c.publish(boardTopic, payload, { retain: true, qos: 1 }); sent = true; }
+    if (sent) boardDirty = false;
+  } catch {}
+}
+async function gotBoard(text) {   // the copy kept on the relay: add what this phone missed, drop what was erased there
+  if (!text || !pairKey) return;
+  let o;
+  try {
+    const b = unb64(text), z = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(0, 12) }, pairKey, b.slice(12));
+    o = JSON.parse(await new Response(new Blob([z]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+  } catch { return; }
+  if (!o || !Array.isArray(o.s)) return;
+  const cut = +o.cut || 0, before = JSON.stringify(strokes.map(s => [s.id, s.pts.length]));
+  if (cut > boardCut) { boardCut = cut; strokes = strokes.filter(s => (s.t || 0) > cut); }
+  for (const x of o.s) if (x && (+x.st || 0) > boardCut) gotWhole(x, true);
+  strokes.sort((a, b) => (a.t || 0) - (b.t || 0));
+  const theirs = new Map(o.s.map(x => [x && x.id, x && Array.isArray(x.pts) ? x.pts.length : 0]));
+  if (boardCut > cut || strokes.some(s => !(theirs.get(s.id) >= s.pts.length))) boardDirty = true;   // this phone has more than the relay copy: put it there
+  if (JSON.stringify(strokes.map(s => [s.id, s.pts.length])) !== before) { if (panel === 'draw') redraw(); }
+  markBoard(false);
+}
 const point = e => { const r = board.getBoundingClientRect(); return [+((e.clientX - r.left) / r.width).toFixed(4), +((e.clientY - r.top) / r.height).toFixed(4)]; };
 board.onpointerdown = e => {
   board.setPointerCapture(e.pointerId);
-  drawing = { id: b64url(rand(6)), c: pen.c, w: pen.w, e: pen.e, b: pen.b, m: pen.m, pts: [point(e)], sent: 0 };
+  drawing = { id: b64url(rand(6)), c: pen.c, w: pen.w, e: pen.e, b: pen.b, m: pen.m, t: Math.max(Date.now(), boardCut + 1), pts: [point(e)], sent: 0 };
   strokes.push(drawing); seg(drawing, 0);
 };
 board.onpointermove = e => { if (!drawing) return; drawing.pts.push(point(e)); seg(drawing, drawing.pts.length - 1); };
-board.onpointerup = board.onpointercancel = () => { flushDraw(); if (drawing) resendLine(drawing); drawing = null; };
+board.onpointerup = board.onpointercancel = () => { flushDraw(); if (drawing) { resendLine(drawing); markBoard(true); } drawing = null; };
 function resendLine(s) {   // the other phone may have dropped out half way through this line
-  for (const ms of [3000, 10000, 30000, 60000]) setTimeout(() => { if (strokes.includes(s)) send({ t: 'stroke', s: { id: s.id, c: s.c, w: s.w, e: s.e, b: s.b, m: s.m, pts: s.pts } }); }, ms);
+  for (const ms of [3000, 10000, 30000, 60000]) setTimeout(() => { if (strokes.includes(s)) send({ t: 'stroke', s: lineOf(s) }); }, ms);
 }
 function flushDraw() {   // send new points about 20 times a second while drawing
   const d = drawing;
   if (!d || d.sent >= d.pts.length) return;
-  send({ t: 'draw', id: d.id, c: d.c, w: d.w, e: d.e, b: d.b, m: d.m, pts: d.pts.slice(d.sent) });
+  send({ t: 'draw', id: d.id, c: d.c, w: d.w, e: d.e, b: d.b, m: d.m, st: d.t, pts: d.pts.slice(d.sent) });
   d.sent = d.pts.length;
 }
 setInterval(flushDraw, 50);
 function resync() {   // the other phone came back: send what is open here so both screens match again
-  for (const x of strokes) send({ t: 'stroke', s: { id: x.id, c: x.c, w: x.w, e: x.e, b: x.b, m: x.m, pts: x.pts } });
+  if (boardCut) send({ t: 'draw', clear: true, at: boardCut });   // an erase made while the other phone was away
+  for (const x of strokes) send({ t: 'stroke', s: lineOf(x) });
 }
 const libSize = () => Object.keys(vidMap).length + gone.size;
 function gotFacts(m) {   // the other phone says how new its copy is: if it missed something, send it again
@@ -2498,22 +2543,29 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
   if (Number.isInteger(m.lc) && m.lc !== libSize() && Date.now() - libSentAt > 5000) { libSentAt = Date.now(); sendLib(); }
 }
-function gotWhole(x) {   // a whole line: never twice, and one that lost its end gets it back
+function gotWhole(x, quiet) {   // a whole line: never twice, and one that lost its end gets it back
   const s = strokes.find(o => o.id === x.id);
-  if (!s) return gotDraw(x);
-  if (Array.isArray(x.pts) && x.pts.length > s.pts.length) { s.pts = []; gotDraw(x); if (panel === 'draw') redraw(); }
+  if (!s) return gotDraw(x, quiet);
+  if (Array.isArray(x.pts) && x.pts.length > s.pts.length) { s.pts = []; gotDraw(x, quiet); if (!quiet && panel === 'draw') redraw(); }
 }
-function gotDraw(m) {
-  if (m.clear) { strokes = []; redraw(); return; }
+function gotDraw(m, quiet) {
+  if (m.clear) {   // only lines drawn before the erase go; one started after it on the other phone stays
+    const at = +m.at || +m.ts || Date.now();
+    if (at <= boardCut) return;
+    boardCut = at; strokes = strokes.filter(s => (s.t || 0) > at); redraw(); markBoard(false); return;
+  }
   if (typeof m.id !== 'string' || !Array.isArray(m.pts)) return;
   let s = strokes.find(x => x.id === m.id);
   if (!s) {
-    s = { id: m.id, c: /^#[0-9a-f]{6}$/i.test(m.c) ? m.c : '#ffffff', w: Math.max(1, Math.min(12, +m.w || 4)), e: !!m.e, b: m.b in BRUSHES ? m.b : 'pen', m: m.m === true, pts: [] };
+    const t = +m.st || +m.ts || Date.now();
+    if (t <= boardCut) return;   // erased already
+    s = { id: m.id, c: /^#[0-9a-f]{6}$/i.test(m.c) ? m.c : '#ffffff', w: Math.max(1, Math.min(12, +m.w || 4)), e: !!m.e, b: m.b in BRUSHES ? m.b : 'pen', m: m.m === true, t, pts: [] };
     strokes.push(s);
   }
   const from = s.pts.length;
   for (const q of m.pts) if (Array.isArray(q) && q.length === 2 && q.every(v => v >= 0 && v <= 1)) s.pts.push(q);
-  if (panel === 'draw') seg(s, from);
+  if (!quiet && panel === 'draw') seg(s, from);
+  if (!quiet) markBoard(false);
 }
 $('tools').insertAdjacentHTML('afterbegin', COLORS.map(c => `<button class="sw" style="background:${c}" data-c="${c}" aria-label="Colour ${c}"></button>`).join(''));
 $('brushes').innerHTML = Object.keys(BRUSHES).map(b => `<button type="button" data-b="${b}" aria-label="${BRUSHES[b][1]}" title="${BRUSHES[b][1]}">${BRUSHES[b][0]}</button>`).join('')
@@ -2530,7 +2582,7 @@ $('mirrorBtn').onclick = () => { tap(); pen.m = !pen.m; renderTools(); };
 $('sizeBtn').onclick = () => { tap(); pen.w = SIZES[(SIZES.indexOf(pen.w) + 1) % SIZES.length]; renderTools(); };
 document.querySelectorAll('.sw').forEach(b => b.onclick = () => { pen.c = b.dataset.c; pen.e = false; renderTools(); });
 $('eraser').onclick = () => { pen.e = !pen.e; renderTools(); };
-$('clearBtn').onclick = () => { strokes = []; redraw(); send({ t: 'draw', clear: true }); };
+$('clearBtn').onclick = () => { boardCut = Math.max(Date.now(), boardCut + 1); strokes = []; redraw(); send({ t: 'draw', clear: true, at: boardCut }); markBoard(true); };
 $('saveBtn').onclick = () => {   // downloads a picture; Android's gallery shows the Downloads folder
   const c = document.createElement('canvas'); c.width = board.width; c.height = board.height;
   const x = c.getContext('2d'); x.fillStyle = '#0b0b0d'; x.fillRect(0, 0, c.width, c.height); x.drawImage(board, 0, 0);
@@ -4655,7 +4707,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-164923';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261112-192049';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5371,7 +5423,7 @@ function startKeepAlive() {   // Chrome does not put a tab to sleep while it pla
   b.setUint32(24, rate, true); b.setUint32(28, rate * 2, true); b.setUint16(32, 2, true); b.setUint16(34, 16, true); txt(36, 'data'); b.setUint32(40, n * 2, true);
   for (let i = 0; i < n; i++) b.setInt16(44 + i * 2, 40 * Math.sin(2 * Math.PI * 30 * i / rate), true);
   keepAlive = new Audio(URL.createObjectURL(new Blob([b], { type: 'audio/wav' }))); keepAlive.loop = true; keepAlive.play().catch(() => {});
-  if (navigator.mediaSession) { navigator.mediaSession.metadata = new MediaMetadata({ title: 'Loveline' }); navigator.mediaSession.setActionHandler('pause', () => keepAlive.play().catch(() => {})); }
+  if (navigator.mediaSession) { navigator.mediaSession.metadata = new MediaMetadata({ title: 'Calculator' }); navigator.mediaSession.setActionHandler('pause', () => keepAlive.play().catch(() => {})); }
 }
 let wakeLock = null;
 async function keepScreenOn() { try { wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
@@ -5436,7 +5488,7 @@ let testAt = 0;   // when this phone asked for a test alert
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => {   // the alert arrived while Loveline is open: a test must still show as a real alert
   if (!e.data || e.data.t !== 'pushed' || Date.now() - testAt > 30000) return;
   testAt = 0;
-  navigator.serviceWorker.ready.then(r => r.showNotification('Loveline', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' })).catch(() => {});
+  navigator.serviceWorker.ready.then(r => r.showNotification('Calculator', { body: 'Your saved result is ready', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' })).catch(() => {});
 });
 function alertHelp(text) { document.querySelectorAll('.alertHelp').forEach(p => { p.textContent = text || ''; p.hidden = !text; }); }
 function showAlerts() {
@@ -5609,8 +5661,9 @@ const chatIsOpen = () => $('dock').classList.contains('open');
 // their messages are waiting unseen. Not on the calculator (it must look like only a calculator), not on the plain cover.
 let unseen = +store.get('unseen:' + room) || 0, noteSeed = 0, noteWas = '';
 function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen(); }
-const ONLINE_LINES = ['Someone special is online', 'Your favourite person is here', 'Someone is thinking of you', 'Your person just showed up'];
-const MSG_LINES = [n => n === 1 ? 'A little note is waiting for you' : 'Little notes are waiting for you', n => n === 1 ? 'Someone left you a whisper' : 'Whispers need your attention', n => n === 1 ? 'A sweet message is missing you' : 'Sweet messages are missing you'];   // the count is on the red badge
+// Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
+const ONLINE_LINES = [['Sync', 'Cloud sync connected'], ['Backup', 'Backup device is online'], ['Sync', 'Paired device active'], ['Devices', 'Linked device connected']];
+const MSG_LINES = [['History', n => n === 1 ? 'New result saved' : 'New results saved'], ['Updates', n => n === 1 ? 'Update ready to install' : 'Updates ready to install'], ['Storage', n => n === 1 ? 'File synced to this phone' : 'Files synced to this phone']];   // the count is on the red badge
 function lockNote(bump) {
   const el = $('lockNote'), on = !$('lock').hidden && !$('lock').classList.contains('cover') && $('calc').hidden;
   if (!on) { if (noteWas) { el.textContent = ''; noteWas = ''; noteSeed++; } return; }
@@ -5618,8 +5671,9 @@ function lockNote(bump) {
   if (key === noteWas && !bump) return;
   const first = !noteWas; noteWas = key;
   const rows = [];
-  if (live) rows.push(`<div data-k="on"><span class="on"></span>${ONLINE_LINES[noteSeed % ONLINE_LINES.length]}</div>`);
-  if (unseen) rows.push(`<div data-k="msg"><span class="ic">💌</span>${MSG_LINES[noteSeed % MSG_LINES.length](unseen)}<b class="${bump && !first ? 'bump' : ''}">${unseen > 99 ? '99+' : unseen}</b></div>`);
+  const [oh, ot] = ONLINE_LINES[noteSeed % ONLINE_LINES.length], [mh, mt] = MSG_LINES[noteSeed % MSG_LINES.length];
+  if (live) rows.push(`<div data-k="on"><span class="ic">⟳</span><span class="tx"><small>${oh} · now <span class="on"></span></small>${ot}</span></div>`);
+  if (unseen) rows.push(`<div data-k="msg"><span class="ic">⚙</span><span class="tx"><small>${mh} · now</small>${mt(unseen)}</span><b class="${bump && !first ? 'bump' : ''}">${unseen > 99 ? '99+' : unseen}</b></div>`);
   const had = new Set([...el.children].map(d => d.dataset.k));
   el.innerHTML = rows.join('');
   for (const d of el.children) if (had.has(d.dataset.k)) d.style.animation = 'none';   // only a new notice slides in; a changed count just pops
