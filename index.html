@@ -148,13 +148,113 @@
   .chatTop { display: none; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
   .dock.open .chatTop { display: flex; }
   .closeChat { height: 30px; padding: 0 12px; border: 0; border-radius: 18px; background: var(--fill); font-size: 14px; font-weight: 600; }
-  .chatTop .clearChat { margin: 0; }
-  .chatWho { flex: 1; min-width: 0; text-align: center; line-height: 1.15; }
-  .chatWho b { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chatWho small { display: block; font-size: 12px; color: var(--label2); }
-  .chatWho small.live { color: var(--green); }
-  .clearChat { display: none; margin: 0 auto 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--red); font-size: 13px; font-weight: 600; }
-  .dock.open .clearChat { display: block; }
+  .chatWho { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 0; border: 0; background: none; color: inherit; text-align: left; line-height: 1.15; }
+  .chatWho:active { opacity: .6; }
+  .chatWhoT { min-width: 0; flex: 1; }
+  .dp { flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: linear-gradient(145deg, #3a4a55, #26333b); color: #cfd8dc; font-size: 16px; font-weight: 600; border: 0; padding: 0; }
+  .dp img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .dp.big { width: 84px; height: 84px; font-size: 34px; }
+  .dp.huge { width: 112px; height: 112px; font-size: 44px; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); }
+  /* choosing a profile photo: drag to move, pinch to zoom, the circle shows what is kept (like iOS "Move and Scale") */
+  .dpCrop { position: fixed; inset: 0; z-index: 45; background: #000; animation: dpCropIn 260ms cubic-bezier(.32, .72, 0, 1); }
+  .dpCrop[hidden] { display: none; }
+  @keyframes dpCropIn { from { opacity: 0; transform: translateY(24px); } }
+  .dpCropStage { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
+  .dpCropStage img { position: absolute; left: 50%; top: 50%; max-width: none; transform-origin: 0 0; user-select: none; -webkit-user-drag: none; pointer-events: none; will-change: transform; }
+  .dpCropStage img.back { transition: transform 320ms cubic-bezier(.32, .72, 0, 1); }
+  .dpCropRing { position: absolute; left: 50%; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .6); outline: 1px solid rgba(255, 255, 255, .5); pointer-events: none; }
+  .dpCropTop { position: absolute; top: 0; left: 0; right: 0; padding: calc(max(env(safe-area-inset-top), 12px) + 8px) 16px 0; text-align: center; pointer-events: none; }
+  .dpCropTop b { font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+  .dpCropBar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; padding: 14px 12px calc(max(env(safe-area-inset-bottom), 12px) + 8px); background: linear-gradient(transparent, rgba(0, 0, 0, .7)); }
+  .dpCropBar button { height: 44px; padding: 0 12px; border: 0; background: none; color: #fff; font-size: 17px; letter-spacing: -.02em; }
+  .dpCropBar button:last-child { font-weight: 600; color: #ffd60a; }
+  .dpCropBar button:active { opacity: .45; }
+  @media (prefers-reduced-motion: reduce) { .dpCrop { animation: none; } .dpCropStage img.back { transition: none; } }
+  .dpRow { display: flex; align-items: center; gap: 14px; margin: 4px 0 14px; }
+  .dpPick { display: block; height: 32px; padding: 0 2px; border: 0; background: none; color: var(--blue); font-size: 16px; font-weight: 600; }
+  .dpPick.danger { color: var(--red); }
+  /* a face beside the first message of each new stretch of talk, not on every bubble */
+  .bubble.dpd { position: relative; margin-left: 32px; margin-top: 6px; }
+  .bubble.dpd.mine { margin-left: 0; margin-right: 32px; }
+  .bdp { position: absolute; left: -32px; top: 0; width: 26px; height: 26px; font-size: 12px; pointer-events: none; }
+  .bubble.mine .bdp { left: auto; right: -32px; }
+  .dock:not(.open) .bubble.dpd { margin-left: 0; margin-right: 0; } .dock:not(.open) .bdp { display: none; }
+  a.lnk { color: #53bdeb; text-decoration: underline; text-underline-offset: 2px; }
+  .emoHint { position: absolute; top: 50%; height: 34px; padding: 0 7px; border: 0; border-radius: 17px; background: none; font-size: 20px; line-height: 34px; white-space: nowrap; opacity: .5; filter: blur(.35px) saturate(.85); transform: translateY(-50%); transition: opacity 140ms ease-out; }
+  .emoHint:active { opacity: 1; filter: none; }
+  .emoHint.edge { background: rgba(32, 44, 51, .92); opacity: .8; filter: none; }
+  .compose { position: relative; }
+  /* Shared: an iOS page sheet. It slides up over a dimmed chat, can be dragged down to close, and uses one blur material for its bars. */
+  .infoSheet { position: fixed; inset: 0; z-index: 40; --ease: cubic-bezier(.32, .72, 0, 1); }
+  .infoSheet[hidden] { display: none; }
+  .infoScrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .55); opacity: 0; transition: opacity 420ms var(--ease); }
+  .infoCard { position: absolute; left: 0; right: 0; bottom: 0; top: calc(max(env(safe-area-inset-top), 10px) + 10px); margin: 0 auto; max-width: 560px; display: flex; flex-direction: column; overflow: hidden; border-radius: 14px 14px 0 0; background: #1c1c1e; transform: translateY(100%); transition: transform 500ms var(--ease); will-change: transform; }
+  .infoSheet.on .infoScrim { opacity: 1; } .infoSheet.on .infoCard { transform: none; }
+  .infoSheet.drag .infoCard, .infoSheet.drag .infoScrim { transition: none; }
+  .infoNav { position: absolute; z-index: 3; top: 0; left: 0; right: 0; height: 54px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; padding: 0 6px 8px 16px; touch-action: none; transition: background-color 200ms ease, box-shadow 200ms ease; }
+  .infoNav.solid { background: rgba(28, 28, 30, .78); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 .5px 0 rgba(255, 255, 255, .14); }
+  .infoGrab { position: absolute; top: 6px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: rgba(235, 235, 245, .3); }
+  .infoNav b { grid-column: 2; font-size: 17px; font-weight: 600; letter-spacing: -.02em; opacity: 0; transform: translateY(4px); transition: opacity 180ms ease, transform 180ms ease; max-width: 52vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .infoNav.solid b { opacity: 1; transform: none; }
+  .infoNav button { grid-column: 3; justify-self: end; height: 36px; padding: 0 10px; border: 0; background: none; color: var(--blue); font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+  .infoNav button:active { opacity: .45; }
+  .infoScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: max(24px, env(safe-area-inset-bottom)); scrollbar-width: none; }
+  .infoWho { display: grid; justify-items: center; padding: 62px 20px 18px; }
+  .dp.huge { width: 104px; height: 104px; font-size: 42px; background: linear-gradient(180deg, #a5abb8, #858994); color: #fff; box-shadow: none; }
+  .infoWho b { margin-top: 12px; max-width: 100%; font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.022em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .infoWho small { margin-top: 3px; font-size: 15px; letter-spacing: -.01em; color: var(--label2); } .infoWho small.live { color: var(--green); }
+  .infoSeg { position: sticky; top: 54px; z-index: 2; padding: 6px 16px 10px; background: #1c1c1e; }
+  .infoTabs { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); height: 32px; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, .24); }
+  .segThumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / 3); border-radius: 7px; background: #636366; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04); transition: transform 320ms var(--ease); }
+  .infoTabs button { position: relative; z-index: 1; border: 0; background: none; font-size: 13px; font-weight: 500; letter-spacing: -.01em; color: var(--label); transition: opacity 120ms ease; }
+  .infoTabs button.on { font-weight: 600; }
+  .infoTabs button:active { opacity: .5; }
+  .infoBody { min-height: 46vh; animation: infoIn 260ms ease-out; }
+  @keyframes infoIn { from { opacity: 0; } }
+  .infoGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+  .infoCell { position: relative; aspect-ratio: 1; padding: 0; border: 0; overflow: hidden; background: #2c2c2e; -webkit-touch-callout: none; user-select: none; transition: transform 240ms var(--ease), filter 160ms ease; }
+  .infoCell img, .infoCell video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .infoCell:active { filter: brightness(.72); }
+  .infoCell.held, .infoLink.held { transform: scale(.94); }
+  .infoCell.veil video { filter: blur(18px); transform: scale(1.2); }
+  .infoCell.veil::after { content: '18+'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 4px 9px; border-radius: 12px; background: rgba(0, 0, 0, .45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-size: 12px; font-weight: 600; color: #fff; }
+  .infoCell .gifMark { position: absolute; left: 6px; bottom: 6px; padding: 1px 5px; border-radius: 5px; background: rgba(0, 0, 0, .5); font-size: 10px; font-weight: 700; letter-spacing: .02em; color: #fff; }
+  .infoMonth { grid-column: 1 / -1; padding: 18px 16px 8px; font-size: 20px; font-weight: 700; letter-spacing: -.02em; color: var(--label); }
+  .infoMonth:first-child { padding-top: 6px; }
+  .infoList { margin: 4px 16px 0; border-radius: 12px; overflow: hidden; background: #2c2c2e; }
+  .infoLink { position: relative; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 9px 12px 9px 12px; color: inherit; text-decoration: none; -webkit-touch-callout: none; user-select: none; transition: transform 240ms var(--ease), background-color 120ms ease; }
+  .infoLink:active { background: rgba(255, 255, 255, .08); }
+  .infoLink + .infoLink::before { content: ''; position: absolute; top: 0; left: 64px; right: 0; height: .5px; background: rgba(84, 84, 88, .65); }
+  .infoLink i { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 9px; background: linear-gradient(180deg, #5ac8fa, #0a84ff); color: #fff; }
+  .infoLink i svg { width: 22px; height: 22px; }
+  .infoLink div { flex: 1; min-width: 0; }
+  .infoLink b { display: block; font-size: 17px; font-weight: 400; letter-spacing: -.02em; color: var(--label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .infoLink small { display: block; margin-top: 1px; font-size: 13px; color: var(--label2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .infoLink > svg { flex: none; width: 8px; height: 14px; color: rgba(235, 235, 245, .3); }
+  .infoEmpty { display: grid; justify-items: center; padding: 56px 40px 0; text-align: center; color: var(--label2); }
+  .infoEmpty svg { width: 52px; height: 52px; margin-bottom: 14px; color: rgba(235, 235, 245, .3); }
+  .infoEmpty b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; color: var(--label); }
+  .infoEmpty span { margin-top: 6px; font-size: 15px; line-height: 1.35; }
+  /* hold an item: it lifts out of the dimmed, blurred page and a menu opens beside it, like an iOS context menu */
+  .infoAct { position: absolute; inset: 0; z-index: 5; background: rgba(0, 0, 0, .32); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); animation: ctxDim 220ms ease-out; }
+  .infoAct[hidden] { display: none; }
+  @keyframes ctxDim { from { background: rgba(0, 0, 0, 0); -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); } }
+  .ctxLift { position: absolute; overflow: hidden; border-radius: 14px; background: #2c2c2e; box-shadow: 0 18px 50px rgba(0, 0, 0, .5); animation: ctxLift 380ms cubic-bezier(.2, .9, .3, 1.15); }
+  .ctxLift img, .ctxLift video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ctxLift .infoLink { pointer-events: none; }
+  @keyframes ctxLift { from { transform: scale(var(--from, .7)); } }
+  .ctxMenu { position: absolute; width: 250px; border-radius: 13px; overflow: hidden; background: rgba(44, 44, 46, .82); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: 0 10px 40px rgba(0, 0, 0, .35); animation: ctxMenu 340ms cubic-bezier(.2, .9, .3, 1.1); }
+  @keyframes ctxMenu { from { opacity: 0; transform: scale(.3); } }
+  .ctxMenu button { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 44px; padding: 0 16px; border: 0; background: none; color: var(--label); font-size: 17px; letter-spacing: -.02em; text-align: left; }
+  .ctxMenu button + button { box-shadow: inset 0 .5px 0 rgba(84, 84, 88, .65); }
+  .ctxMenu button:active { background: rgba(255, 255, 255, .14); }
+  .ctxMenu button[hidden] { display: none; }
+  .ctxMenu svg { width: 20px; height: 20px; }
+  @media (prefers-reduced-motion: reduce) { .infoCard, .infoScrim, .segThumb { transition-duration: 1ms; } .infoBody, .infoAct, .ctxLift, .ctxMenu { animation: none; } }
+  @media (prefers-reduced-transparency: reduce) { .infoNav.solid { background: #1c1c1e; -webkit-backdrop-filter: none; backdrop-filter: none; } .infoAct { background: rgba(0, 0, 0, .8); -webkit-backdrop-filter: none; backdrop-filter: none; } .ctxMenu { background: #2c2c2e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+  .chatWhoT b { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chatWhoT small { display: block; font-size: 12px; color: var(--label2); }
+  .chatWhoT small.live { color: var(--green); }
   #clearSheet, #askSheet, #newSheet, #delSheet { z-index: 12; }
   .msgMenu button.danger { color: #ff453a; }
   /* the end of a game: the loser and the winner each see where it goes next; taps pass through, so Stop always works */
@@ -280,6 +380,24 @@
   .stBar i { display: block; height: 100%; border-radius: 6px 0 0 6px; background: linear-gradient(90deg, #ff2d6f, #ff6a9a); box-shadow: 2px 0 0 #fff; }
   .stTug p { margin: 0; font-size: 13px; color: var(--label2); }
   .stGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* Awards: a row you swipe sideways, one winner on each card. Just for fun: a grouped list of small facts. */
+  #statBody { overflow-x: hidden; }
+  .stH { margin: 26px 2px 10px; font-size: 22px; font-weight: 700; letter-spacing: -.022em; }
+  .stAwards { display: flex; gap: 10px; margin: 0 -14px; padding: 0 14px 4px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 14px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .stAwards::-webkit-scrollbar { display: none; }
+  .stAward { flex: none; width: 148px; padding: 14px 12px 13px; border-radius: 18px; background: linear-gradient(160deg, rgba(255, 55, 95, .22), rgba(191, 90, 242, .12) 60%, rgba(255, 255, 255, .05)); scroll-snap-align: start; text-align: center; }
+  .stAward.tie { background: rgba(255, 255, 255, .06); }
+  .stAward span { display: block; font-size: 40px; line-height: 1.1; }
+  .stAward h4 { margin: 8px 0 2px; font-size: 12px; font-weight: 600; letter-spacing: -.01em; color: var(--label2); }
+  .stAward b { display: block; font-size: 19px; font-weight: 700; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stAward p { margin: 5px 0 0; font-size: 12px; line-height: 1.3; color: var(--label2); }
+  .stFacts { border-radius: 14px; overflow: hidden; background: rgba(255, 255, 255, .06); }
+  .stFact { position: relative; display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 9px 14px; }
+  .stFact + .stFact::before { content: ''; position: absolute; top: 0; left: 54px; right: 0; height: .5px; background: rgba(84, 84, 88, .65); }
+  .stFact span { flex: none; width: 28px; font-size: 24px; text-align: center; }
+  .stFact div { min-width: 0; }
+  .stFact b { display: block; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+  .stFact small { display: block; margin-top: 1px; font-size: 13px; color: var(--label2); }
   .stTile { padding: 11px 12px 12px; border-radius: 18px; background: rgba(255, 255, 255, .06); min-width: 0; }
   .stIc { font-size: 20px; line-height: 1; }
   .stTile h3 { margin: 6px 0 6px; font-size: 13px; font-weight: 600; color: var(--label2); letter-spacing: -.01em; }
@@ -301,7 +419,7 @@
   /* search every message (Xed 13 Nov) */
   .findBtn { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-right: 6px; border: 0; border-radius: 50%; background: var(--fill); color: var(--label); }
   .findTop { gap: 10px; }
-  #findQ { flex: 1; min-width: 0; height: 38px; border: 0; border-radius: 19px; background: rgba(255, 255, 255, .12); padding: 0 16px; font-size: 16px; color: #fff; outline: none; }
+  #findQ { flex: 1; min-width: 0; height: 36px; border: 0; border-radius: 10px; background: rgba(118, 118, 128, .24) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ebebf5' stroke-opacity='.6' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='M15.5 15.5 20.5 20.5'/%3E%3C/svg%3E") 9px center / 17px no-repeat; padding: 0 12px 0 33px; font-size: 17px; letter-spacing: -.02em; color: #fff; outline: none; }
   .findNote { margin: 28px 12px; text-align: center; color: rgba(255, 255, 255, .6); font-size: 15px; line-height: 1.4; }
   .findHit { display: block; width: 100%; margin: 0 0 6px; padding: 10px 12px; border: 0; border-radius: 14px; background: rgba(255, 255, 255, .07); color: #fff; text-align: left; font: inherit; }
   .findHit small { display: block; margin-bottom: 3px; color: rgba(255, 255, 255, .55); font-size: 12px; }
@@ -759,16 +877,18 @@
   .pinBar b { display: block; font-weight: 600; color: var(--label); }
   .pinBar span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--label2); }
   .pinBar .pinMark { flex: none; width: 15px; height: 15px; margin: 0; opacity: .6; }
-  .msgMenu { position: fixed; z-index: 30; min-width: 200px; padding: 4px 0; border-radius: 14px; background: rgba(44, 44, 46, .9); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
-             box-shadow: 0 12px 40px rgba(0, 0, 0, .55); transform-origin: var(--ox, 50%) var(--oy, 0); animation: menuIn .2s cubic-bezier(.2, .8, .2, 1); }
-  .msgMenu button { display: block; width: 100%; padding: 12px 16px; border: 0; background: none; color: var(--label); font-size: 16px; text-align: left; }
-  .msgMenu button + button { border-top: .5px solid rgba(255, 255, 255, .12); }
-  .msgMenu button:active { background: rgba(255, 255, 255, .12); }
+  .msgMenu { position: fixed; z-index: 30; width: 250px; max-width: calc(100vw - 24px); border-radius: 13px; filter: drop-shadow(0 12px 28px rgba(0, 0, 0, .5)); transform-origin: var(--ox, 50%) var(--oy, 0); animation: menuIn 320ms cubic-bezier(.2, .9, .3, 1.1); }
+  .msgMenu > button { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 44px; padding: 0 16px; border: 0; background: rgba(44, 44, 46, .97); color: var(--label); font-size: 17px; letter-spacing: -.02em; text-align: left; }
+  .msgMenu > button:first-of-type { border-radius: 13px 13px 0 0; } .msgMenu > button:last-of-type { border-radius: 0 0 13px 13px; } .msgMenu > button:first-of-type:last-of-type { border-radius: 13px; }
+  .msgMenu > button + button { box-shadow: inset 0 .5px 0 rgba(84, 84, 88, .65); }
+  .msgMenu > button:active { background: #48484a; }
+  .msgMenu > button svg { flex: none; width: 20px; height: 20px; }
+  @media (prefers-reduced-motion: reduce) { .msgMenu { animation: none; } }
   /* reactions: a row of faces on top of the hold menu, and a small badge hanging off the bubble */
-  .msgMenu .rxRow { display: flex; gap: 2px; max-width: min(320px, calc(100vw - 24px)); overflow-x: auto; padding: 4px 6px 6px; border-bottom: .5px solid rgba(255, 255, 255, .12); scrollbar-width: none; }
+  .msgMenu .rxRow { display: flex; gap: 2px; overflow-x: auto; margin-bottom: 8px; padding: 4px 6px; border-radius: 24px; background: rgba(44, 44, 46, .97); scrollbar-width: none; }
   .msgMenu .rxRow::-webkit-scrollbar { display: none; }
   .msgMenu .rxRow { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }   /* the faded edge says more faces are further along */
-  .msgMenu .rxRow button { flex: none; width: 37px; height: 40px; padding: 0; border: 0; border-radius: 50%; font-size: 23px; line-height: 1; text-align: center; }
+  .msgMenu .rxRow button { flex: none; background: none; width: 37px; height: 40px; padding: 0; border: 0; border-radius: 50%; font-size: 23px; line-height: 1; text-align: center; }
   .msgMenu .rxRow button.on { background: rgba(255, 255, 255, .2); }
   .msgMenu .rxRow button:active { transform: scale(1.25); transition: transform 90ms ease-out; }
   .bubble.rxd { position: relative; margin-bottom: 14px; }
@@ -1080,7 +1200,7 @@
 
 <div class="msgMenu" id="msgMenu" role="menu" hidden></div>
 <div class="dock" id="dock"><div class="dock-in">
-  <div class="chatTop"><button class="clearChat" id="clearChat" hidden>Clear chat</button><div class="chatWho"><b id="chatName"></b><small id="chatSeen"></small></div><button class="findBtn" id="findBtn" aria-label="Search messages"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button><button class="statBtn" id="statBtn" aria-label="Our stats">💞 Stats</button><button class="closeChat" id="closeChat">Close</button></div>
+  <div class="chatTop"><button type="button" class="chatWho" id="chatWho" aria-label="Photos, GIFs and links you shared"><span class="dp" id="chatDp"></span><span class="chatWhoT"><b id="chatName"></b><small id="chatSeen"></small></span></button><button class="findBtn" id="findBtn" aria-label="Search messages"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button><button class="statBtn" id="statBtn" aria-label="Our stats">💞 Stats</button><button class="closeChat" id="closeChat">Close</button></div>
   <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
   <div class="peek" id="chatPeek"></div>
   <div class="pinBar" id="pinBar" role="button" tabindex="0" hidden><span class="pinTicks" id="pinTicks"></span><div><b id="pinHead">Pinned message</b><span id="pinText"></span></div><svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg></div>
@@ -1095,7 +1215,7 @@
       <button type="button" class="icon" id="emojiBtn" aria-label="Emoji">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></svg></button>
       <button type="button" class="icon gifBtn" id="gifBtn" aria-label="GIFs"><span>GIF</span></button>
-      <input id="text" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message" enterkeyhint="send">
+      <input id="text" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message" enterkeyhint="send"><button type="button" class="emoHint" id="emoHint" tabindex="-1" aria-label="Add this emoji" hidden></button>
       <button type="button" class="icon" id="imBtn" aria-label="Send a photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></button>
       <button class="icon send" id="sendBtn" aria-label="Send" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
@@ -1115,6 +1235,16 @@
 <input type="file" id="imFile" accept="image/*" hidden>
 <div class="statSheet" id="findSheet" hidden role="dialog" aria-label="Search messages"><div class="stTop findTop"><input id="findQ" type="search" placeholder="Search all messages" autocomplete="off" enterkeyhint="search" aria-label="Search all messages"><button type="button" id="findX" aria-label="Close search">✕</button></div><div class="statBody" id="findBody"></div></div>
 <div class="statSheet" id="statSheet" hidden role="dialog" aria-label="Our stats"><div class="stTop"><b>Us, in numbers</b><button type="button" id="statX" aria-label="Close the stats">✕</button></div><div class="statBody" id="statBody"></div></div>
+<div class="infoSheet" id="infoSheet" hidden role="dialog" aria-modal="true" aria-label="Shared photos, GIFs and links"><div class="infoScrim" id="infoScrim"></div><div class="infoCard" id="infoCard">
+  <div class="infoNav" id="infoNav"><span class="infoGrab"></span><b id="infoNavName"></b><button type="button" id="infoX">Done</button></div>
+  <div class="infoScroll" id="infoScroll">
+    <div class="infoWho" id="infoWho"><span class="dp huge" id="infoDp"></span><b id="infoName"></b><small id="infoSeen"></small></div>
+    <div class="infoSeg"><div class="infoTabs" id="infoTabs" role="tablist"><i class="segThumb" id="segThumb"></i><button type="button" role="tab" data-tab="im" class="on">Photos</button><button type="button" role="tab" data-tab="gif">GIFs</button><button type="button" role="tab" data-tab="ln">Links</button></div></div>
+    <div class="infoBody" id="infoBody"></div>
+  </div></div>
+  <div class="infoAct" id="infoAct" hidden><div class="ctxLift" id="ctxLift"></div><div class="ctxMenu" id="ctxMenu" role="menu"><button type="button" role="menuitem" id="infoAgain"><span>Send again</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5l6 6-6 6"/><path d="M20 11H10a6 6 0 0 0-6 6v2"/></svg></button><button type="button" role="menuitem" id="infoShow"><span>Show in chat</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/></svg></button><button type="button" role="menuitem" id="infoCopy"><span>Copy link</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button></div></div>
+</div>
+<div class="dpCrop" id="dpCrop" hidden role="dialog" aria-modal="true" aria-label="Move and scale your photo"><div class="dpCropStage" id="dpCropStage"><img id="dpCropImg" alt="" draggable="false"><div class="dpCropRing" id="dpCropRing"></div></div><div class="dpCropTop"><b>Move and Scale</b></div><div class="dpCropBar"><button type="button" id="dpCropNo">Cancel</button><button type="button" id="dpCropYes">Choose</button></div></div>
 <div class="imView" id="imView" hidden><div class="imTop"><button type="button" id="imX" aria-label="Close the photo">✕</button><span id="imWho"></span></div><div class="imStage" id="imStage"><img id="imBig" alt="Photo" draggable="false"></div></div>
 <div class="imView" id="imPrev" hidden><div class="imTop"><button type="button" id="imPrevX" aria-label="Do not send">✕</button><span>Send a photo</span></div><div class="imStage"><img id="imPrevImg" alt="The photo to send" draggable="false"></div>
   <div class="imSend"><button type="button" class="onceBtn" id="imOnceBtn" aria-label="View once">1</button><span id="imOnceTxt"></span><button type="button" class="icon send" id="imGo" aria-label="Send the photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></div></div>
@@ -1165,13 +1295,15 @@
 <div class="sheet" id="nameSheet" hidden>
   <form id="nameForm" class="glass">
     <div class="grabber"></div>
+    <div class="dpRow"><button type="button" class="dp big" id="myDp" aria-label="Change your photo"></button><div><button type="button" class="dpPick" id="dpPick">Change photo</button><button type="button" class="dpPick danger" id="dpDrop" hidden>Remove</button></div><input type="file" id="dpFile" accept="image/*" hidden></div>
     <h2>Your name</h2>
-    <p>Your partner sees this next to your messages.</p>
+    <p>Your partner sees your photo and name in the chat.</p>
     <input class="field" id="nameInput" maxlength="24" autocomplete="off" aria-label="Your name" required>
     <button class="primary">Save</button>
     <p class="sideNow" id="sideNow"></p>
     <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
     <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
+    <button type="button" class="ghost danger" id="clearChat">Clear chat</button>
     <button type="button" class="ghost danger" id="resetAll">Reset all game scores</button>
   </form>
 </div>
@@ -1303,6 +1435,11 @@ const shareUrl = location.origin + location.pathname + '#r=' + room + '&k=' + hp
 const me = store.get('me') || b64url(rand(8)); store.set('me', me);
 let myName = store.get('name', '');
 let partnerName = store.get('partnerName:' + room, '');
+// profile pictures (Xed 13 Nov): a small square photo, kept on this phone and sent sealed to the other one
+const DP_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]{100,9000}$/;
+let myDp = store.get('dp', ''), partnerDp = store.get('partnerDp:' + room, ''), dpTold = store.get('dpTold:' + room, null);
+if (!DP_RE.test(myDp)) myDp = ''; if (!DP_RE.test(partnerDp)) partnerDp = '';
+const dpMark = d => d ? d.length + ':' + d.slice(-24) : 'none';
 
 // ---- shared egg model
 const blank = () => ({ level: 0, mode: 'steady', speed: .5, battery: null, connected: false, by: '', t0: performance.now(), editUntil: 0 });
@@ -1472,7 +1609,7 @@ function seenText(t) {   // Xed 12 Nov: how long ago, not a clock time: "not see
   return mins < 1 ? 'last seen just now' : `not seen for ${ago}`;
 }
 function renderSeen() {   // the chat header: her name, and online or when she was last here
-  $('chatName').textContent = who();
+  $('chatName').textContent = who(); if ($('chatDp') && !partnerDp) $('chatDp').textContent = who().trim().charAt(0).toUpperCase();
   $('chatSeen').textContent = partnerShown() ? 'online' : seenText(seenAt()) || (isRemote ? 'waiting' : 'not here yet');
   $('chatSeen').classList.toggle('live', partnerShown());
   $('chatPeek').innerHTML = `<b>${esc(who())}</b> <i>· ${esc($('chatSeen').textContent)}</i>`;   // the small chat says it too
@@ -2131,7 +2268,8 @@ function chatView() {   // the part of the chat that is drawn: the newest 80, or
   return view;
 }
 let viewMap = new Map();   // the messages drawn now, by id (quick lookups while a voice note paints every frame)
-const msgById = id => viewMap.get(id) || chat.find(x => x.id === id) || older.find(x => x.id === id);
+const infoMap = new Map();   // messages listed on the Shared screen
+const msgById = id => viewMap.get(id) || chat.find(x => x.id === id) || older.find(x => x.id === id) || infoMap.get(id);
 function keepMsg(c) {   // save a changed message: in the live chat, or straight into the phone's database when it is an older one
   if (chat.includes(c)) return saveChat();
   archSeen.set(c.id, JSON.stringify(c)); archTx('readwrite', st => { st.put(c); }).catch(() => {});
@@ -2669,11 +2807,13 @@ function stAdd(c, prev) {
   if (prev && prev.who !== c.who && t > prev.at && t - prev.at < 6 * 3600e3) { p.rt += t - prev.at; p.rc++; }   // how fast each answers
   if (c.vn) { p.vn++; p.vnS += Math.round(c.vn.d / 1000); return; }
   if (c.im) { p.im++; return; }
-  if (c.gif) return;   // a GIF's label is not words or emoji anyone typed
+  if (c.gif) { p.gif = (p.gif || 0) + 1; return; }   // a GIF's label is not words or emoji anyone typed
   const x = String(c.text || '');
   p.w += x.split(/\s+/).filter(Boolean).length;
   p.love += stCount(ST_LOVE, x); p.ily += stCount(ST_ILY, x); p.kiss += stCount(ST_KISS, x); p.miss += stCount(ST_MISS, x);
   p.hug += stCount(ST_HUG, x); p.heart += stCount(ST_HEART, x);
+  if (/\b(?:(?:ha){2,}h?|(?:he){2,}|lo+l+|lmao+|rofl)\b|😂|🤣/i.test(x)) p.ha = (p.ha || 0) + 1;   // a message with a laugh in it
+  if (x.includes('?')) p.q = (p.q || 0) + 1;
   if (ST_GM.test(x)) p.gm++;
   if (ST_GN.test(x)) p.gn++;
   for (const e of x.match(EMO_RE) || []) p.emo[e] = (p.emo[e] || 0) + 1;
@@ -2703,6 +2843,44 @@ const stPts = p => p.ily * 3 + p.kiss * 2 + p.love + p.miss + p.hug + p.heart * 
 const stAvg = p => p.rc ? p.rt / p.rc : 0;
 const stDur = ms => !ms ? '—' : ms < 60000 ? Math.max(1, Math.round(ms / 1000)) + ' s' : ms < 3600e3 ? Math.round(ms / 60000) + ' min' : (ms / 3600e3).toFixed(1) + ' h';
 const stHourName = h => new Date(Date.UTC(2020, 0, 1, h)).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, timeZone: 'UTC' });
+function stFun(me, th, I, U, s) {   // Awards and Just for fun (Xed 13 Nov): one winner on each card, and a few silly facts
+  const g = (p, k) => p[k] || 0, per = p => p.w / Math.max(1, p.n - g(p, 'vn') - g(p, 'im') - g(p, 'gif'));
+  const award = (ic, title, a, b, line, hi = true) => {
+    if (!a && !b) return ''; const tie = a === b, mine = hi ? a > b : (a && (!b || a < b)), top = hi ? Math.max(a, b) : Math.min(a || b, b || a);
+    return `<div class="stAward${tie ? ' tie' : ''}" role="listitem"><span>${ic}</span><h4>${title}</h4><b>${tie ? 'A tie' : esc(mine ? I : U)}</b><p>${esc(line(top))}</p></div>`;
+  };
+  const pl = (n, one, many) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many || one + 's'}`;
+  const awards = [
+    award('💘', 'Hopeless romantic', me.ily, th.ily, n => `Said “I love you” ${pl(n, 'time')}`),
+    award('😘', 'Kiss machine', me.kiss, th.kiss, n => `${pl(n, 'kiss', 'kisses')} sent`),
+    award('🥺', 'Misses more', me.miss, th.miss, n => `Said it ${pl(n, 'time')}`),
+    award('😂', 'Laughs the most', g(me, 'ha'), g(th, 'ha'), n => `${pl(n, 'message')} with a laugh`),
+    award('⚡', 'Fastest fingers', me.rc ? Math.round(stAvg(me)) : 0, th.rc ? Math.round(stAvg(th)) : 0, n => `Answers in about ${stDur(n)}`, false),
+    award('📖', 'Storyteller', Math.round(per(me) * 10), Math.round(per(th) * 10), n => `${(n / 10).toFixed(1)} words in each message`),
+    award('🦉', 'Night owl', me.late, th.late, n => `${pl(n, 'message')} after midnight`),
+    award('🐓', 'Early bird', me.first, th.first, n => `Wrote first on ${pl(n, 'day')}`),
+    award('🌅', 'Good morning champion', me.gm, th.gm, n => pl(n, 'good morning')),
+    award('🌙', 'Good night champion', me.gn, th.gn, n => pl(n, 'good night')),
+    award('🎙️', 'Radio host', me.vnS, th.vnS, n => `${stDur(n * 1000)} of voice notes`),
+    award('📸', 'Photographer', me.im, th.im, n => `${pl(n, 'photo')} sent`),
+    award('🎞️', 'GIF dealer', g(me, 'gif'), g(th, 'gif'), n => `${pl(n, 'GIF')} sent`),
+    award('🤔', 'Curious one', g(me, 'q'), g(th, 'q'), n => `${pl(n, 'question')} asked`),
+    award('🤗', 'Hug dealer', me.hug, th.hug, n => `${pl(n, 'hug')} given`),
+  ].filter(Boolean);
+  const total = me.n + th.n, words = me.w + th.w, kisses = me.kiss + th.kiss, hearts = me.heart + th.heart, voice = me.vnS + th.vnS, quiet = stats.hours.indexOf(Math.min(...stats.hours));
+  const span = stats.since ? Math.max(1, Math.round((Date.now() - stats.since) / 864e5) + 1) : 1, mine = total ? Math.round(me.n / total * 100) : 50;
+  const facts = [
+    ['💬', `${Math.max(1, Math.round(total / span)).toLocaleString('en-US')} messages a day`, `${pl(total, 'message')} in ${pl(span, 'day')}`],
+    ['⚖️', mine === 50 ? 'A perfectly even chat' : `${esc(mine > 50 ? I : U)} writes ${Math.max(mine, 100 - mine)}% of it`, mine === 50 ? 'Half each' : `${esc(mine > 50 ? U : I)} writes the other ${Math.min(mine, 100 - mine)}%`],
+    words >= 20 ? ['🗣️', `${stDur(words / 150 * 60000)} to read it all aloud`, `${pl(words, 'word')} between you`] : null,
+    kisses ? ['💋', `${stDur(kisses * 2000)} of kissing`, `If each of your ${pl(kisses, 'kiss', 'kisses')} lasted two seconds`] : null,
+    hearts ? ['❤️', `${pl(hearts, 'heart')} sent`, hearts >= 100 ? 'Enough to fill this whole screen' : 'Keep them coming'] : null,
+    voice ? ['🎧', `${stDur(voice * 1000)} of your voices`, 'Every voice note, played back to back'] : null,
+    s.days > 1 ? ['📅', `${pl(s.days, 'day')} you talked`, `${Math.min(100, Math.round(s.days / span * 100))}% of the days since you started`] : null,
+    total >= 24 && stats.hours[quiet] === 0 ? ['😴', `Never a word at ${esc(stHourName(quiet))}`, 'Your quietest hour'] : null,
+  ].filter(Boolean);
+  return `${awards.length ? `<h2 class="stH">Awards</h2><div class="stAwards" role="list">${awards.join('')}</div>` : ''}<h2 class="stH">Just for fun</h2><div class="stFacts">${facts.map(f => `<div class="stFact"><span>${f[0]}</span><div><b>${f[1]}</b><small>${f[2]}</small></div></div>`).join('')}</div>`;
+}
 function openStats() {
   stSync();
   const me = stats.p.me, th = stats.p.them, I = myName || 'You', U = who(), s = stStreaks();
@@ -2740,6 +2918,7 @@ function openStats() {
       ${lw[myR] || lw[thR] ? tile('🎲', 'Ludo wins', vs(lw[myR] || 0, lw[thR] || 0), `Champion: ${winner(lw[myR] || 0, lw[thR] || 0)}`) : ''}
       ${toyTiles()}
     </div>
+    ${stFun(me, th, I, U, s)}
     <p class="stFoot">Counted on your two phones only. Never sent to any server.</p>`;
   $('statSheet').hidden = false; tap();
   const n = $('statBody').querySelector('.stScore');   // the one moment: the heart fills and the number counts up
@@ -2753,6 +2932,239 @@ function openStats() {
 const closeStats = () => { if ($('statSheet').hidden) return false; $('statSheet').hidden = true; return true; };
 $('statBtn').onclick = ev => { ev.stopPropagation(); openStats(); };
 $('statX').onclick = () => { tap(); closeStats(); };
+// ---- Shared: tap the chat banner for every photo, GIF and link the two of you sent (Xed 13 Nov); an iOS page sheet
+let infoTab = 'im', infoAll = [], infoPick = null, infoHold = 0, infoHeldAt = 0, infoHeldEl = null, infoShutT = 0, infoPickU = ''; const infoUrls = new Map();
+const INFO_IC = {
+  im: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 15.5l-4.6-4.6a1.5 1.5 0 0 0-2.1 0L7 18.5"/></svg>',
+  gif: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 10.2H8.2a1.2 1.2 0 0 0-1.2 1.2v1.2a1.2 1.2 0 0 0 1.2 1.2H10v-1.6M12.6 10.2v3.6M15.2 13.8v-3.6h2.2M15.2 12.2h1.7"/></svg>',
+  ln: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4.2 4.2 0 0 0 6 0l3-3a4.2 4.2 0 0 0-6-6l-1 1"/><path d="M14 10a4.2 4.2 0 0 0-6 0l-3 3a4.2 4.2 0 0 0 6 6l1-1"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.9 5.2 3.9 8.500s-1.300 6.100-3.900 8.500c-2.600-2.400-3.900-5.200-3.900-8.500s1.300-6.100 3.900-8.500z"/></svg>',
+  chev: '<svg viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg>' };
+const infoSeen = new IntersectionObserver(es => { for (const e of es) {
+  const el = e.target, id = el.dataset.id, v = el.querySelector('video');
+  if (v) { if (e.isIntersecting) { if (!v.src) v.src = v.dataset.src; v.play().catch(() => {}); } else v.pause(); continue; }
+  if (!e.isIntersecting || el.dataset.on) continue; el.dataset.on = 1;
+  vnLoad(id).then(r => { if (!r || !r.b || !el.isConnected) return; const u = URL.createObjectURL(r.b); infoUrls.set(id, u); el.querySelector('img').src = u; });
+} }, { rootMargin: '300px' });
+async function openInfo() {
+  clearTimeout(infoShutT);
+  $('infoName').textContent = $('infoNavName').textContent = who(); $('infoSeen').textContent = $('chatSeen').textContent; $('infoSeen').className = $('chatSeen').className; dpPaint();
+  const sh = $('infoSheet'); sh.hidden = false; $('infoCard').style.transform = ''; $('infoScrim').style.opacity = ''; $('infoScroll').scrollTop = 0; $('infoNav').classList.remove('solid');
+  $('infoBody').innerHTML = ''; void sh.offsetWidth; sh.classList.add('on');
+  const m = new Map(); for (const c of [...(await archTx('readonly', st => st.getAll()).catch(() => []) || []), ...older, ...chat]) if (c && c.id && !cleared.has(c.id)) m.set(c.id, c);
+  infoAll = [...m.values()].sort((a, b) => b.at - a.at); infoMap.clear(); for (const c of infoAll) infoMap.set(c.id, c);
+  infoDraw();
+}
+function ctxShut() { if ($('infoAct').hidden) return false; $('infoAct').hidden = true; $('ctxLift').innerHTML = ''; if (infoHeldEl) { infoHeldEl.style.visibility = ''; infoHeldEl = null; } return true; }
+function closeInfo(now) {
+  const sh = $('infoSheet'); if (sh.hidden || !sh.classList.contains('on')) return false;
+  if (ctxShut() && !now) return true;
+  sh.classList.remove('on', 'drag'); $('infoCard').style.transform = ''; $('infoScrim').style.opacity = '';
+  const done = () => { sh.hidden = true; $('infoBody').innerHTML = ''; infoSeen.disconnect(); for (const u of infoUrls.values()) URL.revokeObjectURL(u); infoUrls.clear(); infoAll = []; infoMap.clear(); };
+  clearTimeout(infoShutT); if (now) done(); else infoShutT = setTimeout(done, 480);
+  return true;
+}
+function infoDraw() {
+  const tabs = ['im', 'gif', 'ln'];
+  for (const b of $('infoTabs').querySelectorAll('button')) { b.classList.toggle('on', b.dataset.tab === infoTab); b.setAttribute('aria-selected', b.dataset.tab === infoTab); }
+  $('segThumb').style.transform = `translateX(${tabs.indexOf(infoTab) * 100}%)`;
+  infoSeen.disconnect(); const body = $('infoBody');
+  const month = t => new Date(t).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: PK }), day = t => new Date(t).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: PK });
+  const empty = (ic, title, text) => `<div class="infoEmpty">${INFO_IC[ic]}<b>${title}</b><span>${text}</span></div>`;
+  body.style.animation = 'none'; void body.offsetWidth; body.style.animation = '';
+  if (infoTab === 'ln') {
+    const rows = []; for (const c of infoAll) if (!c.vn && !c.im && !c.gif) for (const u of linksIn(c.text)) rows.push([c, u]);
+    const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+    body.innerHTML = rows.length ? `<div class="infoList">${rows.map(([c, u]) => `<a class="infoLink" data-id="${esc(c.id)}" data-u="${esc(u)}" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><i>${INFO_IC.globe}</i><div><b>${esc(host(u))}</b><small>${c.who === 'me' ? 'You' : esc(who())}, ${day(c.at)} · ${esc(u.replace(/^https?:\/\/(www\.)?/, ''))}</small></div>${INFO_IC.chev}</a>`).join('')}</div>` : empty('ln', 'No Links', 'Links you send each other in the chat appear here.');
+    return;
+  }
+  const list = infoAll.filter(c => infoTab === 'im' ? c.im && !c.im.vo : c.gif);
+  if (!list.length) { body.innerHTML = infoTab === 'im' ? empty('im', 'No Photos', 'Photos you send each other appear here. View-once photos never do.') : empty('gif', 'No GIFs', 'GIFs you send each other appear here.'); return; }
+  let h = '', last = '';
+  for (const c of list) {
+    const mo = month(c.at); if (mo !== last) { h += `<div class="infoMonth">${mo}</div>`; last = mo; }
+    h += c.im ? `<button type="button" class="infoCell" data-id="${esc(c.id)}" aria-label="Photo, ${day(c.at)}"><img alt="" src="data:image/${c.im.t ? 'jpeg;base64,' + esc(c.im.t) : 'gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='}"></button>`
+      : `<button type="button" class="infoCell${c.gif.x && !gifRevealed.has(c.id) ? ' veil' : ''}" data-id="${esc(c.id)}" aria-label="GIF, ${day(c.at)}"><video muted loop playsinline preload="none"${c.gif.p && !c.gif.x ? ` poster="${esc(c.gif.p)}"` : ''} data-src="${esc(c.gif.v)}"></video><span class="gifMark">GIF</span></button>`;
+  }
+  body.innerHTML = `<div class="infoGrid">${h}</div>`;
+  for (const el of body.querySelectorAll('.infoCell')) infoSeen.observe(el);
+}
+let whoTap = 0;
+$('chatWho').onclick = ev => {   // one tap: Shared. A quick second tap still makes the chat small, as before.
+  ev.stopPropagation();
+  if (whoTap) { clearTimeout(whoTap); whoTap = 0; tap(); closeChat(); return; }
+  whoTap = setTimeout(() => { whoTap = 0; tap(); openInfo(); }, 260);
+};
+$('infoX').onclick = () => { tap(); closeInfo(); };
+$('infoScrim').onclick = () => closeInfo();
+$('infoTabs').onclick = ev => { const b = ev.target.closest('button'); if (!b || b.dataset.tab === infoTab) return; tap(); infoTab = b.dataset.tab; infoDraw(); };
+$('infoScroll').addEventListener('scroll', () => { clearTimeout(infoHold); $('infoNav').classList.toggle('solid', $('infoScroll').scrollTop > 150); }, { passive: true });
+{ // drag the top of the sheet down to close it: it follows the finger, and a flick carries it the rest of the way
+  let d = null; const card = $('infoCard'), sh = $('infoSheet');
+  const down = ev => { if (ev.target.closest('button') || $('infoScroll').scrollTop > 0) return; d = { y: ev.clientY, t: performance.now(), dy: 0, v: 0, id: ev.pointerId }; try { ev.currentTarget.setPointerCapture(d.id); } catch {} };   // held from the first touch, so a fast pull is never lost
+  const move = ev => {
+    if (!d || ev.pointerId !== d.id) return; const now = performance.now(), dy = ev.clientY - d.y;
+    if (!sh.classList.contains('drag')) { if (Math.abs(dy) < 8) return; sh.classList.add('drag'); }
+    d.v = (dy - d.dy) / Math.max(1, now - d.t) * 1000; d.t = now; d.dy = dy;
+    const y = dy >= 0 ? dy : -(-dy * card.clientHeight * .55) / (card.clientHeight + .55 * -dy) * .3;   // upward: a little give, then it resists
+    card.style.transform = `translateY(${y}px)`; $('infoScrim').style.opacity = String(Math.max(0, 1 - Math.max(0, dy) / card.clientHeight));
+  };
+  const up = ev => {
+    if (!d || ev.pointerId !== d.id) return; const was = sh.classList.contains('drag'), end = d.dy + (d.v / 1000) * .998 / (1 - .998) * .25; d = null;
+    if (!was) return; sh.classList.remove('drag');
+    if (end > card.clientHeight * .4) closeInfo(); else { card.style.transform = ''; $('infoScrim').style.opacity = ''; }
+  };
+  for (const el of [$('infoNav')]) { el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); }
+}
+function ctxOpen(el) {   // the held item lifts, the page behind dims and blurs, the menu opens beside it
+  const c = infoMap.get(el.dataset.id); if (!c) return;
+  infoPick = c; infoPickU = el.dataset.u || ''; infoHeldAt = Date.now(); infoHeldEl = el; el.classList.remove('held');
+  if (navigator.vibrate) navigator.vibrate(10);
+  const host = $('infoSheet').getBoundingClientRect(), r = el.getBoundingClientRect(), lift = $('ctxLift'), menu = $('ctxMenu'), isLink = el.classList.contains('infoLink');
+  const W = isLink ? Math.min(host.width - 32, r.width) : Math.min(host.width - 64, 300), H = isLink ? r.height : W, menuH = (isLink ? 3 : 2) * 44, gap = 10;
+  let x = Math.min(Math.max(16, r.left - host.left + r.width / 2 - W / 2), host.width - W - 16), y = r.top - host.top + r.height / 2 - H / 2;
+  y = Math.min(Math.max(max0(), y), host.height - H - menuH - gap - 24);
+  lift.innerHTML = ''; const copy = el.cloneNode(true); copy.classList.remove('held', 'veil'); copy.removeAttribute('id');
+  if (isLink) lift.appendChild(copy); else { const m = el.querySelector('img, video').cloneNode(true); if (m.tagName === 'VIDEO') { m.src = m.dataset.src; m.muted = true; m.play().catch(() => {}); } lift.appendChild(m); }
+  Object.assign(lift.style, { left: x + 'px', top: y + 'px', width: W + 'px', height: H + 'px' }); lift.style.setProperty('--from', (r.width / W).toFixed(3));
+  lift.style.transformOrigin = `${r.left - host.left + r.width / 2 - x}px ${r.top - host.top + r.height / 2 - y}px`;
+  const mx = Math.min(Math.max(16, x + (x + W / 2 > host.width / 2 ? W - 250 : 0)), host.width - 266);
+  Object.assign(menu.style, { left: mx + 'px', top: (y + H + gap) + 'px' }); menu.style.transformOrigin = `${x + W / 2 > host.width / 2 ? 'right' : 'left'} top`;
+  $('infoCopy').hidden = !isLink; $('infoShow').hidden = false;
+  el.style.visibility = 'hidden'; $('infoAct').hidden = false;
+  function max0() { return 70; }
+}
+$('infoBody').addEventListener('pointerdown', ev => {   // hold a photo, GIF or link
+  const el = ev.target.closest('[data-id]'); clearTimeout(infoHold); if (!el) return;
+  const pressT = setTimeout(() => el.classList.add('held'), 120);
+  infoHold = setTimeout(() => ctxOpen(el), 450);
+  const off = () => { clearTimeout(pressT); clearTimeout(infoHold); el.classList.remove('held'); for (const e of ['pointerup', 'pointercancel', 'pointerleave']) el.removeEventListener(e, off); };
+  for (const e of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(e, off);
+});
+$('infoBody').addEventListener('contextmenu', ev => ev.preventDefault());
+$('infoBody').addEventListener('click', ev => {
+  if (Date.now() - infoHeldAt < 700) { ev.preventDefault(); return; }
+  const el = ev.target.closest('.infoCell'); if (!el) return;
+  const c = infoMap.get(el.dataset.id); if (!c) return; tap();
+  if (c.im) imOpen(c.id); else if (el.classList.contains('veil')) { gifRevealed.add(c.id); el.classList.remove('veil'); }
+});
+$('infoAct').addEventListener('click', ev => { if (Date.now() - infoHeldAt < 500) return; if (!ev.target.closest('.ctxMenu')) ctxShut(); });
+$('infoAgain').onclick = async () => { const c = infoPick; ctxShut(); if (!c) return; tap(); await (c.im || c.gif ? resendMsg(c) : sendChat(infoPickU || c.text)); closeInfo(true); notify('Sent again.'); };
+$('infoShow').onclick = () => { const c = infoPick; ctxShut(); if (!c) return; tap(); closeInfo(true); openChat(); chatJump(c.id); };
+$('infoCopy').onclick = () => { const c = infoPick; ctxShut(); if (!c || !infoPickU) return; tap(); (navigator.clipboard ? navigator.clipboard.writeText(infoPickU) : Promise.reject()).then(() => notify('Link copied.'), () => notify('This phone did not allow copying.')); };
+
+// ---- emoji hints in the message box: type a word, its emoji waits faded right after it; tap it to add it (Xed 13 Nov)
+const EMO_WORDS = new Map(); for (const row of `❤️ love luv lov pyar pyaar piyar mohabbat muhabbat ishq prem dil heart
+😘 kiss kissi kisses chumi chummi chumma chuma pappi puchi puppi mwah muah ummah
+🤗 hug hugs jhappi jhapi jappi gale cuddle
+😍 beautiful khubsurat khoobsurat haseen pyari pyara cute gorgeous sundar handsome
+🥰 jaan jan jaanu janu jani jaani shona sona babu baby babe jaaneman janeman darling sweetheart
+😊 khush khushi happy smile muskan muskurahat acha achha accha
+😂 haha hahaha hehe lol funny mazak mazaak hansi hasi hasna
+😭 rona crying royi roya aansu ansoo
+😢 sad udaas udas dukh dukhi afsos
+😔 sorry maaf maafi mafi maf
+🥺 please plz pls plzz
+😡 gussa ghussa angry naraz naraaz
+😴 neend nind sleep sleepy sona soja sojao thak thaki thaka tired
+🌙 raat night shab shabba goodnight gn chand chaand moon
+☀️ subah morning suraj sun dhoop gm goodmorning
+🤔 soch sochna think hmm hmmm kyun kyu why
+😳 sharam sharma sharm shy uff
+😏 naughty shararti shararat badmash badtameez
+😈 shaitan shaitani devil masti
+🔥 hot garam aag fire sexy
+😋 tasty mazedar yummy bhook bhuk hungry khana
+🍕 pizza
+🍔 burger
+☕ chai tea coffee
+💧 pani paani water
+🍫 chocolate
+🎂 birthday salgirah cake
+🎁 gift tohfa surprise
+💍 shadi shaadi nikah ring wedding
+👰 dulhan bride
+🤵 dulha groom
+💃 dance nach naach
+🎵 gana gaana song music
+🎬 movie film
+📞 call phone
+🎥 video
+📸 pic photo tasveer picture selfie
+🏠 ghar home
+🚗 car gari gaadi
+✈️ flight travel safar
+🌧️ barish baarish rain
+❄️ sardi thand thandi cold
+🌹 phool gulab rose flower
+⭐ star sitara
+👑 queen rani raani malika king raja
+👸 shehzadi princess
+🤴 shehzada prince
+🙏 shukriya thanks thank thanku dua duaa
+🤲 ameen allah inshallah mashallah
+👍 ok okay theek thik sahi done han haan yes
+👎 nahi nai nahin no
+👋 hi hello hey bye salam salaam
+💪 strong himmat taqat
+💰 paisa paise money
+🎮 game khel
+🎲 ludo dice
+😷 bimar beemar sick bukhar
+💊 dawa dawai medicine
+🤕 dard pain
+⏰ time waqt jaldi
+⏳ wait intezar intezaar ruko
+🏃 aao ajao aaja come
+💔 judai breakup toot tut
+🤝 promise wada waada
+👀 dekho dekh look
+🤫 chup secret raaz
+🎉 mubarak congrats party
+😎 cool swag
+🤤 mann dil-kar craving
+💋 lips hont honth
+🛏️ bed bistar
+🚿 shower nahana
+🧸 teddy
+🐱 billi cat
+🐶 kutta dog
+💯 pakka sach sacchi such
+🤣 pagal paagal crazy
+😇 masoom innocent sharif
+🥵 uff-garmi garmi
+🫶 forever hamesha
+💑 together saath sath
+🫂 miss yaad missing
+💭 khwab khawab sapna dream`.split('\n')) { const [e, ...w] = row.split(' '); for (const x of w) { const l = EMO_WORDS.get(x) || []; l.push(e); EMO_WORDS.set(x, l); } }
+let emoMeasure = null;
+function emoFor(word) {
+  let w = word.toLowerCase().replace(/[^a-z-]/g, ''); if (w.length < 2) return null;
+  const tries = [w, w.replace(/(.)\1{2,}/g, '$1'), w.replace(/(.)\1+/g, '$1'), w.replace(/(.)\1{2,}/g, '$1$1'), w.replace(/s$/, '')];   // loooove, pyaaar, kisses
+  for (const t of tries) if (EMO_WORDS.has(t)) return EMO_WORDS.get(t);
+  return null;
+}
+function emoHintShow() {
+  const t = $('text'), h = $('emoHint'), v = t.value;
+  const atEnd = t.selectionStart == null || t.selectionStart === v.length, m = atEnd && v.match(/([A-Za-z-]{2,})$/), list = m && emoFor(m[1]);
+  if (!list) { h.hidden = true; return; }
+  h.textContent = list.slice(0, 2).join(''); h.hidden = false;
+  const cs = getComputedStyle(t); emoMeasure = emoMeasure || document.createElement('canvas').getContext('2d'); emoMeasure.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const textW = emoMeasure.measureText(v).width + parseFloat(cs.letterSpacing || 0) * v.length, pad = parseFloat(cs.paddingLeft) || 0, room = t.clientWidth - pad - h.offsetWidth - 2, over = textW + 3 > room;
+  h.classList.toggle('edge', over); h.style.left = (t.offsetLeft + pad + (over ? room : textW + 3)) + 'px';
+}
+$('emoHint').addEventListener('pointerdown', ev => ev.preventDefault());   // the keyboard stays as it is
+$('emoHint').onclick = () => {
+  const t = $('text'), h = $('emoHint'); if (h.hidden) return;
+  t.value = (t.value.replace(/\s+$/, '') + ' ' + h.textContent + ' ').slice(0, 500); h.hidden = true; tap();
+  t.dispatchEvent(new Event('input')); try { t.setSelectionRange(t.value.length, t.value.length); } catch {}
+};
+for (const e of ['input', 'keyup', 'click', 'focus']) $('text').addEventListener(e, emoHintShow);
+$('compose').addEventListener('submit', () => setTimeout(emoHintShow, 0));
+$('dpPick').onclick = $('myDp').onclick = () => { tap(); $('dpFile').click(); };
+$('dpFile').onchange = () => { const f = $('dpFile').files[0]; $('dpFile').value = ''; if (!f) return; if (!/^image\//.test(f.type || 'image/')) { notify('That file is not a photo.'); return; } dpCropOpen(f); };
+$('dpDrop').onclick = () => { tap(); myDp = ''; store.set('dp', ''); dpPaint(); renderChat(); notify('Your photo was removed.'); };
+dpPaint();
 
 // ---- search every message kept on this phone (Xed 13 Nov); tap a result to jump to it in the chat
 let findAll = null, findT = 0;
@@ -2963,11 +3375,19 @@ function toEndState() {   // the down arrow shows once you are well above the ne
   $('toEnd').classList.toggle('on', far || !!backTo);
   $('toEndN').hidden = !newBelow; $('toEndN').textContent = newBelow > 99 ? '99+' : newBelow;
 }
+// links inside a message can be tapped; they open in the phone's browser (Xed 13 Nov)
+const LINK_RE = /\b(?:https?:\/\/|www\.)[^\s<]{2,}/gi;
+const linkTrim = u => u.replace(/(?:&quot;|&#39;|&gt;|[.,!?;:)\]}'])+$/, '');
+const linky = t => esc(t).replace(LINK_RE, m => { const u = linkTrim(m); return `<a class="lnk" href="${/^www\./i.test(u) ? 'https://' : ''}${u}" target="_blank" rel="noopener noreferrer">${u}</a>` + m.slice(u.length); });
+const linksIn = t => (String(t).match(LINK_RE) || []).map(m => m.replace(/[.,!?;:)\]}'"]+$/, '')).map(u => /^www\./i.test(u) ? 'https://' + u : u);
 function renderChat() {
   const time = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });   // 10:15 PM, never 22:15 (Xed 12 Nov)
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${r.x ? esc(r.x) : 'Message'}</span></span>` : '';
   const rxs = c => { const l = [c.rx && c.rx.them, c.rx && c.rx.me].filter(Boolean); return !l.length ? '' : `<span class="rx" role="button" aria-label="Reactions">${l[1] && l[0] === l[1] ? esc(l[0]) + '<small>2</small>' : l.map(esc).join('')}</span>`; };
+  const view = chatView(), faces = new Set();   // a face on the first message from each of you after 20 quiet minutes
+  for (let i = 0, open = { me: true, them: true }; i < view.length; i++) { const c = view[i]; if (!i || c.at - view[i - 1].at > 1200000) open = { me: true, them: true }; if (open[c.who] && (c.who === 'me' ? myDp : partnerDp)) faces.add(c.id); open[c.who] = false; }
+  const face = c => faces.has(c.id) ? `<span class="dp bdp"><img src="${c.who === 'me' ? myDp : partnerDp}" alt=""></span>` : '';
   const box = $('msgs'), keep = box.scrollTop, toEnd = toEndNext || !$('dock').classList.contains('open') || box.scrollHeight - box.scrollTop - box.clientHeight < 80;   // reading older messages: stay where you are
   toEndNext = false;
   if (toEnd && !keepShow) {   // back at the newest: let go of what was loaded for reading old messages
@@ -2977,11 +3397,10 @@ function renderChat() {
   }
   keepShow = false;
   const keepV = gifKeep();
-  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + chatView().map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${esc(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
   box.scrollTop = toEnd ? box.scrollHeight : keep;
   gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) gifInChat.observe(v);
   toEndState();
-  $('clearChat').hidden = !chat.length && !older.length;
   $('chatGrab').hidden = !chat.length;
   fitDock();
 }
@@ -3055,10 +3474,14 @@ function jumpTo(id, gone = 'That message is no longer in the chat, but it stays 
   box.scrollTo({ top: box.scrollTop + er.top - br.top - (br.height - er.height) / 2, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
 }
+const MENU_IC = {   // the small picture at the right of each menu row
+  Reply: '<path d="M10 6l-6 6 6 6"/><path d="M4 12h10a6 6 0 0 1 6 6v1"/>', Pin: '<path d="M15 3l6 6-2.500 1.200-3.900 3.900.700 4.400-1.600 1.600-3.800-3.800L5 21.200"/><path d="M9.900 16.300 3.800 20"/>', Unpin: '<path d="M15 3l6 6-2.500 1.200-3.900 3.900.700 4.400-1.600 1.600-3.800-3.800L5 21.200"/><path d="M4 4l16 16"/>',
+  'Send again': '<path d="M14 5l6 6-6 6"/><path d="M20 11H10a6 6 0 0 0-6 6v2"/>', Copy: '<rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  Delete: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>' };
 function openMsgMenu(target, items, head) {   // a small menu next to what was held, growing out of it; head: an optional row above the items
   const m = $('msgMenu'); m.innerHTML = '';
   if (head) m.appendChild(head);
-  for (const [label, fn] of items) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = label; if (label === 'Delete') b.className = 'danger'; b.onclick = e => { e.stopPropagation(); closeMsgMenu(); fn(); }; m.appendChild(b); }
+  for (const [label, fn] of items) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = label; if (MENU_IC[label]) b.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MENU_IC[label]}</svg>`); if (label === 'Delete') b.className = 'danger'; b.onclick = e => { e.stopPropagation(); closeMsgMenu(); fn(); }; m.appendChild(b); }
   m.hidden = false;
   const r = target.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight, below = r.bottom + 8 + mh < innerHeight - 8;
   const top = below ? r.bottom + 8 : Math.max(8, r.top - 8 - mh), left = Math.min(innerWidth - mw - 12, Math.max(12, target.classList.contains('mine') ? r.right - mw : r.left));
@@ -5742,7 +6165,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-192535';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-212315';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -6127,6 +6550,8 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'vget') gotVget(m);
   if (m.t === 'toyst') gotToySt(m);
   if (m.t === 'del') gotDel(m);
+  if (m.t === 'dp') gotDp(m);
+  if (m.t === 'dpok') gotDpOk(m);
   if (m.t === 'delok') gotDelOk(m);
   if (m.t === 'vpart') gotVpart(m);
   if (m.t === 'listening') partnerListening = !!m.on;
@@ -6169,6 +6594,74 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'wask') gotWask();
   if (m.t === 'vcount' && m.id === wstate.id && linkFrame) showCount();
   if (m.t === 'cantplay' && m.id === wstate.id) notify(`${who()}'s phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.`, 12000);
+}
+function dpPaint() {
+  const put = (el, d, name) => { if (!el) return; if (d) { if (!el.firstChild || el.firstChild.src !== d) el.innerHTML = `<img src="${d}" alt="">`; } else el.textContent = (name || '?').trim().charAt(0).toUpperCase() || '?'; };
+  put($('chatDp'), partnerDp, who()); put($('infoDp'), partnerDp, who()); put($('myDp'), myDp, myName || 'You');
+  $('dpDrop').hidden = !myDp;
+}
+function gotDp(m) {
+  if (typeof m.h !== 'string') return;
+  const d = m.d === '' ? '' : DP_RE.test(m.d) ? m.d : null; if (d === null) return;
+  if (d !== partnerDp) { partnerDp = d; store.set('partnerDp:' + room, d); dpPaint(); renderChat(); }
+  send({ t: 'dpok', h: m.h.slice(0, 40) });
+}
+function gotDpOk(m) { if (m.h === dpMark(myDp)) { dpTold = m.h; store.set('dpTold:' + room, dpTold); } }
+steady(() => { if (partnerOnline() && dpTold !== dpMark(myDp)) send({ t: 'dp', h: dpMark(myDp), d: myDp }); }, 5000);   // until the other phone says it has it
+async function dpSet(src, sx, sy, side) {   // src: a photo file (the middle square is kept) or a picture with the square chosen on the crop screen
+  let pic = src;
+  if (sx === undefined) {
+    try { pic = await createImageBitmap(src, { imageOrientation: 'from-image' }); } catch { notify('This photo could not be opened.'); return false; }
+    side = Math.min(pic.width, pic.height); sx = (pic.width - side) / 2; sy = (pic.height - side) / 2;
+  }
+  let out = '';
+  for (const [px, q] of [[176, .74], [160, .68], [144, .62], [128, .56], [112, .5], [96, .45]]) {   // small enough for one sealed message on every relay
+    const cv = document.createElement('canvas'); cv.width = cv.height = px; const c = cv.getContext('2d'); c.imageSmoothingQuality = 'high'; c.drawImage(pic, sx, sy, side, side, 0, 0, px, px);
+    out = cv.toDataURL('image/jpeg', q); if (out.length <= 7000) break;
+  }
+  if (pic !== src && pic.close) pic.close();
+  if (!DP_RE.test(out) || out.length > 7000) { notify('This photo could not be used. Try another one.'); return false; }
+  myDp = out; store.set('dp', out); dpPaint(); renderChat(); notify('Your photo is set.'); return true;
+}
+// ---- Move and Scale: the photo follows the finger 1:1, two fingers zoom around the point between them, and it eases back if pulled past its edge
+const crop = { s: 1, x: 0, y: 0, min: 1, max: 5, D: 0, w: 0, h: 0, url: '', pts: new Map(), last: null };
+function cropDraw() { $('dpCropImg').style.transform = `translate(${crop.x - crop.w * crop.s / 2}px, ${crop.y - crop.h * crop.s / 2}px) scale(${crop.s})`; }
+function cropFit(soft) {   // soft: while a finger is down, going past an edge is allowed but resisted
+  const lim = (v, m) => { const o = Math.abs(v) - m; if (o <= 0) return v; return Math.sign(v) * (m + (soft ? (o * crop.D * .55) / (crop.D + .55 * o) : 0)); };
+  if (!soft) crop.s = Math.min(crop.max, Math.max(crop.min, crop.s));
+  crop.x = lim(crop.x, Math.max(0, crop.w * crop.s / 2 - crop.D / 2)); crop.y = lim(crop.y, Math.max(0, crop.h * crop.s / 2 - crop.D / 2));
+}
+function dpCropOpen(file) {
+  const img = $('dpCropImg'); if (crop.url) URL.revokeObjectURL(crop.url);
+  crop.url = URL.createObjectURL(file); crop.pts.clear(); crop.last = null;
+  img.onerror = () => { dpCropShut(); notify('This photo could not be opened.'); };
+  img.onload = () => {
+    const st = $('dpCropStage'); crop.w = img.naturalWidth; crop.h = img.naturalHeight; if (!crop.w || !crop.h) return img.onerror();
+    crop.D = Math.round(Math.min(st.clientWidth - 32, st.clientHeight - 220, 420)); $('dpCropRing').style.width = $('dpCropRing').style.height = crop.D + 'px';
+    crop.min = crop.D / Math.min(crop.w, crop.h); crop.max = crop.min * 5; crop.s = crop.min; crop.x = crop.y = 0; img.classList.remove('back'); cropDraw();
+  };
+  $('dpCrop').hidden = false; img.src = crop.url;
+}
+function dpCropShut() { if ($('dpCrop').hidden) return false; $('dpCrop').hidden = true; $('dpCropImg').removeAttribute('src'); if (crop.url) { URL.revokeObjectURL(crop.url); crop.url = ''; } crop.pts.clear(); return true; }
+{
+  const st = $('dpCropStage'), img = $('dpCropImg');
+  const mid = () => { const p = [...crop.pts.values()], r = st.getBoundingClientRect(); const x = p.reduce((a, q) => a + q.x, 0) / p.length - r.left - r.width / 2, y = p.reduce((a, q) => a + q.y, 0) / p.length - r.top - r.height / 2; return { x, y, d: p.length > 1 ? Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) : 0 }; };
+  const zoomAt = (k, px, py) => { const ns = Math.min(crop.max * 1.3, Math.max(crop.min * .7, crop.s * k)), f = ns / crop.s; crop.x = px - (px - crop.x) * f; crop.y = py - (py - crop.y) * f; crop.s = ns; };
+  st.addEventListener('pointerdown', ev => { try { st.setPointerCapture(ev.pointerId); } catch {} crop.pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); crop.last = mid(); img.classList.remove('back'); });
+  st.addEventListener('pointermove', ev => {
+    if (!crop.pts.has(ev.pointerId)) return; crop.pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const m = mid(), l = crop.last || m; crop.x += m.x - l.x; crop.y += m.y - l.y;
+    if (m.d && l.d) zoomAt(m.d / l.d, m.x, m.y);
+    crop.last = m; cropFit(true); cropDraw();
+  });
+  const up = ev => { if (!crop.pts.delete(ev.pointerId)) return; crop.last = crop.pts.size ? mid() : null; if (!crop.pts.size) { img.classList.add('back'); cropFit(false); cropDraw(); } };
+  st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
+  st.addEventListener('wheel', ev => { ev.preventDefault(); const r = st.getBoundingClientRect(); img.classList.remove('back'); zoomAt(Math.exp(-ev.deltaY / 400), ev.clientX - r.left - r.width / 2, ev.clientY - r.top - r.height / 2); cropFit(false); cropDraw(); }, { passive: false });
+  $('dpCropNo').onclick = () => { tap(); dpCropShut(); };
+  $('dpCropYes').onclick = async () => {
+    tap(); cropFit(false); const side = crop.D / crop.s, sx = crop.w / 2 - crop.x / crop.s - side / 2, sy = crop.h / 2 - crop.y / crop.s - side / 2;
+    await dpSet(img, Math.max(0, sx), Math.max(0, sy), Math.min(side, crop.w, crop.h)); dpCropShut();
+  };
 }
 function gotName(n) {
   if (typeof n === 'string' && n && n !== partnerName) { partnerName = n.slice(0, 24); store.set('partnerName:' + room, partnerName); }
@@ -6656,7 +7149,7 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
 $('compose').onsubmit = ev => { ev.preventDefault(); sendTyped(); };   // Send keeps the box selected by itself, so an open keyboard stays open and a closed one stays closed
-$('clearChat').onclick = ev => { ev.stopPropagation(); tap(); $('clearSheet').hidden = false; };
+$('clearChat').onclick = ev => { ev.stopPropagation(); tap(); if (!chat.length && !older.length) { notify('The chat is already empty.'); return; } $('nameSheet').hidden = true; $('clearSheet').hidden = false; };
 $('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askNo').textContent = 'Refuse'; if (lobbyMode) return lobbySubmit(); const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
 $('askNo').onclick = () => { $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askNo').textContent = 'Refuse'; if (lobbyMode) return lobbyCancel(); if (asking) { refused.add(asking.from); if (!isRemote) send({ t: 'busy', to: asking.from, no: true }, true); logLink('a new phone or page was refused'); } asking = null; };
 for (const b of document.querySelectorAll('.findPartner')) b.onclick = lobbyFind;
@@ -6710,7 +7203,8 @@ const openChat = () => { if (chatIsOpen()) return; $('dock').classList.add('open
 $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap anywhere makes the chat small again
   if (ev.target.closest('.e2e')) { showCode(); return; }
   const b = ev.target.closest('.bubble'), now = Date.now();
-  if (now - menuAt < 700) return;   // that was a long press: the menu is up (checked first, so the hold never also opens a view-once photo)
+  if (now - menuAt < 700) { ev.preventDefault(); return; }   // that was a long press: the menu is up (checked first, so the hold never also opens a view-once photo or a link)
+  if (ev.target.closest('a.lnk')) return;   // a link: the browser opens it
   if (vnClick(ev) || imClick(ev) || gifClick(ev)) return;
   if (ev.target.closest('.rx') && b) { tap(); bubbleMenu(b); return; }   // the reaction badge: change or take off your reaction
   const q = ev.target.closest('.quote');
@@ -6785,7 +7279,7 @@ holdBack();
 addEventListener('popstate', () => {
   if (location.hash !== startHash) return;
   if (!$('delSheet').hidden) { $('delSheet').hidden = true; delFor = null; history.pushState(null, ''); return; }
-  if (imBack() || closeStats() || closeFind() || (!$('gifPanel').hidden && (gifOpen(false), true))) { history.pushState(null, ''); return; }
+  if (dpCropShut() || imBack() || closeInfo() || closeStats() || closeFind() || (!$('gifPanel').hidden && (gifOpen(false), true))) { history.pushState(null, ''); return; }
   if (chatIsOpen() && !chatTab) closeChat();
   else if (panel !== 'chat') { if (okToLeave('chat')) openPanel('chat'); }
   else if (outQ.length) { if (confirm('Your video is still sending. Leave Loveline?')) { leaving = true; history.back(); return; } }
