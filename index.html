@@ -1835,7 +1835,9 @@ async function gotLobby(txt) {
     } else {
       stopAll(); store.set('hostRoom', { r: b.r, k: b.k }); }
     store.set('role', isRemote ? 'remote' : 'host');
-    leaving = true; location.replace(location.pathname + '#' + part); location.reload();
+    leaving = true;
+    const go = () => { location.replace(location.pathname + '#' + part); location.reload(); };
+    if (isRemote) Promise.race([moveDbs(room, b.r), new Promise(r => setTimeout(r, 6000))]).catch(() => {}).then(go); else go();
   }
 }
 function lobbySubmit() {
@@ -2061,7 +2063,7 @@ let lastClear = store.get('lastClear:' + room, null);
 function forgetIds(ids) { for (const i of ids) cleared.add(i); store.set('chatCleared:' + room, [...cleared].slice(-600)); }
 function clearChat() {
   const ids = chat.map(c => c.id);
-  forgetIds(ids); chat = []; older = []; olderDone = false; chatShow = 80; viewTop = null; findAll = null; archSeen.clear(); archMedia.clear();
+  forgetIds(ids); chat = []; older = []; olderDone = false; chatShow = 80; viewTop = null; findAll = null; archSeen.clear(); archMedia.clear(); archIds.clear();
   archTx('readwrite', st => { st.clear(); }).catch(() => {});
   saveChat(); vnGc();
   lastClear = { id: b64url(rand(6)), ids, at: Date.now() }; store.set('lastClear:' + room, lastClear);
@@ -2084,32 +2086,56 @@ function gotClear(m) {   // a clear is for the phone that tapped it only (since 
 const archDb = new Promise((res, rej) => { try { const r = indexedDB.open('closer-chat:' + room, 1); r.onupgradeneeded = () => r.result.createObjectStore('m', { keyPath: 'id' }).createIndex('at', 'at'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } });
 archDb.catch(() => {});
 const archTx = (mode, fn) => archDb.then(db => new Promise((res, rej) => { const t = db.transaction('m', mode), q = fn(t.objectStore('m')); t.oncomplete = () => res(q && q.result); t.onerror = t.onabort = () => rej(t.error); }));
-const archSeen = new Map(), archMedia = new Set();   // what was written last per message; media of kept messages (never deleted by the clean-up)
+const archSeen = new Map(), archMedia = new Set(), archIds = new Set();   // archIds: every message id kept on this phone   // what was written last per message; media of kept messages (never deleted by the clean-up)
 let archReady = false, archT = 0, older = [], olderDone = false, chatShow = 80, viewTop = null, keepShow = false;
 function archPut(list) {   // straight away: messages leaving the live 200 (a fast burst must not lose any)
   const put = list.filter(c => { const j = JSON.stringify(c); if (archSeen.get(c.id) === j) return false; archSeen.set(c.id, j); return true; });
-  if (put.length) archTx('readwrite', st => { for (const c of put) st.put(c); }).catch(() => {});
+  for (const c of put) archIds.add(c.id);
+  if (put.length) archTx('readwrite', st => { for (const c of put) st.put(c); }).catch(() => {   // the phone could not store them: they go back into the live chat instead of being lost
+    archBad = true; for (const c of put) { archSeen.delete(c.id); archIds.delete(c.id); }
+    const have = new Set(chat.map(c => c.id)); chat = [...put.filter(c => !have.has(c.id)), ...chat].sort((a, b) => a.at - b.at); older = older.filter(c => !put.includes(c));
+    store.set('chat:' + room, chat);
+  });
 }
+let archBad = false;   // the database refused a write: keep up to 1000 messages in the small storage instead
 function archSave() {
   clearTimeout(archT);
   archT = setTimeout(() => {
     const put = [];
-    for (const c of chat) { const j = JSON.stringify(c); if (archSeen.get(c.id) !== j) { archSeen.set(c.id, j); put.push(c); } if (c.vn || c.im) imSpentNow(c) ? archMedia.delete(c.id) : archMedia.add(c.id); }
+    for (const c of chat) { const j = JSON.stringify(c); if (archSeen.get(c.id) !== j) { archSeen.set(c.id, j); archIds.add(c.id); put.push(c); } if (c.vn || c.im) imSpentNow(c) ? archMedia.delete(c.id) : archMedia.add(c.id); }
     if (put.length) archTx('readwrite', st => { for (const c of put) st.put(c); }).catch(() => {});
   }, 400);
 }
 archTx('readonly', st => st.getAll()).then(all => {
-  for (const c of all || []) if ((c.vn || c.im) && !(c.im && c.im.vo && (c.pl || c.st >= 3))) archMedia.add(c.id);
-}).catch(() => {}).then(() => { archReady = true; vnGc(); });
+  for (const c of all || []) { archIds.add(c.id); if ((c.vn || c.im) && !(c.im && c.im.vo && (c.pl || c.st >= 3))) archMedia.add(c.id); }
+  archReady = true; vnGc();   // only after a good read: a failed one leaves every stored photo and voice note alone
+}).catch(() => {});
 if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {});   // asks Chrome never to clear it by itself
+async function moveDbs(from, to) {   // copies this phone's two stores to the new room's names (nothing is deleted from the old ones)
+  const open = (name, make) => new Promise((res, rej) => { const r = indexedDB.open(name, 1); r.onupgradeneeded = () => make(r.result); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const copy = async (base, store, make, keyed) => {
+    const a = await open(base + from, make), b = await open(base + to, make);
+    const rows = await new Promise((res, rej) => { const out = [], q = a.transaction(store).objectStore(store).openCursor(); q.onsuccess = () => { const c = q.result; if (!c) return res(out); out.push([c.key, c.value]); c.continue(); }; q.onerror = () => rej(q.error); });
+    await new Promise((res, rej) => { const t = b.transaction(store, 'readwrite'), st = t.objectStore(store); for (const [k, v] of rows) keyed ? st.put(v) : st.put(v, k); t.oncomplete = res; t.onerror = t.onabort = () => rej(t.error); });
+    a.close(); b.close();
+  };
+  await copy('closer-chat:', 'm', db => db.createObjectStore('m', { keyPath: 'id' }).createIndex('at', 'at'), true).catch(() => {});
+  await copy('closer-voice:', 'v', db => db.createObjectStore('v'), false).catch(() => {});
+}
 const chatAll = () => older.length ? [...older, ...chat] : chat;
 function chatView() {   // the part of the chat that is drawn: the newest 80, or from the oldest one scrolled to
   const all = chatAll(); let i = Math.max(0, all.length - chatShow);
   if (viewTop) { const j = all.findIndex(c => c.id === viewTop); if (j >= 0 && j < i) i = j; }
   viewTop = all[i] ? all[i].id : null;
-  return all.slice(i);
+  const view = all.slice(i); viewMap = new Map(view.map(c => [c.id, c]));
+  return view;
 }
-const msgById = id => chat.find(x => x.id === id) || older.find(x => x.id === id);
+let viewMap = new Map();   // the messages drawn now, by id (quick lookups while a voice note paints every frame)
+const msgById = id => viewMap.get(id) || chat.find(x => x.id === id) || older.find(x => x.id === id);
+function keepMsg(c) {   // save a changed message: in the live chat, or straight into the phone's database when it is an older one
+  if (chat.includes(c)) return saveChat();
+  archSeen.set(c.id, JSON.stringify(c)); archTx('readwrite', st => { st.put(c); }).catch(() => {});
+}
 async function archOlder(n) {   // the next n older messages from this phone's database
   const all = chatAll(), first = all[0], have = new Set(all.map(c => c.id));
   const out = [];
@@ -2129,16 +2155,19 @@ async function showOlder() {   // scrolled to the top: draw 60 more, from the da
     box.scrollTop = box.scrollHeight - h + t;
   } finally { olderBusy = false; }
 }
-async function archCap() {   // the phone nearly full: the oldest photos and voice notes go first, the words stay
-  if (!navigator.storage || !navigator.storage.estimate || !archReady) return;
+let fullSaid = false;
+async function archCap() {   // audit 13 Nov: the old clean-up deleted kept photos and voice notes for ever while videos filled the phone. Now it only tells you.
+  if (fullSaid || document.hidden || !navigator.storage || !navigator.storage.estimate) return;
   const e = await navigator.storage.estimate().catch(() => null);
-  if (!e || !e.quota || e.usage < e.quota * .8) return;
-  const all = await archTx('readonly', st => st.getAll()).catch(() => []), live = new Set(chat.slice(-50).map(c => c.id));
-  for (const c of (all || []).filter(c => archMedia.has(c.id) && !live.has(c.id)).sort((a, b) => a.at - b.at).slice(0, 50)) archMedia.delete(c.id);
-  vnGc();
+  if (!e || !e.quota || e.usage < e.quota * .9) return;
+  fullSaid = true; notify('This phone is almost full. Delete old videos in Watch to make room, or new photos and voice messages may not save.', 12000);
 }
 steady(archCap, 600000);
-const saveChat = () => { const drop = chat.slice(0, -200); if (drop.length) { archPut(drop); if (older.length) older.push(...drop); } chat = chat.slice(-200); store.set('chat:' + room, chat); archSave(); };
+const saveChat = () => {
+  const keep = archBad ? 1000 : 200, drop = chat.slice(0, -keep);
+  if (drop.length) { if (!archBad) archPut(drop); if (older.length) older.push(...drop); olderDone = false; }   // 8: newly kept messages can be scrolled to again
+  chat = chat.slice(-keep); store.set('chat:' + room, chat); archSave();
+};
 archSave();
 const emojiOnly = t => t.length <= 16 && /^(\p{Extended_Pictographic}|\p{Emoji_Modifier}|️|‍|\s)+$/u.test(t);
 let replyTo = null;   // the message being answered, shown above the box until sent or cancelled
@@ -2169,10 +2198,15 @@ function gotChat(m) {
   if (typeof m.text !== 'string' || typeof m.id !== 'string') return;
   if (cleared.has(m.id)) { send({ t: 'ack', id: m.id }); return; }   // cleared: just stop the resending
   typingUntil = 0;
+  if (archIds.has(m.id) && !chat.some(c => c.id === m.id)) {   // already kept on this phone, just no longer among the newest 200: confirm it, never add it again
+    archTx('readonly', st => st.get(m.id)).then(o => { if (!o) return; if (o.vn || o.im) { if (vnHave.has(m.id) || o.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!o.pl }); } else send({ t: 'ack', id: m.id, seen: true }); }).catch(() => {});
+    return;
+  }
   if (!chat.some(c => c.id === m.id && c.who === 'them')) {
     const re = cleanRe(m.re);
     const vn = cleanVn(m.vn), im = !vn && cleanIm(m.im), gif = !vn && !im && cleanGif(m.gif);
-    chat.push({ id: m.id, who: 'them', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}) });
+    const nc = { id: m.id, who: 'them', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}) }, last = chat[chat.length - 1], late = last && last.at - nc.at > 120000 ? chat.findIndex(o => o.at > nc.at) : -1;
+    late < 0 ? chat.push(nc) : chat.splice(late, 0, nc);   // written long before it arrived (the phone was offline): in its place in time, so scrolling back never skips messages
     saveChat(); renderChat(); tap();
     if ($('toEnd').classList.contains('on')) { newBelow++; toEndState(); }   // reading older messages: count the new ones on the arrow
     if (vn || im) vnWant(m.id); else if (!gif) chatFx(m.text);
@@ -2236,7 +2270,7 @@ function cleanVn(v) {
   if (!v || !Number.isFinite(v.d) || !Number.isFinite(v.s) || v.s <= 0 || v.s > 4e6 || typeof v.w !== 'string' || !/^[0-9]{0,64}$/.test(v.w) || typeof v.m !== 'string' || !/^audio\/[\w.+-]+(;codecs=[\w.]+)?$/.test(v.m)) return null;
   return { d: Math.min(Math.max(0, v.d), VN_MAX + 5000), s: Math.floor(v.s), w: v.w, m: v.m };
 }
-const vnHave = new Set(), vnPend = new Map(), vnGone = new Set();   // vnPend: id -> pieces arriving
+const vnHave = new Set(), vnPend = new Map(), vnGone = new Map();   // vnGone: id -> when it stopped asking; asked again a minute later   // vnPend: id -> pieces arriving
 let vnReady = false;
 const vnDb = new Promise((res, rej) => { try { const r = indexedDB.open('closer-voice:' + room, 1); r.onupgradeneeded = () => r.result.createObjectStore('v'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } });
 vnDb.catch(() => {});
@@ -2252,7 +2286,7 @@ function vnGc() {   // sound and photos of messages cleared from this phone are 
 }
 async function sendVoice(blob, d, w, m) {
   const id = b64url(rand(8)), vn = { d, s: blob.size, w, m };
-  await vnTx('readwrite', s => { s.put({ b: blob, m }, id); }).catch(() => {});
+  if (!(await vnTx('readwrite', s => { s.put({ b: blob, m }, id); }).then(() => true, () => false))) { notify('This phone could not save the voice message, so it was not sent. Its storage may be full.', 8000); return; }
   vnHave.add(id);
   const c = { id, who: 'me', text: vnText(d), at: Date.now(), st: 0, vn, re: reOut(replyTo) };
   if (!c.re) delete c.re;
@@ -2276,9 +2310,10 @@ function vnAsk(id) {
 }
 steady(() => {
   if (!vnReady || !partnerOnline()) return;
+  for (const [id, at] of vnGone) if (Date.now() - at > 60000) vnGone.delete(id);
   for (const c of chat) if ((c.vn || c.im) && !vnHave.has(c.id) && !vnPend.has(c.id) && !vnGone.has(c.id)) vnWant(c.id);
   for (const [id, p] of vnPend) if (Date.now() - p.ask > 4000) {
-    if (p.tries >= 12) { vnPend.delete(id); vnGone.add(id); renderChat(); continue; }   // neither phone has it any more (asked for a minute while both were open)
+    if (p.tries >= 12) { vnPend.delete(id); vnGone.set(id, Date.now()); renderChat(); continue; }   // neither phone has it any more (asked for a minute while both were open)
     vnAsk(id);
   }
 }, 2000);
@@ -2304,7 +2339,7 @@ async function gotVpart(m) {
   vnPend.delete(m.id);
   const c = chat.find(x => x.id === m.id && (x.vn || x.im)); if (!c || imSpentNow(c)) return;
   const mt = (c.vn || c.im).m, blob = new Blob(p.got, { type: mt });
-  await vnTx('readwrite', s => { s.put({ b: blob, m: mt }, m.id); }).catch(() => {});
+  if (!(await vnTx('readwrite', s => { s.put({ b: blob, m: mt }, m.id); }).then(() => true, () => false))) { vnGone.set(m.id, Date.now()); renderChat(); return; }   // not stored: not confirmed; asked for again in a minute
   vnHave.add(m.id); renderChat();
   send({ t: 'ack', id: m.id, vn: true, pl: !!c.pl });
 }
@@ -2318,7 +2353,7 @@ function vnHtml(c, meta) {
   const bars = [...c.vn.w.padEnd(VN_BARS, '2')].slice(0, VN_BARS).map(x => `<i style="height:${Math.round(4 + +x * 2.4)}px"></i>`).join('');
   const btn = gone ? '' : `<button type="button" class="vnPlay${has ? '' : ' wait'}" aria-label="${has ? 'Play voice message' : 'Voice message arriving'}">${has ? VN_PLAY : VN_WAIT}</button>`;
   const pl = c.who === 'me' ? c.st >= 3 : !!c.pl, mark = `<span class="vnMic ${pl ? 'pl' : c.who === 'me' ? '' : 'new'}" aria-label="${pl ? 'Played' : 'Not played yet'}">${VN_MIC}</span>`;
-  return `<div class="vn" data-vn="${esc(c.id)}">${btn}<span class="vnWave">${bars}</span></div><div class="vnFoot">${mark}<button type="button" class="vnSpd">${vnRate}×</button><span class="vnT">${gone ? '<span class="vnGone">Not on either phone any more</span>' : vnFmt(c.vn.d)}</span>${meta}</div>`;
+  return `<div class="vn" data-vn="${esc(c.id)}">${btn}<span class="vnWave">${bars}</span></div><div class="vnFoot">${mark}<button type="button" class="vnSpd">${vnRate}×</button><span class="vnT">${gone ? '<span class="vnGone">Waiting for the other phone</span>' : vnFmt(c.vn.d)}</span>${meta}</div>`;
 }
 const vnAudio = new Audio();
 let vnCur = null, vnUrl = null, vnRate = 1, vnRaf = 0;
@@ -2357,8 +2392,8 @@ async function vnPlay(id, from = 0, ok = false) {
   const v = await vnLoad(id);
   if (!v || !v.b) { vnWant(id); notify('This voice message is still on its way.'); return; }
   if (!ok) { hpGate('This voice message', () => vnPlay(id, from, true)); return; }   // asked every time headphones are not found
-  const c = chat.find(x => x.id === id);
-  if (c && c.who === 'them' && !c.pl) { c.pl = true; saveChat(); renderChat(); send({ t: 'ack', id, vn: true, pl: true }); }   // played: his ticks and mic turn blue
+  const c = msgById(id);
+  if (c && c.who === 'them' && !c.pl) { c.pl = true; keepMsg(c); renderChat(); send({ t: 'ack', id, vn: true, pl: true }); }   // played: his ticks and mic turn blue
   vnAudio.pause(); if (vnUrl) URL.revokeObjectURL(vnUrl);
   vnCur = id; vnUrl = URL.createObjectURL(v.b); vnAudio.src = vnUrl;
   await new Promise(r => { vnAudio.onloadedmetadata = r; setTimeout(r, 1500); });
@@ -2515,7 +2550,7 @@ async function imPrepare(file) {
 }
 async function sendPhoto(p, vo) {
   const id = b64url(rand(8)), im = { s: p.blob.size, w: p.w, h: p.h, m: 'image/jpeg', t: vo ? '' : p.t, vo };
-  await vnTx('readwrite', s => { s.put({ b: p.blob, m: im.m }, id); }).catch(() => {});
+  if (!(await vnTx('readwrite', s => { s.put({ b: p.blob, m: im.m }, id); }).then(() => true, () => false))) { notify('This phone could not save the photo, so it was not sent. Its storage may be full.', 8000); return; }
   vnHave.add(id);
   const c = { id, who: 'me', text: imText(vo), at: Date.now(), st: 0, im, re: reOut(replyTo) };
   if (!c.re) delete c.re;
@@ -2532,7 +2567,7 @@ function imHtml(c, meta) {
   }
   const gone = vnReady && !has && vnGone.has(c.id), ratio = Math.max(.5, Math.min(2, c.im.w / c.im.h));
   const pic = c.im.t ? `data:image/jpeg;base64,${c.im.t}` : '';
-  return `<div class="imBox" style="aspect-ratio:${ratio.toFixed(3)}"><img class="imPic${has ? '' : ' blur'}" data-im="${esc(c.id)}" alt="Photo"${pic ? ` src="${pic}"` : ''} draggable="false">${has ? '' : gone ? '<span class="imGone">Not on either phone any more</span>' : `<span class="imWait">${VN_WAIT}</span>`}${meta}</div>`;
+  return `<div class="imBox" style="aspect-ratio:${ratio.toFixed(3)}"><img class="imPic${has ? '' : ' blur'}" data-im="${esc(c.id)}" alt="Photo"${pic ? ` src="${pic}"` : ''} draggable="false">${has ? '' : gone ? '<span class="imGone">Waiting for the other phone</span>' : `<span class="imWait">${VN_WAIT}</span>`}${meta}</div>`;
 }
 function imPaint() {   // the real photo replaces the small blurred preview once it is on this phone
   for (const img of $('msgs').querySelectorAll('img.imPic')) {
@@ -2551,7 +2586,7 @@ async function imOpen(id) {
   imZoom(1, 0, 0); $('imBig').src = imShown.url;
   $('imWho').textContent = (c.who === 'me' ? 'You' : who()) + (c.im.vo ? ' · view once' : '');
   $('imView').hidden = false; tap();
-  if (c.who === 'them' && !c.pl) { c.pl = true; saveChat(); renderChat(); send({ t: 'ack', id, vn: true, pl: true }); }   // opened: his ticks turn blue; a view-once photo can never open again
+  if (c.who === 'them' && !c.pl) { c.pl = true; keepMsg(c); renderChat(); send({ t: 'ack', id, vn: true, pl: true }); }   // opened: his ticks turn blue; a view-once photo can never open again
 }
 function imCloseView() {
   if (!imShown) return false;
@@ -2853,8 +2888,10 @@ const gifMem = new Map(), gifUrl = (src, q, p, l) => `${CARRIER}/gif?src=${src}&
 function gifKeepPage(url, d) { if (d && Array.isArray(d.items) && d.items.length) { gifMem.set(url, { d, at: Date.now() }); if (gifMem.size > 40) gifMem.delete(gifMem.keys().next().value); } }
 function gifAhead(url) { if (gifMem.has(url) || document.hidden || (navigator.connection && navigator.connection.saveData)) return; fetch(url).then(r => r.ok ? r.json() : null).then(d => gifKeepPage(url, d)).catch(() => {}); }
 setTimeout(() => { gifAhead(gifUrl('gif', '', 1, '')); if (gifAdultOk) gifAhead(gifUrl('adult', '', 1, '')); }, 6000);
+let gifTok = 0;
 async function gifLoad(fresh) {
-  if (gifBusy || (!fresh && gifEnd)) return;
+  if (!fresh && (gifBusy || gifEnd)) return;
+  const tok = ++gifTok;
   if (fresh) { gifPage = 1; gifItems = []; gifEnd = false; $('gifGrid').innerHTML = ''; $('gifGrid').scrollTop = 0; }
   gifBusy = true; const want = `${gifSrc}|${gifQ}|${gifPage}`;
   $('gifNote').textContent = 'Loading…'; $('gifNote').hidden = false;
@@ -2862,8 +2899,9 @@ async function gifLoad(fresh) {
   const url = gifUrl(gifSrc, gifQ, gifPage, gifLang), kept = gifMem.get(url);
   if (kept && Date.now() - kept.at < 600000) d = kept.d;   // fetched ahead: shows at once
   else try { const r = await fetch(url); d = await r.json().catch(() => null); if (!r.ok) err = d && d.error === 'nokey' ? 'nokey' : 'site'; else gifKeepPage(url, d); } catch { err = 'net'; }
+  if (tok !== gifTok) return;   // a newer search started while this one was loading
   gifBusy = false;
-  if (want !== `${gifSrc}|${gifQ}|${gifPage}`) return;   // the search changed while this one was loading
+  if (want !== `${gifSrc}|${gifQ}|${gifPage}`) return;
   if (err || !d || !Array.isArray(d.items)) { $('gifNote').textContent = err === 'nokey' ? 'Normal GIFs need a free GIPHY key on the carrier first. 18+ works now.' : 'GIFs did not load. Check the internet and try again.'; return; }
   const items = d.items.map(it => cleanGif({ ...it, x: gifSrc === 'adult' })).filter(Boolean);
   if (!items.length) gifEnd = true;
@@ -2906,15 +2944,15 @@ function react(c, e) {
   c.rx = c.rx || {}; c.rxAt = c.rxAt || {};
   if (c.rx.me === e) e = '';
   if (e) c.rx.me = e; else delete c.rx.me;
-  c.rxAt.me = Date.now(); tap(); saveChat(); renderChat();
+  c.rxAt.me = Date.now(); tap(); keepMsg(c); renderChat();
   send({ t: 'react', id: c.id, e, at: c.rxAt.me });
 }
-function gotReact(m) {
-  const c = typeof m.id === 'string' && chat.find(x => x.id === m.id);
+async function gotReact(m) {
+  const c = typeof m.id === 'string' && (msgById(m.id) || (archIds.has(m.id) && await archTx('readonly', st => st.get(m.id)).catch(() => null)));   // an older message too
   if (!c || !Number.isFinite(m.at) || typeof m.e !== 'string' || (m.e && !REACTS.includes(m.e)) || (c.rxAt && c.rxAt.them >= m.at)) return;
   c.rx = c.rx || {}; c.rxAt = c.rxAt || {};
   if (m.e) c.rx.them = m.e; else delete c.rx.them;
-  c.rxAt.them = m.at; saveChat(); renderChat();
+  c.rxAt.them = m.at; keepMsg(c); renderChat();
   if (m.e) { tap(); miniBurst(m.e, $('msgs').querySelector(`.bubble[data-id="${CSS.escape(c.id)}"]`)); }
 }
 let toEndNext = false, newBelow = 0, backTo = null, backAt = 0;   // backTo: the reply you tapped a quote on; the arrow returns there first   // toEndNext: the next draw goes to the newest message (this phone just sent one)
@@ -2928,11 +2966,15 @@ function toEndState() {   // the down arrow shows once you are well above the ne
 function renderChat() {
   const time = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });   // 10:15 PM, never 22:15 (Xed 12 Nov)
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
-  const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${esc(r.x)}</span></span>` : '';
+  const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${r.x ? esc(r.x) : 'Message'}</span></span>` : '';
   const rxs = c => { const l = [c.rx && c.rx.them, c.rx && c.rx.me].filter(Boolean); return !l.length ? '' : `<span class="rx" role="button" aria-label="Reactions">${l[1] && l[0] === l[1] ? esc(l[0]) + '<small>2</small>' : l.map(esc).join('')}</span>`; };
   const box = $('msgs'), keep = box.scrollTop, toEnd = toEndNext || !$('dock').classList.contains('open') || box.scrollHeight - box.scrollTop - box.clientHeight < 80;   // reading older messages: stay where you are
   toEndNext = false;
-  if (toEnd && !keepShow) { chatShow = 80; viewTop = null; }
+  if (toEnd && !keepShow) {   // back at the newest: let go of what was loaded for reading old messages
+    chatShow = 80; viewTop = null;
+    if (older.length > 300) { older = older.slice(-200); olderDone = false; }
+    if (imUrls.size > 40) { const keep = new Set(chat.slice(-80).map(c => c.id)); for (const [id, u] of imUrls) if (!keep.has(id) && !(imShown && imShown.id === id)) { URL.revokeObjectURL(u); imUrls.delete(id); } }
+  }
   keepShow = false;
   const keepV = gifKeep();
   box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + chatView().map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${esc(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
@@ -2996,6 +3038,7 @@ function gotPin(p) {   // from the other phone: "me" there is "them" here
 function renderPins() {
   const list = pinList(), bar = $('pinBar');
   bar.hidden = !list.length;
+  if (!list.length) $('pinText').textContent = '';   // nothing pinned: no old words left behind in the hidden bar
   if (list.length) {
     pinAt %= list.length; const p = list[pinAt];
     $('pinHead').textContent = list.length > 1 ? `Pinned message ${pinAt + 1} of ${list.length}` : 'Pinned message';
@@ -4300,7 +4343,21 @@ $('ludoRoll').onclick = () => { tap(); askMotion(); ludoRoll(); };
 $('ludoNew').onclick = () => { tap(); askNew('ludo'); };
 setTimeout(() => { if (!document.hidden && !(navigator.connection && navigator.connection.saveData)) (window.requestIdleCallback || setTimeout)(() => loadRapier()); }, 8000);   // games open at once: the 1.3 MB physics comes in quietly first (Xed 13 Nov)
 function ludoOpen() { loadRapier(); renderLudo(); if (!lrun) lrun = requestAnimationFrame(ludoLoop); }
-function ludoLoop() { if (panel !== 'ludo') { lrun = 0; return; } lrun = requestAnimationFrame(ludoLoop); ludoSpotTick(); drawLudo(); }
+// Audit 13 Nov: the board was redrawn 60 times a second even with nothing moving, which kept a slow phone ~90% busy.
+// Now full speed only while something moves or was just touched; resting, the soft glow is drawn 8 times a second.
+let lWakeAt = 0, lDrawnAt = 0;
+function ludoLoop() {
+  if (panel !== 'ludo') { lrun = 0; return; }
+  lrun = requestAnimationFrame(ludoLoop); ludoSpotTick();
+  if (document.hidden) return;
+  const now = performance.now();
+  if (ludoV !== ludoLoop.v) { ludoLoop.v = ludoV; lWakeAt = now; }
+  const moving = lhop || ldie || lAim || lhit || ldrag || lfly || lfar || lglide || lheld || lwin || lrings.length || lreacts.length || ltaps.length || (lspikes && lspikes.length) || (lflash && now / 1000 - lflash.t < 1);
+  if (moving) lWakeAt = now;
+  if (now - lWakeAt > 2500 && now - lDrawnAt < 125) return;
+  lDrawnAt = now; drawLudo();
+}
+for (const ev of ['pointerdown', 'pointermove', 'pointerup']) document.addEventListener(ev, e => { if (panel === 'ludo') lWakeAt = performance.now(); }, { passive: true, capture: true });
 function fitCanvas(cv) {
   const dpr = Math.min(3, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
   if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
@@ -5657,13 +5714,16 @@ function gotWplay(m) {   // an action from the other phone: applied here, never 
   if (m.id && !m.re && (newId || m.playing) && panel !== 'watch') openPanel('watch', true);   // a catch-up copy never moves the section: the section has its own catch-up
   applyState();
 }
-let wQuiet = 0;
+let wQuiet = 0, wTok = 0, wHid = null;
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden || !wstate.id) return;
+  if (document.hidden) { wHid = { p: performance.now(), w: Date.now() }; return; }
+  if (wHid) { const lost = (Date.now() - wHid.w) - (performance.now() - wHid.p); wHid = null; if (lost > 500 && lost < 864e5) wstate.base -= lost; }   // Android stops this clock while asleep: add the sleep back
+  if (!wstate.id) return;
+  const tok = ++wTok;
   wQuiet = Date.now() + 8000; send({ t: 'wask' });
   if (wstate.playing && here()) vid.currentTime = clampT(target());   // back at once where the shared clock says; the other phone's answer fine-tunes it
-  for (const ms of [1500, 3000, 4500, 6000]) setTimeout(() => { if (Date.now() < wQuiet) send({ t: 'wask' }); }, ms);
-  setTimeout(() => { wQuiet = 0; }, 8100);   // no answer: it keeps the shared clock's spot and leads again
+  for (const ms of [1500, 3000, 4500, 6000]) setTimeout(() => { if (tok === wTok && Date.now() < wQuiet) send({ t: 'wask' }); }, ms);
+  setTimeout(() => { if (tok === wTok) wQuiet = 0; }, 8100);   // no answer: it keeps the shared clock's spot and leads again
 });
 function gotWask() { if (wstate.id && !document.hidden) send({ t: 'wbeat', id: wstate.id, v: wstate.v, pos: curPos(), sync: true }); }
 function gotBeat(m) {   // the phone that acted last says where it is every 2 s; nudge this one if it is more than 1 s off
@@ -5682,7 +5742,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-182338';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-192535';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -6609,9 +6669,16 @@ function dropMsgs(ids) {
   const set = new Set(ids);
   forgetIds(ids);
   chat = chat.filter(c => !set.has(c.id)); older = older.filter(c => !set.has(c.id));
-  for (const id of ids) { archSeen.delete(id); archMedia.delete(id); vnPend.delete(id); if (pins[id] && pins[id].on) pins[id] = { ...pins[id], on: false }; }
+  for (const id of ids) {
+    archSeen.delete(id); archMedia.delete(id); archIds.delete(id); vnPend.delete(id); vnGone.delete(id);
+    if (pins[id]) pins[id] = { x: '', w: pins[id].w, on: false, at: Date.now() };   // its words leave the pin record too
+    if (imUrls.has(id)) { URL.revokeObjectURL(imUrls.get(id)); imUrls.delete(id); }
+    if (imShown && imShown.id === id) imBack();
+  }
+  const unquote = c => { if (c.re && set.has(c.re.id) && c.re.x) { c.re = { ...c.re, x: '' }; return true; } return false; };   // replies to it keep the reply, not its words
+  for (const c of [...chat, ...older]) unquote(c);
   store.set('pins:' + room, pins); renderPins();
-  archTx('readwrite', st => { for (const id of ids) st.delete(id); }).catch(() => {});
+  archTx('readwrite', st => { for (const id of ids) st.delete(id); const q = st.openCursor(); q.onsuccess = () => { const cur = q.result; if (!cur) return; if (unquote(cur.value)) cur.update(cur.value); cur.continue(); }; }).catch(() => {});
   if (replyTo && set.has(replyTo.id)) setReply(null);
   if (vnCur && set.has(vnCur)) { vnAudio.pause(); vnCur = null; }
   findAll = null; saveChat(); vnGc(); renderChat();
@@ -6642,9 +6709,9 @@ let chatTapAt = 0, chatTapT = 0;
 const openChat = () => { if (chatIsOpen()) return; $('dock').classList.add('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
 $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap anywhere makes the chat small again
   if (ev.target.closest('.e2e')) { showCode(); return; }
-  if (vnClick(ev) || imClick(ev) || gifClick(ev)) return;
   const b = ev.target.closest('.bubble'), now = Date.now();
-  if (now - menuAt < 700) return;   // that was a long press: the menu is up
+  if (now - menuAt < 700) return;   // that was a long press: the menu is up (checked first, so the hold never also opens a view-once photo)
+  if (vnClick(ev) || imClick(ev) || gifClick(ev)) return;
   if (ev.target.closest('.rx') && b) { tap(); bubbleMenu(b); return; }   // the reaction badge: change or take off your reaction
   const q = ev.target.closest('.quote');
   if (q && q.dataset.re) {   // the quoted part of a reply: go to the message it answers
