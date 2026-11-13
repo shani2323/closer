@@ -155,7 +155,8 @@
   .chatWho small.live { color: var(--green); }
   .clearChat { display: none; margin: 0 auto 6px; height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--fill); color: var(--red); font-size: 13px; font-weight: 600; }
   .dock.open .clearChat { display: block; }
-  #clearSheet, #askSheet, #newSheet { z-index: 12; }
+  #clearSheet, #askSheet, #newSheet, #delSheet { z-index: 12; }
+  .msgMenu button.danger { color: #ff453a; }
   /* the end of a game: the loser and the winner each see where it goes next; taps pass through, so Stop always works */
   .result { position: fixed; inset: 0; z-index: 13; display: grid; place-items: center; padding: 16px; pointer-events: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: resIn .35s ease-out; }
   .result.lose { background: radial-gradient(circle at 50% 45%, rgba(255,45,85,.38), rgba(10,0,8,.78) 70%); }
@@ -1137,6 +1138,15 @@
     <button type="button" class="ghost" id="askNo">Refuse</button>
   </form>
 </div>
+<div class="sheet" id="delSheet" hidden>
+  <form id="delForm" class="glass">
+    <div class="grabber"></div>
+    <h2>Delete message?</h2>
+    <p>It disappears from both phones, with no trace that it was there.</p>
+    <button class="primary danger" id="delYes">Delete for both</button>
+    <button type="button" class="ghost" id="delNo">Cancel</button>
+  </form>
+</div>
 <div class="sheet" id="clearSheet" hidden>
   <form id="clearForm" class="glass">
     <div class="grabber"></div>
@@ -1810,7 +1820,7 @@ async function gotLobby(txt) {
     logLink('joined her room without a link');
     if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
       store.set('lastRemote', location.origin + location.pathname + '#' + part); store.set('hostPair:' + b.r, null);
-      for (const k of ['chat', 'chatCleared', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
+      for (const k of ['chat', 'chatCleared', 'delOut', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
         const was = store.get(k + ':' + room), there = store.get(k + ':' + b.r);
         if (was == null) continue;
         if (k === 'chat' && Array.isArray(there) && there.length) { const all = new Map(); for (const c of [...there, ...was]) if (c && c.id) all.set(c.id, c); store.set('chat:' + b.r, [...all.values()].sort((a, c) => a.at - c.at).slice(-200)); }
@@ -2305,7 +2315,16 @@ function vnHtml(c, meta) {
   return `<div class="vn" data-vn="${esc(c.id)}">${btn}<span class="vnWave">${bars}</span></div><div class="vnFoot">${mark}<button type="button" class="vnSpd">${vnRate}×</button><span class="vnT">${gone ? '<span class="vnGone">Not on either phone any more</span>' : vnFmt(c.vn.d)}</span>${meta}</div>`;
 }
 const vnAudio = new Audio();
-let vnCur = null, vnUrl = null, vnRate = 1, vnRaf = 0, vnGate = true;   // vnGate: headphones not confirmed yet
+let vnCur = null, vnUrl = null, vnRate = 1, vnRaf = 0;
+// Xed 13 Nov: the phone looks for headphones itself (wired, USB or Bluetooth; Chrome shows their names once the
+// microphone was allowed for Loveline). None found: a privacy warning every single time, and the loudspeaker only after a yes.
+async function hpFound() {
+  try { return (await navigator.mediaDevices.enumerateDevices()).some(d => /audio(in|out)put/.test(d.kind) && /bluetooth|wired|usb|headphone|headset|airpods|buds|earbud/i.test(d.label) && !/earpiece|speaker/i.test(d.label)); } catch { return false; }
+}
+async function hpGate(what, go) {
+  if (await hpFound()) return go();
+  newShow('🎧 No headphones found', `${what} is meant for your ears only. Without headphones it plays out loud on the speaker, and anyone near you can hear it.`, 'Play on speaker', 'Cancel', () => { newClose(); go(); }, () => newClose());
+}
 const vnBusy = () => !!vnRec || (!!vnCur && !vnAudio.paused);
 function vnPaint() {
   cancelAnimationFrame(vnRaf);
@@ -2322,19 +2341,16 @@ function vnPaint() {
   }
   if (vnCur && !vnAudio.paused) vnRaf = requestAnimationFrame(vnPaint);
 }
-async function vnPlay(id, from = 0) {
+async function vnPlay(id, from = 0, ok = false) {
   if (vnCur === id && vnAudio.src) {
     if (from) vnAudio.currentTime = from;
-    else if (vnAudio.paused) { if (vnAudio.ended) vnAudio.currentTime = 0; vnAudio.play().catch(() => {}); }
+    else if (vnAudio.paused) { hpGate('This voice message', () => { if (vnAudio.ended) vnAudio.currentTime = 0; vnAudio.play().catch(() => {}); vnPaint(); }); return; }
     else vnAudio.pause();
     vnPaint(); return;
   }
   const v = await vnLoad(id);
   if (!v || !v.b) { vnWant(id); notify('This voice message is still on its way.'); return; }
-  if (vnGate) {   // Xed 13 Nov: headphones only, never the loudspeaker
-    newShow('🎧 Headphones only', 'Voice messages play only in your headphones or AirPods. Put them in first.', 'My headphones are in', 'Not now', () => { newClose(); vnGate = false; vnPlay(id, from); }, () => newClose());
-    return;
-  }
+  if (!ok) { hpGate('This voice message', () => vnPlay(id, from, true)); return; }   // asked every time headphones are not found
   const c = chat.find(x => x.id === id);
   if (c && c.who === 'them' && !c.pl) { c.pl = true; saveChat(); renderChat(); send({ t: 'ack', id, vn: true, pl: true }); }   // played: his ticks and mic turn blue
   vnAudio.pause(); if (vnUrl) URL.revokeObjectURL(vnUrl);
@@ -2453,8 +2469,7 @@ for (const e of ['pointerup', 'pointercancel']) micBtn.addEventListener(e, () =>
 });
 micBtn.addEventListener('click', ev => { ev.preventDefault(); const r = vnRec; if (r && r.locked && !r.held && Date.now() - r.upAt > 300) { tap(); vnStop(true); } });   // hands-free: the mic has become Send
 $('vnDel').onclick = () => { tap(); vnStop(false); };
-if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => {   // headphones out or changed: stop at once, ask again next time
-  vnGate = true;
+if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => {   // headphones out or changed: stop at once; the next play looks again
   if (!vnAudio.paused) { vnAudio.pause(); notify('Your headphones changed, so the voice message stopped. Put them back in to listen.'); }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) return; if (vnRec) vnStop(false); if (!vnAudio.paused) vnAudio.pause(); });   // the app locks when it leaves the screen: nothing records or plays behind the lock
@@ -2976,7 +2991,7 @@ function jumpTo(id, gone = 'That message is no longer in the chat, but it stays 
 function openMsgMenu(target, items, head) {   // a small menu next to what was held, growing out of it; head: an optional row above the items
   const m = $('msgMenu'); m.innerHTML = '';
   if (head) m.appendChild(head);
-  for (const [label, fn] of items) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = label; b.onclick = e => { e.stopPropagation(); closeMsgMenu(); fn(); }; m.appendChild(b); }
+  for (const [label, fn] of items) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.textContent = label; if (label === 'Delete') b.className = 'danger'; b.onclick = e => { e.stopPropagation(); closeMsgMenu(); fn(); }; m.appendChild(b); }
   m.hidden = false;
   const r = target.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight, below = r.bottom + 8 + mh < innerHeight - 8;
   const top = below ? r.bottom + 8 : Math.max(8, r.top - 8 - mh), left = Math.min(innerWidth - mw - 12, Math.max(12, target.classList.contains('mine') ? r.right - mw : r.left));
@@ -2997,6 +3012,7 @@ function bubbleMenu(b) {
     [on ? 'Unpin' : 'Pin', () => setPin({ id: c.id, x: c.text.slice(0, 200), w: c.who }, !on)],
     ...(c.im && c.im.vo ? [] : [['Send again', () => resendMsg(c)]]),
     ...(c.vn || c.im || c.gif ? [] : [['Copy', () => { if (navigator.clipboard) navigator.clipboard.writeText(c.text).then(() => notify('Copied.')).catch(() => {}); }]]),
+    ['Delete', () => { delFor = c.id; $('delSheet').hidden = false; }],
   ], row);
 }
 function holdToOpen(el, pick, open) {   // press and hold about half a second, without moving, opens the menu
@@ -5642,7 +5658,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-163103';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-174102';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -5894,8 +5910,7 @@ $('vidSeek').onchange = () => { scrubbing = false; if (isFinite(vid.duration)) a
 $('vidSound').onclick = () => {   // muted until this phone says the headphones are in, using the same card as live sound
   tap();
   if (!vid.muted) vid.muted = true;
-  else if (vidGate) { vidAsk = true; render(); $('listenAsk').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
-  else vid.muted = false;
+  else hpGate('The video sound', () => { vid.muted = false; renderPlayer(); });   // same rule as voice messages, asked every time (Xed 13 Nov)
   renderPlayer();
 };
 steady(() => {   // once a second: keep the library in step, fetch missing videos, keep the players together
@@ -6027,6 +6042,8 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'typing') { typingUntil = Date.now() + 3500; typingRec = m.rec === true; }
   if (m.t === 'vget') gotVget(m);
   if (m.t === 'toyst') gotToySt(m);
+  if (m.t === 'del') gotDel(m);
+  if (m.t === 'delok') gotDelOk(m);
   if (m.t === 'vpart') gotVpart(m);
   if (m.t === 'listening') partnerListening = !!m.on;
   if (m.t === 'panel') gotPanel(m);
@@ -6549,7 +6566,7 @@ $('listenGo').onclick = () => {   // one tap covers whatever is waiting: the par
 };
 if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => {   // headphones changed: never fall back to the speaker
   let muted = false;
-  if (!vidGate) { vidGate = true; vid.muted = true; muted = true; renderPlayer(); }
+  if (!vid.muted) { vid.muted = true; muted = true; renderPlayer(); }
   if (hearing && !listenGate) { listenGate = true; $('audio').muted = true; send({ t: 'listening', on: false }); muted = true; }
   if (muted) { notify('Your headphones changed, so the sound was muted. Put them back in to keep listening.'); render(); }
 });
@@ -6561,6 +6578,40 @@ $('askNo').onclick = () => { $('askSheet').hidden = true; $('askYes').textConten
 for (const b of document.querySelectorAll('.findPartner')) b.onclick = lobbyFind;
 for (const b of document.querySelectorAll('.copyReport')) b.onclick = async () => { try { await navigator.clipboard.writeText(linkReport()); notify('Connection report copied. Paste it to Claude.'); } catch { notify('Could not copy. Try again with this page on screen.'); } };
 $('clearNo').onclick = () => { $('clearSheet').hidden = true; };
+// ---- delete a message for both, like Telegram (Xed 13 Nov): gone from both phones, no "deleted" mark. Sent again every
+// 5 s until the other phone confirms, so it also goes from a phone that was away; a late copy never brings it back.
+let delOut = store.get('delOut:' + room, []), delFor = null;   // ids still to be confirmed by the other phone
+function dropMsgs(ids) {
+  const set = new Set(ids);
+  forgetIds(ids);
+  chat = chat.filter(c => !set.has(c.id)); older = older.filter(c => !set.has(c.id));
+  for (const id of ids) { archSeen.delete(id); archMedia.delete(id); vnPend.delete(id); if (pins[id] && pins[id].on) pins[id] = { ...pins[id], on: false }; }
+  store.set('pins:' + room, pins); renderPins();
+  archTx('readwrite', st => { for (const id of ids) st.delete(id); }).catch(() => {});
+  if (replyTo && set.has(replyTo.id)) setReply(null);
+  if (vnCur && set.has(vnCur)) { vnAudio.pause(); vnCur = null; }
+  findAll = null; saveChat(); vnGc(); renderChat();
+}
+function deleteMsg(id) {
+  dropMsgs([id]);
+  delOut = [...delOut.filter(x => x !== id), id].slice(-300); store.set('delOut:' + room, delOut);
+  send({ t: 'del', ids: [id] });
+}
+function gotDel(m) {
+  if (!Array.isArray(m.ids)) return;
+  const ids = m.ids.filter(x => typeof x === 'string' && /^[\w-]{1,24}$/.test(x)).slice(0, 300);
+  if (!ids.length) return;
+  dropMsgs(ids); send({ t: 'delok', ids });
+}
+function gotDelOk(m) {
+  if (!Array.isArray(m.ids)) return;
+  const done = new Set(m.ids); delOut = delOut.filter(x => !done.has(x)); store.set('delOut:' + room, delOut);
+}
+steady(() => { if (delOut.length && partnerOnline()) send({ t: 'del', ids: delOut }); }, 5000);
+$('delNo').onclick = () => { $('delSheet').hidden = true; delFor = null; };
+$('delSheet').onclick = ev => { if (ev.target === $('delSheet')) { $('delSheet').hidden = true; delFor = null; } };
+$('delForm').onsubmit = ev => { ev.preventDefault(); $('delSheet').hidden = true; if (delFor) { tap(); deleteMsg(delFor); } delFor = null; };
+
 $('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
 $('clearForm').onsubmit = ev => { ev.preventDefault(); $('clearSheet').hidden = true; clearChat(); };
 let chatTapAt = 0, chatTapT = 0;
@@ -6642,6 +6693,7 @@ const holdBack = () => {
 holdBack();
 addEventListener('popstate', () => {
   if (location.hash !== startHash) return;
+  if (!$('delSheet').hidden) { $('delSheet').hidden = true; delFor = null; history.pushState(null, ''); return; }
   if (imBack() || closeStats() || closeFind() || (!$('gifPanel').hidden && (gifOpen(false), true))) { history.pushState(null, ''); return; }
   if (chatIsOpen() && !chatTab) closeChat();
   else if (panel !== 'chat') { if (okToLeave('chat')) openPanel('chat'); }
