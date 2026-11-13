@@ -323,6 +323,12 @@
   .gifChips button { flex: none; height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font-size: 13px; white-space: nowrap; }
   .gifChips button.on { background: var(--blue); color: #fff; }
   .gifGrid { flex: 1; min-height: 0; overflow-y: auto; columns: 2; column-gap: 6px; padding-bottom: 8px; scrollbar-width: none; }
+  .gifItem:not(.ready), .gifBox:not(.ready):not(.veiled) { background: linear-gradient(100deg, rgba(255, 255, 255, .05) 30%, rgba(255, 255, 255, .13) 50%, rgba(255, 255, 255, .05) 70%) 0 0 / 300% 100%; animation: gifShim 1.4s linear infinite; }   /* still loading: a soft shimmer, and it cannot be sent yet */
+  .gifItem:not(.ready) video { opacity: .55; }
+  .gifItem.nudge { animation: gifNudge .32s ease-out; }
+  @keyframes gifShim { to { background-position: -300% 0; } }
+  @keyframes gifNudge { 30% { transform: scale(.94); } }
+  @media (prefers-reduced-motion: reduce) { .gifItem:not(.ready), .gifBox:not(.ready) { animation: none; } }
   .gifItem { display: block; width: 100%; margin: 0 0 6px; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, .06); break-inside: avoid; }
   .gifItem video, .gifBox video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
   #gifNote { margin: 10px 8px; text-align: center; font-size: 13px; color: var(--label2); column-span: all; }
@@ -2813,7 +2819,7 @@ function gifHtml(c, meta) {
 }
 const gifKeep = () => { const m = new Map(); for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video[src]')) m.set(v.closest('.gifBox').dataset.gif, v); return m; };
 function gifRestore(m) {   // the chat redraws often: keep each playing GIF instead of loading it again
-  for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video')) { const old = m.get(v.closest('.gifBox').dataset.gif); if (old && old.getAttribute('src') === v.getAttribute('src')) { v.replaceWith(old); old.play().catch(() => {}); } }
+  for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video')) { const old = m.get(v.closest('.gifBox').dataset.gif); if (old && old.getAttribute('src') === v.getAttribute('src')) { v.replaceWith(old); if (old.readyState >= 2) old.closest('.gifBox').classList.add('ready'); old.play().catch(() => {}); } }
 }
 async function resendMsg(c) {   // the same thing again, as a new message from this phone (Xed 13 Nov)
   if (c.gif) return sendGif({ v: c.gif.v, p: c.gif.p, w: c.gif.w, h: c.gif.h }, c.gif.x);
@@ -2842,13 +2848,20 @@ function gifChips() {
   for (const b of $('gifChips').querySelectorAll('button')) b.onclick = () => { const [, q, lang] = GIF_CHIPS[gifSrc][+b.dataset.i]; tap(); $('gifQ').value = ''; gifQ = q; gifLang = lang || ''; gifLoad(true); gifChips(); };
   for (const b of document.querySelectorAll('#gifSrc button')) b.classList.toggle('on', b.dataset.src === gifSrc);
 }
+// GIF pages are fetched ahead (Xed 13 Nov: quick): the first page soon after the app opens, and the next page while you look at this one
+const gifMem = new Map(), gifUrl = (src, q, p, l) => `${CARRIER}/gif?src=${src}&q=${encodeURIComponent(q)}&p=${p}${l ? '&l=' + l : ''}`;
+function gifKeepPage(url, d) { if (d && Array.isArray(d.items) && d.items.length) { gifMem.set(url, { d, at: Date.now() }); if (gifMem.size > 40) gifMem.delete(gifMem.keys().next().value); } }
+function gifAhead(url) { if (gifMem.has(url) || document.hidden || (navigator.connection && navigator.connection.saveData)) return; fetch(url).then(r => r.ok ? r.json() : null).then(d => gifKeepPage(url, d)).catch(() => {}); }
+setTimeout(() => { gifAhead(gifUrl('gif', '', 1, '')); if (gifAdultOk) gifAhead(gifUrl('adult', '', 1, '')); }, 6000);
 async function gifLoad(fresh) {
   if (gifBusy || (!fresh && gifEnd)) return;
   if (fresh) { gifPage = 1; gifItems = []; gifEnd = false; $('gifGrid').innerHTML = ''; $('gifGrid').scrollTop = 0; }
   gifBusy = true; const want = `${gifSrc}|${gifQ}|${gifPage}`;
   $('gifNote').textContent = 'Loading…'; $('gifNote').hidden = false;
   let d = null, err = '';
-  try { const r = await fetch(`${CARRIER}/gif?src=${gifSrc}&q=${encodeURIComponent(gifQ)}&p=${gifPage}${gifLang ? '&l=' + gifLang : ''}`); d = await r.json().catch(() => null); if (!r.ok) err = d && d.error === 'nokey' ? 'nokey' : 'site'; } catch { err = 'net'; }
+  const url = gifUrl(gifSrc, gifQ, gifPage, gifLang), kept = gifMem.get(url);
+  if (kept && Date.now() - kept.at < 600000) d = kept.d;   // fetched ahead: shows at once
+  else try { const r = await fetch(url); d = await r.json().catch(() => null); if (!r.ok) err = d && d.error === 'nokey' ? 'nokey' : 'site'; else gifKeepPage(url, d); } catch { err = 'net'; }
   gifBusy = false;
   if (want !== `${gifSrc}|${gifQ}|${gifPage}`) return;   // the search changed while this one was loading
   if (err || !d || !Array.isArray(d.items)) { $('gifNote').textContent = err === 'nokey' ? 'Normal GIFs need a free GIPHY key on the carrier first. 18+ works now.' : 'GIFs did not load. Check the internet and try again.'; return; }
@@ -2856,13 +2869,24 @@ async function gifLoad(fresh) {
   if (!items.length) gifEnd = true;
   $('gifNote').hidden = !!(gifItems.length + items.length); $('gifNote').textContent = 'Nothing found. Try other words.';
   const start = gifItems.length; gifItems.push(...items); gifPage++;
+  if (items.length) gifAhead(gifUrl(gifSrc, gifQ, gifPage, gifLang));
   $('gifGrid').insertAdjacentHTML('beforeend', items.map((it, k) => `<button type="button" class="gifItem" data-i="${start + k}" style="aspect-ratio:${Math.max(.5, Math.min(2, it.w / it.h)).toFixed(3)}" aria-label="Send this GIF"><video muted loop playsinline preload="none"${it.p ? ` poster="${esc(it.p)}"` : ''} data-src="${esc(it.v)}"></video></button>`).join(''));
-  for (const b of $('gifGrid').querySelectorAll('.gifItem:not([data-on])')) { b.dataset.on = 1; gifSeen.observe(b); b.onclick = () => { sendGif(gifItems[+b.dataset.i], gifSrc === 'adult'); gifOpen(false); }; }
+  for (const b of $('gifGrid').querySelectorAll('.gifItem:not([data-on])')) { b.dataset.on = 1; gifSeen.observe(b); b.onclick = () => {   // only a GIF that has really loaded can be sent (Xed 13 Nov)
+    if (!b.classList.contains('ready')) { b.classList.remove('nudge'); void b.offsetWidth; b.classList.add('nudge'); return; }
+    sendGif(gifItems[+b.dataset.i], gifSrc === 'adult'); gifOpen(false);
+  }; }
 }
 const gifInChat = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (!v.getAttribute('src')) continue; if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); } }, { root: $('msgs') });
 const gifSeen = new IntersectionObserver(es => {   // only the GIFs on screen play, to save data
   for (const e of es) { const v = e.target.querySelector('video'); if (!v) continue; if (e.isIntersecting) { if (!v.src && v.dataset.src) v.src = v.dataset.src; v.play().catch(() => {}); } else v.pause(); }
 }, { root: $('gifGrid'), rootMargin: '300px' });   // every GIF on screen plays, and the next ones are ready before they scroll in
+$('gifGrid').addEventListener('loadeddata', ev => { const b = ev.target.closest && ev.target.closest('.gifItem'); if (b) b.classList.add('ready'); }, true);
+$('gifGrid').addEventListener('error', ev => { const b = ev.target.closest && ev.target.closest('.gifItem'); if (b && ev.target.tagName === 'VIDEO') b.remove(); }, true);   // a clip that will not load leaves the grid
+$('msgs').addEventListener('loadeddata', ev => { const g = ev.target.closest && ev.target.closest('.gifBox'); if (g) g.classList.add('ready'); }, true);
+$('msgs').addEventListener('error', ev => {   // a GIF in the chat that failed: try again once, a few seconds later
+  const v = ev.target; if (v.tagName !== 'VIDEO' || !v.closest('.gifBox') || v.dataset.again) return;
+  v.dataset.again = 1; setTimeout(() => { const u = v.getAttribute('src'); if (u) { v.src = u; v.play().catch(() => {}); } }, 3000);
+}, true);
 $('gifGrid').addEventListener('scroll', () => { const g = $('gifGrid'); if (g.scrollHeight - g.scrollTop - g.clientHeight < 300) gifLoad(false); }, { passive: true });
 $('gifBtn').onclick = () => { tap(); gifOpen($('gifPanel').hidden); };
 $('gifQ').addEventListener('input', () => { clearTimeout(gifT); gifT = setTimeout(() => { gifQ = $('gifQ').value.trim(); gifLang = ''; gifLoad(true); gifChips(); }, 450); });
@@ -5658,7 +5682,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-174102';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-182338';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
