@@ -307,6 +307,9 @@
   .send:disabled { background: var(--fill2); color: var(--label3); }
   /* voice notes (Xed 13 Nov): the mic sits where Send is while the box is empty, like WhatsApp */
   #sendBtn:disabled { display: none; }
+  body.editing #sendBtn svg { display: none; }
+  body.editing #sendBtn::after { content: '✓'; font-size: 20px; font-weight: 700; line-height: 1; }
+  .bubble .meta .ed { margin-right: 4px; font-style: normal; }
   #sendBtn:not(:disabled) ~ #micBtn { display: none; }
   .mic { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform 120ms ease-out; }
   .mic svg { width: 21px; height: 21px; }
@@ -675,6 +678,7 @@
   .card { display: grid; place-items: center; min-height: 160px; padding: 20px; border-radius: 16px; text-align: center;
           background: linear-gradient(160deg, rgba(94, 92, 230, .35), rgba(255, 55, 95, .18)); font-size: 20px; font-weight: 600; line-height: 1.35; letter-spacing: -.02em; }
   .card small { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--label2); letter-spacing: -.005em; }
+  .card small.held { margin: 14px 0 0; padding-top: 10px; border-top: .5px solid var(--sep, rgba(128,128,128,.3)); font-weight: 500; }
   .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
   .pick button { height: 50px; border: 0; border-radius: 14px; background: var(--fill2); font-size: 17px; font-weight: 600; }
   .pick .truth { background: #5e5ce6; }
@@ -1212,6 +1216,7 @@
   <div class="quick glass" id="quick" hidden></div>
   <div class="gifPanel glass" id="gifPanel" hidden><div class="gifHead"><input id="gifQ" type="search" placeholder="Search GIFs and memes" autocomplete="off" enterkeyhint="search" aria-label="Search GIFs"><div id="gifSrc" role="tablist"><button type="button" data-src="gif" class="on">GIFs</button><button type="button" data-src="adult">18+</button></div></div><div class="gifChips" id="gifChips"></div><div class="gifGrid" id="gifGrid"></div><p id="gifNote" hidden></p></div>
   <div class="replyBar" id="replyBar" hidden><div><b id="replyWho"></b><span id="replyText"></span></div><button type="button" class="replyPin" id="replyPin">Pin</button><button type="button" id="replyX" aria-label="Cancel the reply">✕</button></div>
+  <div class="replyBar" id="editBar" hidden><div><b>Edit message</b><span id="editText"></span></div><button type="button" id="editX" aria-label="Cancel the edit">✕</button></div>
   <div class="bar">
     <form class="compose glass" id="compose" autocomplete="off">
       <button type="button" class="icon" id="emojiBtn" aria-label="Emoji">
@@ -2314,11 +2319,50 @@ archSave();
 const emojiOnly = t => t.length <= 16 && /^(\p{Extended_Pictographic}|\p{Emoji_Modifier}|️|‍|\s)+$/u.test(t);
 let replyTo = null;   // the message being answered, shown above the box until sent or cancelled
 function setReply(c) {
+  if (c && editing) setEdit(null);
   replyTo = c ? { id: c.id, x: c.text.slice(0, 100), w: c.who } : null;
   $('replyBar').hidden = !replyTo;
   if (replyTo) { $('replyWho').textContent = c.who === 'me' ? 'You' : who(); $('replyText').textContent = replyTo.x; $('replyPin').textContent = pins[c.id] && pins[c.id].on ? 'Unpin' : 'Pin'; }
   fitDock();
 }
+// ---- edit a sent message, like WhatsApp (Xed 14 Nov): your own text messages, for 15 minutes; both phones then show "Edited"
+const EDIT_MS = 900000;
+let editing = null, editOut = store.get('editOut:' + room) || {};   // editOut: edits the other phone has not confirmed yet
+const canEdit = c => c.who === 'me' && !c.vn && !c.im && !c.gif && Date.now() - c.at < EDIT_MS;
+function setEdit(c) {
+  editing = c ? c.id : null;
+  if (c) setReply(null);
+  $('editBar').hidden = !c; document.body.classList.toggle('editing', !!c);
+  if (c) $('editText').textContent = c.text;
+  $('text').value = c ? c.text : ''; $('sendBtn').disabled = !c;
+  fitDock();
+}
+function applyEdit(c, text, ed) {   // the new words everywhere this message shows: its bubble, replies that quote it, its pin
+  c.text = text; c.ed = ed;
+  for (const o of [...chat, ...older]) if (o.re && o.re.id === c.id && o.re.x) o.re = { ...o.re, x: text.slice(0, 100) };
+  if (pins[c.id] && pins[c.id].x) { pins[c.id] = { ...pins[c.id], x: text.slice(0, 200) }; store.set('pins:' + room, pins); renderPins(); }
+  if (older.includes(c)) archPut([c]);
+  findAll = null; keepShow = true; saveChat(); renderChat();
+}
+function sendEdit(text) {
+  const c = chat.find(x => x.id === editing && x.who === 'me'); text = text.trim().slice(0, 500);
+  setEdit(null);
+  if (!c || !text || text === c.text) return;
+  if (!canEdit(c)) { notify('A message can be edited for 15 minutes after it is sent.'); return; }
+  tap(); const ed = Date.now(); applyEdit(c, text, ed);
+  editOut[c.id] = { text, ed }; store.set('editOut:' + room, editOut);
+  send({ t: 'edit', id: c.id, text, ed });
+}
+function gotEdit(m) {
+  if (typeof m.id !== 'string' || !/^[\w-]{1,24}$/.test(m.id) || typeof m.text !== 'string' || !m.text.trim() || !(m.ed > 0)) return;
+  const text = m.text.trim().slice(0, 500), ed = +m.ed, okNow = () => send({ t: 'editok', id: m.id, ed }), fits = o => o.who === 'them' && !o.vn && !o.im && !o.gif && ed > (o.ed || 0);
+  const c = [...chat, ...older].find(x => x.id === m.id && x.who === 'them');
+  if (c) { if (fits(c)) applyEdit(c, text, ed); okNow(); return; }
+  if (cleared.has(m.id)) { okNow(); return; }
+  if (archIds.has(m.id)) archTx('readwrite', st => { const q = st.get(m.id); q.onsuccess = () => { const o = q.result; if (o && fits(o)) { o.text = text; o.ed = ed; st.put(o); } }; }).then(okNow).catch(() => {});
+  // the message itself is not here yet: no answer, so the edit comes again after it
+}
+function gotEditOk(m) { const e = editOut[m.id]; if (e && m.ed >= e.ed) { delete editOut[m.id]; store.set('editOut:' + room, editOut); } }
 const reOut = r => r && { id: r.id, x: r.x, w: r.w };   // sent as the sender sees it; the other phone swaps me and them
 function sendChat(text) {
   text = text.trim().slice(0, 500);
@@ -2365,7 +2409,7 @@ function sendChatIds() { if (Date.now() - chatIdsAt < 15000) return; chatIdsAt =
 function gotChatIds(m) {   // send back what the other phone is missing
   if (!Array.isArray(m.ids)) return;
   const have = new Set(m.ids.filter(x => typeof x === 'string').slice(0, 1000));
-  const miss = chat.filter(c => !have.has(c.id) && !cleared.has(c.id)).map(c => ({ id: c.id, w: c.who, x: c.text, at: c.at, ...(c.re ? { re: reOut(c.re) } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) }));
+  const miss = chat.filter(c => !have.has(c.id) && !cleared.has(c.id)).map(c => ({ id: c.id, w: c.who, x: c.text, at: c.at, ...(c.ed ? { ed: c.ed } : {}), ...(c.re ? { re: reOut(c.re) } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) }));
   for (let i = 0; i < miss.length; i += 20) send({ t: 'chathist', items: miss.slice(i, i + 20) });
   sendChatIds();   // and ask for what this phone is missing
 }
@@ -2375,7 +2419,7 @@ function gotChatHist(m) {
   for (const it of m.items.slice(0, 200)) {
     if (!it || typeof it.id !== 'string' || it.id.length > 24 || typeof it.x !== 'string' || !['me', 'them'].includes(it.w)) continue;
     if (cleared.has(it.id) || chat.some(c => c.id === it.id)) continue;
-    const re = cleanRe(it.re), vn = cleanVn(it.vn), im = !vn && cleanIm(it.im), gif = !vn && !im && cleanGif(it.gif), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im, ...(im.vo ? { pl: true } : {}) } : {}), ...(gif ? { gif } : {}) };
+    const re = cleanRe(it.re), vn = cleanVn(it.vn), im = !vn && cleanIm(it.im), gif = !vn && !im && cleanGif(it.gif), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(it.ed > 0 && !vn && !im && !gif ? { ed: +it.ed } : {}), ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im, ...(im.vo ? { pl: true } : {}) } : {}), ...(gif ? { gif } : {}) };
     const at = chat.findIndex(o => o.at > c.at); at < 0 ? chat.push(c) : chat.splice(at, 0, c); n++;
   }
   if (n) { saveChat(); renderChat(); notify(`${n} message${n > 1 ? 's' : ''} brought back from ${who()}'s phone.`); }
@@ -3402,7 +3446,7 @@ function renderChat() {
   }
   keepShow = false;
   const keepV = gifKeep();
-  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
   box.scrollTop = toEnd ? box.scrollHeight : keep;
   gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) gifInChat.observe(v);
   toEndState();
@@ -3507,6 +3551,7 @@ function bubbleMenu(b) {
     [on ? 'Unpin' : 'Pin', () => setPin({ id: c.id, x: c.text.slice(0, 200), w: c.who }, !on)],
     ...(c.im && c.im.vo ? [] : [['Send again', () => resendMsg(c)]]),
     ...(c.vn || c.im || c.gif ? [] : [['Copy', () => { if (navigator.clipboard) navigator.clipboard.writeText(c.text).then(() => notify('Copied.')).catch(() => {}); }]]),
+    ...(canEdit(c) ? [['Edit', () => { openChat(); setEdit(c); backToTyping(); }]] : []),
     ['Delete', () => { delFor = c.id; $('delSheet').hidden = false; }],
   ], row);
 }
@@ -5516,14 +5561,23 @@ function fillCard(t) {   // names instead of placeholders: her, him, and each eg
   return t.replace(/\{A\}/g, label('vib')).replace(/\{B\}/g, label('suc'))
     .replace(/\{S\}/g, isRemote ? partnerName || 'her' : myName).replace(/\{X\}/g, isRemote ? myName : partnerName || 'him');
 }
+// Xed 13 Nov: a dare for losing a game comes on top of a card that was already open; that card waits and comes back after it
+const cleanHold = h => {
+  if (!h || !['host', 'remote'].includes(h.turn)) return undefined;
+  const list = h.k ? deck(h.turn, h.k) : null, p = h.pen;
+  if (list) return Number.isInteger(h.i) && h.i >= 0 && h.i < list.length ? { turn: h.turn, k: h.k, i: h.i } : undefined;
+  return !h.k && p && ['sweet', 'spicy'].includes(p.l) && Number.isInteger(p.i) && p.i >= 0 ? { turn: h.turn, k: null, i: -1, pen: { l: p.l, i: p.i, sent: !!p.sent } } : undefined;
+};
+const heldNote = () => { const h = game.hold; return h ? `<small class="held">Paused: ${h.pen ? 'the penalty' : h.k === 'truth' ? 'the truth' : 'the dare'} for ${h.turn === myRole ? 'you' : esc(who())} comes back after this</small>` : ''; };
+const afterForfeit = (score, did) => setGame(game.hold ? { ...game.hold, score, did } : { turn: myRole, k: null, i: -1, score, did });   // the waiting card comes back, or the winner goes next
 function renderGame() {
   const mineTurn = game.turn === myRole, list = deck(game.turn, game.k), card = list ? fillCard(list[game.i]) : null;
   $('turnText').textContent = mineTurn ? 'Your turn' : `${who()}'s turn`;
   const over = game.over && !card ? game.over : null, otherRole = myRole === 'host' ? 'remote' : 'host', pen = !card && penText(game);
   const mustDare = game.score[game.turn].r >= MAX_TRUTHS;
   $('card').innerHTML = card
-    ? `<div><small>${game.chk ? (mineTurn ? `Waiting for ${esc(who())} to judge it` : `${esc(who())} says it is done. Done properly?`) : game.fo ? `Dare for ${mineTurn ? 'you' : esc(who())} for losing: no point, ${mineTurn ? esc(who()) : 'you'} judge${mineTurn ? 's' : ''} it` : `${game.k === 'truth' ? 'Truth' : 'Dare'} for ${mineTurn ? 'you' : esc(who())}`}</small>${esc(card)}</div>`
-    : pen ? `<div><small>${game.pen.sent ? (mineTurn ? `Waiting for ${esc(who())} to check` : `${esc(who())} says it is sent`) : `Penalty for ${mineTurn ? 'you' : esc(who())}`}</small>${esc(pen)}</div>`
+    ? `<div><small>${game.chk ? (mineTurn ? `Waiting for ${esc(who())} to judge it` : `${esc(who())} says it is done. Done properly?`) : game.fo ? `Dare for ${mineTurn ? 'you' : esc(who())} for losing: no point, ${mineTurn ? esc(who()) : 'you'} judge${mineTurn ? 's' : ''} it` : `${game.k === 'truth' ? 'Truth' : 'Dare'} for ${mineTurn ? 'you' : esc(who())}`}</small>${esc(card)}${heldNote()}</div>`
+    : pen ? `<div><small>${game.pen.sent ? (mineTurn ? `Waiting for ${esc(who())} to check` : `${esc(who())} says it is sent`) : `Penalty for ${mineTurn ? 'you' : esc(who())}`}</small>${esc(pen)}${heldNote()}</div>`
     : `<div><small>${over ? 'Game over' : mustDare ? '3 truths in a row' : mineTurn ? 'Your pick' : 'Waiting'}</small>${over ? esc(winnerText(over)) + '<br>' : ''}${mustDare ? (mineTurn ? 'This one must be a dare.' : esc(who()) + ' must pick a dare.') : mineTurn ? 'Truth or dare?' : esc(who()) + ' is choosing…'}</div>`;
   $('pick').hidden = !!card || !!pen || !mineTurn;
   $('after').hidden = !card || !mineTurn || !!game.chk;   // only the person whose card it is can finish it
@@ -5565,8 +5619,9 @@ function showResult(loser, what) {   // shown on both phones: the loser sees the
 }
 function loserDare(loser) {   // the tower fell on their drop: both phones go to Truth or Dare and the loser gets a dare
   openPanel('game');
-  if (game.pen || game.k) return;   // a card or forfeit is already on the table: it stays, the loser is next
-  setGame({ turn: loser, k: null, i: -1, score: game.score, fo: true });   // a dare for losing: no point, the winner judges it
+  if (game.fo || game.hold) return;   // a dare for losing is already on the table: it stays
+  const hold = game.k || game.pen ? cleanHold(game) : undefined;   // an open card or penalty waits underneath
+  setGame({ turn: loser, k: null, i: -1, score: game.score, fo: true, hold });   // a dare for losing: no point, the winner judges it
   pickCard('dare');
 }
 function pickCard(k) {   // her turn: cards for her with the eggs; his turn: cards for him, far away
@@ -5577,7 +5632,7 @@ function pickCard(k) {   // her turn: cards for her with the eggs; his turn: car
   if (!left.length) left = all;
   const i = left[Math.floor(Math.random() * left.length)];
   u.add(i); saveUsed();
-  tap(); setGame({ turn: game.turn, k, i, score: game.score, fo: game.fo && k === 'dare' });
+  tap(); setGame({ turn: game.turn, k, i, score: game.score, fo: game.fo && k === 'dare', hold: game.hold });
 }
 function gotGame(m) {
   const g = m.game || {};
@@ -5588,16 +5643,17 @@ function gotGame(m) {
   gameV = m.v; keep('gameV', gameV);
   if (g.k) { used(g.turn, g.k).add(g.i); saveUsed(); }   // the partner's card is used up here too
   const did = ['done', 'skip', 'skipdare', 'pensent', 'pennot', 'penalty', 'fodone', 'fook', 'folie'].includes(g.did) ? g.did : null, kind = g.kind === 'truth' ? 'truth' : 'dare', pen = !g.k && g.pen && ['sweet', 'spicy'].includes(g.pen.l) && Number.isInteger(g.pen.i) && g.pen.i >= 0 ? { l: g.pen.l, i: g.pen.i, sent: !!g.pen.sent } : undefined, over = g.over && cleanScore({ host: { t: g.over.host }, remote: { t: g.over.remote } });
-  setGame({ turn: g.turn, k: g.k, i: g.k ? g.i : -1, score: cleanScore(g.score) || game.score, pen, fo: g.fo === true && g.k === 'dare' || undefined, chk: g.chk === true && g.k === 'dare' || undefined, over: over ? { host: over.host.t, remote: over.remote.t } : undefined }, true);
+  setGame({ turn: g.turn, k: g.k, i: g.k ? g.i : -1, score: cleanScore(g.score) || game.score, pen, fo: g.fo === true && g.k === 'dare' || undefined, chk: g.chk === true && g.k === 'dare' || undefined, hold: cleanHold(g.hold), over: over ? { host: over.host.t, remote: over.remote.t } : undefined }, true);
   if (g.k && did !== 'fodone') tap();
+  const back = ['fook', 'folie', 'penalty'].includes(did) && (g.k || pen) ? 'Back to the card from before' : '';
   if (over && !g.k) burst('🏆');
   else if (did === 'fodone' && g.turn !== myRole) turnFx(`${who()} says the dare is done`, 'Done properly? You judge it');
-  else if (did === 'fook' && g.turn !== myRole) turnFx(`${who()} accepted your dare 🔥`, `${who()}'s turn`);
-  else if (did === 'folie' && g.turn !== myRole) turnFx(`${who()} says you did not do it 🙈`, 'Counted as a lie: one point off');
+  else if (did === 'fook' && (g.turn !== myRole || back)) turnFx(`${who()} accepted your dare 🔥`, back || `${who()}'s turn`);
+  else if (did === 'folie' && (g.turn !== myRole || back)) turnFx(`${who()} says you did not do it 🙈`, 'Counted as a lie: one point off');
   else if (did === 'skipdare' && g.turn !== myRole) turnFx(`${who()} skipped the dare 😈`, 'Penalty time');
   else if (did === 'pensent' && g.turn !== myRole) turnFx(`${who()} sent the penalty 📸`, 'Check it, then press Got it');
   else if (did === 'pennot' && g.turn === myRole) turnFx(`${who()} has not got it yet 🙈`, 'Send it, then press I sent it');
-  else if (did === 'penalty' && g.turn !== myRole) turnFx(`${who()} got it 🔥`, `${who()}'s turn`);
+  else if (did === 'penalty' && (g.turn !== myRole || back)) turnFx(`${who()} got it 🔥`, back || `${who()}'s turn`);
   else if ((did === 'done' || did === 'skip') && !g.k && g.turn === myRole) turnFx(did === 'done' ? `${who()} ${kind === 'truth' ? 'told the truth' : 'did the dare'} 🔥` : `${who()} skipped 🙈`, 'Your turn');
 }
 const nextTurn = did => {
@@ -5605,7 +5661,7 @@ const nextTurn = did => {
   if (game.fo) {   // a dare for losing a game: done goes to the other phone to judge; skipped means a penalty; neither is counted
     tap();
     if (did === 'done') { if (!game.chk) setGame({ ...game, did: 'fodone', chk: true }); }
-    else setGame({ turn: myRole, k: null, i: -1, score: game.score, did: 'skipdare', pen: newPen() });
+    else setGame({ turn: myRole, k: null, i: -1, score: game.score, did: 'skipdare', pen: newPen(), hold: game.hold });
     return;
   }
   const score = cleanScore(game.score), me = score[myRole];
@@ -5615,17 +5671,17 @@ const nextTurn = did => {
   if (did === 'skip' && game.k === 'dare') { setGame({ turn: myRole, k: null, i: -1, score, did: 'skipdare', pen: newPen() }); return; }
   setGame({ turn: myRole === 'host' ? 'remote' : 'host', k: null, i: -1, score, did, kind: game.k });
 };
-$('dareOk').onclick = () => { if (game.turn !== myRole && game.chk) { tap(); setGame({ turn: myRole, k: null, i: -1, score: game.score, did: 'fook' }); } };
+$('dareOk').onclick = () => { if (game.turn !== myRole && game.chk) { tap(); afterForfeit(game.score, 'fook'); } };
 $('dareLie').onclick = () => {
   if (game.turn === myRole || !game.chk) return;
   const score = cleanScore(game.score); score[game.turn].l++;
-  tap(); setGame({ turn: myRole, k: null, i: -1, score, did: 'folie' });
+  tap(); afterForfeit(score, 'folie');
 };
 $('penDone').onclick = () => { if (game.turn === myRole && game.pen && !game.pen.sent) { tap(); setGame({ ...game, did: 'pensent', pen: { ...game.pen, sent: true } }); } };
 $('penGot').onclick = () => {
   if (game.turn === myRole || !game.pen || !game.pen.sent) return;
   const score = cleanScore(game.score); score[game.turn].p++;
-  tap(); setGame({ turn: myRole, k: null, i: -1, score, did: 'penalty' });
+  tap(); afterForfeit(score, 'penalty');
 };
 $('penNot').onclick = () => { if (game.turn !== myRole && game.pen && game.pen.sent) { tap(); setGame({ ...game, did: 'pennot', pen: { ...game.pen, sent: false } }); } };
 $('penOther').onclick = () => { if (game.turn === myRole && game.pen && !game.pen.sent) { tap(); setGame({ ...game, did: undefined, pen: newPen(game.pen) }); } };
@@ -6171,7 +6227,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-223428';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-193818';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -6562,6 +6618,8 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'vget') gotVget(m);
   if (m.t === 'toyst') gotToySt(m);
   if (m.t === 'del') gotDel(m);
+  if (m.t === 'edit') gotEdit(m);
+  if (m.t === 'editok') gotEditOk(m);
   if (m.t === 'dp') gotDp(m);
   if (m.t === 'dpok') gotDpOk(m);
   if (m.t === 'delok') gotDelOk(m);
@@ -7106,7 +7164,7 @@ $('buzzBtn').onclick = () => sendBuzz();
 // ---- start
 $('quick').innerHTML = EMOJI.map(e => `<button type="button" aria-label="Send ${e}">${e}</button>`).join('');
 // Pressing Send or an emoji must not take the cursor out of the message box, or the phone closes its keyboard.
-const KEEPS_KEYBOARD = '#sendBtn, #micBtn, #vnDel, #emojiBtn, #gifBtn, #findQ, #quick button, #buzzBtn, .bubble, #replyX, #toEnd';
+const KEEPS_KEYBOARD = '#sendBtn, #micBtn, #vnDel, #emojiBtn, #gifBtn, #findQ, #quick button, #buzzBtn, .bubble, #replyX, #editX, #toEnd';
 let wasTyping = false;
 // The keyboard opens only when the message box itself is tapped. Android can hide the keyboard and leave the box selected,
 // so "typing" also needs the keyboard to be taking up the screen. The page shrinks when the keyboard opens
@@ -7121,7 +7179,7 @@ $('text').addEventListener('focus', () => setTimeout(() => { if (document.active
 $('compose').addEventListener('click', ev => { if (!ev.target.closest('button, input')) $('text').focus(); });
 $('dock').addEventListener('click', ev => { const bar = document.querySelector('#dock .bar'); if (!ev.target.closest('button, input, .msgs, .quick, .replyBar, .pinBar, .chatTop, .recBar, .recLock') && ev.clientY >= bar.getBoundingClientRect().top - 4) $('text').focus(); });   // the space just around and under the box opens typing too
 addEventListener('resize', () => document.body.classList.toggle('kbUp', keyboardUp()));
-const sendTyped = () => { sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
+const sendTyped = () => { if (editing) { sendEdit($('text').value); return; } sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
 $('text').addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.keyCode === 13) && !ev.shiftKey) { ev.preventDefault(); sendTyped(); } });   // the keyboard's Enter sends
 $('msgs').addEventListener('scroll', toEndState, { passive: true });
 $('msgs').addEventListener('scroll', () => { if ($('msgs').scrollTop < 80) showOlder(); }, { passive: true });
@@ -7185,6 +7243,8 @@ function dropMsgs(ids) {
   store.set('pins:' + room, pins); renderPins();
   archTx('readwrite', st => { for (const id of ids) st.delete(id); const q = st.openCursor(); q.onsuccess = () => { const cur = q.result; if (!cur) return; if (unquote(cur.value)) cur.update(cur.value); cur.continue(); }; }).catch(() => {});
   if (replyTo && set.has(replyTo.id)) setReply(null);
+  if (editing && set.has(editing)) setEdit(null);
+  for (const id of ids) delete editOut[id]; store.set('editOut:' + room, editOut);
   if (vnCur && set.has(vnCur)) { vnAudio.pause(); vnCur = null; }
   findAll = null; saveChat(); vnGc(); renderChat();
 }
@@ -7204,6 +7264,9 @@ function gotDelOk(m) {
   const done = new Set(m.ids); delOut = delOut.filter(x => !done.has(x)); store.set('delOut:' + room, delOut);
 }
 steady(() => { if (delOut.length && partnerOnline()) send({ t: 'del', ids: delOut }); }, 5000);
+steady(() => {   // an edit keeps going out until the other phone confirms it; given up after a day
+  for (const [id, e] of Object.entries(editOut)) { if (Date.now() - e.ed > 86400000) { delete editOut[id]; store.set('editOut:' + room, editOut); } else if (partnerOnline()) send({ t: 'edit', id, text: e.text, ed: e.ed }); }
+}, 5000);
 $('delNo').onclick = () => { $('delSheet').hidden = true; delFor = null; };
 $('delSheet').onclick = ev => { if (ev.target === $('delSheet')) { $('delSheet').hidden = true; delFor = null; } };
 $('delForm').onsubmit = ev => { ev.preventDefault(); $('delSheet').hidden = true; if (delFor) { tap(); deleteMsg(delFor); } delFor = null; };
@@ -7243,6 +7306,7 @@ $('dock').addEventListener('click', ev => {   // a double tap on any empty part 
   if (now - dockTapAt < 300) { dockTapAt = 0; tap(); closeChat(); } else dockTapAt = now;
 });
 $('replyX').onclick = () => { setReply(null); backToTyping(); };
+$('editX').onclick = () => { setEdit(null); backToTyping(); };
 $('replyPin').onclick = () => {   // pin or unpin the message being answered, then drop the reply
   const c = replyTo && chat.find(x => x.id === replyTo.id); if (!c) return;
   const on = !!(pins[c.id] && pins[c.id].on);
