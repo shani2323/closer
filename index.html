@@ -2355,7 +2355,7 @@ function sendEdit(text) {
 }
 function gotEdit(m) {
   if (typeof m.id !== 'string' || !/^[\w-]{1,24}$/.test(m.id) || typeof m.text !== 'string' || !m.text.trim() || !(m.ed > 0)) return;
-  const text = m.text.trim().slice(0, 500), ed = +m.ed, okNow = () => send({ t: 'editok', id: m.id, ed }), fits = o => o.who === 'them' && !o.vn && !o.im && !o.gif && ed > (o.ed || 0);
+  const text = m.text.trim().slice(0, 500), ed = +m.ed, okNow = () => send({ t: 'editok', id: m.id, ed }), fits = o => o.who === 'them' && !o.vn && !o.im && !o.gif && ed > (o.ed || 0) && ed - o.at < EDIT_MS + 60000;   // this phone also holds to the 15 minutes, by the sender's own two times, so a late delivery still counts
   const c = [...chat, ...older].find(x => x.id === m.id && x.who === 'them');
   if (c) { if (fits(c)) applyEdit(c, text, ed); okNow(); return; }
   if (cleared.has(m.id)) { okNow(); return; }
@@ -6227,7 +6227,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-193818';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-013517';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
