@@ -846,7 +846,8 @@
   .calcKeys .zero { grid-column: span 2; aspect-ratio: auto; text-align: left; padding-left: 30px; }
   @media (prefers-reduced-motion: reduce) { .lockDots.shake { animation: none; } }
   .splash { position: fixed; inset: 0; z-index: 20; display: grid; place-content: center; gap: 6px; text-align: center; pointer-events: none; background: #000;
-            animation: splash 1.1s cubic-bezier(.2, .8, .2, 1) forwards; }
+            transition: opacity 160ms ease-out; }
+  .splash.out { opacity: 0; }
   .splash b { font-size: 40px; font-weight: 700; letter-spacing: -.03em; }
   .splash span { font-size: 17px; color: var(--label2); }
   @keyframes splash { 0%, 55% { opacity: 1; } to { opacity: 0; visibility: hidden; } }
@@ -1319,9 +1320,10 @@
   </form>
 </div>
 
-<!-- the messaging library (330 KB) loads here, not in the head: the lock and the page show first on a slow phone (Xed 13 Nov) -->
-<script src="mqtt.min.js" integrity="sha384-u4uqeACkFcoKl57rBQJHVGDd1pqhW4w8X3WjTu1ZksPdxoLqdt34jpoNkJisE25W"></script>
 <script>
+// The messaging library (330 KB) is started first but never waited for: the app shows at once and connects the moment the library is in (Xed 13 Nov: open instantly).
+const mqttReady = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'mqtt.min.js'; s.integrity = 'sha384-u4uqeACkFcoKl57rBQJHVGDd1pqhW4w8X3WjTu1ZksPdxoLqdt34jpoNkJisE25W'; s.crossOrigin = 'anonymous'; s.async = true; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+mqttReady.catch(() => {});
 // Egg protocol, read from the official app's Bluetooth recording and confirmed on the real eggs (2026-11-03):
 //   service 0xFFE0; commands to 0xFFE1; replies from 0xFFE2
 //   strength 55 03 05 A 00 B  (A = suction egg, B = vibrating egg, 0..100)
@@ -2001,6 +2003,7 @@ async function startNet() {
   if (isRemote) { stopPending = kept('stopAt') || 0; mayRun = !!kept('mayRun'); }
   if (isRemote) { hostPair = store.get('hostPair:' + room); if (hostPair) pairKey = await derive(hostPair.pub); }
   else { pair = store.get('pair:' + room); if (pair) pairKey = await derive(pair.pub); }
+  await mqttReady;
   BROKERS.forEach(([url, login], i) => {
     const c = mqtt.connect(url, { clientId: `closer_${me}_${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 2000, connectTimeout: 8000, ...login });
     clients.push(c);
@@ -5869,6 +5872,7 @@ function wakeSlow() { const w = slowWake; slowWake = []; w.forEach(f => f()); }
 function ensureLanes() {   // two connections only for video, so slider moves and chat never queue behind it; more get refused by the relays
   lanesAt = Date.now();
   if (lanes) return;
+  if (typeof mqtt === 'undefined') { mqttReady.then(ensureLanes, () => {}); return; }
   lanes = [BROKERS[0], BROKERS[1], BROKERS[0], BROKERS[2]].map(([url, login], i) => {
     const c = mqtt.connect(url, { clientId: `closer_${me}_v${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 3000, connectTimeout: 8000, ...login });
     c.left = 0;
@@ -6165,7 +6169,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-213548';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-220434';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7293,7 +7297,7 @@ addEventListener('popstate', () => {
   history.pushState(null, '');
 });
 $('splashSide').textContent = isRemote ? 'His side' : 'Her side';
-setTimeout(() => $('splash').remove(), 700);
+$('splash').classList.add('out'); setTimeout(() => $('splash').remove(), 200);   // the logo only covers the moment the app is getting ready, never a fixed wait
 $('meBtn').onclick = () => { $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
 $('nameForm').onsubmit = ev => {
   ev.preventDefault();
