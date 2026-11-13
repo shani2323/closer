@@ -2193,6 +2193,11 @@ function gotAck(m) {
   const st = c && (c.vn || c.im) ? (m.pl ? 3 : 2) : m.seen ? 3 : 2;   // a voice note turns blue only when it was played, not when the chat was looked at
   if (c && (c.st || 0) < st) { c.st = st; saveChat(); renderChat(); }
   if (c && c.im && c.im.vo && m.pl && vnHave.has(c.id)) imSpent(c.id);   // she opened his view-once photo: it goes from his phone too
+  if (!c && m.vn) archTx('readwrite', st => { const q = st.get(m.id); q.onsuccess = () => {   // an older message, kept only in the phone's database
+    const o = q.result; if (!o || o.who !== 'me') return;
+    o.st = Math.max(o.st || 0, m.pl ? 3 : 2); st.put(o);
+    if (o.im && o.im.vo && m.pl) { archMedia.delete(o.id); if (vnHave.has(o.id)) imSpent(o.id); }
+  }; }).catch(() => {});
 }
 function gotSeen() {
   let changed = false;
@@ -2263,8 +2268,8 @@ steady(() => {
 }, 2000);
 async function gotVget(m) {
   if (typeof m.id !== 'string' || !Array.isArray(m.i) || !vnHave.has(m.id)) return;
-  const mc = chat.find(x => x.id === m.id);
-  if (mc && mc.im && mc.im.vo && (mc.who === 'them' || imSpentNow(mc))) return;   // a view-once photo is only ever sent by the one who took it, and never after it was opened
+  const mc = msgById(m.id) || await archTx('readonly', st => st.get(m.id)).catch(() => null);
+  if (!mc || (mc.im && mc.im.vo && (mc.who === 'them' || imSpentNow(mc)))) return;   // unknown here: refuse. A view-once photo is only ever sent by the one who took it, and never after it was opened   // a view-once photo is only ever sent by the one who took it, and never after it was opened
   const v = await vnLoad(m.id); if (!v || !v.b) return;
   const n = Math.ceil(v.b.size / VN_PART);
   for (const i of m.i.slice(0, 8)) {
@@ -5637,7 +5642,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-111423';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-163103';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
