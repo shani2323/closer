@@ -12,7 +12,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<script src="mqtt.min.js" integrity="sha384-u4uqeACkFcoKl57rBQJHVGDd1pqhW4w8X3WjTu1ZksPdxoLqdt34jpoNkJisE25W"></script>
 <style>
   :root {
     --bg: #000; --label: #f5f5f7; --label2: rgba(235, 235, 245, .62); --label3: rgba(235, 235, 245, .32);
@@ -30,7 +29,7 @@
     background: radial-gradient(60% 40% at 15% 8%, rgba(94, 92, 230, .30), transparent 70%),
                 radial-gradient(55% 35% at 90% 30%, rgba(191, 90, 242, .22), transparent 70%),
                 radial-gradient(70% 45% at 40% 95%, rgba(255, 122, 184, .14), transparent 70%), var(--bg); }
-  main { max-width: 480px; margin: 0 auto; }
+  main { max-width: 480px; margin: 0 auto; min-height: 100dvh; }   /* tall enough that the top bar always stays stuck at the top */
   button, input { font: inherit; letter-spacing: inherit; color: inherit; }
   button { cursor: pointer; }
   button:active { transform: scale(.97); transition: transform .1s ease-out; }
@@ -38,16 +37,14 @@
   .glass { background: var(--glass); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
            border: .5px solid var(--hair); box-shadow: inset 0 .5px 0 var(--edge); }
 
-  header { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 10px;
-           margin: -12px -16px 0; padding: 12px 16px 10px; transition: background-color .3s; }
-  header.small { background: rgba(0, 0, 0, .72); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
-                 box-shadow: 0 .5px 0 rgba(255, 255, 255, .1); }
-  h1 { margin: 0; font-size: clamp(26px, 8.4vw, 34px); font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; transition: font-size .25s; }
+  .topbar { position: sticky; top: 0; z-index: 5; margin: -12px -16px 0; padding: max(6px, env(safe-area-inset-top)) 16px 8px; background: var(--bg); transition: background-color .3s; }   /* Xed 13 Nov: title + sections stay put, slim */
+  .topbar.small { background: rgba(0, 0, 0, .78); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 .5px 0 rgba(255, 255, 255, .1); }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 6px; }
+  h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.025em; line-height: 1.1; white-space: nowrap; }
   .me { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  header.small h1 { font-size: 22px; }
   .hdr { display: flex; align-items: center; gap: 8px; }
-  @media (max-width: 370px) { h1 { font-size: 24px; } .hdr, .hleft { gap: 5px; } .stop { padding: 0 10px 0 9px; gap: 5px; } .me { padding: 0 11px; } }   /* small phones: everything on the title line still fits */
-  .me { min-height: 36px; padding: 0 14px; border-radius: 18px; font-size: 15px; font-weight: 500; }
+  @media (max-width: 370px) { h1 { font-size: 21px; } .hdr, .hleft { gap: 5px; } .stop { padding: 0 10px 0 9px; gap: 5px; } .me { padding: 0 11px; } }   /* small phones: everything on the title line still fits */
+  .me { min-height: 32px; padding: 0 13px; border-radius: 18px; font-size: 15px; font-weight: 500; }
 
   .status { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; }
   .status li { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; font-size: 13px; letter-spacing: -.005em;
@@ -126,8 +123,9 @@
                   -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
                   -webkit-mask-image: linear-gradient(transparent, #000 26px); mask-image: linear-gradient(transparent, #000 26px); }
   .dock-in { max-width: 480px; margin: 0 auto; }
-  body.chatTab main > :not(header):not(#tabs):not(#batWarn):not(#alertAsk):not(#listenAsk) { display: none !important; }   /* cards that need a tap still show, above the chat */
+  body.chatTab main > :not(.topbar):not(#batWarn):not(#alertAsk):not(#listenAsk) { display: none !important; }   /* cards that need a tap still show, above the chat */
   body.chatTab #alertAsk, body.chatTab #listenAsk { margin-top: 8px; }   /* the Chat section: title, tabs, then only the conversation */
+  body.chatTab .dock { padding-top: 6px; }
   body.chatTab .dock::before { top: -14px; background: var(--bg); -webkit-mask-image: none; mask-image: none; }   /* the Chat tab: the conversation fills everything under the tabs */
   body.chatTab .dock.open .msgs { max-height: var(--chatRoom, 60dvh) !important; min-height: var(--chatRoom, 60dvh); overflow: auto !important; }
   .e2e { display: block; align-self: center; max-width: 88%; margin: 2px auto 8px; padding: 6px 10px; border: 0; border-radius: 8px; background: rgba(255, 214, 10, .12); color: #e9d58c; font-family: inherit; font-size: 12px; line-height: 1.35; text-align: center; }
@@ -139,16 +137,17 @@
           -webkit-mask-image: linear-gradient(transparent, #000 20px); mask-image: linear-gradient(transparent, #000 20px); }
   .msgs::-webkit-scrollbar { display: none; }
   .msgs:empty { display: none; }
-  body:not(.watching) .dock:not(.open) .msgs .bubble:not(:last-child), body.watching.vidOn .dock:not(.open) .msgs .bubble:not(:last-child) { display: none; }   /* small: only the newest message; on Watch with nothing playing the chat fills the empty space instead */
+  body:not(.watching) .dock:not(.open) .msgs .bubble:not(:nth-last-child(-n+3)), body.watching.vidOn .dock:not(.open) .msgs .bubble:not(:nth-last-child(-n+3)) { display: none; }   /* small: the newest 3 messages in every section (Xed 13 Nov); on Watch with nothing playing the chat fills the empty space instead */
+  .dock:not(.open) .msgs { max-height: 136px; }
   .peek { margin: 0 0 4px; text-align: center; font-size: 12px; line-height: 1.2; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .peek b { font-weight: 600; color: var(--label); }
   .peek.live i { color: var(--green); font-style: normal; }
   .peek i { font-style: normal; }
   .dock.open .peek { display: none; }   /* open: the chat header says it */
   .dock.open .msgs { max-height: 55dvh; }
-  .chatTop { display: none; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .chatTop { display: none; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
   .dock.open .chatTop { display: flex; }
-  .closeChat { height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: var(--fill); font-size: 14px; font-weight: 600; }
+  .closeChat { height: 30px; padding: 0 12px; border: 0; border-radius: 18px; background: var(--fill); font-size: 14px; font-weight: 600; }
   .chatTop .clearChat { margin: 0; }
   .chatWho { flex: 1; min-width: 0; text-align: center; line-height: 1.15; }
   .chatWho b { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -204,12 +203,164 @@
   .send { background: var(--blue); color: #fff; width: 36px; height: 36px; }
   .send svg { width: 18px; height: 18px; }
   .send:disabled { background: var(--fill2); color: var(--label3); }
-  .stop { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; border: 0; border-radius: 18px;
+  /* voice notes (Xed 13 Nov): the mic sits where Send is while the box is empty, like WhatsApp */
+  #sendBtn:disabled { display: none; }
+  #sendBtn:not(:disabled) ~ #micBtn { display: none; }
+  .mic { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform 120ms ease-out; }
+  .mic svg { width: 21px; height: 21px; }
+  .mic .micSend { display: none; }
+  body.rec .mic { transform: scale(1.45); }
+  body.recLocked .mic { transform: none; }
+  body.recLocked .mic .micIc { display: none; }
+  body.recLocked .mic .micSend { display: block; width: 18px; height: 18px; }
+  body.rec .compose > :not(#micBtn) { visibility: hidden; }
+  .bar { position: relative; }
+  .recBar { position: absolute; left: 0; top: 0; bottom: 0; right: 46px; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; z-index: 2; overflow: hidden; }
+  .recBar[hidden], .recLock[hidden] { display: none; }
+  .recDot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #ff3b30; animation: recBlink 1s ease-in-out infinite; }
+  @keyframes recBlink { 50% { opacity: .25; } }
+  .recT { flex: none; min-width: 40px; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--label); }
+  .recSlide { margin-left: auto; font-size: 15px; color: var(--label2); white-space: nowrap; }
+  .recWave { flex: 1; min-width: 0; display: none; align-items: center; justify-content: flex-end; gap: 2px; height: 28px; overflow: hidden; }
+  .recWave i { flex: none; width: 3px; border-radius: 2px; background: var(--label2); }
+  .vnDel { display: none; margin-left: -8px; color: var(--label2); }
+  body.recLocked .recBar { padding-left: 4px; }
+  body.recLocked .vnDel { display: grid; }
+  body.recLocked .recSlide { display: none; }
+  body.recLocked .recWave { display: flex; }
+  .recLock { position: absolute; right: 4px; bottom: 70px; width: 38px; padding: 10px 0 8px; border-radius: 19px; display: grid; justify-items: center; gap: 4px; color: var(--label2); z-index: 2; animation: recUp 260ms cubic-bezier(.2, .8, .2, 1); }
+  .recLock svg { width: 18px; height: 18px; }
+  @keyframes recUp { from { transform: translateY(16px); opacity: 0; } }
+  .bubble.voice { width: 280px; white-space: normal; }
+  .vn { display: flex; align-items: center; gap: 6px; }
+  .vnPlay, .vnSpd { flex: none; border: 0; padding: 0; background: none; color: #aebac1; }
+  .vnPlay { width: 36px; height: 36px; display: grid; place-items: center; margin-left: -4px; }
+  .vnPlay svg { width: 28px; height: 28px; }
+  .vnPlay.wait svg { animation: vnSpin 1s linear infinite; }
+  @keyframes vnSpin { to { transform: rotate(360deg); } }
+  .vnWave { flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: 2px; touch-action: none; }
+  .vnWave i { flex: 1; max-width: 3px; min-width: 2px; border-radius: 2px; background: rgba(233, 237, 239, .35); }
+  .vnWave i.on { background: #53bdeb; }
+  .bubble.mine .vnWave i.on { background: #e9edef; }
+  .vnMic { flex: none; width: 30px; display: grid; place-items: center; color: rgba(233, 237, 239, .45); }
+  .vnMic svg { width: 15px; height: 15px; }
+  .vnMic.new { color: #25d366; }
+  .vnMic.pl { color: #53bdeb; }
+  .vn.on + .vnFoot .vnMic { display: none; }
+  .vnFoot { display: flex; align-items: center; gap: 6px; margin: 0 0 0 2px; font-size: 11px; line-height: 16px; color: rgba(233, 237, 239, .6); }
+  .vnFoot .meta { float: none; margin: 0 0 0 auto; }
+  .vnSpd { display: none; height: 18px; padding: 0 7px; border-radius: 9px; background: rgba(233, 237, 239, .16); color: #e9edef; font-size: 11px; font-weight: 600; }
+  .vn.on + .vnFoot .vnSpd { display: inline-block; margin-left: 2px; }
+  .vnGone { font-size: 13px; color: rgba(233, 237, 239, .6); }
+  @media (prefers-reduced-motion: reduce) { .recDot, .recLock, .vnPlay.wait svg { animation: none; } }
+  /* our stats (Xed 13 Nov) */
+  .statBtn { flex: none; height: 30px; padding: 0 11px; border: 0; border-radius: 15px; background: linear-gradient(135deg, rgba(255, 55, 120, .28), rgba(150, 70, 230, .28)); color: #ffd1e3; font-size: 13px; font-weight: 600; }
+  .statSheet { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; background: radial-gradient(120% 60% at 50% 0%, #2a1030 0%, #0b0610 55%, #000 100%); animation: stIn 320ms cubic-bezier(.2, .8, .2, 1); }
+  .statSheet[hidden] { display: none; }
+  @keyframes stIn { from { opacity: 0; transform: translateY(24px); } }
+  .stTop { display: flex; align-items: center; justify-content: space-between; padding: max(10px, env(safe-area-inset-top)) 16px 6px; }
+  .stTop b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+  .stTop button { width: 38px; height: 38px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); color: #fff; font-size: 18px; }
+  .statBody { flex: 1; overflow-y: auto; padding: 4px 14px calc(18px + env(safe-area-inset-bottom)); max-width: 520px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+  .stHero { display: grid; justify-items: center; text-align: center; padding: 6px 0 14px; }
+  .stHeart { position: relative; width: 150px; height: 136px; }
+  .stHeart svg { width: 100%; height: 100%; filter: drop-shadow(0 8px 28px rgba(255, 45, 110, .45)); }
+  .stHeartBg { fill: rgba(255, 255, 255, .08); stroke: rgba(255, 120, 170, .5); stroke-width: .6; }
+  .stFill { fill: #ff2d6f; }
+  .stScore { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding-bottom: 14px; font-size: 40px; font-weight: 800; letter-spacing: -.03em; color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, .45); font-variant-numeric: tabular-nums; }
+  .stScore::after { content: "%"; font-size: 18px; font-weight: 700; margin-left: 1px; align-self: center; }
+  .stTier { margin-top: 4px; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+  .stSub { margin: 4px 12px 0; font-size: 13px; line-height: 1.35; color: var(--label2); }
+  .stTug { margin: 0 0 12px; padding: 12px 14px; border-radius: 18px; background: rgba(255, 255, 255, .06); }
+  .stTugHead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; color: var(--label2); }
+  .stTugHead span { max-width: 32%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stTugHead b { font-size: 15px; color: var(--label); }
+  .stBar { height: 12px; margin: 8px 0 6px; border-radius: 6px; background: linear-gradient(90deg, #7a5cff, #b06cff); overflow: hidden; }
+  .stBar i { display: block; height: 100%; border-radius: 6px 0 0 6px; background: linear-gradient(90deg, #ff2d6f, #ff6a9a); box-shadow: 2px 0 0 #fff; }
+  .stTug p { margin: 0; font-size: 13px; color: var(--label2); }
+  .stGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stTile { padding: 11px 12px 12px; border-radius: 18px; background: rgba(255, 255, 255, .06); min-width: 0; }
+  .stIc { font-size: 20px; line-height: 1; }
+  .stTile h3 { margin: 6px 0 6px; font-size: 13px; font-weight: 600; color: var(--label2); letter-spacing: -.01em; }
+  .stNums { display: flex; gap: 10px; align-items: flex-end; }
+  .stVs { flex: 1; min-width: 0; display: grid; }
+  .stVs b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stVs i { font-style: normal; font-size: 11px; color: var(--label2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stVs + .stVs b { color: #ff8fb3; }
+  .stBig { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; }
+  .stUnit { font-size: 12px; color: var(--label2); padding-bottom: 3px; }
+  .stTile p { margin: 7px 0 0; font-size: 11.5px; line-height: 1.3; color: var(--label2); }
+  .stWide { grid-column: 1 / -1; }
+  .stToyRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .stToyRow .stVs b { font-size: 19px; }
+  .stDrive { height: 8px; margin: 10px 0 0; }
+  .stFoot { margin: 14px 4px 0; text-align: center; font-size: 12px; color: var(--label3, rgba(255, 255, 255, .45)); }
+  .stEmpty { margin: 40px 20px; text-align: center; color: var(--label2); }
+  @media (prefers-reduced-motion: reduce) { .statSheet { animation: none; } }
+  /* search every message (Xed 13 Nov) */
+  .findBtn { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-right: 6px; border: 0; border-radius: 50%; background: var(--fill); color: var(--label); }
+  .findTop { gap: 10px; }
+  #findQ { flex: 1; min-width: 0; height: 38px; border: 0; border-radius: 19px; background: rgba(255, 255, 255, .12); padding: 0 16px; font-size: 16px; color: #fff; outline: none; }
+  .findNote { margin: 28px 12px; text-align: center; color: rgba(255, 255, 255, .6); font-size: 15px; line-height: 1.4; }
+  .findHit { display: block; width: 100%; margin: 0 0 6px; padding: 10px 12px; border: 0; border-radius: 14px; background: rgba(255, 255, 255, .07); color: #fff; text-align: left; font: inherit; }
+  .findHit small { display: block; margin-bottom: 3px; color: rgba(255, 255, 255, .55); font-size: 12px; }
+  .findHit span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.35; }
+  .findHit mark { background: rgba(255, 214, 10, .35); color: #fff; border-radius: 3px; }
+  /* GIFs (Xed 13 Nov) */
+  .gifBtn span { display: grid; place-items: center; width: 30px; height: 22px; border: 1.7px solid currentColor; border-radius: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: .02em; }
+  .gifBtn.on { color: var(--blue); }
+  .gifPanel { display: flex; flex-direction: column; height: min(48dvh, 400px); margin-bottom: 8px; padding: 8px 8px 0; border-radius: 22px; }
+  .gifPanel[hidden] { display: none; }
+  .gifHead { display: flex; gap: 6px; align-items: center; }
+  #gifQ { flex: 1; min-width: 0; height: 36px; border: 0; border-radius: 18px; background: var(--fill); padding: 0 14px; font-size: 15px; color: inherit; outline: none; }
+  #gifSrc { flex: none; display: flex; padding: 2px; border-radius: 18px; background: var(--fill); }
+  #gifSrc button { height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: none; font-size: 13px; font-weight: 600; color: var(--label2); }
+  #gifSrc button.on { background: #636366; color: #fff; }
+  #gifSrc button[data-src=adult].on { background: linear-gradient(135deg, #ff2d6f, #9b4dff); }
+  .gifChips { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; scrollbar-width: none; }
+  .gifChips::-webkit-scrollbar { display: none; }
+  .gifChips button { flex: none; height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font-size: 13px; white-space: nowrap; }
+  .gifChips button.on { background: var(--blue); color: #fff; }
+  .gifGrid { flex: 1; min-height: 0; overflow-y: auto; columns: 2; column-gap: 6px; padding-bottom: 8px; scrollbar-width: none; }
+  .gifItem { display: block; width: 100%; margin: 0 0 6px; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, .06); break-inside: avoid; }
+  .gifItem video, .gifBox video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  #gifNote { margin: 10px 8px; text-align: center; font-size: 13px; color: var(--label2); column-span: all; }
+  .bubble.gifb { padding: 3px; white-space: normal; }
+  .gifBox { position: relative; width: 220px; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, .06); }
+  .gifBox.veiled video { filter: blur(26px); transform: scale(1.15); }
+  .gifVeil { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(30, 0, 30, .55); color: #fff; font-size: 14px; font-weight: 600; }
+  .gifTag { position: absolute; left: 6px; top: 6px; padding: 1px 5px; border-radius: 5px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 10px; font-weight: 800; }
+  .gifBox .meta { position: absolute; right: 6px; bottom: 5px; margin: 0; float: none; padding: 2px 6px; border-radius: 9px; background: rgba(0, 0, 0, .45); color: #fff; }
+  /* photos (Xed 13 Nov) */
+  .bubble.photo { padding: 3px; white-space: normal; }
+  .imBox { position: relative; width: 250px; max-width: 100%; max-height: 330px; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, .06); }
+  .imPic { display: block; width: 100%; height: 100%; object-fit: cover; -webkit-touch-callout: none; user-select: none; pointer-events: none; }
+  .imPic.blur { filter: blur(10px); transform: scale(1.1); }
+  .imBox .meta { position: absolute; right: 6px; bottom: 5px; margin: 0; float: none; padding: 2px 6px; border-radius: 9px; background: rgba(0, 0, 0, .45); color: #fff; }
+  .imWait, .imGone { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; }
+  .imWait svg { width: 40px; height: 40px; animation: vnSpin 1s linear infinite; }
+  .imGone { font-size: 13px; background: rgba(0, 0, 0, .4); }
+  .imOnce { display: flex; align-items: center; gap: 8px; padding: 6px 10px 2px 6px; font-size: 15px; }
+  .imOnce.spent { color: rgba(233, 237, 239, .6); }
+  .onceIc { flex: none; width: 22px; height: 22px; border: 2px dashed currentColor; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+  .bubble.photo .vnFoot { margin: 0 4px 2px; }
+  .imView { position: fixed; inset: 0; z-index: 40; background: #000; display: flex; flex-direction: column; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+  .imView[hidden] { display: none; }
+  .imTop { display: flex; align-items: center; gap: 10px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; color: #fff; font-size: 16px; }
+  .imTop button { width: 42px; height: 42px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); color: #fff; font-size: 20px; }
+  .imStage { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; touch-action: none; }
+  .imStage img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; transform-origin: center; -webkit-touch-callout: none; }
+  .imSend { display: flex; align-items: center; gap: 12px; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); color: #fff; }
+  .onceBtn { width: 40px; height: 40px; border: 2px dashed rgba(255, 255, 255, .7); border-radius: 50%; background: none; color: #fff; font-weight: 700; font-size: 15px; }
+  .onceBtn.on { border-style: solid; border-color: var(--blue); background: var(--blue); }
+  #imOnceTxt { flex: 1; font-size: 15px; }
+  #imGo { width: 52px; height: 52px; }
+  .stop { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px 0 12px; border: 0; border-radius: 18px;
           background: rgba(255, 69, 58, .16); color: #ff6961; font-size: 15px; font-weight: 600; }
   .stop::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: currentColor; }
   .stop:active { background: rgba(255, 69, 58, .3); }
 
-  .toast { pointer-events: none; position: fixed; left: 12px; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 56px); z-index: 6; max-width: 480px; margin: 0 auto;
+  .toast { pointer-events: none; position: fixed; left: 12px; right: 12px; top: calc(max(6px, env(safe-area-inset-top)) + 84px); z-index: 6; max-width: 480px; margin: 0 auto;
            padding: 12px 16px; border-radius: 18px; font-size: 15px; letter-spacing: -.01em; background: var(--glass-strong);
            transition: opacity .25s, transform .3s cubic-bezier(.3, .7, .4, 1); }
   .toast.hide { opacity: 0; transform: translateY(-16px) scale(.98); pointer-events: none; }
@@ -292,7 +443,7 @@
   .parkBox h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -.025em; }
   .parkBox p { margin: 0 0 14px; color: var(--label2); font-size: 15px; }
   .primary.alt { background: var(--fill2); }
-  .tabs { display: flex; flex-wrap: nowrap; overflow: hidden; gap: 2px; margin: 0 0 12px; padding: 2px; border-radius: 10px; background: var(--fill); }
+  .tabs { display: flex; flex-wrap: nowrap; overflow: hidden; gap: 2px; margin: 0; padding: 2px; border-radius: 10px; background: var(--fill); }
   .tabs button { flex: 1 1 auto; min-width: 0; height: 34px; padding: 0 clamp(2px, 1vw, 7px); white-space: nowrap; border: 0; border-radius: 8px; background: none; font-size: clamp(10.5px, 3.2vw, 13px); font-weight: 500; letter-spacing: -.02em; }   /* every section fits one row on any phone width */
   @media (max-width: 340px) { .tabs .tdl { display: none; } }
   .tabs button[aria-selected=true] { background: #636366; font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .25); }
@@ -466,7 +617,7 @@
   body.watching .toast { top: auto; bottom: calc(var(--dock, 80px) + 12px); }
   body.watching.scrolled #vidNote, body.watching.scrolled #vidTogether { display: none; }   /* scrolled down: only the video and its buttons stay pinned */
   body.watching.vidOn .dock.open .msgs { max-height: 30vh; }
-  body.watching.vidOn .dock:not(.open) .msgs { max-height: 40px; overflow: hidden; }   /* a video is up: only the newest message peeks out */
+  body.watching.vidOn .dock:not(.open) .msgs { max-height: 112px; overflow: hidden; }   /* a video is up: the newest 3 still show under it (Xed 13 Nov) */
   body.watching:not(.vidOn) .dock .msgs { max-height: var(--room, 30vh); }   /* nothing playing: the chat grows into the empty space */   /* only the newest message peeks out; tap it to open the chat */
   body.watching .dock { padding-top: 8px; }
   body.watching main { padding-bottom: calc(var(--dock, 80px) + 16px); }
@@ -590,14 +741,14 @@
   .bubble.flash { animation: bflash 1.4s ease-out; }
   @keyframes bflash { 0%, 35% { filter: brightness(1.7); } }
   .pinMark { width: 11px; height: 11px; margin-right: 3px; vertical-align: -1px; opacity: .65; }
-  .pinBar { display: none; align-items: center; gap: 10px; margin: 0 4px 6px; padding: 7px 12px 7px 10px; border-radius: 12px; background: var(--fill); cursor: pointer; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .pinBar { display: none; align-items: center; gap: 10px; margin: 0 2px 4px; padding: 4px 10px 4px 8px; border-radius: 12px; background: var(--fill); cursor: pointer; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .dock.open .pinBar:not([hidden]) { display: flex; }
   .pinBar:active { background: var(--fill2); }
   .pinTicks { display: flex; flex-direction: column; gap: 2px; align-self: stretch; }
   .pinTicks:empty { display: none; }
   .pinTicks i { flex: 1; width: 2px; border-radius: 1px; background: var(--label3); }
   .pinTicks i.on { background: var(--label); }
-  .pinBar div { flex: 1; min-width: 0; font-size: 13px; line-height: 1.3; }
+  .pinBar div { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.25; }
   .pinBar b { display: block; font-weight: 600; color: var(--label); }
   .pinBar span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--label2); }
   .pinBar .pinMark { flex: none; width: 15px; height: 15px; margin: 0; opacity: .6; }
@@ -769,13 +920,14 @@
 })();
 </script>
 <main>
-  <header>
+  <div class="topbar" id="topbar"><header>
     <div class="hleft"><h1>Loveline</h1><button class="me glass" id="buzzBtn" aria-label="Send Thinking of you" hidden>💗</button></div>
     <div class="hdr">
       <button class="stop" id="stop" aria-label="Stop everything">Stop</button>
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
     </div>
   </header>
+  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="chat" aria-selected="false">Chat</button><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game" aria-label="Truth or Dare"><span class="tdl">Truth or </span>Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="ludo">Ludo</button><button role="tab" data-p="watch">Watch</button></nav></div>
   <ul class="status" id="status" aria-label="Who and what is connected"></ul>
   <section class="hero glass" id="hero" hidden>
     <div class="heroFaces" aria-hidden="true"><span id="heroF1"></span><span id="heroF2"></span></div>
@@ -783,7 +935,6 @@
     <p class="note" id="heroText"></p>
     <div id="heroSlot"></div>
   </section>
-  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="chat" aria-selected="false">Chat</button><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game" aria-label="Truth or Dare"><span class="tdl">Truth or </span>Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="ludo">Ludo</button><button role="tab" data-p="watch">Watch</button></nav>
   <p class="warn" id="batWarn" role="alert" hidden></p>
   <section class="ask glass" id="alertAsk" hidden>
     <b>💗 Get Thinking of you alerts</b>
@@ -922,7 +1073,7 @@
 
 <div class="msgMenu" id="msgMenu" role="menu" hidden></div>
 <div class="dock" id="dock"><div class="dock-in">
-  <div class="chatTop"><button class="clearChat" id="clearChat" hidden>Clear chat</button><div class="chatWho"><b id="chatName"></b><small id="chatSeen"></small></div><button class="closeChat" id="closeChat">Close</button></div>
+  <div class="chatTop"><button class="clearChat" id="clearChat" hidden>Clear chat</button><div class="chatWho"><b id="chatName"></b><small id="chatSeen"></small></div><button class="findBtn" id="findBtn" aria-label="Search messages"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button><button class="statBtn" id="statBtn" aria-label="Our stats">💞 Stats</button><button class="closeChat" id="closeChat">Close</button></div>
   <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
   <div class="peek" id="chatPeek"></div>
   <div class="pinBar" id="pinBar" role="button" tabindex="0" hidden><span class="pinTicks" id="pinTicks"></span><div><b id="pinHead">Pinned message</b><span id="pinText"></span></div><svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg></div>
@@ -930,19 +1081,36 @@
   <div class="toEndWrap"><button type="button" class="toEnd" id="toEnd" aria-label="Go to the newest messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><b id="toEndN" hidden></b></button></div>
   <div class="typing" id="typing" hidden></div>
   <div class="quick glass" id="quick" hidden></div>
+  <div class="gifPanel glass" id="gifPanel" hidden><div class="gifHead"><input id="gifQ" type="search" placeholder="Search GIFs and memes" autocomplete="off" enterkeyhint="search" aria-label="Search GIFs"><div id="gifSrc" role="tablist"><button type="button" data-src="gif" class="on">GIFs</button><button type="button" data-src="adult">18+</button></div></div><div class="gifChips" id="gifChips"></div><div class="gifGrid" id="gifGrid"></div><p id="gifNote" hidden></p></div>
   <div class="replyBar" id="replyBar" hidden><div><b id="replyWho"></b><span id="replyText"></span></div><button type="button" class="replyPin" id="replyPin">Pin</button><button type="button" id="replyX" aria-label="Cancel the reply">✕</button></div>
   <div class="bar">
-    <form class="compose glass" id="compose">
+    <form class="compose glass" id="compose" autocomplete="off">
       <button type="button" class="icon" id="emojiBtn" aria-label="Emoji">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></svg></button>
+      <button type="button" class="icon gifBtn" id="gifBtn" aria-label="GIFs"><span>GIF</span></button>
       <input id="text" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message" enterkeyhint="send">
+      <button type="button" class="icon" id="imBtn" aria-label="Send a photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></button>
       <button class="icon send" id="sendBtn" aria-label="Send" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+      <button type="button" class="icon send mic" id="micBtn" aria-label="Hold to record a voice message">
+        <svg class="micIc" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 14.5a3.4 3.4 0 0 0 3.4-3.4V6.4a3.4 3.4 0 1 0-6.8 0v4.7a3.4 3.4 0 0 0 3.4 3.4z"/><path d="M6.6 10.8a5.4 5.4 0 0 0 10.8 0M12 16.4V20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+        <svg class="micSend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
     </form>
+    <div class="recBar" id="recBar" hidden>
+      <button type="button" class="icon vnDel" id="vnDel" aria-label="Delete the recording"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12.5h8L17 7M10.5 10.5v6M13.5 10.5v6"/></svg></button>
+      <span class="recDot"></span><span class="recT" id="recT">0:00</span><span class="recWave" id="recWave"></span><span class="recSlide" id="recSlide">‹ Slide to cancel</span>
+    </div>
+    <div class="recLock glass" id="recLock" hidden aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"/></svg></div>
   </div>
 </div></div>
 
 <div class="toast glass hide" id="toast" role="status"></div>
+<input type="file" id="imFile" accept="image/*" hidden>
+<div class="statSheet" id="findSheet" hidden role="dialog" aria-label="Search messages"><div class="stTop findTop"><input id="findQ" type="search" placeholder="Search all messages" autocomplete="off" enterkeyhint="search" aria-label="Search all messages"><button type="button" id="findX" aria-label="Close search">✕</button></div><div class="statBody" id="findBody"></div></div>
+<div class="statSheet" id="statSheet" hidden role="dialog" aria-label="Our stats"><div class="stTop"><b>Us, in numbers</b><button type="button" id="statX" aria-label="Close the stats">✕</button></div><div class="statBody" id="statBody"></div></div>
+<div class="imView" id="imView" hidden><div class="imTop"><button type="button" id="imX" aria-label="Close the photo">✕</button><span id="imWho"></span></div><div class="imStage" id="imStage"><img id="imBig" alt="Photo" draggable="false"></div></div>
+<div class="imView" id="imPrev" hidden><div class="imTop"><button type="button" id="imPrevX" aria-label="Do not send">✕</button><span>Send a photo</span></div><div class="imStage"><img id="imPrevImg" alt="The photo to send" draggable="false"></div>
+  <div class="imSend"><button type="button" class="onceBtn" id="imOnceBtn" aria-label="View once">1</button><span id="imOnceTxt"></span><button type="button" class="icon send" id="imGo" aria-label="Send the photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></div></div>
 <div class="splash" id="splash" aria-hidden="true"><b>1+1=1</b><span id="splashSide"></span></div>
 
 <div class="park" id="park" hidden><div class="parkBox glass">
@@ -1003,6 +1171,8 @@
   </form>
 </div>
 
+<!-- the messaging library (330 KB) loads here, not in the head: the lock and the page show first on a slow phone (Xed 13 Nov) -->
+<script src="mqtt.min.js" integrity="sha384-u4uqeACkFcoKl57rBQJHVGDd1pqhW4w8X3WjTu1ZksPdxoLqdt34jpoNkJisE25W"></script>
 <script>
 // Egg protocol, read from the official app's Bluetooth recording and confirmed on the real eggs (2026-11-03):
 //   service 0xFFE0; commands to 0xFFE1; replies from 0xFFE2
@@ -1129,7 +1299,7 @@ const MOVE_TRIES_MS = 5000;   // a move is only worth repeating for a moment: la
 let bt = navigator.bluetooth ? 'ok' : 'nochrome';   // ok, nochrome, off, blocked, notfound
 const tries = new Map();   // one record per egg she has picked; kept for the whole visit
 let mic = null, hearing = false;   // live sound: my microphone stream / partner's sound playing here
-let listenGate = true, partnerListening = false, typingUntil = 0, typingSent = 0;   // sound stays muted until headphones are confirmed
+let listenGate = true, partnerListening = false, typingUntil = 0, typingSent = 0, typingRec = false;   // sound stays muted until headphones are confirmed
 let vidGate = true, vidAsk = false;   // video sound follows the same rule: muted until this phone confirms headphones
 let seenTogether = null, seenTrio = null;   // last mode shown, to notice when it changes
 let lead = 'both';   // who controls: 'both', 'host' (egg phone only) or 'remote' (remote phone only)
@@ -1309,6 +1479,7 @@ const sayFront = () => send({ t: 'front', fg: !document.hidden, bg: document.hid
 document.addEventListener('visibilitychange', () => { hidAt = document.hidden ? Date.now() : 0; sayFront(); });
 steady(sayFront, 10000);   // repeated, so a lost one is mended within 10 s
 function gotFront(m) {
+  if (m.fg && partnerBgAt && typeof gotWask === 'function') gotWask();   // the other phone is back on its screen: tell it where the video is now
   const at = m.fg ? 0 : Date.now() - Math.max(0, Math.min(+m.bg || 0, 7 * 864e5));
   if (m.fg ? !partnerBgAt : partnerBgAt && partnerBgAt <= at) return;
   partnerBgAt = at; store.set('bgAt:' + room, at); render();
@@ -1362,7 +1533,7 @@ function render() {
   }
   if (seenTogether !== null && together !== seenTogether) {   // partner mode switches on and off by itself
     if (together) { notify(`${who()} is here. You're together now 💞`); burst('💞'); }
-    else if (panel === 'watch') notify(`${who()}'s connection dropped. Your video keeps going.`);   // a lost connection never ends what is on screen
+    else if (panel !== 'chat') {}   // Watch, games, Play, Draw: nothing pops up; the header says away and what is on screen carries on (Xed 13 Nov)
     else notify(`${who()} is away. You stay where you are, and messages reach ${who()} when back.`);   // never moves the section: both phones stay where they were until one of you changes it (Xed 11 Nov)
   }
   if (seenTrio !== null && trio && !seenTrio) { notify(`${label('vib')} and ${label('suc')} are both with you. Threesome on 🔥`); burst('🔥'); }
@@ -1419,7 +1590,7 @@ function render() {
   document.body.classList.toggle('calling', hearing && listenGate);
   document.body.classList.toggle('listening', (hearing && !listenGate && !$('audio').muted) || !!mic);
   $('typing').hidden = Date.now() > typingUntil;
-  $('typing').textContent = `${who()} is typing…`;
+  $('typing').textContent = `${who()} is ${typingRec ? 'recording audio' : 'typing'}…`;
 
   if (isRemote) {
     const [t, p] = clockOff ? ['The two phone clocks disagree', `They are ${Math.abs(clockOff)} minutes apart. Turn on automatic date and time on both phones.`]
@@ -1639,7 +1810,7 @@ async function gotLobby(txt) {
     logLink('joined her room without a link');
     if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
       store.set('lastRemote', location.origin + location.pathname + '#' + part); store.set('hostPair:' + b.r, null);
-      for (const k of ['chat', 'chatCleared', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
+      for (const k of ['chat', 'chatCleared', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
         const was = store.get(k + ':' + room), there = store.get(k + ':' + b.r);
         if (was == null) continue;
         if (k === 'chat' && Array.isArray(there) && there.length) { const all = new Map(); for (const c of [...there, ...was]) if (c && c.id) all.set(c.id, c); store.set('chat:' + b.r, [...all.values()].sort((a, c) => a.at - c.at).slice(-200)); }
@@ -1874,7 +2045,9 @@ let lastClear = store.get('lastClear:' + room, null);
 function forgetIds(ids) { for (const i of ids) cleared.add(i); store.set('chatCleared:' + room, [...cleared].slice(-600)); }
 function clearChat() {
   const ids = chat.map(c => c.id);
-  forgetIds(ids); chat = []; saveChat();
+  forgetIds(ids); chat = []; older = []; olderDone = false; chatShow = 80; viewTop = null; findAll = null; archSeen.clear(); archMedia.clear();
+  archTx('readwrite', st => { st.clear(); }).catch(() => {});
+  saveChat(); vnGc();
   lastClear = { id: b64url(rand(6)), ids, at: Date.now() }; store.set('lastClear:' + room, lastClear);
   forgetIds(['clear:' + lastClear.id]);
   $('dock').classList.remove('open'); renderChat();
@@ -1889,7 +2062,68 @@ function gotClear(m) {   // a clear is for the phone that tapped it only (since 
   chat = chat.filter(c => !ids.includes(c.id)); saveChat(); renderChat();
   if (chat.length !== before) notify(`${who()} cleared the chat.`);
 }
-const saveChat = () => { chat = chat.slice(-200); store.set('chat:' + room, chat); };
+// ---- every message kept (Xed 13 Nov: thousands of messages and media). The newest 200 still live in `chat` and sync as before;
+// each one is also copied into this phone's own database, so nothing old is thrown away. The chat draws only the newest 80
+// and loads older ones as you scroll up; search looks through all of them. Nothing here leaves the phone.
+const archDb = new Promise((res, rej) => { try { const r = indexedDB.open('closer-chat:' + room, 1); r.onupgradeneeded = () => r.result.createObjectStore('m', { keyPath: 'id' }).createIndex('at', 'at'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } });
+archDb.catch(() => {});
+const archTx = (mode, fn) => archDb.then(db => new Promise((res, rej) => { const t = db.transaction('m', mode), q = fn(t.objectStore('m')); t.oncomplete = () => res(q && q.result); t.onerror = t.onabort = () => rej(t.error); }));
+const archSeen = new Map(), archMedia = new Set();   // what was written last per message; media of kept messages (never deleted by the clean-up)
+let archReady = false, archT = 0, older = [], olderDone = false, chatShow = 80, viewTop = null, keepShow = false;
+function archPut(list) {   // straight away: messages leaving the live 200 (a fast burst must not lose any)
+  const put = list.filter(c => { const j = JSON.stringify(c); if (archSeen.get(c.id) === j) return false; archSeen.set(c.id, j); return true; });
+  if (put.length) archTx('readwrite', st => { for (const c of put) st.put(c); }).catch(() => {});
+}
+function archSave() {
+  clearTimeout(archT);
+  archT = setTimeout(() => {
+    const put = [];
+    for (const c of chat) { const j = JSON.stringify(c); if (archSeen.get(c.id) !== j) { archSeen.set(c.id, j); put.push(c); } if (c.vn || c.im) imSpentNow(c) ? archMedia.delete(c.id) : archMedia.add(c.id); }
+    if (put.length) archTx('readwrite', st => { for (const c of put) st.put(c); }).catch(() => {});
+  }, 400);
+}
+archTx('readonly', st => st.getAll()).then(all => {
+  for (const c of all || []) if ((c.vn || c.im) && !(c.im && c.im.vo && (c.pl || c.st >= 3))) archMedia.add(c.id);
+}).catch(() => {}).then(() => { archReady = true; vnGc(); });
+if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {});   // asks Chrome never to clear it by itself
+const chatAll = () => older.length ? [...older, ...chat] : chat;
+function chatView() {   // the part of the chat that is drawn: the newest 80, or from the oldest one scrolled to
+  const all = chatAll(); let i = Math.max(0, all.length - chatShow);
+  if (viewTop) { const j = all.findIndex(c => c.id === viewTop); if (j >= 0 && j < i) i = j; }
+  viewTop = all[i] ? all[i].id : null;
+  return all.slice(i);
+}
+const msgById = id => chat.find(x => x.id === id) || older.find(x => x.id === id);
+async function archOlder(n) {   // the next n older messages from this phone's database
+  const all = chatAll(), first = all[0], have = new Set(all.map(c => c.id));
+  const out = [];
+  await archTx('readonly', st => { const r = st.index('at').openCursor(first ? IDBKeyRange.upperBound(first.at, true) : null, 'prev'); r.onsuccess = () => { const cur = r.result; if (!cur || out.length >= n) return; if (!have.has(cur.value.id) && !cleared.has(cur.value.id)) out.push(cur.value); cur.continue(); }; }).catch(() => {});
+  if (out.length) older = [...out.reverse(), ...older];
+  return out.length;
+}
+let olderBusy = false;
+async function showOlder() {   // scrolled to the top: draw 60 more, from the database when needed
+  if (olderBusy || !chatIsOpen()) return;
+  olderBusy = true;
+  try {
+    const all = chatAll(), shown = $('msgs').querySelectorAll('.bubble').length;
+    if (shown >= all.length) { if (olderDone || !(await archOlder(100))) { olderDone = true; return; } }
+    const box = $('msgs'), h = box.scrollHeight, t = box.scrollTop;
+    chatShow = shown + 60; viewTop = null; keepShow = true; renderChat();
+    box.scrollTop = box.scrollHeight - h + t;
+  } finally { olderBusy = false; }
+}
+async function archCap() {   // the phone nearly full: the oldest photos and voice notes go first, the words stay
+  if (!navigator.storage || !navigator.storage.estimate || !archReady) return;
+  const e = await navigator.storage.estimate().catch(() => null);
+  if (!e || !e.quota || e.usage < e.quota * .8) return;
+  const all = await archTx('readonly', st => st.getAll()).catch(() => []), live = new Set(chat.slice(-50).map(c => c.id));
+  for (const c of (all || []).filter(c => archMedia.has(c.id) && !live.has(c.id)).sort((a, b) => a.at - b.at).slice(0, 50)) archMedia.delete(c.id);
+  vnGc();
+}
+steady(archCap, 600000);
+const saveChat = () => { const drop = chat.slice(0, -200); if (drop.length) { archPut(drop); if (older.length) older.push(...drop); } chat = chat.slice(-200); store.set('chat:' + room, chat); archSave(); };
+archSave();
 const emojiOnly = t => t.length <= 16 && /^(\p{Extended_Pictographic}|\p{Emoji_Modifier}|️|‍|\s)+$/u.test(t);
 let replyTo = null;   // the message being answered, shown above the box until sent or cancelled
 function setReply(c) {
@@ -1921,12 +2155,15 @@ function gotChat(m) {
   typingUntil = 0;
   if (!chat.some(c => c.id === m.id && c.who === 'them')) {
     const re = cleanRe(m.re);
-    chat.push({ id: m.id, who: 'them', text: m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}) });
+    const vn = cleanVn(m.vn), im = !vn && cleanIm(m.im), gif = !vn && !im && cleanGif(m.gif);
+    chat.push({ id: m.id, who: 'them', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}) });
     saveChat(); renderChat(); tap();
     if ($('toEnd').classList.contains('on')) { newBelow++; toEndState(); }   // reading older messages: count the new ones on the arrow
-    chatFx(m.text);
+    if (vn || im) vnWant(m.id); else if (!gif) chatFx(m.text);
     if (!chatInFront()) { unseen++; store.set('unseen:' + room, unseen); lockNote(true); }
   }
+  const vc = chat.find(c => c.id === m.id && c.who === 'them');
+  if (vc && (vc.vn || vc.im)) { if (vnHave.has(m.id) || vc.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!vc.pl }); return; }   // a voice note counts as delivered only once all its sound is here
   send({ t: 'ack', id: m.id, seen: !document.hidden });
 }
 // Chat history heals itself: if one phone lost messages (a new install, cleared phone storage), the other phone sends them back.
@@ -1936,7 +2173,7 @@ function sendChatIds() { if (Date.now() - chatIdsAt < 15000) return; chatIdsAt =
 function gotChatIds(m) {   // send back what the other phone is missing
   if (!Array.isArray(m.ids)) return;
   const have = new Set(m.ids.filter(x => typeof x === 'string').slice(0, 1000));
-  const miss = chat.filter(c => !have.has(c.id) && !cleared.has(c.id)).map(c => ({ id: c.id, w: c.who, x: c.text, at: c.at, ...(c.re ? { re: reOut(c.re) } : {}) }));
+  const miss = chat.filter(c => !have.has(c.id) && !cleared.has(c.id)).map(c => ({ id: c.id, w: c.who, x: c.text, at: c.at, ...(c.re ? { re: reOut(c.re) } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) }));
   for (let i = 0; i < miss.length; i += 20) send({ t: 'chathist', items: miss.slice(i, i + 20) });
   sendChatIds();   // and ask for what this phone is missing
 }
@@ -1946,26 +2183,679 @@ function gotChatHist(m) {
   for (const it of m.items.slice(0, 200)) {
     if (!it || typeof it.id !== 'string' || it.id.length > 24 || typeof it.x !== 'string' || !['me', 'them'].includes(it.w)) continue;
     if (cleared.has(it.id) || chat.some(c => c.id === it.id)) continue;
-    const re = cleanRe(it.re), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(re ? { re } : {}) };
+    const re = cleanRe(it.re), vn = cleanVn(it.vn), im = !vn && cleanIm(it.im), gif = !vn && !im && cleanGif(it.gif), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im, ...(im.vo ? { pl: true } : {}) } : {}), ...(gif ? { gif } : {}) };
     const at = chat.findIndex(o => o.at > c.at); at < 0 ? chat.push(c) : chat.splice(at, 0, c); n++;
   }
   if (n) { saveChat(); renderChat(); notify(`${n} message${n > 1 ? 's' : ''} brought back from ${who()}'s phone.`); }
 }
 function gotAck(m) {
   const c = chat.find(c => c.id === m.id && c.who === 'me');
-  const st = m.seen ? 3 : 2;
+  const st = c && (c.vn || c.im) ? (m.pl ? 3 : 2) : m.seen ? 3 : 2;   // a voice note turns blue only when it was played, not when the chat was looked at
   if (c && (c.st || 0) < st) { c.st = st; saveChat(); renderChat(); }
+  if (c && c.im && c.im.vo && m.pl && vnHave.has(c.id)) imSpent(c.id);   // she opened his view-once photo: it goes from his phone too
 }
 function gotSeen() {
   let changed = false;
-  for (const c of chat) if (c.who === 'me' && c.st === 2) { c.st = 3; changed = true; }
+  for (const c of chat) if (c.who === 'me' && c.st === 2 && !c.vn && !c.im) { c.st = 3; changed = true; }
   if (changed) { saveChat(); renderChat(); }
 }
 function resendChat() {
   if (!partnerOnline()) return;
-  for (const c of chat) if (c.who === 'me' && (c.st || 0) < 2 && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re });
+  for (const c of chat) if (c.who === 'me' && ((c.st || 0) < 2 || ((c.vn || c.im) && c.st < 3)) && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re, ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) });
   for (const c of chat) if (c.rxAt && c.rxAt.me && Date.now() - c.rxAt.me < 86400000) send({ t: 'react', id: c.id, e: (c.rx && c.rx.me) || '', at: c.rxAt.me });   // reactions made while the other phone was away
 }
+// ---- voice notes (Xed 13 Nov), like WhatsApp: hold the mic to record, let go to send, slide left to cancel, slide up for
+// hands-free. The sound is kept on both phones (like videos); the chat message carries only its length and waveform. The
+// other phone fetches the sound in small sealed pieces from whichever phone has it, whenever both apps are open.
+const VN_PART = 8000, VN_MAX = 300000, VN_BARS = 40;   // 8 KB pieces fit every relay; 5 minutes at most
+const VN_MIME = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => { try { return window.MediaRecorder && MediaRecorder.isTypeSupported(t); } catch { return false; } }) || '';
+const vnFmt = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const vnText = d => `🎤 Voice message (${vnFmt(d)})`;
+function cleanVn(v) {
+  if (!v || !Number.isFinite(v.d) || !Number.isFinite(v.s) || v.s <= 0 || v.s > 4e6 || typeof v.w !== 'string' || !/^[0-9]{0,64}$/.test(v.w) || typeof v.m !== 'string' || !/^audio\/[\w.+-]+(;codecs=[\w.]+)?$/.test(v.m)) return null;
+  return { d: Math.min(Math.max(0, v.d), VN_MAX + 5000), s: Math.floor(v.s), w: v.w, m: v.m };
+}
+const vnHave = new Set(), vnPend = new Map(), vnGone = new Set();   // vnPend: id -> pieces arriving
+let vnReady = false;
+const vnDb = new Promise((res, rej) => { try { const r = indexedDB.open('closer-voice:' + room, 1); r.onupgradeneeded = () => r.result.createObjectStore('v'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } });
+vnDb.catch(() => {});
+const vnTx = (mode, fn) => vnDb.then(db => new Promise((res, rej) => { const t = db.transaction('v', mode), q = fn(t.objectStore('v')); t.oncomplete = () => res(q && q.result); t.onerror = t.onabort = () => rej(t.error); }));
+const vnLoad = id => vnTx('readonly', s => s.get(id)).catch(() => null);
+vnTx('readonly', s => s.getAllKeys()).then(keys => { for (const k of keys) vnHave.add(k); }).catch(() => {}).then(() => { vnReady = true; vnGc(); renderChat(); });
+function vnGc() {   // sound and photos of messages cleared from this phone are deleted; older messages keep theirs (Xed 13 Nov)
+  if (!vnReady || !archReady) return;
+  const keep = new Set([...archMedia, ...chat.filter(c => (c.vn || c.im) && !imSpentNow(c)).map(c => c.id)]);
+  for (const c of chat) if ((c.vn || c.im) && imSpentNow(c)) keep.delete(c.id);
+  for (const k of [...vnHave]) if (!keep.has(k)) { vnHave.delete(k); vnTx('readwrite', s => { s.delete(k); }).catch(() => {}); }
+  if (vnCur && !keep.has(vnCur)) { vnAudio.pause(); vnCur = null; }
+}
+async function sendVoice(blob, d, w, m) {
+  const id = b64url(rand(8)), vn = { d, s: blob.size, w, m };
+  await vnTx('readwrite', s => { s.put({ b: blob, m }, id); }).catch(() => {});
+  vnHave.add(id);
+  const c = { id, who: 'me', text: vnText(d), at: Date.now(), st: 0, vn, re: reOut(replyTo) };
+  if (!c.re) delete c.re;
+  setReply(null); toEndNext = true;
+  chat.push(c); saveChat(); renderChat(); tap();
+  send({ t: 'msg', id, text: c.text, at: c.at, re: c.re, vn }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
+}
+// fetching: ask for up to 8 missing pieces at a time; each answer asks for the next ones, a silence of 4 s asks again
+function vnWant(id) {
+  if (!vnReady || vnHave.has(id) || vnGone.has(id) || vnPend.has(id)) return;
+  const c = chat.find(x => x.id === id && (x.vn || x.im)); if (!c || imSpentNow(c) || (c.im && c.im.vo && c.who === 'me')) return;
+  const md = c.vn || c.im;
+  vnPend.set(id, { s: md.s, n: Math.ceil(md.s / VN_PART), got: [], have: 0, ask: 0, tries: 0, batch: new Set() });
+  vnAsk(id);
+}
+function vnAsk(id) {
+  const p = vnPend.get(id); if (!p || !partnerOnline()) return;
+  const miss = []; for (let i = 0; i < p.n && miss.length < 8; i++) if (!p.got[i]) miss.push(i);
+  p.ask = Date.now(); p.tries++; p.batch = new Set(miss);
+  send({ t: 'vget', id, i: miss });
+}
+steady(() => {
+  if (!vnReady || !partnerOnline()) return;
+  for (const c of chat) if ((c.vn || c.im) && !vnHave.has(c.id) && !vnPend.has(c.id) && !vnGone.has(c.id)) vnWant(c.id);
+  for (const [id, p] of vnPend) if (Date.now() - p.ask > 4000) {
+    if (p.tries >= 12) { vnPend.delete(id); vnGone.add(id); renderChat(); continue; }   // neither phone has it any more (asked for a minute while both were open)
+    vnAsk(id);
+  }
+}, 2000);
+async function gotVget(m) {
+  if (typeof m.id !== 'string' || !Array.isArray(m.i) || !vnHave.has(m.id)) return;
+  const mc = chat.find(x => x.id === m.id);
+  if (mc && mc.im && mc.im.vo && (mc.who === 'them' || imSpentNow(mc))) return;   // a view-once photo is only ever sent by the one who took it, and never after it was opened
+  const v = await vnLoad(m.id); if (!v || !v.b) return;
+  const n = Math.ceil(v.b.size / VN_PART);
+  for (const i of m.i.slice(0, 8)) {
+    if (!Number.isInteger(i) || i < 0 || i >= n) continue;
+    const d = b64(new Uint8Array(await v.b.slice(i * VN_PART, (i + 1) * VN_PART).arrayBuffer()));
+    send({ t: 'vpart', id: m.id, i, n, d });
+  }
+}
+async function gotVpart(m) {
+  const p = vnPend.get(m.id);
+  if (!p || !Number.isInteger(m.i) || m.i < 0 || m.i >= p.n || m.n !== p.n || typeof m.d !== 'string' || p.got[m.i]) return;
+  let b; try { b = unb64(m.d); } catch { return; }
+  if (b.length !== (m.i === p.n - 1 ? p.s - m.i * VN_PART : VN_PART)) return;
+  p.got[m.i] = b; p.have++; p.tries = 0; p.batch.delete(m.i);
+  if (p.have < p.n) { if (!p.batch.size) vnAsk(m.id); return; }
+  vnPend.delete(m.id);
+  const c = chat.find(x => x.id === m.id && (x.vn || x.im)); if (!c || imSpentNow(c)) return;
+  const mt = (c.vn || c.im).m, blob = new Blob(p.got, { type: mt });
+  await vnTx('readwrite', s => { s.put({ b: blob, m: mt }, m.id); }).catch(() => {});
+  vnHave.add(m.id); renderChat();
+  send({ t: 'ack', id: m.id, vn: true, pl: !!c.pl });
+}
+// ---- the bubble: play, waveform (tap or drag to jump), length, speed while playing
+const VN_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.2v13.6c0 .8.9 1.3 1.6.8l10-6.8a1 1 0 0 0 0-1.6l-10-6.8C8.9 3.9 8 4.4 8 5.2z"/></svg>';
+const VN_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>';
+const VN_MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 14.5a3.4 3.4 0 0 0 3.4-3.4V6.4a3.4 3.4 0 1 0-6.8 0v4.7a3.4 3.4 0 0 0 3.4 3.4z"/><path d="M6.6 10.8a5.4 5.4 0 0 0 10.8 0M12 16.4V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const VN_WAIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="30 60"/></svg>';
+function vnHtml(c, meta) {
+  const has = vnHave.has(c.id), gone = vnReady && !has && vnGone.has(c.id);
+  const bars = [...c.vn.w.padEnd(VN_BARS, '2')].slice(0, VN_BARS).map(x => `<i style="height:${Math.round(4 + +x * 2.4)}px"></i>`).join('');
+  const btn = gone ? '' : `<button type="button" class="vnPlay${has ? '' : ' wait'}" aria-label="${has ? 'Play voice message' : 'Voice message arriving'}">${has ? VN_PLAY : VN_WAIT}</button>`;
+  const pl = c.who === 'me' ? c.st >= 3 : !!c.pl, mark = `<span class="vnMic ${pl ? 'pl' : c.who === 'me' ? '' : 'new'}" aria-label="${pl ? 'Played' : 'Not played yet'}">${VN_MIC}</span>`;
+  return `<div class="vn" data-vn="${esc(c.id)}">${btn}<span class="vnWave">${bars}</span></div><div class="vnFoot">${mark}<button type="button" class="vnSpd">${vnRate}×</button><span class="vnT">${gone ? '<span class="vnGone">Not on either phone any more</span>' : vnFmt(c.vn.d)}</span>${meta}</div>`;
+}
+const vnAudio = new Audio();
+let vnCur = null, vnUrl = null, vnRate = 1, vnRaf = 0, vnGate = true;   // vnGate: headphones not confirmed yet
+const vnBusy = () => !!vnRec || (!!vnCur && !vnAudio.paused);
+function vnPaint() {
+  cancelAnimationFrame(vnRaf);
+  for (const el of $('msgs').querySelectorAll('.vn')) {
+    const id = el.dataset.vn, c = msgById(id); if (!c || !c.vn) continue;
+    const on = id === vnCur, dur = c.vn.d / 1000, t = on ? Math.min(vnAudio.currentTime || 0, dur) : 0, p = on ? t / Math.max(.1, dur) : 0;
+    el.classList.toggle('on', on);
+    const b = el.querySelector('.vnPlay');
+    if (b && vnHave.has(id)) { const play = on && !vnAudio.paused; if (b.dataset.st !== String(play)) { b.dataset.st = play; b.innerHTML = play ? VN_PAUSE : VN_PLAY; b.setAttribute('aria-label', play ? 'Pause' : 'Play voice message'); } }
+    el.querySelectorAll('.vnWave i').forEach((x, i) => x.classList.toggle('on', on && (i + .5) / VN_BARS <= p));
+    const foot = el.nextElementSibling, tt = foot && foot.querySelector('.vnT');
+    if (tt && !tt.querySelector('.vnGone')) tt.textContent = vnFmt(on && t > 0 ? t * 1000 : c.vn.d);
+    const sp = foot && foot.querySelector('.vnSpd'); if (sp) sp.textContent = vnRate + '×';
+  }
+  if (vnCur && !vnAudio.paused) vnRaf = requestAnimationFrame(vnPaint);
+}
+async function vnPlay(id, from = 0) {
+  if (vnCur === id && vnAudio.src) {
+    if (from) vnAudio.currentTime = from;
+    else if (vnAudio.paused) { if (vnAudio.ended) vnAudio.currentTime = 0; vnAudio.play().catch(() => {}); }
+    else vnAudio.pause();
+    vnPaint(); return;
+  }
+  const v = await vnLoad(id);
+  if (!v || !v.b) { vnWant(id); notify('This voice message is still on its way.'); return; }
+  if (vnGate) {   // Xed 13 Nov: headphones only, never the loudspeaker
+    newShow('🎧 Headphones only', 'Voice messages play only in your headphones or AirPods. Put them in first.', 'My headphones are in', 'Not now', () => { newClose(); vnGate = false; vnPlay(id, from); }, () => newClose());
+    return;
+  }
+  const c = chat.find(x => x.id === id);
+  if (c && c.who === 'them' && !c.pl) { c.pl = true; saveChat(); renderChat(); send({ t: 'ack', id, vn: true, pl: true }); }   // played: his ticks and mic turn blue
+  vnAudio.pause(); if (vnUrl) URL.revokeObjectURL(vnUrl);
+  vnCur = id; vnUrl = URL.createObjectURL(v.b); vnAudio.src = vnUrl;
+  await new Promise(r => { vnAudio.onloadedmetadata = r; setTimeout(r, 1500); });
+  if (vnAudio.duration === Infinity) {   // a fresh recording does not say how long it is, so jumping inside it fails: let the phone measure it once
+    await new Promise(r => { vnAudio.ondurationchange = r; vnAudio.currentTime = 1e9; setTimeout(r, 1500); });
+    vnAudio.ondurationchange = null;
+  }
+  if (vnCur !== id) return;
+  vnAudio.currentTime = from; vnAudio.defaultPlaybackRate = vnAudio.playbackRate = vnRate;
+  vnAudio.play().catch(() => {}); vnPaint();
+}
+vnAudio.onplay = vnAudio.onpause = () => vnPaint();
+vnAudio.onended = () => {   // the next voice message from the same person plays on by itself, like WhatsApp
+  const i = chat.findIndex(c => c.id === vnCur), was = chat[i], next = chat[i + 1];
+  vnCur = null; vnPaint();
+  if (was && next && next.vn && next.who === was.who && vnHave.has(next.id)) vnPlay(next.id);
+};
+function vnClick(ev) {   // taps on a voice bubble's own controls; true when handled
+  const el = ev.target.closest('.vn, .vnFoot'); if (!el) return false;
+  const vn = el.classList.contains('vn') ? el : el.previousElementSibling, id = vn && vn.dataset.vn;
+  if (!id) return false;
+  if (ev.target.closest('.vnSpd')) { vnRate = vnRate === 1 ? 1.5 : vnRate === 1.5 ? 2 : 1; vnAudio.playbackRate = vnRate; tap(); vnPaint(); return true; }
+  if (ev.target.closest('.vnPlay')) { tap(); vnPlay(id); return true; }
+  const w = ev.target.closest('.vnWave'), c = msgById(id);
+  if (w && c && vnHave.has(id)) { const r = w.getBoundingClientRect(); vnPlay(id, Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * c.vn.d / 1000 || 0.001); return true; }
+  return false;
+}
+// ---- recording
+let vnRec = null;
+const micBtn = $('micBtn');
+function vnStart(ev) {
+  const r = vnRec = { x0: ev.clientX, y0: ev.clientY, t0: Date.now(), held: true, locked: false, chunks: [], levels: [], started: 0, upAt: 0 };
+  if (vnCur && !vnAudio.paused) vnAudio.pause();
+  document.body.classList.add('rec'); $('recBar').hidden = false; $('recLock').hidden = false; $('recT').textContent = '0:00'; $('recWave').innerHTML = '';
+  r.timer = setInterval(vnTickRec, 100);
+  (async () => {
+    let st = 'granted';
+    try { st = (await navigator.permissions.query({ name: 'microphone' })).state; } catch {}
+    if (vnRec !== r) return;
+    if (st === 'denied') { vnStop(false); notify('The microphone is blocked for this app. Allow it in Chrome: Settings, Site settings, Microphone.', 9000); return; }
+    if (st === 'prompt') {   // the first time: only ask; the next hold records
+      vnStop(false);
+      try { (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach(t => t.stop()); notify('Microphone allowed. Now hold the mic to record.'); }
+      catch { notify('Allow the microphone to send voice messages.'); }
+      return;
+    }
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+    catch { if (vnRec === r) vnStop(false); notify('Allow the microphone to send voice messages.'); return; }
+    if (vnRec !== r) { stream.getTracks().forEach(t => t.stop()); return; }
+    r.stream = stream;
+    try {
+      r.rec = new MediaRecorder(stream, { mimeType: VN_MIME, audioBitsPerSecond: 24000 });
+      r.rec.ondataavailable = e => { if (e.data && e.data.size) r.chunks.push(e.data); };
+      r.rec.start(250); r.started = Date.now(); tap();
+    } catch { vnStop(false); notify('This phone could not start recording.'); return; }
+    try { r.ctx = new (window.AudioContext || window.webkitAudioContext)(); r.an = r.ctx.createAnalyser(); r.an.fftSize = 512; r.ctx.createMediaStreamSource(stream).connect(r.an); r.buf = new Uint8Array(r.an.fftSize); } catch {}
+  })();
+}
+function vnTickRec() {
+  const r = vnRec; if (!r) return;
+  if (r.an) { r.an.getByteTimeDomainData(r.buf); let pk = 0; for (const v of r.buf) pk = Math.max(pk, Math.abs(v - 128)); r.levels.push(Math.min(1, Math.sqrt(pk / 128) * 1.3)); }
+  const ms = r.started ? Date.now() - r.started : 0;
+  $('recT').textContent = vnFmt(ms);
+  if (r.locked) $('recWave').innerHTML = r.levels.slice(-40).map(l => `<i style="height:${Math.round(3 + l * 22)}px"></i>`).join('');
+  if (r.started && Date.now() - typingSent > 2000) { typingSent = Date.now(); send({ t: 'typing', rec: true }); }
+  if (ms >= VN_MAX) vnStop(true);
+}
+const vnWaveOf = l => {
+  if (!l.length) return '3'.repeat(VN_BARS);
+  const top = Math.max(.05, ...l); let s = '';
+  for (let i = 0; i < VN_BARS; i++) { const a = Math.floor(i * l.length / VN_BARS), b = Math.max(a + 1, Math.floor((i + 1) * l.length / VN_BARS)); s += Math.min(9, Math.round(Math.max(...l.slice(a, b)) / top * 9)); }
+  return s;
+};
+function vnStop(sendIt) {
+  const r = vnRec; if (!r) return;
+  vnRec = null; clearInterval(r.timer);
+  document.body.classList.remove('rec', 'recLocked'); $('recBar').hidden = true; $('recLock').hidden = true;
+  micBtn.style.transform = ''; $('recSlide').style.transform = ''; $('recSlide').style.opacity = '';
+  const d = r.started ? Date.now() - r.started : 0;
+  const done = () => { if (r.stream) r.stream.getTracks().forEach(t => t.stop()); if (r.ctx) r.ctx.close().catch(() => {}); };
+  if (!r.rec || r.rec.state === 'inactive') { done(); return; }
+  r.rec.onstop = () => {
+    done();
+    if (!sendIt) return;
+    if (d < 800) { notify('Too short. Hold the mic while you talk.'); return; }
+    const m = (r.rec.mimeType || VN_MIME).replace(/\s/g, ''), blob = new Blob(r.chunks, { type: m });
+    if (blob.size) sendVoice(blob, Math.min(d, VN_MAX), vnWaveOf(r.levels), cleanVn({ d: 1, s: 1, w: '', m }) ? m : 'audio/webm');
+  };
+  try { r.rec.stop(); } catch { done(); }
+}
+micBtn.addEventListener('contextmenu', ev => ev.preventDefault());
+micBtn.addEventListener('pointerdown', ev => {
+  if (vnRec) return;
+  if (!VN_MIME || !navigator.mediaDevices) { notify('This browser cannot record voice messages.'); return; }
+  try { micBtn.setPointerCapture(ev.pointerId); } catch {}
+  vnStart(ev);
+});
+micBtn.addEventListener('pointermove', ev => {
+  const r = vnRec; if (!r || !r.held || r.locked) return;
+  const dx = Math.min(0, ev.clientX - r.x0), dy = Math.min(0, ev.clientY - r.y0);
+  if (dx < -110) { tap(); vnStop(false); return; }   // slid left: thrown away
+  if (dy < -80) { r.locked = true; tap(); document.body.classList.add('recLocked'); $('recLock').hidden = true; micBtn.style.transform = ''; return; }   // slid up: keeps recording without the finger
+  $('recSlide').style.transform = `translateX(${dx}px)`; $('recSlide').style.opacity = String(Math.max(.2, 1 + dx / 130));
+  micBtn.style.transform = Math.abs(dx) > Math.abs(dy) ? `translateX(${dx}px) scale(1.45)` : `translateY(${dy}px) scale(1.45)`;
+});
+for (const e of ['pointerup', 'pointercancel']) micBtn.addEventListener(e, () => {
+  const r = vnRec; if (!r || !r.held) return;
+  r.held = false; r.upAt = Date.now();
+  if (r.locked) return;
+  if (e === 'pointercancel') { vnStop(false); return; }
+  if (Date.now() - r.t0 < 400) { vnStop(false); notify('Hold to record, let go to send.'); return; }
+  vnStop(true);
+});
+micBtn.addEventListener('click', ev => { ev.preventDefault(); const r = vnRec; if (r && r.locked && !r.held && Date.now() - r.upAt > 300) { tap(); vnStop(true); } });   // hands-free: the mic has become Send
+$('vnDel').onclick = () => { tap(); vnStop(false); };
+if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => {   // headphones out or changed: stop at once, ask again next time
+  vnGate = true;
+  if (!vnAudio.paused) { vnAudio.pause(); notify('Your headphones changed, so the voice message stopped. Put them back in to listen.'); }
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) return; if (vnRec) vnStop(false); if (!vnAudio.paused) vnAudio.pause(); });   // the app locks when it leaves the screen: nothing records or plays behind the lock
+// ---- photos (Xed 13 Nov): sent like voice notes, in small sealed pieces, and kept only inside the app, never in the phone's
+// gallery. Every photo is redrawn before sending, which drops its location and camera details. No save button, and a long
+// press offers no save. View once (on by default): it opens one time on the other phone, then is deleted from both phones.
+function cleanIm(v) {
+  if (!v || !Number.isFinite(v.s) || v.s <= 0 || v.s > 2e6 || !Number.isInteger(v.w) || !Number.isInteger(v.h) || v.w < 1 || v.h < 1 || v.w > 8000 || v.h > 8000 || v.m !== 'image/jpeg' || typeof v.t !== 'string' || !/^[A-Za-z0-9+/=]{0,4000}$/.test(v.t)) return null;
+  return { s: Math.floor(v.s), w: v.w, h: v.h, m: v.m, t: v.vo === true ? '' : v.t, vo: v.vo === true };
+}
+const imText = vo => vo ? '📷 Photo (view once)' : '📷 Photo';
+const imUrls = new Map();   // photo -> its picture for the chat, made once
+let imShown = null, imPrep = null, imOnce = store.get('imOnce', true) !== false;
+const imSpentNow = c => !!(c && c.im && c.im.vo && (c.pl || (c.who === 'me' && c.st >= 3)));   // a view-once photo that was opened: gone for good
+function imSpent(id) {   // delete an opened view-once photo from this phone
+  vnHave.delete(id); vnTx('readwrite', s => { s.delete(id); }).catch(() => {});
+  if (imUrls.has(id)) { URL.revokeObjectURL(imUrls.get(id)); imUrls.delete(id); }
+  renderChat();
+}
+async function imPrepare(file) {
+  if (!file || !/^image\//.test(file.type || 'image/')) { notify('That file is not a photo.'); return null; }
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch { notify('This photo could not be opened.'); return null; }
+  try {
+    for (const [max, q] of [[1600, .82], [1280, .75], [1024, .68]]) {
+      const k = Math.min(1, max / Math.max(bmp.width, bmp.height)), w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
+      const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', q));
+      if (!blob || (blob.size > 450000 && max !== 1024)) continue;
+      if (blob.size > 2e6) break;
+      const tk = 24 / Math.max(w, h), tc = document.createElement('canvas'); tc.width = Math.max(1, Math.round(w * tk)); tc.height = Math.max(1, Math.round(h * tk));
+      tc.getContext('2d').drawImage(cv, 0, 0, tc.width, tc.height);
+      return { blob, w, h, t: tc.toDataURL('image/jpeg', .5).split(',')[1] || '' };
+    }
+  } finally { bmp.close && bmp.close(); }
+  notify('This photo is too big to send.'); return null;
+}
+async function sendPhoto(p, vo) {
+  const id = b64url(rand(8)), im = { s: p.blob.size, w: p.w, h: p.h, m: 'image/jpeg', t: vo ? '' : p.t, vo };
+  await vnTx('readwrite', s => { s.put({ b: p.blob, m: im.m }, id); }).catch(() => {});
+  vnHave.add(id);
+  const c = { id, who: 'me', text: imText(vo), at: Date.now(), st: 0, im, re: reOut(replyTo) };
+  if (!c.re) delete c.re;
+  setReply(null); toEndNext = true;
+  chat.push(c); saveChat(); renderChat(); tap();
+  send({ t: 'msg', id, text: c.text, at: c.at, re: c.re, im }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
+}
+const ONCE_IC = '<span class="onceIc" aria-hidden="true">1</span>';
+function imHtml(c, meta) {
+  const has = vnHave.has(c.id);
+  if (c.im.vo) {
+    const label = c.who === 'me' ? (c.st >= 3 ? 'Opened' : 'Photo') : c.pl ? 'Opened' : has ? 'Photo' : 'Photo arriving…';
+    return `<div class="imOnce${imSpentNow(c) ? ' spent' : ''}">${ONCE_IC}<span>${label}</span></div><div class="vnFoot">${meta}</div>`;
+  }
+  const gone = vnReady && !has && vnGone.has(c.id), ratio = Math.max(.5, Math.min(2, c.im.w / c.im.h));
+  const pic = c.im.t ? `data:image/jpeg;base64,${c.im.t}` : '';
+  return `<div class="imBox" style="aspect-ratio:${ratio.toFixed(3)}"><img class="imPic${has ? '' : ' blur'}" data-im="${esc(c.id)}" alt="Photo"${pic ? ` src="${pic}"` : ''} draggable="false">${has ? '' : gone ? '<span class="imGone">Not on either phone any more</span>' : `<span class="imWait">${VN_WAIT}</span>`}${meta}</div>`;
+}
+function imPaint() {   // the real photo replaces the small blurred preview once it is on this phone
+  for (const img of $('msgs').querySelectorAll('img.imPic')) {
+    const id = img.dataset.im; if (!vnHave.has(id)) continue;
+    if (imUrls.has(id)) { if (img.src !== imUrls.get(id)) img.src = imUrls.get(id); img.classList.remove('blur'); continue; }
+    vnLoad(id).then(v => { if (!v || !v.b || imUrls.has(id)) return; imUrls.set(id, URL.createObjectURL(v.b)); imPaint(); });
+  }
+}
+async function imOpen(id) {
+  const c = msgById(id); if (!c || !c.im) return;
+  if (c.im.vo && c.who === 'me') { notify('A view-once photo cannot be opened by the one who sent it.'); return; }
+  if (imSpentNow(c)) { notify('This view-once photo was already opened.'); return; }
+  const v = await vnLoad(id);
+  if (!v || !v.b) { vnWant(id); notify('This photo is still on its way.'); return; }
+  imShown = { id, vo: c.im.vo, url: URL.createObjectURL(v.b) };
+  imZoom(1, 0, 0); $('imBig').src = imShown.url;
+  $('imWho').textContent = (c.who === 'me' ? 'You' : who()) + (c.im.vo ? ' · view once' : '');
+  $('imView').hidden = false; tap();
+  if (c.who === 'them' && !c.pl) { c.pl = true; saveChat(); renderChat(); send({ t: 'ack', id, vn: true, pl: true }); }   // opened: his ticks turn blue; a view-once photo can never open again
+}
+function imCloseView() {
+  if (!imShown) return false;
+  const s = imShown; imShown = null;
+  $('imView').hidden = true; $('imBig').removeAttribute('src'); URL.revokeObjectURL(s.url);
+  if (s.vo) imSpent(s.id);
+  return true;
+}
+function imClick(ev) {
+  const el = ev.target.closest('.imBox, .imOnce'), b = el && el.closest('.bubble');
+  if (!b) return false;
+  imOpen(b.dataset.id); return true;
+}
+// pinch to zoom, drag to look around, double tap to zoom in or out
+let imZ = { s: 1, x: 0, y: 0 }, imPtr = new Map(), imG = null, imTapAt = 0;
+function imZoom(s, x, y) { imZ = { s, x, y }; $('imBig').style.transform = `translate(${x}px, ${y}px) scale(${s})`; }
+const imStageEl = $('imStage');
+imStageEl.addEventListener('pointerdown', ev => {
+  try { imStageEl.setPointerCapture(ev.pointerId); } catch {}
+  imPtr.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  const p = [...imPtr.values()];
+  imG = p.length === 2 ? { d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, s: imZ.s, x: imZ.x, y: imZ.y, cx: (p[0].x + p[1].x) / 2, cy: (p[0].y + p[1].y) / 2 } : { px: ev.clientX, py: ev.clientY, x: imZ.x, y: imZ.y, s: imZ.s };
+});
+imStageEl.addEventListener('pointermove', ev => {
+  if (!imPtr.has(ev.pointerId) || !imG) return;
+  imPtr.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  const p = [...imPtr.values()];
+  if (p.length === 2 && imG.d) { const s = Math.max(1, Math.min(5, imG.s * Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) / imG.d)); imZoom(s, imG.x + (p[0].x + p[1].x) / 2 - imG.cx, imG.y + (p[0].y + p[1].y) / 2 - imG.cy); }
+  else if (p.length === 1 && imZ.s > 1 && imG.px != null) imZoom(imZ.s, imG.x + ev.clientX - imG.px, imG.y + ev.clientY - imG.py);
+});
+for (const e of ['pointerup', 'pointercancel']) imStageEl.addEventListener(e, ev => {
+  imPtr.delete(ev.pointerId);
+  if (!imPtr.size) { if (imZ.s < 1.05) imZoom(1, 0, 0); imG = null; }
+  else { const q = [...imPtr.values()][0]; imG = { px: q.x, py: q.y, x: imZ.x, y: imZ.y, s: imZ.s }; }
+  if (e === 'pointerup' && !imPtr.size) { const now = Date.now(); if (now - imTapAt < 300) { imZoom(imZ.s > 1 ? 1 : 2.5, 0, 0); imTapAt = 0; } else imTapAt = now; }
+});
+for (const id of ['imView', 'imPrev']) $(id).addEventListener('contextmenu', ev => ev.preventDefault());   // no "save image" on a long press
+$('imX').onclick = () => { tap(); imCloseView(); };
+// sending: pick from the gallery or take one with the camera, see it, choose view once, send
+$('imBtn').onclick = () => { tap(); $('imFile').value = ''; $('imFile').click(); };
+$('imFile').onchange = async () => {
+  const f = $('imFile').files && $('imFile').files[0]; $('imFile').value = '';
+  if (!f) return;
+  const p = await imPrepare(f); if (!p) return;
+  imPrep = { ...p, url: URL.createObjectURL(p.blob) };
+  $('imPrevImg').src = imPrep.url; imOnceShow(); $('imPrev').hidden = false;
+};
+function imOnceShow() { $('imOnceBtn').classList.toggle('on', imOnce); $('imOnceBtn').setAttribute('aria-pressed', imOnce); $('imOnceTxt').textContent = imOnce ? 'View once: on' : 'View once: off'; }
+$('imOnceBtn').onclick = () => { tap(); imOnce = !imOnce; store.set('imOnce', imOnce); imOnceShow(); };
+function imCancel() { if (!imPrep) return false; URL.revokeObjectURL(imPrep.url); imPrep = null; $('imPrev').hidden = true; $('imPrevImg').removeAttribute('src'); return true; }
+$('imPrevX').onclick = () => { tap(); imCancel(); };
+$('imGo').onclick = () => { if (!imPrep) return; const p = imPrep; imCancel(); sendPhoto(p, imOnce); };
+const imBack = () => imCloseView() || imCancel();   // the phone's Back button closes the photo first
+document.addEventListener('visibilitychange', () => { if (document.hidden) imBack(); });   // leaving the screen closes the photo (a view-once photo counts as seen)
+// ---- our stats (Xed 13 Nov): fun romantic numbers about the two of you, counted from the chat on this phone only. Every
+// message is counted once, when it first lands in this phone's chat; the totals keep growing even after old messages
+// leave the chat (it keeps the newest 200). Nothing here is ever sent anywhere.
+const ST_LOVE = /\b(love|luv|lov|jaan|jan|janu|jaanu|jani|pyar|pyaar|piyar|ishq|mohabbat|darling|sweetheart|baby|babe|babu|hubby|husband|husbnd|wifey|wife|cutie|honey|sona|shona)\b/gi;
+const ST_ILY = /(\b(lo+ve?|luv)\s*(u+|you+|yu|ya)\b|\bily\b|pya+r\s*(kart|krt))/gi;
+const ST_KISS = /😘|💋|😚|😙|\bkiss|\bmwa+h?\b|\bmua+h?\b|\bchumm?i/gi;
+const ST_MISS = /\bmiss(ing)?\s*(u+|you|ya)\b|\byaad\b/gi;
+const ST_HUG = /🤗|🫂|\bhugs?\b|\bjhappi/gi;
+const ST_HEART = /❤️|❤|💕|💖|💗|💓|💞|💘|💝|🥰|😍|💜|🧡|💛|💚|💙|🤍|🖤|❣️|💌/g;
+const ST_GM = /\b(gm|good\s*morning|gud\s*mo?rn?ing?|morning|subha?\s*bakhair)\b/i, ST_GN = /\b(gn|good\s*night|gud\s*ni(gh)?t|nyt|shab\s*bakhair|night\s*night)\b/i;
+const stBlank = () => ({ n: 0, w: 0, love: 0, ily: 0, kiss: 0, miss: 0, hug: 0, heart: 0, gm: 0, gn: 0, late: 0, first: 0, vn: 0, vnS: 0, im: 0, rt: 0, rc: 0, emo: {} });
+let stats = store.get('stats:' + room, null);
+if (!stats || typeof stats !== 'object' || !stats.p) stats = { since: 0, p: { me: stBlank(), them: stBlank() }, days: {}, firsts: {}, hours: Array(24).fill(0) };
+const stIds = new Set(store.get('statIds:' + room, []));
+const stDay = t => new Date(t).toLocaleDateString('en-CA', { timeZone: PK });
+const stHour = t => +new Date(t).toLocaleString('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: PK }) % 24;
+const stCount = (re, t) => (t.match(re) || []).length;
+function stAdd(c, prev) {
+  const p = stats.p[c.who]; if (!p) return;
+  const t = +c.at || Date.now(), day = stDay(t), h = stHour(t);
+  if (!stats.since || t < stats.since) stats.since = t;
+  p.n++; stats.hours[h]++;
+  stats.days[day] = (stats.days[day] || 0) | (c.who === 'me' ? 1 : 2);
+  if (h >= 5 && !stats.firsts[day]) { stats.firsts[day] = c.who; p.first++; }   // the first message of the day (after 5 AM)
+  if (h < 5) p.late++;   // after midnight
+  if (prev && prev.who !== c.who && t > prev.at && t - prev.at < 6 * 3600e3) { p.rt += t - prev.at; p.rc++; }   // how fast each answers
+  if (c.vn) { p.vn++; p.vnS += Math.round(c.vn.d / 1000); return; }
+  if (c.im) { p.im++; return; }
+  if (c.gif) return;   // a GIF's label is not words or emoji anyone typed
+  const x = String(c.text || '');
+  p.w += x.split(/\s+/).filter(Boolean).length;
+  p.love += stCount(ST_LOVE, x); p.ily += stCount(ST_ILY, x); p.kiss += stCount(ST_KISS, x); p.miss += stCount(ST_MISS, x);
+  p.hug += stCount(ST_HUG, x); p.heart += stCount(ST_HEART, x);
+  if (ST_GM.test(x)) p.gm++;
+  if (ST_GN.test(x)) p.gn++;
+  for (const e of x.match(EMO_RE) || []) p.emo[e] = (p.emo[e] || 0) + 1;
+  EMO_RE.lastIndex = 0;
+  const top = Object.entries(p.emo).sort((a, b) => b[1] - a[1]);
+  if (top.length > 40) p.emo = Object.fromEntries(top.slice(0, 30));
+}
+function stSync() {   // count the messages this phone has not counted yet, oldest first
+  let added = 0;
+  chat.forEach((c, i) => { if (!c || !c.id || stIds.has(c.id) || cleared.has(c.id)) return; stIds.add(c.id); stAdd(c, i ? chat[i - 1] : null); added++; });
+  if (!added) return;
+  const ids = [...stIds]; if (ids.length > 1500) { stIds.clear(); ids.slice(-1000).forEach(x => stIds.add(x)); }
+  const keys = Object.keys(stats.days).sort(); if (keys.length > 800) for (const k of keys.slice(0, keys.length - 800)) { delete stats.days[k]; delete stats.firsts[k]; }
+  store.set('stats:' + room, stats); store.set('statIds:' + room, [...stIds]);
+}
+function stStreaks() {   // days in a row when both of you wrote
+  const both = new Set(Object.entries(stats.days).filter(([, v]) => v === 3).map(([k]) => k));
+  const back = (d, n) => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() - n); return x.toISOString().slice(0, 10); };
+  let best = 0;
+  for (const d of both) if (!both.has(back(d, 1))) { let n = 1; const x = new Date(d + 'T12:00:00Z'); for (;;) { x.setUTCDate(x.getUTCDate() + 1); if (!both.has(x.toISOString().slice(0, 10))) break; n++; } best = Math.max(best, n); }
+  const today = stDay(Date.now());
+  let cur = 0, d = both.has(today) ? today : back(today, 1);
+  while (both.has(d)) { cur++; d = back(d, 1); }
+  return { cur, best, days: Object.keys(stats.days).length };
+}
+const stPts = p => p.ily * 3 + p.kiss * 2 + p.love + p.miss + p.hug + p.heart * .5;
+const stAvg = p => p.rc ? p.rt / p.rc : 0;
+const stDur = ms => !ms ? '—' : ms < 60000 ? Math.max(1, Math.round(ms / 1000)) + ' s' : ms < 3600e3 ? Math.round(ms / 60000) + ' min' : (ms / 3600e3).toFixed(1) + ' h';
+const stHourName = h => new Date(Date.UTC(2020, 0, 1, h)).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, timeZone: 'UTC' });
+function openStats() {
+  stSync();
+  const me = stats.p.me, th = stats.p.them, I = myName || 'You', U = who(), s = stStreaks();
+  const total = me.n + th.n, pts = stPts(me) + stPts(th);
+  const score = total ? Math.min(100, Math.round(pts / total * 55 + Math.min(25, s.cur * 2.5) + Math.min(10, (me.vn + th.vn + me.im + th.im) / 2))) : 0;
+  const tier = score >= 85 ? 'Soulmates 💍' : score >= 60 ? 'Deeply in love 💘' : score >= 35 ? 'Sweet on each other 💞' : 'Just getting started 🌱';
+  const share = pts ? Math.round(stPts(me) / pts * 100) : 50;
+  const lead = share === 50 ? 'Perfectly even. Cute.' : `${share > 50 ? I : U} says it more. ${share > 50 ? U : I}, your move 😉`;
+  const vs = (a, b, f = x => x) => `<span class="stVs"><b>${esc(f(a))}</b><i>${esc(I)}</i></span><span class="stVs"><b>${esc(f(b))}</b><i>${esc(U)}</i></span>`;
+  const winner = (a, b, hi = true) => a === b ? 'Tied' : (hi ? a > b : a < b) ? I : U;
+  const fav = p => (Object.entries(p.emo).sort((a, b) => b[1] - a[1])[0] || ['—'])[0];
+  const busiest = stats.hours.some(Boolean) ? stats.hours.indexOf(Math.max(...stats.hours)) : -1;
+  const words = me.w + th.w, pages = Math.max(1, Math.round(words / 250));
+  const since = stats.since ? new Date(stats.since).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: PK }) : '';
+  const lw = typeof ludoWinsKept === 'function' ? ludoWinsKept() : {}, myR = isRemote ? 'remote' : 'host', thR = isRemote ? 'host' : 'remote';
+  const tile = (ic, title, body, note) => `<div class="stTile"><span class="stIc">${ic}</span><h3>${title}</h3><div class="stNums">${body}</div>${note ? `<p>${esc(note)}</p>` : ''}</div>`;
+  $('statBody').innerHTML = !total ? '<p class="stEmpty">Start chatting. Your story in numbers fills up here.</p>' : `
+    <div class="stHero"><div class="stHeart"><svg viewBox="0 0 32 29" aria-hidden="true"><defs><clipPath id="stClip"><path d="M16 28.5S1 19.6 1 9.4A7.9 7.9 0 0 1 16 5.6a7.9 7.9 0 0 1 15 3.8c0 10.2-15 19.1-15 19.1z"/></clipPath></defs><path class="stHeartBg" d="M16 28.5S1 19.6 1 9.4A7.9 7.9 0 0 1 16 5.6a7.9 7.9 0 0 1 15 3.8c0 10.2-15 19.1-15 19.1z"/><g clip-path="url(#stClip)"><rect class="stFill" x="0" y="${(29 * (1 - score / 100)).toFixed(2)}" width="32" height="29"/></g></svg><b class="stScore" data-n="${score}">${score}</b></div>
+      <div class="stTier">${tier}</div><p class="stSub">Love meter, from your words, kisses, streaks and voice notes${since ? ` since ${esc(since)}` : ''}.</p></div>
+    <div class="stTug"><div class="stTugHead"><span>${esc(I)}</span><b>Who loves more?</b><span>${esc(U)}</span></div><div class="stBar"><i style="width:${share}%"></i></div><p>${esc(lead)}</p></div>
+    <div class="stGrid">
+      ${tile('❤️', '“I love you”', vs(me.ily, th.ily), me.ily + th.ily ? `${me.ily + th.ily} times in total` : 'Nobody has said it yet. Go!')}
+      ${tile('💋', 'Kisses sent', vs(me.kiss, th.kiss))}
+      ${tile('🥺', 'Missing you', vs(me.miss, th.miss))}
+      ${tile('🔥', 'Streak', `<span class="stBig">${s.cur}</span><span class="stUnit">day${s.cur === 1 ? '' : 's'} in a row</span>`, `Best ever: ${s.best} · ${s.days} days talking`)}
+      ${tile('☀️', 'Says hi first', vs(me.first, th.first), `Morning champion: ${winner(me.first, th.first)}`)}
+      ${tile('🌙', 'Night owls', vs(me.late, th.late), 'Messages after midnight')}
+      ${tile('⚡', 'Replies in', vs(stAvg(me), stAvg(th), stDur), me.rc && th.rc ? `Fastest: ${winner(stAvg(me), stAvg(th), false)}` : '')}
+      ${tile('💬', 'Messages', vs(me.n, th.n), `${words.toLocaleString('en-US')} words: a ${pages}-page love letter`)}
+      ${tile('🎤', 'Voice notes', vs(me.vn, th.vn), me.vnS + th.vnS ? `${stDur((me.vnS + th.vnS) * 1000)} of your voices` : '')}
+      ${tile('📷', 'Photos', vs(me.im, th.im))}
+      ${tile('😍', 'Favourite emoji', vs(fav(me), fav(th)))}
+      ${tile('🤗', 'Hugs', vs(me.hug, th.hug))}
+      ${busiest >= 0 ? tile('🕰️', 'Your hour', `<span class="stBig">${esc(stHourName(busiest))}</span>`, 'When you two talk the most') : ''}
+      ${lw[myR] || lw[thR] ? tile('🎲', 'Ludo wins', vs(lw[myR] || 0, lw[thR] || 0), `Champion: ${winner(lw[myR] || 0, lw[thR] || 0)}`) : ''}
+      ${toyTiles()}
+    </div>
+    <p class="stFoot">Counted on your two phones only. Never sent to any server.</p>`;
+  $('statSheet').hidden = false; tap();
+  const n = $('statBody').querySelector('.stScore');   // the one moment: the heart fills and the number counts up
+  if (n && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const end = +n.dataset.n, t0 = performance.now(), fill = $('statBody').querySelector('.stFill');
+    fill.setAttribute('y', 29);
+    const step = now => { const k = Math.min(1, (now - t0) / 1100), e = 1 - Math.pow(1 - k, 3); n.textContent = Math.round(end * e); fill.setAttribute('y', (29 * (1 - end * e / 100)).toFixed(2)); if (k < 1 && !$('statSheet').hidden) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+}
+const closeStats = () => { if ($('statSheet').hidden) return false; $('statSheet').hidden = true; return true; };
+$('statBtn').onclick = ev => { ev.stopPropagation(); openStats(); };
+$('statX').onclick = () => { tap(); closeStats(); };
+
+// ---- search every message kept on this phone (Xed 13 Nov); tap a result to jump to it in the chat
+let findAll = null, findT = 0;
+const findNote = t => { $('findBody').innerHTML = `<p class="findNote">${esc(t)}</p>`; };
+function findOpen() { $('findSheet').hidden = false; $('findQ').value = ''; findAll = null; findNote('Type a word to search every message kept on this phone.'); tap(); setTimeout(() => $('findQ').focus(), 60); }
+const closeFind = () => { if ($('findSheet').hidden) return false; $('findSheet').hidden = true; $('findQ').blur(); return true; };
+async function findRun() {
+  const q = $('findQ').value.trim().toLowerCase();
+  if (q.length < 2) { findNote('Type a word to search every message kept on this phone.'); return; }
+  if (!findAll) { const m = new Map(); for (const c of [...(await archTx('readonly', st => st.getAll()).catch(() => []) || []), ...chat]) if (c && c.id && typeof c.text === 'string' && !cleared.has(c.id)) m.set(c.id, c); findAll = [...m.values()].sort((a, b) => b.at - a.at); }
+  if ($('findQ').value.trim().toLowerCase() !== q) return;
+  const hits = findAll.filter(c => c.text.toLowerCase().includes(q));
+  if (!hits.length) { findNote(`No messages with "${$('findQ').value.trim()}".`); return; }
+  const day = t => new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: PK }) + ', ' + new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
+  const mark = t => { const i = t.toLowerCase().indexOf(q), from = Math.max(0, i - 40), x = (from ? '…' : '') + t.slice(from); const j = x.toLowerCase().indexOf(q); return esc(x.slice(0, j)) + '<mark>' + esc(x.slice(j, j + q.length)) + '</mark>' + esc(x.slice(j + q.length)); };
+  $('findBody').innerHTML = `<p class="findNote" style="margin:8px 4px 10px;text-align:left">${hits.length === 1 ? '1 message' : hits.length + ' messages'}</p>` + hits.slice(0, 200).map(c => `<button type="button" class="findHit" data-id="${esc(c.id)}"><small>${c.who === 'me' ? 'You' : esc(who())} · ${esc(day(c.at))}</small><span>${mark(c.text)}</span></button>`).join('');
+}
+async function chatJump(id) {   // load older messages from the database until it is there, then scroll to it and make it glow
+  for (let i = 0; i < 100 && !chatAll().some(c => c.id === id); i++) if (!(await archOlder(200))) break;
+  if (!chatAll().some(c => c.id === id)) { notify('That message is no longer on this phone.'); return; }
+  openChat(); setTimeout(() => jumpTo(id, 'That message is no longer on this phone.'), 80);
+}
+$('findBtn').onclick = ev => { ev.stopPropagation(); findOpen(); };
+$('findX').onclick = () => { tap(); closeFind(); };
+$('findQ').oninput = () => { clearTimeout(findT); findT = setTimeout(findRun, 180); };
+$('findBody').onclick = ev => { const b = ev.target.closest('.findHit'); if (!b) return; tap(); closeFind(); chatJump(b.dataset.id); };
+
+// ---- Leo and Max in the stats (Xed 13 Nov): counted each second on her phone, the one the toys are connected to, and
+// sent to his phone, so both show the same. "Jhatkay" = each time a toy starts buzzing.
+const toyBlank = () => ({ k: 0, s: 0, him: 0, her: 0, peak: 0, strong: 0, long: 0, cur: 0, last: 0, on: 0, modes: {} });
+let toySt = store.get('toyst:' + room, null);
+if (!toySt || !toySt.vib || !toySt.suc) toySt = { vib: toyBlank(), suc: toyBlank() };
+let toyDirty = false, toySentAt = 0, toySavedAt = 0;
+if (!isRemote) steady(() => {
+  const now = Date.now();
+  for (const kind of ['vib', 'suc']) {
+    const e = state[kind], t = toySt[kind], on = !!(e && e.connected && e.level > 0);
+    if (!on) { t.on = 0; continue; }
+    if (!t.on) t.k++;
+    if (now - t.last > 60000) t.cur = 0;   // a minute of rest starts a new session
+    t.on = 1; t.s++; t.cur++; t.last = now; toyDirty = true;
+    if (e.by === 'partner') t.him++; else t.her++;
+    t.peak = Math.max(t.peak, e.level); if (e.level >= 80) t.strong++;
+    t.long = Math.max(t.long, t.cur);
+    t.modes[e.mode] = (t.modes[e.mode] || 0) + 1;
+  }
+  if (toyDirty && now - toySavedAt > 10000) { toySavedAt = now; store.set('toyst:' + room, toySt); }
+  if (toyDirty && now - toySentAt > 15000 && partnerOnline()) { toySentAt = now; toyDirty = false; send({ t: 'toyst', s: toySt }); }
+}, 1000);
+function gotToySt(m) {   // his phone keeps her phone's latest totals
+  if (!isRemote || !m.s || typeof m.s !== 'object') return;
+  const n = x => Number.isFinite(+x) && +x >= 0 ? Math.min(+x, 1e9) : 0, out = {};
+  for (const kind of ['vib', 'suc']) {
+    const t = m.s[kind] || {}, modes = {};
+    for (const [k, v] of Object.entries(t.modes || {}).slice(0, 40)) if (MODES[k]) modes[k] = n(v);
+    out[kind] = { k: n(t.k), s: n(t.s), him: n(t.him), her: n(t.her), peak: Math.min(100, n(t.peak)), strong: n(t.strong), long: n(t.long), cur: 0, last: 0, on: 0, modes };
+  }
+  toySt = out; store.set('toyst:' + room, toySt);
+}
+function toyTiles() {
+  const any = toySt.vib.s + toySt.suc.s;
+  if (!any) return `<div class="stTile stWide"><span class="stIc">💜</span><h3>Leo & Max</h3><p>No toy time yet. Their jhatkay, minutes and favourite patterns show here once they buzz.</p></div>`;
+  const I = myName || 'You', U = who(), himN = isRemote ? I : U, herN = isRemote ? U : I;
+  return ['vib', 'suc'].map(kind => {
+    const t = toySt[kind], fav = Object.entries(t.modes).sort((a, b) => b[1] - a[1])[0];
+    const drive = t.him + t.her ? Math.round(t.him / (t.him + t.her) * 100) : 0;
+    return `<div class="stTile stWide"><span class="stIc">${kind === 'vib' ? '💜' : '💗'}</span><h3>${esc(label(kind))} · ${kind === 'vib' ? 'vibrates' : 'suction'}</h3>
+      <div class="stToyRow"><span class="stVs"><b>${t.k}</b><i>jhatkay</i></span><span class="stVs"><b>${esc(stDur(t.s * 1000))}</b><i>buzzing</i></span><span class="stVs"><b>${esc(stDur(t.long * 1000))}</b><i>longest</i></span><span class="stVs"><b>${t.peak}%</b><i>strongest</i></span></div>
+      ${t.s ? `<div class="stBar stDrive"><i style="width:${drive}%"></i></div><p>${esc(himN)} drove ${drive}% · ${esc(herN)} ${100 - drive}%${fav ? ` · favourite: ${esc(modeName(fav[0]))}` : ''}${t.strong ? ` · ${esc(stDur(t.strong * 1000))} at full power` : ''}</p>` : '<p>Not used yet.</p>'}</div>`;
+  }).join('');
+}
+steady(stSync, 10000);   // counted in the background, so totals keep growing past the 200 newest messages
+// ---- GIFs (Xed 13 Nov): search and send GIFs and memes (Hindi, Urdu, latest) and, for the two of you, 18+ GIFs. Every
+// search and every clip goes through Loveline's own carrier, so the GIF sites never see either phone. 18+ GIFs stay
+// blurred in the chat until tapped, and the 18+ tab asks once on each phone.
+const GIF_CHIPS = {
+  gif: [['🔥 Trending', ''], ['❤️ Love', 'love'], ['😘 Kiss', 'kiss'], ['🤗 Hug', 'hug'], ['🥺 Miss you', 'miss you'], ['😂 Funny', 'funny'], ['🎬 Bollywood', 'bollywood', 'hi'], ['🇮🇳 Hindi memes', 'hindi meme', 'hi'], ['🇵🇰 Pakistani memes', 'pakistani meme', 'ur'], ['Urdu', 'urdu', 'ur'], ['SRK', 'shahrukh khan', 'hi'], ['🌙 Good night', 'good night'], ['☀️ Good morning', 'good morning'], ['😂 Kya baat hai', 'kya baat hai', 'hi'], ['🙄 Chal hat', 'chal hat', 'hi'], ['🤪 Pagal', 'pagal', 'hi'], ['😏 Acha ji', 'acha ji', 'hi'], ['😤 Uff', 'uff', 'hi'], ['🥲 Bas karo', 'bas karo', 'hi'], ['🙏 Sorry', 'sorry'], ['😡 Angry', 'angry'], ['💃 Dance', 'dance']],
+  adult: [['🔥 Trending', ''], ['💑 Couple', 'couple'], ['🌹 Romantic', 'romantic'], ['💋 Kissing', 'kissing'], ['🔥 Threesome', 'threesome'], ['FFM', 'ffm'], ['MMF', 'mmf'], ['🌺 Exotic', 'erotic'], ['❤️‍🔥 Passionate', 'passionate'], ['✨ Sensual', 'sensual'], ['💆 Massage', 'massage'], ['🏝️ Beach', 'beach'], ['🌳 Outdoor', 'outdoor'], ['🚿 Shower', 'shower'], ['👙 Lingerie', 'lingerie'], ['😈 Teasing', 'teasing'], ['🇮🇳 Desi', 'desi'], ['🎥 Amateur couple', 'amateur couple']],
+};
+let gifSrc = 'gif', gifQ = '', gifLang = '', gifPage = 1, gifItems = [], gifBusy = false, gifEnd = false, gifT = 0, gifAdultOk = store.get('gifAdult', false) === true;
+const gifRevealed = new Set();   // 18+ GIFs shown this time the app is open; blurred again next time
+function cleanGif(g) {
+  const ph = CARRIER + '/ph?id=', ok = u => typeof u === 'string' && u.length < 700 && (u.startsWith(CARRIER + '/?u=') || (u.startsWith(ph) && /^[0-9]{1,12}$/.test(u.slice(ph.length))));   // a Pornhub GIF travels as its number only
+  if (!g || !ok(g.v) || (g.p && !ok(g.p)) || !Number.isFinite(g.w) || !Number.isFinite(g.h) || g.w < 1 || g.h < 1 || g.w > 5000 || g.h > 5000) return null;
+  return { v: g.v, p: g.p || '', w: Math.round(g.w), h: Math.round(g.h), x: g.x === true };
+}
+const gifText = x => x ? '🎞️ GIF (18+)' : '🎞️ GIF';
+function sendGif(it, x) {
+  const gif = cleanGif({ v: it.v, p: it.p, w: it.w, h: it.h, x }); if (!gif) return;
+  const c = { id: b64url(rand(8)), who: 'me', text: gifText(x), at: Date.now(), st: 0, gif, re: reOut(replyTo) };
+  if (!c.re) delete c.re;
+  setReply(null); toEndNext = true; if (x) gifRevealed.add(c.id);
+  chat.push(c); saveChat(); renderChat(); tap();
+  send({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re, gif }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
+}
+function gifHtml(c, meta) {
+  const g = c.gif, hide = g.x && !gifRevealed.has(c.id);   // one standard size for every GIF (Xed 13 Nov); the clip fills it
+  return `<div class="gifBox${hide ? ' veiled' : ''}" data-gif="${esc(c.id)}"><video class="gifVid" muted loop playsinline autoplay preload="auto"${g.p && !hide ? ` poster="${esc(g.p)}"` : ''}${hide ? ` data-src="${esc(g.v)}"` : ` src="${esc(g.v)}"`}></video>${hide ? '<span class="gifVeil">18+ · tap to see</span>' : ''}<span class="gifTag">GIF</span>${meta}</div>`;
+}
+const gifKeep = () => { const m = new Map(); for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video[src]')) m.set(v.closest('.gifBox').dataset.gif, v); return m; };
+function gifRestore(m) {   // the chat redraws often: keep each playing GIF instead of loading it again
+  for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video')) { const old = m.get(v.closest('.gifBox').dataset.gif); if (old && old.getAttribute('src') === v.getAttribute('src')) { v.replaceWith(old); old.play().catch(() => {}); } }
+}
+async function resendMsg(c) {   // the same thing again, as a new message from this phone (Xed 13 Nov)
+  if (c.gif) return sendGif({ v: c.gif.v, p: c.gif.p, w: c.gif.w, h: c.gif.h }, c.gif.x);
+  if (c.vn || c.im) {
+    const v = await vnLoad(c.id);
+    if (!v || !v.b) { notify('That is not on this phone yet, so it cannot be sent again.'); return; }
+    if (c.vn) return sendVoice(v.b, c.vn.d, c.vn.w, c.vn.m);
+    return sendPhoto({ blob: v.b, w: c.im.w, h: c.im.h, t: c.im.t || '' }, imOnce);
+  }
+  sendChat(c.text);
+}
+function gifClick(ev) {
+  const box = ev.target.closest('.gifBox.veiled'); if (!box) return false;
+  tap(); gifRevealed.add(box.dataset.gif); renderChat(); return true;
+}
+// the panel
+function gifOpen(on) {
+  $('gifPanel').hidden = !on; $('gifBtn').classList.toggle('on', on);
+  const typed = on && $('text').value.trim();
+  if (typed) { $('gifQ').value = typed; gifQ = typed; gifLang = ''; $('text').value = ''; $('text').dispatchEvent(new Event('input')); }
+  if (on) { $('quick').hidden = true; if (typed || !gifItems.length) gifLoad(true); gifChips(); }
+  fitDock();
+}
+function gifChips() {
+  $('gifChips').innerHTML = GIF_CHIPS[gifSrc].map(([l, q, lang], i) => `<button type="button" data-i="${i}" class="${q === gifQ && !$('gifQ').value ? 'on' : ''}">${esc(l)}</button>`).join('');
+  for (const b of $('gifChips').querySelectorAll('button')) b.onclick = () => { const [, q, lang] = GIF_CHIPS[gifSrc][+b.dataset.i]; tap(); $('gifQ').value = ''; gifQ = q; gifLang = lang || ''; gifLoad(true); gifChips(); };
+  for (const b of document.querySelectorAll('#gifSrc button')) b.classList.toggle('on', b.dataset.src === gifSrc);
+}
+async function gifLoad(fresh) {
+  if (gifBusy || (!fresh && gifEnd)) return;
+  if (fresh) { gifPage = 1; gifItems = []; gifEnd = false; $('gifGrid').innerHTML = ''; $('gifGrid').scrollTop = 0; }
+  gifBusy = true; const want = `${gifSrc}|${gifQ}|${gifPage}`;
+  $('gifNote').textContent = 'Loading…'; $('gifNote').hidden = false;
+  let d = null, err = '';
+  try { const r = await fetch(`${CARRIER}/gif?src=${gifSrc}&q=${encodeURIComponent(gifQ)}&p=${gifPage}${gifLang ? '&l=' + gifLang : ''}`); d = await r.json().catch(() => null); if (!r.ok) err = d && d.error === 'nokey' ? 'nokey' : 'site'; } catch { err = 'net'; }
+  gifBusy = false;
+  if (want !== `${gifSrc}|${gifQ}|${gifPage}`) return;   // the search changed while this one was loading
+  if (err || !d || !Array.isArray(d.items)) { $('gifNote').textContent = err === 'nokey' ? 'Normal GIFs need a free GIPHY key on the carrier first. 18+ works now.' : 'GIFs did not load. Check the internet and try again.'; return; }
+  const items = d.items.map(it => cleanGif({ ...it, x: gifSrc === 'adult' })).filter(Boolean);
+  if (!items.length) gifEnd = true;
+  $('gifNote').hidden = !!(gifItems.length + items.length); $('gifNote').textContent = 'Nothing found. Try other words.';
+  const start = gifItems.length; gifItems.push(...items); gifPage++;
+  $('gifGrid').insertAdjacentHTML('beforeend', items.map((it, k) => `<button type="button" class="gifItem" data-i="${start + k}" style="aspect-ratio:${Math.max(.5, Math.min(2, it.w / it.h)).toFixed(3)}" aria-label="Send this GIF"><video muted loop playsinline preload="none"${it.p ? ` poster="${esc(it.p)}"` : ''} data-src="${esc(it.v)}"></video></button>`).join(''));
+  for (const b of $('gifGrid').querySelectorAll('.gifItem:not([data-on])')) { b.dataset.on = 1; gifSeen.observe(b); b.onclick = () => { sendGif(gifItems[+b.dataset.i], gifSrc === 'adult'); gifOpen(false); }; }
+}
+const gifInChat = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (!v.getAttribute('src')) continue; if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); } }, { root: $('msgs') });
+const gifSeen = new IntersectionObserver(es => {   // only the GIFs on screen play, to save data
+  for (const e of es) { const v = e.target.querySelector('video'); if (!v) continue; if (e.isIntersecting) { if (!v.src && v.dataset.src) v.src = v.dataset.src; v.play().catch(() => {}); } else v.pause(); }
+}, { root: $('gifGrid'), rootMargin: '300px' });   // every GIF on screen plays, and the next ones are ready before they scroll in
+$('gifGrid').addEventListener('scroll', () => { const g = $('gifGrid'); if (g.scrollHeight - g.scrollTop - g.clientHeight < 300) gifLoad(false); }, { passive: true });
+$('gifBtn').onclick = () => { tap(); gifOpen($('gifPanel').hidden); };
+$('gifQ').addEventListener('input', () => { clearTimeout(gifT); gifT = setTimeout(() => { gifQ = $('gifQ').value.trim(); gifLang = ''; gifLoad(true); gifChips(); }, 450); });
+$('gifQ').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); clearTimeout(gifT); gifQ = $('gifQ').value.trim(); gifLang = ''; gifLoad(true); $('gifQ').blur(); } });
+for (const b of document.querySelectorAll('#gifSrc button')) b.onclick = () => {
+  const go = () => { gifSrc = b.dataset.src; gifQ = ''; gifLang = ''; $('gifQ').value = ''; $('gifQ').placeholder = gifSrc === 'adult' ? 'Search 18+ GIFs' : 'Search GIFs and memes'; gifLoad(true); gifChips(); };
+  tap();
+  if (b.dataset.src === 'adult' && !gifAdultOk) {
+    newShow('18+ GIFs', 'Adult GIFs from RedGIFs, for the two of you. In the chat they stay blurred until tapped. Show them on this phone?', 'Yes, I am 18+', 'Not now', () => { newClose(); gifAdultOk = true; store.set('gifAdult', true); go(); }, () => newClose());
+    return;
+  }
+  go();
+};
 // ---- reactions: hold a message, pick a face; the same face again takes it off. Each phone has one reaction per message.
 const REACTS = ['❤️', '😍', '😘', '🥰', '🔥', '🫦', '😂', '👍', '😮', '😢', '🙏', '😡', '🤬', '😤', '💔'];
 function react(c, e) {
@@ -1998,10 +2888,14 @@ function renderChat() {
   const rxs = c => { const l = [c.rx && c.rx.them, c.rx && c.rx.me].filter(Boolean); return !l.length ? '' : `<span class="rx" role="button" aria-label="Reactions">${l[1] && l[0] === l[1] ? esc(l[0]) + '<small>2</small>' : l.map(esc).join('')}</span>`; };
   const box = $('msgs'), keep = box.scrollTop, toEnd = toEndNext || !$('dock').classList.contains('open') || box.scrollHeight - box.scrollTop - box.clientHeight < 80;   // reading older messages: stay where you are
   toEndNext = false;
-  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + chat.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${emojiOnly(c.text) && !c.re ? 'big' : ''} ${r ? 'rxd' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${esc(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>${r}</div>`; }).join('');
+  if (toEnd && !keepShow) { chatShow = 80; viewTop = null; }
+  keepShow = false;
+  const keepV = gifKeep();
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + chatView().map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''}" data-id="${esc(c.id)}">${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${esc(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
   box.scrollTop = toEnd ? box.scrollHeight : keep;
+  gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) gifInChat.observe(v);
   toEndState();
-  $('clearChat').hidden = !chat.length;
+  $('clearChat').hidden = !chat.length && !older.length;
   $('chatGrab').hidden = !chat.length;
   fitDock();
 }
@@ -2067,7 +2961,8 @@ function renderPins() {
   fitDock();
 }
 function jumpTo(id, gone = 'That message is no longer in the chat, but it stays pinned.') {   // scroll the chat to a message and make it glow for a moment
-  const box = $('msgs'), el = box.querySelector(`.bubble[data-id="${CSS.escape(id)}"]`);
+  const box = $('msgs'); let el = box.querySelector(`.bubble[data-id="${CSS.escape(id)}"]`);
+  if (!el) { const all = chatAll(), j = all.findIndex(c => c.id === id); if (j >= 0) { chatShow = all.length - j + 10; viewTop = null; keepShow = true; renderChat(); el = box.querySelector(`.bubble[data-id="${CSS.escape(id)}"]`); } }
   if (!el) { notify(gone); return; }
   const br = box.getBoundingClientRect(), er = el.getBoundingClientRect();
   box.scrollTo({ top: box.scrollTop + er.top - br.top - (br.height - er.height) / 2, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
@@ -2088,14 +2983,15 @@ function openMsgMenu(target, items, head) {   // a small menu next to what was h
 }
 function closeMsgMenu() { $('msgMenu').hidden = true; if (menuFor) menuFor.classList.remove('held'); menuFor = null; }
 function bubbleMenu(b) {
-  const c = chat.find(x => x.id === b.dataset.id); if (!c) return;
+  const c = msgById(b.dataset.id); if (!c) return;
   const on = !!(pins[c.id] && pins[c.id].on), row = document.createElement('div');
   row.className = 'rxRow'; row.setAttribute('aria-label', 'React');
   for (const e of REACTS) { const x = document.createElement('button'); x.type = 'button'; x.textContent = e; x.setAttribute('aria-label', 'React ' + e); if (c.rx && c.rx.me === e) x.className = 'on'; x.onclick = ev => { ev.stopPropagation(); closeMsgMenu(); react(c, e); }; row.appendChild(x); }
   openMsgMenu(b, [
     ['Reply', () => { openChat(); setReply(c); backToTyping(); }],
     [on ? 'Unpin' : 'Pin', () => setPin({ id: c.id, x: c.text.slice(0, 200), w: c.who }, !on)],
-    ['Copy', () => { if (navigator.clipboard) navigator.clipboard.writeText(c.text).then(() => notify('Copied.')).catch(() => {}); }],
+    ...(c.im && c.im.vo ? [] : [['Send again', () => resendMsg(c)]]),
+    ...(c.vn || c.im || c.gif ? [] : [['Copy', () => { if (navigator.clipboard) navigator.clipboard.writeText(c.text).then(() => notify('Copied.')).catch(() => {}); }]]),
   ], row);
 }
 function holdToOpen(el, pick, open) {   // press and hold about half a second, without moving, opens the menu
@@ -2431,7 +3327,7 @@ function setChatTab() { openPanel('chat'); }
 function chatTabRoom() {   // the chat fills the space between the tabs and the bottom of the screen
   if (!chatTab) return;
   const top = Math.max(...['tabs', 'batWarn', 'alertAsk', 'listenAsk'].map(id => $(id)).filter(e => !e.hidden).map(e => e.getBoundingClientRect().bottom)), rest = $('dock').offsetHeight - $('msgs').offsetHeight;
-  document.body.style.setProperty('--chatRoom', Math.max(160, innerHeight - Math.max(0, top) - rest - 18) + 'px');
+  document.body.style.setProperty('--chatRoom', Math.max(160, innerHeight - Math.max(0, top) - rest - 8) + 'px');
 }
 addEventListener('resize', chatTabRoom);
 new MutationObserver(() => chatTabRoom()).observe(document.querySelector('main'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });   // a card above the chat came or went
@@ -3357,6 +4253,7 @@ function renderLudo() {
 }
 $('ludoRoll').onclick = () => { tap(); askMotion(); ludoRoll(); };
 $('ludoNew').onclick = () => { tap(); askNew('ludo'); };
+setTimeout(() => { if (!document.hidden && !(navigator.connection && navigator.connection.saveData)) (window.requestIdleCallback || setTimeout)(() => loadRapier()); }, 8000);   // games open at once: the 1.3 MB physics comes in quietly first (Xed 13 Nov)
 function ludoOpen() { loadRapier(); renderLudo(); if (!lrun) lrun = requestAnimationFrame(ludoLoop); }
 function ludoLoop() { if (panel !== 'ludo') { lrun = 0; return; } lrun = requestAnimationFrame(ludoLoop); ludoSpotTick(); drawLudo(); }
 function fitCanvas(cv) {
@@ -4682,6 +5579,7 @@ $('vidList').onclick = ev => {
 let wstate = { id: null, playing: false, pos: 0, base: 0, v: 0, from: '' };
 let toyRanAt = 0;   // the 15 s auto-lock waits while a video plays in Watch; on her phone also while a toy runs, or ran in the last minute (pauses between patterns)
 window.lockHold = () => {
+  if (vnBusy()) return true;   // a voice note being recorded or played (Xed 13 Nov)
   if (panel === 'watch' && wstate.playing && here() && !vid.paused && !vid.ended) return true;   // Xed 12 Nov: only a video really moving on this phone, not paused, ended or still loading
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
@@ -4714,7 +5612,17 @@ function gotWplay(m) {   // an action from the other phone: applied here, never 
   if (m.id && !m.re && (newId || m.playing) && panel !== 'watch') openPanel('watch', true);   // a catch-up copy never moves the section: the section has its own catch-up
   applyState();
 }
+let wQuiet = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !wstate.id) return;
+  wQuiet = Date.now() + 8000; send({ t: 'wask' });
+  if (wstate.playing && here()) vid.currentTime = clampT(target());   // back at once where the shared clock says; the other phone's answer fine-tunes it
+  for (const ms of [1500, 3000, 4500, 6000]) setTimeout(() => { if (Date.now() < wQuiet) send({ t: 'wask' }); }, ms);
+  setTimeout(() => { wQuiet = 0; }, 8100);   // no answer: it keeps the shared clock's spot and leads again
+});
+function gotWask() { if (wstate.id && !document.hidden) send({ t: 'wbeat', id: wstate.id, v: wstate.v, pos: curPos(), sync: true }); }
 function gotBeat(m) {   // the phone that acted last says where it is every 2 s; nudge this one if it is more than 1 s off
+  if (m.sync) wQuiet = 0;
   if (m.id !== wstate.id || m.v !== wstate.v || !wstate.playing || !Number.isFinite(m.pos)) return;
   wstate.pos = Math.max(0, m.pos); wstate.base = performance.now() - lag(m);
   if (here() && !vid.seeking && !vid.ended && Math.abs(vid.currentTime - target()) > 1) vid.currentTime = clampT(target());
@@ -4729,7 +5637,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261112-234820';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-111423';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 async function checkNewer() {
@@ -4766,6 +5674,7 @@ vid.addEventListener('playing', () => { stallAt = 0; lookedAgain = null; });
 vid.addEventListener('loadedmetadata', () => applyState());
 const aheadOf = () => { for (let i = 0; i < vid.buffered.length; i++) if (vid.buffered.start(i) <= vid.currentTime + .1 && vid.buffered.end(i) >= vid.currentTime) return vid.buffered.end(i) - vid.currentTime; return 0; };
 function keepTogether() {   // the video is still arriving, or comes from a site: when this phone runs out, both wait and carry on together
+  if (document.hidden) { stallAt = 0; return; }   // locked or in another app: its video stops by itself; the other phone keeps playing (Xed 13 Nov)
   const v = wstate.id && vidMap[wstate.id];
   if (holding && (!v || wstate.playing)) holding = false;
   if (!v || panel !== 'watch' || loadedId !== v.id) return;
@@ -4994,10 +5903,11 @@ steady(() => {   // once a second: keep the library in step, fetch missing video
   if (lanes && Date.now() - lanesAt > 60000) { lanes.forEach(c => c.end(true)); lanes = null; wakeSlow(); }
   if (wstate.id && wstate.id !== loadedId && panel === 'watch' && vidMap[wstate.id] && (vidMap[wstate.id].ready || canStream())) applyState();
   if (loadedId && vid.error && vid.error.code === 2) { const at = curPos(); vid.load(); vid.currentTime = at; }   // the part took too long: ask again
-  if (here() && !vid.seeking && panel === 'watch') {
+  if (document.hidden && here() && !vid.paused) vid.pause();   // only here: nothing plays behind the lock, and the other phone is not told
+  if (here() && !vid.seeking && panel === 'watch' && !document.hidden) {
     if (wstate.playing) {
       if (wstate.from === me) {
-        if (!vid.paused && Date.now() - beatAt >= 2000) { beatAt = Date.now(); send({ t: 'wbeat', id: wstate.id, v: wstate.v, pos: vid.currentTime }); }
+        if (!vid.paused && Date.now() > wQuiet && Date.now() - beatAt >= 2000) { beatAt = Date.now(); send({ t: 'wbeat', id: wstate.id, v: wstate.v, pos: vid.currentTime }); }
       } else if (!vid.ended && Math.abs(vid.currentTime - target()) > 1) vid.currentTime = clampT(target());
       if (vid.paused && !vid.ended) playVid();
     } else if (!vid.paused) vid.pause();
@@ -5109,7 +6019,10 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'ack') gotAck(m);
   if (m.t === 'react') gotReact(m);
   if (m.t === 'seen') gotSeen();
-  if (m.t === 'typing') typingUntil = Date.now() + 3500;
+  if (m.t === 'typing') { typingUntil = Date.now() + 3500; typingRec = m.rec === true; }
+  if (m.t === 'vget') gotVget(m);
+  if (m.t === 'toyst') gotToySt(m);
+  if (m.t === 'vpart') gotVpart(m);
   if (m.t === 'listening') partnerListening = !!m.on;
   if (m.t === 'panel') gotPanel(m);
   if (m.t === 'facts') gotFacts(m);
@@ -5147,6 +6060,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'vlib') gotLib(m);
   if (m.t === 'wplay') gotWplay(m);
   if (m.t === 'wbeat') gotBeat(m);
+  if (m.t === 'wask') gotWask();
   if (m.t === 'vcount' && m.id === wstate.id && linkFrame) showCount();
   if (m.t === 'cantplay' && m.id === wstate.id) notify(`${who()}'s phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.`, 12000);
 }
@@ -5581,7 +6495,7 @@ $('buzzBtn').onclick = () => sendBuzz();
 // ---- start
 $('quick').innerHTML = EMOJI.map(e => `<button type="button" aria-label="Send ${e}">${e}</button>`).join('');
 // Pressing Send or an emoji must not take the cursor out of the message box, or the phone closes its keyboard.
-const KEEPS_KEYBOARD = '#sendBtn, #emojiBtn, #quick button, #buzzBtn, .bubble, #replyX, #toEnd';
+const KEEPS_KEYBOARD = '#sendBtn, #micBtn, #vnDel, #emojiBtn, #gifBtn, #findQ, #quick button, #buzzBtn, .bubble, #replyX, #toEnd';
 let wasTyping = false;
 // The keyboard opens only when the message box itself is tapped. Android can hide the keyboard and leave the box selected,
 // so "typing" also needs the keyboard to be taking up the screen. The page shrinks when the keyboard opens
@@ -5594,11 +6508,12 @@ const keyboardUp = () => Math.min(innerHeight, window.visualViewport ? visualVie
 $('text').addEventListener('focus', () => setTimeout(() => { if (document.activeElement === $('text') && !keyboardUp()) logLink('message box tapped, keyboard did not open'); }, 1200));
 // The whole rounded box counts, not just the line of text inside it.
 $('compose').addEventListener('click', ev => { if (!ev.target.closest('button, input')) $('text').focus(); });
-$('dock').addEventListener('click', ev => { const bar = document.querySelector('#dock .bar'); if (!ev.target.closest('button, input, .msgs, .quick, .replyBar, .pinBar, .chatTop') && ev.clientY >= bar.getBoundingClientRect().top - 4) $('text').focus(); });   // the space just around and under the box opens typing too
+$('dock').addEventListener('click', ev => { const bar = document.querySelector('#dock .bar'); if (!ev.target.closest('button, input, .msgs, .quick, .replyBar, .pinBar, .chatTop, .recBar, .recLock') && ev.clientY >= bar.getBoundingClientRect().top - 4) $('text').focus(); });   // the space just around and under the box opens typing too
 addEventListener('resize', () => document.body.classList.toggle('kbUp', keyboardUp()));
 const sendTyped = () => { sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
 $('text').addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.keyCode === 13) && !ev.shiftKey) { ev.preventDefault(); sendTyped(); } });   // the keyboard's Enter sends
 $('msgs').addEventListener('scroll', toEndState, { passive: true });
+$('msgs').addEventListener('scroll', () => { if ($('msgs').scrollTop < 80) showOlder(); }, { passive: true });
 $('toEnd').onclick = () => {
   if (backTo) { const id = backTo; backTo = null; tap(); jumpTo(id, 'That message is no longer in the chat.'); setTimeout(toEndState, 600); return; }   // first back to the reply you came from
   tap(); newBelow = 0; const box = $('msgs'); box.scrollTo({ top: box.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); backToTyping(); };
@@ -5614,7 +6529,7 @@ $('quick').querySelectorAll('button').forEach(b => b.onclick = () => {   // with
   t.value = t.value.slice(0, a) + e + t.value.slice(z); t.setSelectionRange(a + e.length, a + e.length);
   t.dispatchEvent(new Event('input')); backToTyping();
 });
-$('emojiBtn').onclick = () => { $('quick').hidden = !$('quick').hidden; fitDock(); backToTyping(); };
+$('emojiBtn').onclick = () => { if (!$('gifPanel').hidden) gifOpen(false); $('quick').hidden = !$('quick').hidden; fitDock(); backToTyping(); };
 $('text').oninput = () => {
   $('sendBtn').disabled = !$('text').value.trim();
   if (Date.now() - typingSent > 2000) { typingSent = Date.now(); send({ t: 'typing' }); }
@@ -5647,6 +6562,7 @@ let chatTapAt = 0, chatTapT = 0;
 const openChat = () => { if (chatIsOpen()) return; $('dock').classList.add('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
 $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap anywhere makes the chat small again
   if (ev.target.closest('.e2e')) { showCode(); return; }
+  if (vnClick(ev) || imClick(ev) || gifClick(ev)) return;
   const b = ev.target.closest('.bubble'), now = Date.now();
   if (now - menuAt < 700) return;   // that was a long press: the menu is up
   if (ev.target.closest('.rx') && b) { tap(); bubbleMenu(b); return; }   // the reaction badge: change or take off your reaction
@@ -5661,7 +6577,7 @@ $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap a
   if (now - chatTapAt < 300) { clearTimeout(chatTapT); chatTapAt = 0; if (chatIsOpen()) { tap(); closeChat(); } return; }
   chatTapAt = now;
   chatTapT = setTimeout(() => {
-    const c = b && chat.find(x => x.id === b.dataset.id);
+    const c = b && msgById(b.dataset.id);
     if (c) { tap(); openChat(); setReply(c); backToTyping(); return; }
     openChat();
   }, 260);
@@ -5707,7 +6623,7 @@ const closeChat = () => {
   $('dock').classList.remove('open'); fitDock();
 };
 $('closeChat').onclick = () => { tap(); closeChat(); };
-addEventListener('pointerdown', ev => { if (chatIsOpen() && !chatTab && !ev.target.closest('#dock, .sheet, #msgMenu')) closeChat(); });
+addEventListener('pointerdown', ev => { if (chatIsOpen() && !chatTab && !ev.target.closest('#dock, .sheet, #msgMenu, .imView, .statSheet')) closeChat(); });
 // The phone's Back button stays inside the app first: it closes the chat, then leaves the section, and only then leaves Loveline.
 // The extra history step is added after a finished tap, never during one and never while typing: changing the history in the
 // middle of a touch made Android drop the keyboard, so the message box needed a second tap (Xed 11 Nov).
@@ -5721,6 +6637,7 @@ const holdBack = () => {
 holdBack();
 addEventListener('popstate', () => {
   if (location.hash !== startHash) return;
+  if (imBack() || closeStats() || closeFind() || (!$('gifPanel').hidden && (gifOpen(false), true))) { history.pushState(null, ''); return; }
   if (chatIsOpen() && !chatTab) closeChat();
   else if (panel !== 'chat') { if (okToLeave('chat')) openPanel('chat'); }
   else if (outQ.length) { if (confirm('Your video is still sending. Leave Loveline?')) { leaving = true; history.back(); return; } }
@@ -5950,7 +6867,7 @@ document.querySelectorAll('.switchSide').forEach(b => {
   };
 });
 addEventListener('beforeunload', e => { if (!leaving && (outQ.length || (!isRemote && Object.values(state).some(x => x.connected)))) { e.preventDefault(); e.returnValue = ''; } });
-addEventListener('scroll', () => { document.querySelector('header').classList.toggle('small', scrollY > 24); document.body.classList.toggle('scrolled', scrollY > 24); }, { passive: true });   // large title shrinks into a bar
+addEventListener('scroll', () => { $('topbar').classList.toggle('small', scrollY > 4); document.body.classList.toggle('scrolled', scrollY > 24); }, { passive: true });   // large title shrinks into a bar
 $('stop').onclick = () => { if (!isRemote) herStops++; stopAll(isRemote ? 'You stopped everything' : 'Everything stopped'); };
 </script>
 </body>
