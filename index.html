@@ -239,6 +239,7 @@
   .infoAct { position: absolute; inset: 0; z-index: 5; background: rgba(0, 0, 0, .32); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); animation: ctxDim 220ms ease-out; }
   .infoAct[hidden] { display: none; }
   @keyframes ctxDim { from { background: rgba(0, 0, 0, 0); -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); } }
+  .ctxLift * { pointer-events: none; -webkit-touch-callout: none; }
   .ctxLift { position: absolute; overflow: hidden; border-radius: 14px; background: #2c2c2e; box-shadow: 0 18px 50px rgba(0, 0, 0, .5); animation: ctxLift 380ms cubic-bezier(.2, .9, .3, 1.15); }
   .ctxLift img, .ctxLift video { width: 100%; height: 100%; object-fit: cover; display: block; }
   .ctxLift .infoLink { pointer-events: none; }
@@ -3028,7 +3029,7 @@ function ctxOpen(el) {   // the held item lifts, the page behind dims and blurs,
   let x = Math.min(Math.max(16, r.left - host.left + r.width / 2 - W / 2), host.width - W - 16), y = r.top - host.top + r.height / 2 - H / 2;
   y = Math.min(Math.max(max0(), y), host.height - H - menuH - gap - 24);
   lift.innerHTML = ''; const copy = el.cloneNode(true); copy.classList.remove('held', 'veil'); copy.removeAttribute('id');
-  if (isLink) lift.appendChild(copy); else { const m = el.querySelector('img, video').cloneNode(true); if (m.tagName === 'VIDEO') { m.src = m.dataset.src; m.muted = true; m.play().catch(() => {}); } lift.appendChild(m); }
+  if (isLink) lift.appendChild(copy); else { const m = el.querySelector('img, video').cloneNode(true); if (m.tagName === 'VIDEO') { m.src = m.dataset.src; m.muted = true; m.disablePictureInPicture = true; m.play().catch(() => {}); } lift.appendChild(m); }
   Object.assign(lift.style, { left: x + 'px', top: y + 'px', width: W + 'px', height: H + 'px' }); lift.style.setProperty('--from', (r.width / W).toFixed(3));
   lift.style.transformOrigin = `${r.left - host.left + r.width / 2 - x}px ${r.top - host.top + r.height / 2 - y}px`;
   const mx = Math.min(Math.max(16, x + (x + W / 2 > host.width / 2 ? W - 250 : 0)), host.width - 266);
@@ -3044,7 +3045,8 @@ $('infoBody').addEventListener('pointerdown', ev => {   // hold a photo, GIF or 
   const off = () => { clearTimeout(pressT); clearTimeout(infoHold); el.classList.remove('held'); for (const e of ['pointerup', 'pointercancel', 'pointerleave']) el.removeEventListener(e, off); };
   for (const e of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(e, off);
 });
-$('infoBody').addEventListener('contextmenu', ev => ev.preventDefault());
+// Chrome's own long-press menu (Download video, Open in Chrome...) must never open over the app's menu: on the lifted copy, the grid, the GIF picker or the photo screens
+document.addEventListener('contextmenu', ev => { if (ev.target.closest && ev.target.closest('#infoSheet, #gifPanel, #imView, #dpCrop, #statSheet, video, canvas')) ev.preventDefault(); }, true);
 $('infoBody').addEventListener('click', ev => {
   if (Date.now() - infoHeldAt < 700) { ev.preventDefault(); return; }
   const el = ev.target.closest('.infoCell'); if (!el) return;
@@ -3149,7 +3151,7 @@ function emoFor(word) {
 }
 function emoHintShow() {
   const t = $('text'), h = $('emoHint'), v = t.value;
-  const atEnd = t.selectionStart == null || t.selectionStart === v.length, m = atEnd && v.match(/([A-Za-z-]{2,})$/), list = m && emoFor(m[1]);
+  const atEnd = t.selectionStart == null || t.selectionStart === v.length, m = atEnd && v.match(/([A-Za-z-]{2,}) ?$/), list = m && emoFor(m[1]);   // right after the word, and still there after one space (Xed 13 Nov)
   if (!list) { h.hidden = true; return; }
   h.textContent = list.slice(0, 2).join(''); h.hidden = false;
   const cs = getComputedStyle(t); emoMeasure = emoMeasure || document.createElement('canvas').getContext('2d'); emoMeasure.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
@@ -6169,7 +6171,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-220434';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-220946';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
