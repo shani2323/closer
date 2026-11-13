@@ -6165,15 +6165,20 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261113-212315';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261113-213548';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
+function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
+  const sw = navigator.serviceWorker && navigator.serviceWorker.controller; if (!sw) return Promise.resolve(true);
+  return new Promise(res => { const ch = new MessageChannel(); const t = setTimeout(() => res(false), 20000); ch.port1.onmessage = e => { clearTimeout(t); res(!!(e.data && e.data.ok)); }; sw.postMessage({ t: 'shell', v }, [ch.port2]); });
+}
 async function checkNewer() {
   if (document.hidden || $('text').value || document.activeElement === $('text') || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing (or about to) or watching
   try {
-    const t = await (await fetch('index.html?nc=' + Date.now(), { cache: 'no-store' })).text(), v = (t.match(/const APP_V = '([^']+)'/) || [])[1];
+    const t = (await (await fetch('v.txt?nc=' + Date.now(), { cache: 'no-store' })).text()).trim(), v = /^v-[\d-]+$/.test(t) ? t : '';   // 20 bytes, not the whole app
     if (isRemote ? mayRun || hearing || mic : Object.values(state).some(e => e.connected && e.level)) return;   // never while a toy runs: a reload would drop her toys' Bluetooth mid-session, and his sound
-    if (v && v !== APP_V && (store.get('reloadedFor') !== v || Date.now() - (store.get('reloadedAt') || 0) > 600000)) { store.set('reloadedFor', v); store.set('reloadedAt', Date.now()); location.replace(location.pathname + '?u=' + Date.now() + location.hash); }
+    if (v && v !== APP_V && (store.get('reloadedFor') !== v || Date.now() - (store.get('reloadedAt') || 0) > 600000)) { if (!(await shellHas(v))) return;   // this phone's own copy is brought up to date first, so the reload lands on the new version
+      store.set('reloadedFor', v); store.set('reloadedAt', Date.now()); location.replace(location.pathname + '?u=' + Date.now() + location.hash); }
   } catch {}
 }
 checkNewer(); setInterval(checkNewer, 60000);   // right when the app opens or refreshes, then every minute
@@ -6181,6 +6186,7 @@ checkNewer(); setInterval(checkNewer, 60000);   // right when the app opens or r
 if (navigator.serviceWorker) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
   navigator.serviceWorker.addEventListener('controllerchange', () => applyState());
+  navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.t === 'newer') checkNewer(); });   // the helper found and saved a newer app
   navigator.serviceWorker.addEventListener('message', e => {   // the player needs a part that is not here yet
     const m = e.data, v = m && validId(m.need) && vidMap[m.need];
     if (!v || v.ready || !Number.isFinite(m.at)) return;
@@ -7287,7 +7293,7 @@ addEventListener('popstate', () => {
   history.pushState(null, '');
 });
 $('splashSide').textContent = isRemote ? 'His side' : 'Her side';
-setTimeout(() => $('splash').remove(), 1300);
+setTimeout(() => $('splash').remove(), 700);
 $('meBtn').onclick = () => { $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
 $('nameForm').onsubmit = ev => {
   ev.preventDefault();

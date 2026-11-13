@@ -1,9 +1,42 @@
 // Lets a video play while it is still arriving: the player asks for bytes here, and this answers as soon as they are saved on this phone.
 const PART = 1 << 19, MOST = 8, WAIT_MS = 120000;
-self.addEventListener('install', () => self.skipWaiting());
+// The app opens from a copy kept on this phone (13 Nov: every open used to download the whole app again, twice).
+// The only question asked on each open is a 20-byte "which version is newest?"; a newer one is fetched once, checked, kept, and the open app told.
+const SHELL = 'loveline-shell-1', LIBS = new Set(['mqtt.min.js', 'hls.light.min.js', 'rapier2d.mjs', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest']);
+const here = p => new URL(p, self.registration.scope).href;
+const keptV = async () => { const c = await caches.open(SHELL), r = await c.match(here('__v')); return r ? r.text() : ''; };
+let pulling = null;
+function shellPull(want) {   // fetch the newest app page; keep it only if it is complete (and is version `want`, when one is named)
+  return pulling = pulling || (async () => {
+    try {
+      const r = await fetch(here('index.html') + '?nc=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return '';
+      const t = await r.text(), v = (t.match(/const APP_V = '(v-[\d-]+)'/) || [])[1];
+      if (!v || !t.includes('</html>') || (want && v !== want)) return '';
+      const c = await caches.open(SHELL);
+      await c.put(here('__app'), new Response(t, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })); await c.put(here('__v'), new Response(v));
+      for (const req of await c.keys()) { const n = new URL(req.url).pathname.split('/').pop(); if (LIBS.has(n)) fetch(req.url, { cache: 'no-cache' }).then(x => x.ok && c.put(req.url, x)).catch(() => {}); }   // the helper files are re-checked with each new version
+      return v;
+    } catch { return ''; } finally { pulling = null; }
+  })();
+}
+async function shellCheck() {
+  const r = await fetch(here('v.txt') + '?nc=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+  const v = (await r.text()).trim(), have = await keptV(), c = await caches.open(SHELL), at = await c.match(here('__at')), last = at ? +(await at.text()) : 0;
+  let got = '';
+  if (/^v-[\d-]+$/.test(v) && v !== have) got = await shellPull(v);
+  else if (Date.now() - last > 6 * 3600e3) {   // safety net: every 6 hours the whole page is compared too, in case the small version note was ever published wrong
+    await c.put(here('__at'), new Response(String(Date.now()))); const n = await shellPull(); if (n && n !== have) got = n;
+  }
+  if (!got) return;
+  for (const c of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) c.postMessage({ t: 'newer', v: got });
+}
+self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(shellPull().catch(() => {})); });
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 let testUntil = 0;   // her own test alert must show even while Loveline is open
-self.addEventListener('message', e => { if (e.data && e.data.t === 'testAlert') testUntil = Date.now() + 30000; });
+self.addEventListener('message', e => {
+  if (e.data && e.data.t === 'testAlert') testUntil = Date.now() + 30000;
+  if (e.data && e.data.t === 'shell' && e.ports[0]) e.waitUntil((async () => { const want = String(e.data.v || ''); e.ports[0].postMessage({ ok: (await keptV()) === want || (await shellPull(want)) === want }); })());   // the open app asks for a version before it reloads into it
+});
 self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of you, with the app closed. The message is fixed here, so no words travel through the helper.
   const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   if (Date.now() > testUntil && open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) { open.forEach(c => c.postMessage({ t: 'pushed' })); return; }   // the open page shows its own heart (and shows a test alert itself if this helper restarted and forgot the test); an iPhone must always be shown something
@@ -14,7 +47,21 @@ self.addEventListener('notificationclick', e => {
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => l.length ? l[0].focus() : self.clients.openWindow('./')));
 });
 self.addEventListener('fetch', e => {
-  if (e.request.mode === 'navigate') { e.respondWith(fetch(e.request, { cache: 'no-store' }).catch(() => fetch(e.request))); return; }   // every open or refresh loads the newest app from the server; the saved copy only when offline
+  const u = new URL(e.request.url), name = u.pathname.split('/').pop();
+  if (e.request.mode === 'navigate') {   // open or refresh: the copy kept on this phone, at once; the server is only asked which version is newest
+    if (u.origin !== location.origin || (name && name !== 'index.html')) return;
+    e.respondWith((async () => {
+      const hit = await (await caches.open(SHELL)).match(here('__app'));
+      if (hit) { e.waitUntil(shellCheck().catch(() => {})); return hit; }
+      e.waitUntil(shellPull().catch(() => {}));
+      return fetch(e.request, { cache: 'no-store' }).catch(() => fetch(e.request));
+    })());
+    return;
+  }
+  if (e.request.method === 'GET' && u.origin === location.origin && LIBS.has(name) && !u.search) {   // the helper files: from this phone once they are here
+    e.respondWith((async () => { const c = await caches.open(SHELL), hit = await c.match(u.href); if (hit) return hit; const r = await fetch(e.request); if (r.ok) e.waitUntil(c.put(u.href, r.clone())); return r; })());
+    return;
+  }
   const m = new URL(e.request.url).pathname.match(/\/stream\/([\w-]+)\/([\w-]{12})$/);
   if (m && e.request.mode !== 'navigate') e.respondWith(serve(e.request, m[1], m[2]));
 });
