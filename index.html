@@ -472,12 +472,12 @@
   .gifChips button { flex: none; height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font-size: 13px; white-space: nowrap; }
   .gifChips button.on { background: var(--blue); color: #fff; }
   .gifGrid { flex: 1; min-height: 0; overflow-y: auto; columns: 2; column-gap: 6px; padding-bottom: 8px; scrollbar-width: none; }
-  .gifItem:not(.ready), .gifBox:not(.ready):not(.veiled) { background: linear-gradient(100deg, rgba(255, 255, 255, .05) 30%, rgba(255, 255, 255, .13) 50%, rgba(255, 255, 255, .05) 70%) 0 0 / 300% 100%; animation: gifShim 1.4s linear infinite; }   /* still loading: a soft shimmer, and it cannot be sent yet */
+  .gifItem:not(.ready), .gifBox.loading:not(.ready):not(.veiled) { background: linear-gradient(100deg, rgba(255, 255, 255, .05) 30%, rgba(255, 255, 255, .13) 50%, rgba(255, 255, 255, .05) 70%) 0 0 / 300% 100%; animation: gifShim 1.4s linear infinite; }   /* still loading: a soft shimmer, and it cannot be sent yet */
   .gifItem:not(.ready) video { opacity: .55; }
   .gifItem.nudge { animation: gifNudge .32s ease-out; }
   @keyframes gifShim { to { background-position: -300% 0; } }
   @keyframes gifNudge { 30% { transform: scale(.94); } }
-  @media (prefers-reduced-motion: reduce) { .gifItem:not(.ready), .gifBox:not(.ready) { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .gifItem:not(.ready), .gifBox.loading:not(.ready) { animation: none; } }
   .gifItem { display: block; width: 100%; margin: 0 0 6px; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, .06); break-inside: avoid; }
   .gifItem video, .gifBox video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
   #gifNote { margin: 10px 8px; text-align: center; font-size: 13px; color: var(--label2); column-span: all; }
@@ -3435,11 +3435,11 @@ function sendGif(it, x) {
 }
 function gifHtml(c, meta) {
   const g = c.gif, hide = g.x && !gifRevealed.has(c.id);   // one standard size for every GIF (Xed 13 Nov); the clip fills it
-  return `<div class="gifBox${hide ? ' veiled' : ''}" data-gif="${esc(c.id)}"><video class="gifVid" muted loop playsinline autoplay preload="auto"${g.p && !hide ? ` poster="${esc(g.p)}"` : ''}${hide ? ` data-src="${esc(g.v)}"` : ` src="${esc(g.v)}"`}></video>${hide ? '<span class="gifVeil">18+ · tap to see</span>' : ''}<span class="gifTag">GIF</span>${meta}</div>`;
+  return `<div class="gifBox${hide ? ' veiled' : ''}" data-gif="${esc(c.id)}"><video class="gifVid" muted loop playsinline preload="none"${g.p && !hide ? ` poster="${esc(g.p)}"` : ''} data-src="${esc(g.v)}"></video>${hide ? '<span class="gifVeil">18+ · tap to see</span>' : ''}<span class="gifTag">GIF</span>${meta}</div>`;
 }
 const gifKeep = () => { const m = new Map(); for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video[src]')) m.set(v.closest('.gifBox').dataset.gif, v); return m; };
 function gifRestore(m) {   // the chat redraws often: keep each playing GIF instead of loading it again
-  for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video')) { const old = m.get(v.closest('.gifBox').dataset.gif); if (old && old.getAttribute('src') === v.getAttribute('src')) { v.replaceWith(old); if (old.readyState >= 2) old.closest('.gifBox').classList.add('ready'); old.play().catch(() => {}); } }
+  for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video')) { const old = m.get(v.closest('.gifBox').dataset.gif); if (old && old.getAttribute('src') === v.dataset.src) { v.replaceWith(old); const b = old.closest('.gifBox'); b.classList.add('loading'); if (old.readyState >= 2) b.classList.add('ready'); } }   // Xed 14 Nov: what plays is decided only by what is on screen
 }
 async function resendMsg(c) {   // the same thing again, as a new message from this phone (Xed 13 Nov)
   if (c.gif) return sendGif({ v: c.gif.v, p: c.gif.p, w: c.gif.w, h: c.gif.h }, c.gif.x);
@@ -3513,7 +3513,9 @@ async function gifLoad(fresh) {
     sendGif(gifItems[+b.dataset.i], gifSrc === 'adult'); gifOpen(false);
   }; }
 }
-const gifInChat = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (!v.getAttribute('src')) continue; if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); } }, { root: $('msgs') });
+const gifLive = v => { if (v.getAttribute('src') || !v.dataset.src || v.closest('.veiled')) return; v.preload = 'auto'; v.src = v.dataset.src; v.closest('.gifBox').classList.add('loading'); };
+const gifInChat = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (e.isIntersecting) { gifLive(v); if (v.getAttribute('src')) v.play().catch(() => {}); } else v.pause(); } }, { root: $('msgs') });   // only the GIFs you can see play
+const gifNear = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (e.isIntersecting) gifLive(v); else if (v.getAttribute('src')) { v.pause(); v.removeAttribute('src'); v.load(); v.closest('.gifBox').classList.remove('loading', 'ready'); } } }, { root: $('msgs'), rootMargin: '700px 0px' });   // Xed 14 Nov: a chat full of GIFs loads only those near the screen and lets go of far ones
 const gifSeen = new IntersectionObserver(es => {   // only the GIFs on screen play, to save data
   for (const e of es) { const v = e.target.querySelector('video'); if (!v) continue; if (e.isIntersecting) { if (!v.src && v.dataset.src) v.src = v.dataset.src; v.play().catch(() => {}); } else v.pause(); }
 }, { root: $('gifGrid'), rootMargin: '300px' });   // every GIF on screen plays, and the next ones are ready before they scroll in
@@ -3626,7 +3628,7 @@ function renderChat() {
   box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
   box.appendChild(tpEl);
   box.scrollTop = toEnd ? box.scrollHeight : keep;
-  gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) gifInChat.observe(v);
+  gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) { gifInChat.observe(v); gifNear.observe(v); }
   toEndState();
   $('chatGrab').hidden = !chat.length;
   fitDock();
@@ -6413,7 +6415,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261114-173816';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-181808';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
