@@ -481,6 +481,8 @@
   .gifItem { display: block; width: 100%; margin: 0 0 6px; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, .06); break-inside: avoid; }
   .gifItem video, .gifBox video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
   #gifNote { margin: 10px 8px; text-align: center; font-size: 13px; color: var(--label2); column-span: all; }
+  #gifNote.retry { width: fit-content; margin: 12px auto; padding: 7px 16px; border-radius: 16px; background: var(--fill); color: var(--label); font-weight: 500; cursor: pointer; }
+  #gifNote.retry:active { transform: scale(.96); transition: transform 100ms ease-out; }
   .bubble.gifb { padding: 3px; white-space: normal; }
   .gifBox { position: relative; width: 220px; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, .06); }
   .gifBox.veiled video { filter: blur(26px); transform: scale(1.15); }
@@ -1082,12 +1084,12 @@
   addEventListener('focus', () => { if (!document.hidden) back(); });
   // Xed 12 Nov: lock after 15 s with no touch or typing. Held off while a video plays in Watch, and on her phone while a toy is in use (lockHold, set by the app below)
   const IDLE = 30000;   // Xed 12 Nov: 30 s by default (was 15 s); games, Play, Draw and Watch keep their own rules
-  let lastAct = Date.now();
-  for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'beforeinput', 'compositionupdate', 'wheel']) addEventListener(ev, () => { lastAct = Date.now(); }, { capture: true, passive: true });   // every key, also from phone keyboards that only report whole words
-  window.lockPoke = () => { lastAct = Date.now(); };   // Xed 14 Nov: the other one typing or writing to you also counts: 30 s from their last key
+  let lastAct = Date.now(), lastOwn = Date.now();
+  for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'beforeinput', 'compositionupdate', 'wheel']) addEventListener(ev, () => { lastAct = lastOwn = Date.now(); }, { capture: true, passive: true });   // every key, also from phone keyboards that only report whole words
+  window.lockPoke = () => { lastAct = Math.max(lastAct, Math.min(Date.now(), lastOwn + 120000 - IDLE)); };   // review 14 Nov: the other phone keeps this one open at most 2 minutes after its own last touch   // Xed 14 Nov: the other one typing or writing to you also counts: 30 s from their last key
   setInterval(() => {
     const h = window.lockHold ? window.lockHold() : false;   // true: never now; a number: wait that long instead of 15 s
-    if (mode || document.hidden || h === true) { lastAct = Date.now(); return; }
+    if (mode || document.hidden || h === true) { lastAct = lastOwn = Date.now(); return; }
     if (Date.now() - lastAct >= (typeof h === 'number' ? h : IDLE)) show(saved() ? 'enter' : 'set1');
   }, 1000);
   document.addEventListener('DOMContentLoaded', () => { if (mode) behind(true); });   // the app below is only built after this runs
@@ -3471,21 +3473,35 @@ const gifMem = new Map(), gifUrl = (src, q, p, l) => `${CARRIER}/gif?src=${src}&
 function gifKeepPage(url, d) { if (d && Array.isArray(d.items) && d.items.length) { gifMem.set(url, { d, at: Date.now() }); if (gifMem.size > 40) gifMem.delete(gifMem.keys().next().value); } }
 function gifAhead(url) { if (gifMem.has(url) || document.hidden || (navigator.connection && navigator.connection.saveData)) return; fetch(url).then(r => r.ok ? r.json() : null).then(d => gifKeepPage(url, d)).catch(() => {}); }
 setTimeout(() => { gifAhead(gifUrl('gif', '', 1, '')); if (gifAdultOk) gifAhead(gifUrl('adult', '', 1, '')); }, 6000);
+const gifFetch = async url => {   // Xed 14 Nov: a short drop while two dozen GIFs stream must not end the search: up to 3 tries, 12 s each
+  let last = 'net';
+  for (let i = 0; i < 3; i++) {
+    if (i) await new Promise(r => setTimeout(r, i * 900));
+    const ac = new AbortController(), t = setTimeout(() => ac.abort(), 12000);
+    try { const r = await fetch(url, { signal: ac.signal }), d = await r.json().catch(() => null); clearTimeout(t); if (r.ok && d) return { d }; if (d && d.error === 'nokey') return { err: 'nokey' }; last = 'site'; }
+    catch { clearTimeout(t); last = 'net'; }
+  }
+  return { err: last };
+};
 let gifTok = 0;
 async function gifLoad(fresh) {
   if (!fresh && (gifBusy || gifEnd)) return;
   const tok = ++gifTok;
   if (fresh) { gifPage = 1; gifItems = []; gifEnd = false; $('gifGrid').innerHTML = ''; $('gifGrid').scrollTop = 0; }
   gifBusy = true; const want = `${gifSrc}|${gifQ}|${gifPage}`;
-  $('gifNote').textContent = 'Loading…'; $('gifNote').hidden = false;
+  $('gifNote').textContent = 'Loading…'; $('gifNote').hidden = false; $('gifNote').classList.remove('retry'); $('gifNote').removeAttribute('role');
   let d = null, err = '';
   const url = gifUrl(gifSrc, gifQ, gifPage, gifLang), kept = gifMem.get(url);
   if (kept && Date.now() - kept.at < 600000) d = kept.d;   // fetched ahead: shows at once
-  else try { const r = await fetch(url); d = await r.json().catch(() => null); if (!r.ok) err = d && d.error === 'nokey' ? 'nokey' : 'site'; else gifKeepPage(url, d); } catch { err = 'net'; }
+  else { const g = await gifFetch(url); d = g.d || null; err = g.err || ''; if (d) gifKeepPage(url, d); }
   if (tok !== gifTok) return;   // a newer search started while this one was loading
   gifBusy = false;
   if (want !== `${gifSrc}|${gifQ}|${gifPage}`) return;
-  if (err || !d || !Array.isArray(d.items)) { $('gifNote').textContent = err === 'nokey' ? 'Normal GIFs need a free GIPHY key on the carrier first. 18+ works now.' : 'GIFs did not load. Check the internet and try again.'; return; }
+  if (err || !d || !Array.isArray(d.items)) {
+    if (err === 'nokey') { $('gifNote').textContent = 'Normal GIFs need a free GIPHY key on the carrier first. 18+ works now.'; return; }
+    $('gifNote').textContent = gifItems.length ? 'Load more' : navigator.onLine === false ? 'This phone is offline. Tap to try again.' : 'GIFs did not load. Tap to try again.';
+    $('gifNote').classList.add('retry'); $('gifNote').setAttribute('role', 'button'); return;   // a tap tries again; the GIFs already shown stay
+  }
   const items = d.items.map(it => cleanGif({ ...it, x: gifSrc === 'adult' })).filter(Boolean);
   if (!items.length) gifEnd = true;
   $('gifNote').hidden = !!(gifItems.length + items.length); $('gifNote').textContent = 'Nothing found. Try other words.';
@@ -3508,6 +3524,8 @@ $('msgs').addEventListener('error', ev => {   // a GIF in the chat that failed: 
   const v = ev.target; if (v.tagName !== 'VIDEO' || !v.closest('.gifBox') || v.dataset.again) return;
   v.dataset.again = 1; setTimeout(() => { const u = v.getAttribute('src'); if (u) { v.src = u; v.play().catch(() => {}); } }, 3000);
 }, true);
+$('gifNote').onclick = () => { if (!$('gifNote').classList.contains('retry')) return; tap(); gifLoad(!gifItems.length); };
+addEventListener('online', () => { if ($('gifNote').classList.contains('retry') && !$('gifPanel').hidden) gifLoad(!gifItems.length); });   // back online: tries again by itself
 $('gifGrid').addEventListener('scroll', () => { const g = $('gifGrid'); if (g.scrollHeight - g.scrollTop - g.clientHeight < 300) gifLoad(false); }, { passive: true });
 $('gifBtn').onclick = () => { tap(); gifOpen($('gifPanel').hidden); };
 $('gifQ').addEventListener('input', () => { clearTimeout(gifT); gifT = setTimeout(() => { gifQ = $('gifQ').value.trim(); gifLang = ''; gifLoad(true); gifChips(); }, 450); });
@@ -6395,7 +6413,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261114-164510';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-173816';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
