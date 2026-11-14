@@ -40,14 +40,31 @@ async function shellCheck() {
 }
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(shellPull().catch(() => {})); });
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+// Xed 14 Nov: a message can come inside an alert while Loveline sleeps. It stays sealed (only the app has the key) and waits here until Loveline opens.
+const boxPut = t => new Promise((res, rej) => {
+  const r = indexedDB.open('loveline-inbox', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('m', { autoIncrement: true });
+  r.onerror = () => rej(r.error);
+  r.onsuccess = () => { try { const db = r.result, x = db.transaction('m', 'readwrite'); x.objectStore('m').add({ t, at: Date.now() }); x.oncomplete = () => { db.close(); res(); }; x.onerror = x.onabort = () => { db.close(); rej(x.error); }; } catch (e) { rej(e); } };
+  setTimeout(() => rej(new Error('slow')), 3000);   // a full or broken store must never stop the alert from showing
+});
 let testUntil = 0;   // her own test alert must show even while Loveline is open
 self.addEventListener('message', e => {
   if (e.data && e.data.t === 'testAlert') testUntil = Date.now() + 30000;
+  if (e.data && e.data.t === 'caps' && e.ports[0]) e.ports[0].postMessage({ box: 1 });   // the app asks whether this helper can keep messages
   if (e.data && e.data.t === 'shell' && e.ports[0]) e.waitUntil((async () => { const want = String(e.data.v || ''); e.ports[0].postMessage({ ok: (await keptV()) === want || (await shellPull(want)) === want }); })());   // the open app asks for a version before it reloads into it
 });
 self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of you, with the app closed. The message is fixed here, so no words travel through the helper.
   const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   let kind = ''; try { kind = e.data ? e.data.text() : ''; } catch {}   // q: an unread message, o: the other one is online, u: several unread messages; nothing: Thinking of you
+  if (kind[0] === 'm' && kind.startsWith('mP.')) {   // a whole message, sealed: kept for the app, and a "New message" alert with sound
+    await boxPut(kind.slice(1)).catch(() => {});
+    open.forEach(c => c.postMessage({ t: 'box' }));   // an app that is open (even asleep in the background) takes it in at once
+    if (open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) return;   // on screen: the chat shows it
+    const prev = (await self.registration.getNotifications({ tag: 'msg' }))[0], loud = !prev || Date.now() - prev.timestamp > 10000;   // several in a row: one sound, like WhatsApp
+    await self.registration.showNotification('1+1=1', { body: '💬 New message', tag: 'msg', renotify: loud, silent: !loud, ...(loud ? { vibrate: [200, 100, 200] } : {}), icon: 'icon-192.png' });
+    return;
+  }
   if (kind === 'q' || kind === 'o' || kind === 'u') {   // Xed 14 Nov. The words are fixed here; only the one letter travelled, sealed for this phone.
     if (open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) return;   // the app is on screen and shows it itself
     await self.registration.showNotification('1+1=1', kind === 'u' ? { body: '💬 New messages', tag: 'msg', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' }
