@@ -294,8 +294,16 @@
   .big .meta { float: none; display: block; text-align: right; margin: 0; }
   .tick { margin-left: 3px; letter-spacing: -3px; }
   .tick.st3 { color: #53bdeb; }
-  .typing { position: relative; z-index: 2; height: 0; padding: 0 10px; font-size: 13px; line-height: 20px; color: var(--label2); transform: translateY(-26px); pointer-events: none; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0, 0, 0, .9); }   /* Xed 14 Nov: floats over the last bubble and takes no room, so nothing jumps */
-  .hideBtn { display: grid; place-items: center; padding: 0; } .hideBtn svg { width: 19px; height: 19px; }
+  .typing { position: relative; z-index: 2; height: 0; padding: 0 4px; transform: translateY(-34px); pointer-events: none; }   /* Xed 14 Nov: sits in a slot kept free under the last message, so nothing jumps and nothing overlaps */
+  .msgs { padding-bottom: 36px !important; }
+  .tp { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px 0 10px; border-radius: 14px; background: rgba(38, 50, 58, .96); color: var(--label2); font-size: 12.5px; font-weight: 500; letter-spacing: -.01em; box-shadow: 0 2px 10px rgba(0, 0, 0, .35); animation: tpIn 180ms cubic-bezier(.2, .9, .3, 1); }
+  .tp svg { width: 15px; height: 15px; flex: none; color: #ff5c93; }
+  .tp .dots { display: inline-flex; gap: 3px; } .tp .dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .35; animation: tpDot 1.2s infinite ease-in-out; } .tp .dots i:nth-child(2) { animation-delay: .15s; } .tp .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes tpDot { 0%, 60%, 100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2.5px); } }
+  @keyframes tpIn { from { opacity: 0; transform: translateY(4px) scale(.96); } }
+  @media (prefers-reduced-motion: reduce) { .tp, .tp .dots i { animation: none; } .tp .dots i { opacity: .7; } }
+  #chatSeen.typingNow { color: #34c759; }
+  .hideBtn { display: grid; place-items: center; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; color: var(--label); } .hideBtn svg { width: 18px; height: 18px; } .hideBtn:active { transform: scale(.92); transition: transform 100ms ease-out; }
   .fake { position: fixed; inset: 0; z-index: 60; overflow: hidden; padding: max(12px, env(safe-area-inset-top)) 16px 0; animation: fkIn 180ms ease-out;   /* Xed 14 Nov: the same look as the real app */
     background: radial-gradient(60% 40% at 15% 8%, rgba(94, 92, 230, .30), transparent 70%), radial-gradient(55% 35% at 90% 30%, rgba(191, 90, 242, .22), transparent 70%), radial-gradient(70% 45% at 40% 95%, rgba(255, 122, 184, .14), transparent 70%), var(--bg); }
   .fake .fkIn { max-width: 480px; margin: 0 auto; }
@@ -972,24 +980,35 @@
     retry = false; unlock();
   };
   let mode = null, typed = '', first = '', awayAt = 0, busy = false, changing = false, askedAt = 0;
-  const TITLES = { set1: 'Choose a 4-digit passcode', set2: 'Enter it again', change: 'Choose a new 4-digit passcode', enter: 'Enter passcode' };
+  const FKEY = 'closer:lockfake', savedFake = () => { try { const v = JSON.parse(localStorage.getItem(FKEY)); return v && v.h && v.s ? v : null; } catch { return null; } };   // Xed 14 Nov: a second code that opens the fake office chat
+  const isFake = async code => { const f = savedFake(); return !!f && await hash(code, f.s) === f.h; };
+  const TITLES = { fake1: 'Choose a fake passcode', fake2: 'Enter it again', set1: 'Choose a 4-digit passcode', set2: 'Enter it again', change: 'Choose a new 4-digit passcode', enter: 'Enter passcode' };
   function dots() { [...$l('lockDots').children].forEach((d, i) => d.classList.toggle('on', i < typed.length)); }
   function show(m, hint) {
     mode = m; typed = ''; dots();
     $l('lock').classList.remove('cover'); $l('lock').hidden = false; $l('calc').hidden = m !== 'calc'; $l('lockPad').hidden = m === 'calc'; behind(true);
     if (m === 'calc') { document.title = 'Calculator'; ss('lockDecoy', '1'); calcReset(); }
-    else { document.title = title; $l('lockTitle').textContent = TITLES[m]; $l('lockHint').textContent = hint || (m === 'set1' ? 'You will need it every time Loveline opens.' : ''); }
+    else { document.title = title; $l('lockTitle').textContent = TITLES[m]; $l('lockHint').textContent = hint || (m === 'set1' ? 'You will need it every time Loveline opens.' : m === 'fake1' ? 'Typed instead of your passcode, it opens an office chat.' : ''); }
     $l('lockCancel').textContent = 'Cancel';
     $l('lockCancel').style.visibility = changing && m !== 'calc' ? 'visible' : 'hidden';   // only a change of passcode can be cancelled; no Forgot (Xed 11 Nov)
     try { document.activeElement && document.activeElement.blur(); } catch {}
   }
   function behind(off) { if (!$l('lock')) return; for (const el of document.body.children) if (el.id !== 'lock' && el.tagName !== 'SCRIPT') el.inert = off; }   // nothing behind the lock can be tapped or reached
   function cover(on) { if (mode) return; $l('lock').classList.toggle('cover', on); $l('lock').hidden = !on; }
-  function unlock() { $l('lock').classList.remove('cover'); behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); dispatchEvent(new Event('lockopen')); }
+  function unlock(fake) { $l('lock').classList.remove('cover'); behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); dispatchEvent(new Event(fake === true ? 'lockfake' : 'lockopen')); }
+  window.lockSetFake = () => { if (!saved()) return false; changing = true; show('fake1'); return true; };
+  window.lockFakeOn = () => !!savedFake();
+  window.lockFakeOff = () => { try { localStorage.removeItem(FKEY); } catch {} };
   window.lockAsk = () => { if (saved()) { show('enter'); return true; } return false; };   // Xed 14 Nov: leaving the fake chat asks for the passcode
   window.lockChange = () => { changing = true; show('change'); };
   window.lockReset = name => { if (mode !== 'enter' || Date.now() - askedAt > 120000) return; askedAt = 0; show('set1', `${name} said yes. Choose a new code.`); };   // the other phone approved
   async function full() {
+    if (mode === 'fake1') { const v = saved(); if (v && await hash(typed, v.s) === v.h) { show('fake1', 'That is your real passcode. Choose a different one.'); return; } first = typed; show('fake2'); return; }
+    if (mode === 'fake2') {
+      if (typed !== first) { first = ''; show('fake1', 'They did not match. Try again.'); const d = $l('lockDots'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); return; }
+      const s = [...crypto.getRandomValues(new Uint8Array(12))].map(x => x.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem(FKEY, JSON.stringify({ s, h: await hash(typed, s) })); unlock(); return;
+    }
     if (mode === 'set1' || mode === 'change') { first = typed; show('set2'); return; }
     if (mode === 'set2') {
       if (typed !== first) {
@@ -1002,8 +1021,8 @@
       localStorage.setItem(KEY, JSON.stringify({ s, h: await hash(typed, s) })); await storeV(typed); unlock(); return;
     }
     const v = saved(); busy = true;
-    const code = typed, ok = !!v && await hash(code, v.s) === v.h; busy = false;
-    if (ok) { await storeV(code); unlock(); } else show('calc');   // a wrong code: only a calculator
+    const code = typed, ok = !!v && await hash(code, v.s) === v.h, fk = !ok && await isFake(code); busy = false;
+    if (ok) { await storeV(code); unlock(); } else if (fk) unlock(true); else show('calc');   // the fake code: the office chat; a wrong code: only a calculator   // a wrong code: only a calculator
   }
   $l('lockKeys').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || busy || !mode || mode === 'calc') return;
@@ -1033,6 +1052,7 @@
     else if (c === '=') {
       const v = saved(), t = tail; tail = '';
       if (t.length === 4 && v && await hash(t, v.s) === v.h) { await storeV(t); unlock(); return; }
+      if (t.length === 4 && await isFake(t)) { unlock(true); return; }
       if (t.length === 4 && retry) { cand = t; candV = await hash(t, 'loveline-shared'); dispatchEvent(new Event('lockv')); }   // a code, then =: only tried with the other phone; nothing is saved unless it matches   // the code, then =: back into Loveline
       if (op && cur !== 'Error') { cur = fmt(calc(acc, +cur, op)); op = null; acc = null; fresh = true; }
     } else {   // + - * /
@@ -1076,7 +1096,7 @@
   <div class="topbar" id="topbar"><header>
     <div class="hleft"><h1>Loveline</h1><button class="me glass" id="buzzBtn" aria-label="Send Thinking of you" hidden>💗</button></div>
     <div class="hdr">
-      <button type="button" class="me glass hideBtn" id="hideBtn" aria-label="Hide the chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.5 10.5 0 0 1 12 5c5.5 0 9 5 9.5 7a12.6 12.6 0 0 1-2.6 3.6M6.4 6.5C4.3 7.9 2.9 10 2.5 12c.5 2 4 7 9.5 7a10 10 0 0 0 4.7-1.2M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
+      <button type="button" class="me glass hideBtn" id="hideBtn" aria-label="Hide the chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.6A9.7 9.7 0 0 1 12 4.4c5 0 8.6 4 9.6 7.6a11.7 11.7 0 0 1-2.5 4.1M6.1 6.2C4.2 7.6 2.9 9.8 2.4 12c1 3.6 4.6 7.6 9.6 7.6 1.7 0 3.2-.4 4.6-1.2M9.6 9.6a3.4 3.4 0 0 0 4.8 4.8M3.5 3.5l17 17"/></svg></button>
       <button class="stop" id="stop" aria-label="Stop everything">Stop</button>
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
     </div>
@@ -1332,6 +1352,7 @@
     <p class="sideNow" id="sideNow"></p>
     <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
     <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
+    <button type="button" class="ghost" id="fakeCodeBtn">Set fake passcode</button>
     <label class="row"><span>Emoji suggestions while typing</span><input type="checkbox" class="switch" id="emoOn"></label>
     <button type="button" class="ghost danger" id="clearChat">Clear chat</button>
     <button type="button" class="ghost danger" id="resetAll">Reset all game scores</button>
@@ -1487,7 +1508,7 @@ let bt = navigator.bluetooth ? 'ok' : 'nochrome';   // ok, nochrome, off, blocke
 const tries = new Map();   // one record per egg she has picked; kept for the whole visit
 let mic = null, hearing = false;   // live sound: my microphone stream / partner's sound playing here
 let hiding = false;   // the fake office chat is on (Xed 14 Nov)
-let listenGate = true, partnerListening = false, typingUntil = 0, typingSent = 0, typingRec = false;   // sound stays muted until headphones are confirmed
+let listenGate = true, partnerListening = false, typingUntil = 0, typingSent = 0, typingRec = false, typingPh = false;   // sound stays muted until headphones are confirmed
 let vidGate = true, vidAsk = false;   // video sound follows the same rule: muted until this phone confirms headphones
 let seenTogether = null, seenTrio = null;   // last mode shown, to notice when it changes
 let lead = 'both';   // who controls: 'both', 'host' (egg phone only) or 'remote' (remote phone only)
@@ -1778,7 +1799,13 @@ function render() {
   document.body.classList.toggle('calling', hearing && listenGate);
   document.body.classList.toggle('listening', (hearing && !listenGate && !$('audio').muted) || !!mic);
   $('typing').hidden = Date.now() > typingUntil;
-  $('typing').textContent = `${who()} is ${typingRec ? 'recording audio' : 'typing'}…`;
+  const tk = typingRec ? 'rec' : typingPh ? 'ph' : 'tx', tkey = Date.now() > typingUntil ? '' : tk;
+  if ($('typing').dataset.k !== tkey) {   // drawn only when it changes, so the dots keep moving smoothly
+    $('typing').dataset.k = tkey;
+    $('typing').innerHTML = !tkey ? '' : `<span class="tp">${tk === 'rec' ? '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14.5a3.4 3.4 0 0 0 3.4-3.4V6.4a3.4 3.4 0 1 0-6.8 0v4.7a3.4 3.4 0 0 0 3.4 3.4z"/><path d="M6.6 10.8a5.4 5.4 0 0 0 10.8 0M12 16.4V20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' : tk === 'ph' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.4-2h5l1.4 2h1.6A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.3" r="3.4"/></svg>' : ''}<span class="dots"><i></i><i></i><i></i></span>${tk === 'rec' ? 'recording audio' : tk === 'ph' ? 'sending a photo' : 'typing'}</span>`;
+    $('typing').setAttribute('aria-label', tkey ? `${who()} is ${tk === 'rec' ? 'recording audio' : tk === 'ph' ? 'sending a photo' : 'typing'}` : '');
+  }
+  if (tkey) { $('chatSeen').textContent = tk === 'rec' ? 'recording audio…' : tk === 'ph' ? 'sending a photo…' : 'typing…'; $('chatSeen').classList.add('typingNow'); } else $('chatSeen').classList.remove('typingNow');   // the header says it too, like WhatsApp
 
   if (isRemote) {
     const [t, p] = clockOff ? ['The two phone clocks disagree', `They are ${Math.abs(clockOff)} minutes apart. Turn on automatic date and time on both phones.`]
@@ -2872,6 +2899,7 @@ function imOnceShow() { $('imOnceBtn').classList.toggle('on', imOnce); $('imOnce
 $('imOnceBtn').onclick = () => { tap(); imOnce = !imOnce; store.set('imOnce', imOnce); imOnceShow(); };
 function imCancel() { if (!imPrep) return false; URL.revokeObjectURL(imPrep.url); imPrep = null; $('imPrev').hidden = true; $('imPrevImg').removeAttribute('src'); return true; }
 $('imPrevX').onclick = () => { tap(); imCancel(); };
+steady(() => { if (imPrep && !$('imPrev').hidden && Date.now() - typingSent > 2000) { typingSent = Date.now(); send({ t: 'typing', ph: true }); } }, 1000);   // choosing a photo to send: the other phone sees "sending a photo"
 $('imGo').onclick = () => { if (!imPrep) return; const p = imPrep; imCancel(); sendPhoto(p, imOnce); };
 const imBack = () => imCloseView() || imCancel();   // the phone's Back button closes the photo first
 document.addEventListener('visibilitychange', () => { if (document.hidden) imBack(); });   // leaving the screen closes the photo (a view-once photo counts as seen)
@@ -5566,6 +5594,14 @@ const NEWG = {
   tower: { what: 'This tower comes down on both phones. Your best height stays.', done: () => !tower.f, reset: () => { const t = blankTower(tower.best), v = nextV(towerV); t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v }); } }
 };
 window.lockAskHelp = () => partnerOnline() ? (send({ t: 'lockAsk' }), { asked: true, text: `Asked ${who()}. When ${who()} says yes, you can choose a new code.` }) : { asked: false, text: `${who()} must have Loveline open to say yes. Try again then.` };
+const fakeLabel = () => { $('fakeCodeBtn').textContent = window.lockFakeOn && window.lockFakeOn() ? 'Remove fake passcode' : 'Set fake passcode'; };
+$('fakeCodeBtn').onclick = () => {   // Xed 14 Nov: a second passcode that opens the fake office chat
+  tap();
+  if (window.lockFakeOn && window.lockFakeOn()) { if (confirm('Remove the fake passcode?')) { window.lockFakeOff(); fakeLabel(); notify('The fake passcode is removed.'); } return; }
+  if (!window.lockSetFake) return;
+  $('nameSheet').hidden = true; if (!window.lockSetFake()) notify('Choose your own passcode first.');
+};
+addEventListener('lockopen', fakeLabel); fakeLabel();
 $('lockChangeBtn').onclick = () => { tap(); $('nameSheet').hidden = true; if (window.lockChange) window.lockChange(); };
 function wipeScores(rs) {   // what only this phone keeps: every Ludo win and the tap streak best
   store.set('resetAt:' + room, rs); store.set('ludoWins:' + room, { host: 0, remote: 0 });
@@ -6356,7 +6392,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261114-153351';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-160003';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -6743,7 +6779,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'ack') gotAck(m);
   if (m.t === 'react') gotReact(m);
   if (m.t === 'seen') gotSeen();
-  if (m.t === 'typing') { typingUntil = Date.now() + 3500; typingRec = m.rec === true; }
+  if (m.t === 'typing') { typingUntil = Date.now() + 3500; typingRec = m.rec === true; typingPh = m.ph === true; render(); }
   if (m.t === 'vget') gotVget(m);
   if (m.t === 'toyst') gotToySt(m);
   if (m.t === 'del') gotDel(m);
@@ -7496,7 +7532,7 @@ function fkNew() {   // a new colleague and conversation: picked fresh every tim
     list: talk.map(([w, x]) => { at += (1 + Math.random() * 5) * 60000; return { w, x, at: Math.min(at, end) }; }) };
 }
 let fk = null;
-const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12C3 10 6.5 5 12 5s9 5 9.5 7c-.5 2-4 7-9.5 7s-9-5-9.5-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.4 12c1-3.6 4.6-7.6 9.6-7.6s8.6 4 9.6 7.6c-1 3.6-4.6 7.6-9.6 7.6S3.4 15.6 2.4 12z"/><circle cx="12" cy="12" r="3.4"/></svg>';
 const fkCopy = el => { const c = el.cloneNode(true); for (const x of [c, ...c.querySelectorAll('[id]')]) x.removeAttribute('id'); for (const x of c.querySelectorAll('[hidden]')) x.remove(); c.inert = false; c.removeAttribute('aria-hidden'); return c; };   // the real part's exact look, with nothing that acts on the real app
 const fkDp = (el, big) => { el.replaceChildren(); el.textContent = fk.dp; el.style.cssText = `display: grid; place-items: center; font-size: ${big ? 21 : 15}px; background: linear-gradient(135deg, hsl(${fk.hue} 45% 62%), hsl(${(fk.hue + 40) % 360} 50% 42%))`; };
 function fkBuild() {   // copies of the real top bar, chat header and message box, filled with the colleague
@@ -7546,6 +7582,7 @@ function hideSet(on) {
 let hideAskAt = 0;
 $('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
 $('fake').addEventListener('click', ev => { if (!ev.target.closest('[data-fk=show]')) return; tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); });   // the passcode first; with no passcode set, straight back
+addEventListener('lockfake', () => { hideAskAt = 0; hideSet(true); });   // the fake passcode was typed: the office chat (stays if it was already showing)
 addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
 if (store.get('fake')) hideSet(true);   // it stays hidden after the app is closed and opened again
 function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen() && !hiding; }
