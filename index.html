@@ -182,6 +182,7 @@
   a.lnk { color: #53bdeb; text-decoration: underline; text-underline-offset: 2px; }
   .emoHint { position: absolute; top: 50%; height: 34px; padding: 0 7px; border: 0; border-radius: 17px; background: none; font-size: 20px; line-height: 34px; white-space: nowrap; opacity: .5; filter: blur(.35px) saturate(.85); transform: translateY(-50%); transition: opacity 140ms ease-out; }
   .emoHint:active { opacity: 1; filter: none; }
+  .emoHint span { display: inline-block; padding: 0 3px; }
   .emoHint.edge { background: rgba(32, 44, 51, .92); opacity: .8; filter: none; }
   .compose { position: relative; }
   /* Shared: an iOS page sheet. It slides up over a dimmed chat, can be dragged down to close, and uses one blur material for its bars. */
@@ -293,7 +294,25 @@
   .big .meta { float: none; display: block; text-align: right; margin: 0; }
   .tick { margin-left: 3px; letter-spacing: -3px; }
   .tick.st3 { color: #53bdeb; }
-  .typing { font-size: 13px; color: var(--label2); padding: 0 8px 6px; }
+  .typing { position: relative; z-index: 2; height: 0; padding: 0 10px; font-size: 13px; line-height: 20px; color: var(--label2); transform: translateY(-26px); pointer-events: none; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0, 0, 0, .9); }   /* Xed 14 Nov: floats over the last bubble and takes no room, so nothing jumps */
+  .hideBtn { display: grid; place-items: center; padding: 0; } .hideBtn svg { width: 19px; height: 19px; }
+  .fake { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: #0b141a; color: #e9edef; animation: fkIn 180ms ease-out; }
+  .fake[hidden] { display: none; }
+  @keyframes fkIn { from { opacity: 0; } }
+  .fkTop { display: flex; align-items: center; gap: 11px; padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: #1f2c34; }
+  .fkDp { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-size: 21px; }
+  .fkWho { flex: 1; min-width: 0; } .fkWho b { display: block; font-size: 16.5px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .fkWho small { display: block; margin-top: 1px; font-size: 12.5px; color: #8696a0; }
+  .fkShow { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: none; color: #aebac1; } .fkShow:active { background: rgba(255, 255, 255, .08); } .fkShow svg { width: 21px; height: 21px; }
+  .fkMsgs { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 12px; overscroll-behavior: contain; }
+  .fkDay { align-self: center; margin: 6px 0 8px; padding: 4px 10px; border-radius: 8px; background: #182229; color: #8696a0; font-size: 12px; }
+  .fkB { max-width: 80%; padding: 6px 9px 7px; border-radius: 9px; background: #202c33; font-size: 15px; line-height: 1.32; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .fkB.fkMe { align-self: flex-end; background: #005c4b; } .fkB.gap { margin-top: 8px; }
+  .fkB small { float: right; margin: 7px 0 -4px 10px; font-size: 11px; color: rgba(233, 237, 239, .6); } .fkB small i { margin-left: 3px; font-style: normal; color: #53bdeb; letter-spacing: -2px; }
+  .fkBar { display: flex; gap: 8px; padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
+  .fkBar input { flex: 1; min-width: 0; height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: #2a3942; color: #e9edef; font: inherit; font-size: 16px; outline: none; }
+  .fkSend { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #00a884; color: #fff; } .fkSend svg { width: 22px; height: 22px; }
+  body.hiding .pop, body.hiding .float, body.hiding .veil, body.hiding .ring, body.hiding .turnFx, body.hiding .result, body.hiding #toast { display: none !important; }   /* nothing of the real app shows through */
+  @media (prefers-reduced-motion: reduce) { .fake { animation: none; } }
   .quick { display: grid; grid-template-rows: repeat(2, 44px); grid-auto-flow: column; grid-auto-columns: 44px; gap: 2px; overflow-x: auto; margin-bottom: 8px; padding: 6px; border-radius: 26px; scrollbar-width: none; }
   .quick button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; font-size: 26px; line-height: 1; }
   .bar { display: flex; gap: 8px; align-items: center; }
@@ -310,6 +329,13 @@
   body.editing #sendBtn svg { display: none; }
   body.editing #sendBtn::after { content: '✓'; font-size: 20px; font-weight: 700; line-height: 1; }
   .bubble .meta .ed { margin-right: 4px; font-style: normal; }
+  .bubble .lp { display: block; width: 250px; max-width: 100%; margin: -1px -3px 6px; border-radius: 11px; overflow: hidden; background: rgba(0, 0, 0, .2); color: inherit; text-decoration: none; }
+  .bubble .lp:active { opacity: .7; }
+  .bubble .lp img { display: block; width: 100%; max-height: 150px; object-fit: cover; }
+  .bubble .lp b, .bubble .lp span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; padding: 0 10px; }
+  .bubble .lp b { margin-top: 8px; font-size: 14px; font-weight: 600; line-height: 1.25; letter-spacing: -.01em; }
+  .bubble .lp span { margin-top: 2px; font-size: 12.5px; line-height: 1.3; opacity: .72; }
+  .bubble .lp small { display: block; padding: 4px 10px 8px; font-size: 11.5px; opacity: .55; }
   #sendBtn:not(:disabled) ~ #micBtn { display: none; }
   .mic { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform 120ms ease-out; }
   .mic svg { width: 21px; height: 21px; }
@@ -966,7 +992,8 @@
   }
   function behind(off) { if (!$l('lock')) return; for (const el of document.body.children) if (el.id !== 'lock' && el.tagName !== 'SCRIPT') el.inert = off; }   // nothing behind the lock can be tapped or reached
   function cover(on) { if (mode) return; $l('lock').classList.toggle('cover', on); $l('lock').hidden = !on; }
-  function unlock() { $l('lock').classList.remove('cover'); behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); }
+  function unlock() { $l('lock').classList.remove('cover'); behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); dispatchEvent(new Event('lockopen')); }
+  window.lockAsk = () => { if (saved()) { show('enter'); return true; } return false; };   // Xed 14 Nov: leaving the fake chat asks for the passcode
   window.lockChange = () => { changing = true; show('change'); };
   window.lockReset = name => { if (mode !== 'enter' || Date.now() - askedAt > 120000) return; askedAt = 0; show('set1', `${name} said yes. Choose a new code.`); };   // the other phone approved
   async function full() {
@@ -1056,6 +1083,7 @@
   <div class="topbar" id="topbar"><header>
     <div class="hleft"><h1>Loveline</h1><button class="me glass" id="buzzBtn" aria-label="Send Thinking of you" hidden>💗</button></div>
     <div class="hdr">
+      <button type="button" class="me glass hideBtn" id="hideBtn" aria-label="Hide the chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.5 10.5 0 0 1 12 5c5.5 0 9 5 9.5 7a12.6 12.6 0 0 1-2.6 3.6M6.4 6.5C4.3 7.9 2.9 10 2.5 12c.5 2 4 7 9.5 7a10 10 0 0 0 4.7-1.2M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
       <button class="stop" id="stop" aria-label="Stop everything">Stop</button>
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
     </div>
@@ -1239,6 +1267,7 @@
 </div></div>
 
 <div class="toast glass hide" id="toast" role="status"></div>
+<div class="fake" id="fake" hidden><div class="fkTop"><span class="fkDp" id="fkDp"></span><div class="fkWho"><b id="fkName"></b><small id="fkSeen"></small></div><button type="button" class="fkShow" id="fkShow" aria-label="Show"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12C3 10 6.5 5 12 5s9 5 9.5 7c-.5 2-4 7-9.5 7s-9-5-9.5-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div><div class="fkMsgs" id="fkMsgs"></div><form class="fkBar" id="fkForm" autocomplete="off"><input id="fkText" maxlength="500" placeholder="Message" aria-label="Message" enterkeyhint="send"><button class="fkSend" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></form></div>
 <input type="file" id="imFile" accept="image/*" hidden>
 <div class="statSheet" id="findSheet" hidden role="dialog" aria-label="Search messages"><div class="stTop findTop"><input id="findQ" type="search" placeholder="Search all messages" autocomplete="off" enterkeyhint="search" aria-label="Search all messages"><button type="button" id="findX" aria-label="Close search">✕</button></div><div class="statBody" id="findBody"></div></div>
 <div class="statSheet" id="statSheet" hidden role="dialog" aria-label="Our stats"><div class="stTop"><b>Us, in numbers</b><button type="button" id="statX" aria-label="Close the stats">✕</button></div><div class="statBody" id="statBody"></div></div>
@@ -1310,6 +1339,7 @@
     <p class="sideNow" id="sideNow"></p>
     <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
     <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
+    <label class="row"><span>Emoji suggestions while typing</span><input type="checkbox" class="switch" id="emoOn"></label>
     <button type="button" class="ghost danger" id="clearChat">Clear chat</button>
     <button type="button" class="ghost danger" id="resetAll">Reset all game scores</button>
   </form>
@@ -1432,6 +1462,9 @@ if (!hp.has('r') || !hp.has('k')) {
 const room = hp.get('r');
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist().then(ok => logLink(ok ? 'storage kept' : 'storage may be cleared by the phone')); } catch {}   // ask Chrome and Safari never to auto-delete the chat, the pairing and the scores
 let partnerPush = store.get('partnerPush:' + room) || null, myPush = store.get('myPush:' + room) || null;
+let partnerKeys = store.get('partnerKeys:' + room) || null, myKeys = store.get('myKeys:' + room) || null;   // the two public keys of each phone's alert address: with them an alert can say which kind it is
+const pushSay = () => send({ t: 'pushsub', endpoint: myPush, keys: myPush ? myKeys : null });
+const keysOf = sub => { const k = (sub.toJSON() || {}).keys || {}; return k.p256dh && k.auth ? { p256dh: k.p256dh, auth: k.auth } : null; };
 // Her link always opens her side and his link his. A link for the other side of this couple asks first, so a mistake costs one press.
 const askSide = !firstVisit && lastSide && lastSide !== (isRemote ? 'remote' : 'host');   // any link for the other side asks first, so one phone never runs both sides (11 Nov: his phone had her side in a Chrome tab and kept finding itself)
 if (!isRemote && !firstVisit && !askSide) store.set('hostRoom', { r: room, k: hp.get('k') });
@@ -1460,6 +1493,7 @@ const MOVE_TRIES_MS = 5000;   // a move is only worth repeating for a moment: la
 let bt = navigator.bluetooth ? 'ok' : 'nochrome';   // ok, nochrome, off, blocked, notfound
 const tries = new Map();   // one record per egg she has picked; kept for the whole visit
 let mic = null, hearing = false;   // live sound: my microphone stream / partner's sound playing here
+let hiding = false;   // the fake office chat is on (Xed 14 Nov)
 let listenGate = true, partnerListening = false, typingUntil = 0, typingSent = 0, typingRec = false;   // sound stays muted until headphones are confirmed
 let vidGate = true, vidAsk = false;   // video sound follows the same rule: muted until this phone confirms headphones
 let seenTogether = null, seenTrio = null;   // last mode shown, to notice when it changes
@@ -2014,18 +2048,20 @@ async function startNet() {
     const c = mqtt.connect(url, { clientId: `closer_${me}_${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 2000, connectTimeout: 8000, ...login });
     clients.push(c);
     c.on('connect', () => {
-      c.heardAt = Date.now(); c.pingAt = 0; c.lag = 0;
+      c.heardAt = Date.now(); c.pingAt = 0; c.lag = 0; c.fails = 0; c.options.reconnectPeriod = 2000;
       c.subscribe(echoTopic(i));
       c.subscribe(isRemote ? topicFromHost : topicFromRemote);
       c.subscribe(LOBBY_T);
       c.subscribe(boardTopic);   // the relay sends its kept copy of the drawing straight away
       if (boardDirty) setTimeout(publishBoard, 3000);   // drawn while this phone had no connection
-      if (i < 2) c.subscribe(fileIn);
+      c.subscribe(fileIn);
       const first = !online; online = true;
       if (first) { logLink('relay reached'); isRemote ? hello() : publishState(); }
       render();
     });
     c.on('close', () => {
+      c.fails = (c.fails || 0) + 1;   // Xed 14 Nov: a relay that keeps failing while another works is retried every 30 s, not every 2 s (less phone radio work); with no relay at all, every one is retried fast
+      const any = clients.some(x => x.connected); for (const x of clients) x.options.reconnectPeriod = any && !x.connected && x.fails >= 5 ? 30000 : 2000;
       if (!online || clients.some(x => x.connected)) return;
       online = false; logLink('all relays lost'); render();
     });
@@ -2338,7 +2374,7 @@ function setEdit(c) {
   fitDock();
 }
 function applyEdit(c, text, ed) {   // the new words everywhere this message shows: its bubble, replies that quote it, its pin
-  c.text = text; c.ed = ed;
+  c.text = text; c.ed = ed; delete c.lp; lpTried.delete(c.id);   // a changed link gets a fresh preview
   for (const o of [...chat, ...older]) if (o.re && o.re.id === c.id && o.re.x) o.re = { ...o.re, x: text.slice(0, 100) };
   if (pins[c.id] && pins[c.id].x) { pins[c.id] = { ...pins[c.id], x: text.slice(0, 200) }; store.set('pins:' + room, pins); renderPins(); }
   if (older.includes(c)) archPut([c]);
@@ -2367,7 +2403,7 @@ const reOut = r => r && { id: r.id, x: r.x, w: r.w };   // sent as the sender se
 function sendChat(text) {
   text = text.trim().slice(0, 500);
   if (!text) return;
-  tap();
+  tap(); emoLearnFrom(text);
   const c = { id: b64url(rand(8)), who: 'me', text, at: Date.now(), st: 0, re: reOut(replyTo) };   // st: 0 waiting, 1 sent, 2 delivered, 3 seen
   if (!c.re) delete c.re;
   setReply(null);
@@ -2391,16 +2427,16 @@ function gotChat(m) {
   if (!chat.some(c => c.id === m.id && c.who === 'them')) {
     const re = cleanRe(m.re);
     const vn = cleanVn(m.vn), im = !vn && cleanIm(m.im), gif = !vn && !im && cleanGif(m.gif);
-    const nc = { id: m.id, who: 'them', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}) }, last = chat[chat.length - 1], late = last && last.at - nc.at > 120000 ? chat.findIndex(o => o.at > nc.at) : -1;
+    const nc = { id: m.id, who: 'them', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}), ...(!vn && !im && !gif && cleanLp(m.lp) ? { lp: cleanLp(m.lp) } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}) }, last = chat[chat.length - 1], late = last && last.at - nc.at > 120000 ? chat.findIndex(o => o.at > nc.at) : -1;
     late < 0 ? chat.push(nc) : chat.splice(late, 0, nc);   // written long before it arrived (the phone was offline): in its place in time, so scrolling back never skips messages
     saveChat(); renderChat(); tap();
     if ($('toEnd').classList.contains('on')) { newBelow++; toEndState(); }   // reading older messages: count the new ones on the arrow
-    if (vn || im) vnWant(m.id); else if (!gif) chatFx(m.text);
+    if (vn || im) vnWant(m.id); else if (!gif) { chatFx(m.text); emoLearnFrom(nc.text); }
     if (!chatInFront()) { unseen++; store.set('unseen:' + room, unseen); lockNote(true); }
   }
   const vc = chat.find(c => c.id === m.id && c.who === 'them');
   if (vc && (vc.vn || vc.im)) { if (vnHave.has(m.id) || vc.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!vc.pl }); return; }   // a voice note counts as delivered only once all its sound is here
-  send({ t: 'ack', id: m.id, seen: !document.hidden });
+  send({ t: 'ack', id: m.id, seen: !document.hidden && !hiding });
 }
 // Chat history heals itself: if one phone lost messages (a new install, cleared phone storage), the other phone sends them back.
 const chatSig = () => { const all = [...new Set([...chat.map(c => c.id), ...[...cleared].filter(x => !x.startsWith('clear:'))])]; let h = 2166136261; for (const id of all.sort()) for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return all.length + ':' + (h >>> 0).toString(36); };
@@ -2409,7 +2445,7 @@ function sendChatIds() { if (Date.now() - chatIdsAt < 15000) return; chatIdsAt =
 function gotChatIds(m) {   // send back what the other phone is missing
   if (!Array.isArray(m.ids)) return;
   const have = new Set(m.ids.filter(x => typeof x === 'string').slice(0, 1000));
-  const miss = chat.filter(c => !have.has(c.id) && !cleared.has(c.id)).map(c => ({ id: c.id, w: c.who, x: c.text, at: c.at, ...(c.ed ? { ed: c.ed } : {}), ...(c.re ? { re: reOut(c.re) } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) }));
+  const miss = chat.filter(c => !have.has(c.id) && !cleared.has(c.id)).map(c => ({ id: c.id, w: c.who, x: c.text, at: c.at, ...(c.ed ? { ed: c.ed } : {}), ...(c.lp ? { lp: c.lp } : {}), ...(c.re ? { re: reOut(c.re) } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) }));
   for (let i = 0; i < miss.length; i += 20) send({ t: 'chathist', items: miss.slice(i, i + 20) });
   sendChatIds();   // and ask for what this phone is missing
 }
@@ -2419,7 +2455,7 @@ function gotChatHist(m) {
   for (const it of m.items.slice(0, 200)) {
     if (!it || typeof it.id !== 'string' || it.id.length > 24 || typeof it.x !== 'string' || !['me', 'them'].includes(it.w)) continue;
     if (cleared.has(it.id) || chat.some(c => c.id === it.id)) continue;
-    const re = cleanRe(it.re), vn = cleanVn(it.vn), im = !vn && cleanIm(it.im), gif = !vn && !im && cleanGif(it.gif), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(it.ed > 0 && !vn && !im && !gif ? { ed: +it.ed } : {}), ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im, ...(im.vo ? { pl: true } : {}) } : {}), ...(gif ? { gif } : {}) };
+    const re = cleanRe(it.re), vn = cleanVn(it.vn), im = !vn && cleanIm(it.im), gif = !vn && !im && cleanGif(it.gif), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(it.ed > 0 && !vn && !im && !gif ? { ed: +it.ed } : {}), ...(!vn && !im && !gif && cleanLp(it.lp) ? { lp: cleanLp(it.lp) } : {}), ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im, ...(im.vo ? { pl: true } : {}) } : {}), ...(gif ? { gif } : {}) };
     const at = chat.findIndex(o => o.at > c.at); at < 0 ? chat.push(c) : chat.splice(at, 0, c); n++;
   }
   if (n) { saveChat(); renderChat(); notify(`${n} message${n > 1 ? 's' : ''} brought back from ${who()}'s phone.`); }
@@ -2442,7 +2478,7 @@ function gotSeen() {
 }
 function resendChat() {
   if (!partnerOnline()) return;
-  for (const c of chat) if (c.who === 'me' && ((c.st || 0) < 2 || ((c.vn || c.im) && c.st < 3)) && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re, ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) });
+  for (const c of chat) if (c.who === 'me' && ((c.st || 0) < 2 || ((c.vn || c.im) && c.st < 3)) && Date.now() - c.at < 86400000) send({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re, ...(c.lp ? { lp: c.lp } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) });
   for (const c of chat) if (c.rxAt && c.rxAt.me && Date.now() - c.rxAt.me < 86400000) send({ t: 'react', id: c.id, e: (c.rx && c.rx.me) || '', at: c.rxAt.me });   // reactions made while the other phone was away
 }
 // ---- voice notes (Xed 13 Nov), like WhatsApp: hold the mic to record, let go to send, slide left to cancel, slide up for
@@ -2788,6 +2824,7 @@ function imClick(ev) {
 }
 // pinch to zoom, drag to look around, double tap to zoom in or out
 let imZ = { s: 1, x: 0, y: 0 }, imPtr = new Map(), imG = null, imTapAt = 0;
+const imPullEnd = () => { $('imBig').style.transition = ''; $('imView').style.transition = ''; $('imView').style.background = ''; };
 function imZoom(s, x, y) { imZ = { s, x, y }; $('imBig').style.transform = `translate(${x}px, ${y}px) scale(${s})`; }
 const imStageEl = $('imStage');
 imStageEl.addEventListener('pointerdown', ev => {
@@ -2802,9 +2839,26 @@ imStageEl.addEventListener('pointermove', ev => {
   const p = [...imPtr.values()];
   if (p.length === 2 && imG.d) { const s = Math.max(1, Math.min(5, imG.s * Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) / imG.d)); imZoom(s, imG.x + (p[0].x + p[1].x) / 2 - imG.cx, imG.y + (p[0].y + p[1].y) / 2 - imG.cy); }
   else if (p.length === 1 && imZ.s > 1 && imG.px != null) imZoom(imZ.s, imG.x + ev.clientX - imG.px, imG.y + ev.clientY - imG.py);
+  else if (p.length === 1 && imG.px != null) {   // Xed 14 Nov: not zoomed in, one finger going down: the photo follows the finger and the black fades; let go far or fast enough and it closes
+    const dy = ev.clientY - imG.py;
+    if (!imG.pull && dy > 10 && dy > Math.abs(ev.clientX - imG.px) * 1.2) imG.pull = true;
+    if (!imG.pull) return;
+    const y = Math.max(0, dy), img = $('imBig');
+    imG.vy = (ev.clientY - (imG.ly == null ? ev.clientY : imG.ly)) / Math.max(1, ev.timeStamp - (imG.lt || ev.timeStamp)); imG.ly = ev.clientY; imG.lt = ev.timeStamp; imG.y1 = y;
+    img.style.transition = 'none'; img.style.transform = `translateY(${y}px) scale(${1 - Math.min(.18, y / 1600)})`;
+    $('imView').style.background = `rgba(0, 0, 0, ${1 - Math.min(.75, y / 420)})`;
+  }
 });
 for (const e of ['pointerup', 'pointercancel']) imStageEl.addEventListener(e, ev => {
   imPtr.delete(ev.pointerId);
+  if (imG && imG.pull && !imPtr.size) {
+    const go = e === 'pointerup' && (imG.y1 > 110 || imG.vy > .55), img = $('imBig'), calm = matchMedia('(prefers-reduced-motion: reduce)').matches, shown = imShown; imG = null; imTapAt = 0;
+    if (go && calm) { imPullEnd(); imCloseView(); return; }
+    img.style.transition = go ? 'transform 180ms cubic-bezier(.4, 0, 1, 1)' : 'transform 280ms cubic-bezier(.2, .9, .3, 1)'; $('imView').style.transition = 'background-color 200ms ease-out';
+    img.style.transform = go ? `translateY(${innerHeight}px) scale(.82)` : 'translate(0px, 0px) scale(1)'; $('imView').style.background = go ? 'rgba(0, 0, 0, 0)' : '';
+    setTimeout(() => { imPullEnd(); if (go && imShown === shown) imCloseView(); }, go ? 180 : 280);
+    return;
+  }
   if (!imPtr.size) { if (imZ.s < 1.05) imZoom(1, 0, 0); imG = null; }
   else { const q = [...imPtr.values()][0]; imG = { px: q.x, py: q.y, x: imZ.x, y: imZ.y, s: imZ.s }; }
   if (e === 'pointerup' && !imPtr.size) { const now = Date.now(); if (now - imTapAt < 300) { imZoom(imZ.s > 1 ? 1 : 2.5, 0, 0); imTapAt = 0; } else imTapAt = now; }
@@ -3193,22 +3247,65 @@ function emoFor(word) {
   for (const t of tries) if (EMO_WORDS.has(t)) return EMO_WORDS.get(t);
   return null;
 }
+// Xed 14 Nov: hints learn from what you really send, know a few two-word phrases, stay quiet after "not", and can be switched off
+let emoLearn = store.get('emoLearn') || {};   // what the two of you really write: word -> { n: times written, e: { emoji: score } }; 'two words' -> { e }
+const EMO_PHRASES = new Map(Object.entries({ 'good night': ['😴', '🌙'], 'shab bakhair': ['😴', '🌙'], 'good morning': ['☀️', '🥰'], 'subah bakhair': ['☀️', '🥰'], 'miss you': ['🥺', '❤️'], 'miss u': ['🥺', '❤️'], 'yaad aa': ['🥺'], 'love you': ['❤️', '😘'], 'love u': ['❤️', '😘'], 'thank you': ['🙏', '🥰'], 'take care': ['🤗'], 'khayal rakhna': ['🤗'], 'come here': ['🫦'], 'idhar aao': ['🫦'], 'so cute': ['🥰'], 'so hot': ['🔥', '🥵'] }));
+const EMO_NOT = new Set(['not', 'no', 'never', 'dont', 'without', 'nahi', 'nahin', 'nhi', 'mat', 'na', 'bina']);
+const EMO_TOK = /[A-Za-z-]{2,}|\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/gu;
+const emoKey = w => w.toLowerCase().replace(/[^a-z-]/g, '');
+function emoPick(prev, word) {   // best first: what you two put after these words before, then the built-in list; at most 3
+  const w = emoKey(word), p = prev ? emoKey(prev) : '';
+  if (!store.get('emoHintOn', true) || EMO_NOT.has(p)) return null;
+  const two = p ? p + ' ' + w : '', rec = emoLearn[w], n = rec && rec.n || 1;
+  const top = (o, fits) => Object.entries(o && o.e || {}).filter(x => fits(x[1])).sort((x, y) => y[1] - x[1]).map(x => x[0]);
+  const own = [...(two ? top(emoLearn[two], v => v >= 6) : []), ...top(rec, v => v >= 3 && v / n >= .34)];   // an emoji must follow the word often enough, or common words would all get hints
+  if (!own.length && rec && rec.n >= 6 && !Object.keys(rec.e || {}).length) return null;   // written 6 times and never with an emoji: its built-in hint stays away
+  const list = [...new Set([...own, ...((two && EMO_PHRASES.get(two)) || emoFor(word) || [])])].slice(0, 3);
+  return list.length ? list : null;
+}
+let emoSaveT = 0;
+const emoSave = () => { clearTimeout(emoSaveT); emoSaveT = setTimeout(() => {
+  const keys = Object.keys(emoLearn);
+  if (keys.length > 2000) { const sum = k => (emoLearn[k].n || 0) + Object.values(emoLearn[k].e || {}).reduce((x, y) => x + y, 0); for (const k of keys.sort((x, y) => sum(x) - sum(y)).slice(0, 400)) delete emoLearn[k]; }   // the least used go first
+  store.set('emoLearn', emoLearn);
+}, 2000); };
+function emoLearnFrom(text) {   // every message, sent or received, old or new: the 3 words before an emoji are tied to it, the nearest most
+  const tok = text.match(EMO_TOK) || [], word = x => !!x && /^[A-Za-z-]/.test(x);
+  const rec = k => { const o = emoLearn[k]; return o && typeof o === 'object' && o.e ? o : (emoLearn[k] = { n: 0, e: {} }); };
+  for (let i = 0; i < tok.length; i++) {
+    if (word(tok[i])) { rec(emoKey(tok[i])).n++; continue; }
+    let j = i - 1; while (j >= 0 && !word(tok[j])) j--;   // back over the other emoji standing with this one
+    for (let d = 0; d < 3 && j - d >= 0 && word(tok[j - d]); d++) { const o = rec(emoKey(tok[j - d])); o.e[tok[i]] = (o.e[tok[i]] || 0) + 3 - d; }
+    if (j >= 1 && word(tok[j]) && word(tok[j - 1])) { const o = rec(emoKey(tok[j - 1]) + ' ' + emoKey(tok[j])); o.e[tok[i]] = (o.e[tok[i]] || 0) + 3; }
+  }
+  if (tok.length) emoSave();
+}
+async function emoLearnHistory() {   // once per phone: everything already in the chat, also the kept older messages
+  if (store.get('emoLearnHist')) return;
+  const seen = new Set(), take = c => { if (c && typeof c.text === 'string' && !c.vn && !c.im && !c.gif && !seen.has(c.id)) { seen.add(c.id); emoLearnFrom(c.text); } };
+  emoLearn = {}; for (const c of chat) take(c);
+  await archTx('readonly', st => { const q = st.openCursor(); q.onsuccess = () => { const cur = q.result; if (!cur) return; take(cur.value); cur.continue(); }; }).catch(() => {});
+  store.set('emoLearnHist', 1); emoSave();
+}
+setTimeout(emoLearnHistory, 4000);   // after the app is up, so opening is not slowed
 function emoHintShow() {
   const t = $('text'), h = $('emoHint'), v = t.value;
-  const atEnd = t.selectionStart == null || t.selectionStart === v.length, m = atEnd && v.match(/([A-Za-z-]{2,}) ?$/), list = m && emoFor(m[1]);   // right after the word, and still there after one space (Xed 13 Nov)
+  const atEnd = t.selectionStart == null || t.selectionStart === v.length, m = atEnd && v.match(/(?:([A-Za-z-]{2,})\s+)?([A-Za-z-]{2,}) ?$/), list = m && emoPick(m[1], m[2]);   // right after the word, and still there after one space (Xed 13 Nov)
   if (!list) { h.hidden = true; return; }
-  h.textContent = list.slice(0, 2).join(''); h.hidden = false;
+  h.replaceChildren(...list.map(e => { const x = document.createElement('span'); x.textContent = e; return x; })); h.hidden = false;
   const cs = getComputedStyle(t); emoMeasure = emoMeasure || document.createElement('canvas').getContext('2d'); emoMeasure.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
   const textW = emoMeasure.measureText(v).width + parseFloat(cs.letterSpacing || 0) * v.length, pad = parseFloat(cs.paddingLeft) || 0, room = t.clientWidth - pad - h.offsetWidth - 2, over = textW + 3 > room;
   h.classList.toggle('edge', over); h.style.left = (t.offsetLeft + pad + (over ? room : textW + 3)) + 'px';
 }
 $('emoHint').addEventListener('pointerdown', ev => ev.preventDefault());   // the keyboard stays as it is
-$('emoHint').onclick = () => {
-  const t = $('text'), h = $('emoHint'); if (h.hidden) return;
-  t.value = (t.value.replace(/\s+$/, '') + ' ' + h.textContent + ' ').slice(0, 500); h.hidden = true; tap();
+$('emoHint').onclick = ev => {
+  const t = $('text'), h = $('emoHint'), e = ev.target.closest('span') || h.firstChild; if (h.hidden || !e) return;
+  t.value = (t.value.replace(/\s+$/, '') + ' ' + e.textContent + ' ').slice(0, 500); h.hidden = true; tap();
   t.dispatchEvent(new Event('input')); try { t.setSelectionRange(t.value.length, t.value.length); } catch {}
 };
 for (const e of ['input', 'keyup', 'click', 'focus']) $('text').addEventListener(e, emoHintShow);
+$('emoOn').checked = store.get('emoHintOn', true);
+$('emoOn').onchange = ev => { store.set('emoHintOn', ev.target.checked); emoHintShow(); };
 $('compose').addEventListener('submit', () => setTimeout(emoHintShow, 0));
 $('dpPick').onclick = $('myDp').onclick = () => { tap(); $('dpFile').click(); };
 $('dpFile').onchange = () => { const f = $('dpFile').files[0]; $('dpFile').value = ''; if (!f) return; if (!/^image\//.test(f.type || 'image/')) { notify('That file is not a photo.'); return; } dpCropOpen(f); };
@@ -3429,13 +3526,47 @@ const LINK_RE = /\b(?:https?:\/\/|www\.)[^\s<]{2,}/gi;
 const linkTrim = u => u.replace(/(?:&quot;|&#39;|&gt;|[.,!?;:)\]}'])+$/, '');
 const linky = t => esc(t).replace(LINK_RE, m => { const u = linkTrim(m); return `<a class="lnk" href="${/^www\./i.test(u) ? 'https://' : ''}${u}" target="_blank" rel="noopener noreferrer">${u}</a>` + m.slice(u.length); });
 const linksIn = t => (String(t).match(LINK_RE) || []).map(m => m.replace(/[.,!?;:)\]}'"]+$/, '')).map(u => /^www\./i.test(u) ? 'https://' + u : u);
+// ---- link previews (Xed 14 Nov). Like WhatsApp: only the sending phone asks the carrier about its own link, makes a small picture,
+// and the preview travels to the other phone inside the sealed message. The receiving phone never asks anyone about a link.
+const lpBusy = new Set(), lpTried = new Set();
+const lpCut = (x, n) => typeof x === 'string' ? x.slice(0, n) : '';
+function cleanLp(x) {   // what came from the other phone: plain words, an https link, a small jpeg picture, nothing else
+  if (!x || typeof x !== 'object' || typeof x.u !== 'string' || !/^https:\/\/\S{3,600}$/.test(x.u) || !lpCut(x.t, 140)) return null;
+  return { u: x.u, t: lpCut(x.t, 140), d: lpCut(x.d, 200), s: lpCut(x.s, 60), th: /^data:image\/jpeg;base64,[A-Za-z0-9+/=]{20,40000}$/.test(x.th || '') ? x.th : '' };
+}
+async function lpThumb(im) {   // the page's picture, made small on this phone (about 5 KB) so it can travel inside the message
+  const r = await fetch(`${CARRIER}/lpi`, { method: 'POST', body: im }); if (!r.ok) return '';
+  const bmp = await createImageBitmap(await r.blob()), w = Math.min(320, bmp.width), h = Math.round(bmp.height * w / bmp.width);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = Math.min(h, 200); cv.getContext('2d').drawImage(bmp, 0, Math.min(0, (cv.height - h) / 2), w, h);
+  const out = cv.toDataURL('image/jpeg', .55); return out.length < 40000 ? out : '';
+}
+function lpWant(c) {
+  if (c.who !== 'me' || c.vn || c.im || c.gif || c.lp !== undefined || lpBusy.size >= 3 || lpBusy.has(c.id) || lpTried.has(c.id)) return;
+  const u = linksIn(c.text).find(x => /^https:\/\//i.test(x)); if (!u) return;
+  lpBusy.add(c.id);
+  fetch(`${CARRIER}/lp`, { method: 'POST', body: u }).then(r => r.ok ? r.json() : Promise.reject()).then(async j => {
+    const th = /^https:\/\//.test(j.im || '') ? await lpThumb(j.im).catch(() => '') : '';
+    c.lp = cleanLp({ u, t: j.t, d: j.d, s: j.s, th }) || false;   // false: this page has nothing to show, never asked again
+    lpBusy.delete(c.id); saveChat(); keepShow = true; renderChat();
+    if (c.lp) send({ t: 'lp', id: c.id, lp: c.lp });
+  }).catch(() => { lpBusy.delete(c.id); lpTried.add(c.id); });   // no answer now: tried again the next time the app opens
+}
+function gotLp(m) {
+  const lp = cleanLp(m.lp), c = typeof m.id === 'string' && chat.find(x => x.id === m.id && x.who === 'them');
+  if (!lp || !c || c.vn || c.im || c.gif || !linksIn(c.text).includes(lp.u)) return;   // only for a link that is really in that message
+  c.lp = lp; saveChat(); keepShow = true; renderChat();
+}
+const lpHtml = c => !c.lp || !c.lp.t ? '' : `<a class="lp" href="${esc(c.lp.u)}" target="_blank" rel="noopener noreferrer">${c.lp.th ? `<img src="${c.lp.th}" alt="">` : ''}<b>${esc(c.lp.t)}</b>${c.lp.d ? `<span>${esc(c.lp.d)}</span>` : ''}<small>${esc(c.lp.s)}</small></a>`;
 function renderChat() {
   const time = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });   // 10:15 PM, never 22:15 (Xed 12 Nov)
   const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${r.x ? esc(r.x) : 'Message'}</span></span>` : '';
   const rxs = c => { const l = [c.rx && c.rx.them, c.rx && c.rx.me].filter(Boolean); return !l.length ? '' : `<span class="rx" role="button" aria-label="Reactions">${l[1] && l[0] === l[1] ? esc(l[0]) + '<small>2</small>' : l.map(esc).join('')}</span>`; };
-  const view = chatView(), faces = new Set();   // a face on the first message from each of you after 20 quiet minutes
-  for (let i = 0, open = { me: true, them: true }; i < view.length; i++) { const c = view[i]; if (!i || c.at - view[i - 1].at > 1200000) open = { me: true, them: true }; if (open[c.who] && (c.who === 'me' ? myDp : partnerDp)) faces.add(c.id); open[c.who] = false; }
+  const view = chatView(), faces = new Set();
+  for (let i = 0, last = { me: -9, them: -9 }; i < view.length; i++) {   // Xed 14 Nov: a face where a run of messages starts; in quick back-and-forth only every 6th bubble, so the chat never fills with faces
+    const c = view[i], p = view[i - 1], quiet = !p || c.at - p.at > 300000; if (quiet) last = { me: -9, them: -9 };   // after 5 quiet minutes each of you gets a face again
+    if ((quiet || p.who !== c.who) && (c.who === 'me' ? myDp : partnerDp) && (quiet || i - last[c.who] >= 6)) { faces.add(c.id); last[c.who] = i; }
+  }
   const face = c => faces.has(c.id) ? `<span class="dp bdp"><img src="${c.who === 'me' ? myDp : partnerDp}" alt=""></span>` : '';
   const box = $('msgs'), keep = box.scrollTop, toEnd = toEndNext || !$('dock').classList.contains('open') || box.scrollHeight - box.scrollTop - box.clientHeight < 80;   // reading older messages: stay where you are
   toEndNext = false;
@@ -3446,7 +3577,8 @@ function renderChat() {
   }
   keepShow = false;
   const keepV = gifKeep();
-  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
+  for (const c of view) lpWant(c);
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
   box.scrollTop = toEnd ? box.scrollHeight : keep;
   gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) gifInChat.observe(v);
   toEndState();
@@ -4013,7 +4145,7 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   if (m.gv < gameV) send({ t: 'game', game, v: gameV });
   if (m.tv < towerV) send({ t: 'tower', tower, v: towerV });
   if (Number.isFinite(m.lv) && m.lv < ludoV) send({ t: 'ludo', l: ludo, v: ludoV });
-  if ((myPush || '').slice(-16) !== (m.pu || '')) send({ t: 'pushsub', endpoint: myPush });
+  if ((myPush || '').slice(-16) + (myPush && myKeys ? '+' : '') !== (m.pu || '')) pushSay();
   if (Number.isFinite(m.pk) && m.pk < pinLast()) send({ t: 'pins', all: pins });   // pins changed while the other phone was away
   if (typeof m.cs === 'string' && m.cs !== chatSig()) sendChatIds();   // the two chats differ: swap what is missing
   if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
@@ -5959,7 +6091,7 @@ const slowLine = {   // looks like the direct channel to the code that sends fil
     const iv = rand(12);
     crypto.subtle.encrypt({ name: 'AES-GCM', iv }, pairKey, plain).then(ct => {
       const out = new Uint8Array(12 + ct.byteLength); out.set(iv); out.set(new Uint8Array(ct), 12);
-      const to = lane ? [lane] : clients.slice(0, 2).filter(c => c.connected);   // requests go on both relays: the other phone may only hear one
+      const to = lane ? [lane] : clients.filter(c => c.connected).slice(0, 2);   // requests go on both relays: the other phone may only hear one
       if (!to.length) { done(); return; }
       const body = lane ? out : b64(out);
       to.forEach(c => c.publish(lane ? dataOut : fileOut, body, { qos: lane ? 1 : 0 }, done));
@@ -6227,7 +6359,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261114-013517';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-151437';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -6619,6 +6751,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'toyst') gotToySt(m);
   if (m.t === 'del') gotDel(m);
   if (m.t === 'edit') gotEdit(m);
+  if (m.t === 'lp') gotLp(m);
   if (m.t === 'editok') gotEditOk(m);
   if (m.t === 'dp') gotDp(m);
   if (m.t === 'dpok') gotDpOk(m);
@@ -7055,8 +7188,34 @@ function gotBuzz() {
   if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
   if (chime && store.get('buzzSound', true)) { chime.muted = false; chime.currentTime = 0; chime.play().catch(() => {}); }
   send({ t: 'buzzgot' });
-  if (!document.hidden && navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.getNotifications({ tag: 'buzz' })).then(l => l.forEach(n => n.close())).catch(() => {});
+  if (!document.hidden && navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.getNotifications()).then(l => l.forEach(n => n.close())).catch(() => {});
 }
+// Xed 14 Nov: quiet alerts to the other phone, and one loud one. All wordless: the alert carries one sealed letter, the phone shows a fixed line.
+//  q  the newest message is still unread after 90 s: quiet, once for each run of unread messages, at most every 5 minutes
+//  u  3 or more messages within a minute, all unread: loud like Thinking of you, after 10 s, at most every 2 minutes
+//  o  this phone has had the app open for a minute with nothing unread waiting: quiet "Online now", at most every 30 minutes
+// Never while their app is on their screen. Without the other phone's keys (it has not run this version yet) only q and u go, as the plain loud alert.
+const NUDGE_MS = 90000, NUDGE_GAP_MS = 300000;
+let nudge = store.get('nudge:' + room) || { id: '', at: 0 }, frontSince = Date.now();
+function wake(kind, next) {
+  const was = nudge, push = partnerPush; nudge = next; store.set('nudge:' + room, nudge);
+  fetch(BUZZ, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: push, ...(partnerKeys ? { keys: partnerKeys, kind } : {}) }) }).then(r => r.json()).then(a => {
+    if ((a.status === 404 || a.status === 410) && partnerPush === push) { store.set('deadPush:' + room, push); partnerPush = null; store.set('partnerPush:' + room, null); send({ t: 'pushdead' }); render(); showAlerts(); }   // their phone's alert address no longer exists
+  }).catch(() => { nudge = was; store.set('nudge:' + room, nudge); });   // no internet just now: tried again at the next look
+}
+function nudgeCheck(leaving) {   // leaving: this phone is going off screen and will be frozen, so it cannot wait
+  if (!partnerPush || (partnerOnline() && !partnerBgAt)) return;
+  const now = Date.now(), unread = x => (x.st || 0) < (x.vn || x.im ? 2 : 3), c = chat.findLast(x => x.who === 'me');   // a photo or voice note counts as read once it arrived
+  if (c && unread(c) && now - c.at < 86400000) {
+    if (c.id === nudge.id) return;
+    const many = chat.slice(-12).filter(x => x.who === 'me' && unread(x) && c.at - x.at < 60000).length >= 3;
+    if (many ? (leaving || now - c.at >= 10000) && now - (nudge.uAt || 0) >= 120000 : (leaving || now - c.at >= NUDGE_MS) && now - nudge.at >= NUDGE_GAP_MS) wake(many ? 'u' : 'q', { ...nudge, id: c.id, at: now, ...(many ? { uAt: now } : {}) });
+    return;
+  }
+  if (!leaving && !document.hidden && partnerKeys && !partnerOnline() && now - frontSince >= 60000 && now - (nudge.oAt || 0) >= 1800000) wake('o', { ...nudge, oAt: now });
+}
+steady(() => nudgeCheck(false), 15000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) nudgeCheck(true); else frontSince = Date.now(); });
 async function sendBuzz() {
   const now = Date.now();
   if (now - buzzAt < 3000) return;
@@ -7084,6 +7243,7 @@ function gotPushSub(m) {
   if (m.endpoint !== null && !okEndpoint(m.endpoint)) return;
   if (m.endpoint && m.endpoint === store.get('deadPush:' + room)) { send({ t: 'pushdead' }); return; }   // the same dead address again: ask for a new one
   partnerPush = m.endpoint; store.set('partnerPush:' + room, partnerPush);
+  const k = m.endpoint && m.keys; partnerKeys = k && /^[\w-]{80,100}$/.test(k.p256dh) && /^[\w-]{16,30}$/.test(k.auth) ? { p256dh: k.p256dh, auth: k.auth } : null; store.set('partnerKeys:' + room, partnerKeys);
   render(); showAlerts();
 }
 const fromB64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
@@ -7128,8 +7288,8 @@ async function alertsOn() {
   if (answer !== 'granted') { alertHelp(answer === 'default' ? 'Chrome did not get an answer. Turn this on again and tap Allow when Chrome asks. If Chrome shows only a small bell in the address bar, tap the bell and choose Allow.' : blockedHelp); return showAlerts(); }
   try {
     const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(BUZZ_KEY) });
-    myPush = sub.endpoint; store.set('myPush:' + room, myPush); alertHelp('');
-    send({ t: 'pushsub', endpoint: myPush });
+    myPush = sub.endpoint; store.set('myPush:' + room, myPush); myKeys = keysOf(sub); store.set('myKeys:' + room, myKeys); alertHelp('');
+    pushSay();
     notify(`Alerts are on. ${who()} can now reach you when Loveline is closed. Tap Send me a test alert to check.`);
   } catch { alertHelp('Alerts could not be turned on just now. Check your internet and try again.'); }
   showAlerts();
@@ -7144,7 +7304,8 @@ async function checkPush(renew) {   // alerts can stop without this phone knowin
     let sub = await reg.pushManager.getSubscription();
     if (sub && renew) { await sub.unsubscribe().catch(() => {}); sub = null; }
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(BUZZ_KEY) });   // allowed already, so no question pops up
-    if (sub.endpoint !== myPush) { myPush = sub.endpoint; store.set('myPush:' + room, myPush); send({ t: 'pushsub', endpoint: myPush }); showAlerts(); }
+    const k = keysOf(sub);
+    if (sub.endpoint !== myPush || JSON.stringify(k) !== JSON.stringify(myKeys)) { myPush = sub.endpoint; store.set('myPush:' + room, myPush); myKeys = k; store.set('myKeys:' + room, myKeys); pushSay(); showAlerts(); }
   } catch {}
 }
 async function alertsOff() {
@@ -7316,7 +7477,61 @@ const chatIsOpen = () => $('dock').classList.contains('open');
 // Xed 12 Nov: the passcode screen tells, with no name and no words from the chat, that the other one is online and how many of
 // their messages are waiting unseen. Not on the calculator (it must look like only a calculator), not on the plain cover.
 let unseen = +store.get('unseen:' + room) || 0, noteSeed = 0, noteWas = '';
-function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen(); }
+// ---- hide (Xed 14 Nov): like "hide balance" in a bank app. One tap swaps the whole app, every section, for an ordinary chat with an
+// office colleague: a new random name, picture and conversation every time. What is typed there stays on this phone. Coming back asks for the passcode.
+const FK_NAMES = isRemote ? ['Usman Ali', 'Bilal Ahmed', 'Hamza Sheikh', 'Faisal Khan', 'Saad Qureshi', 'Ahmed Raza', 'Zeeshan Malik', 'Imran Shah', 'Kamran Javed', 'Adeel Hussain', 'Waqas Iqbal', 'Omer Farooq']
+  : ['Sana Tariq', 'Ayesha Khan', 'Hira Malik', 'Mehwish Ali', 'Amna Sheikh', 'Fatima Raza', 'Maryam Javed', 'Zainab Ahmed', 'Rabia Qureshi', 'Nida Hussain', 'Saba Iqbal', 'Iqra Farooq'];
+const FK_DP = ['🌸', '🌻', '🏔️', '🌅', '🌊', '🌙', '🚗', '🏏', '🦋', '🌴', '☕', '📚', '🌷', '🐈', '🌿', '⛰️'];
+const FK_TALKS = [   // t: them, m: me
+  [['t', 'Assalam o alaikum, monthly report ka kya status hai? 📊'], ['m', 'Walaikum salam, almost done hai. Bas sales figures add karne hain'], ['t', 'Theek hai, 4 baje tak bhej dena please 🙏'], ['m', 'Ji zaroor 👍'], ['t', 'Aur last month se comparison bhi daal dena'], ['m', 'Done, ek chart bhi bana diya hai 📈'], ['t', 'Perfect 👌'], ['m', 'Email kar di hai, check kar lein'], ['t', 'Mil gayi. Sir ko forward kar di ✅'], ['m', 'Great 😊']],
+  [['t', 'Kal ki meeting 11 baje shift ho gayi hai 📅'], ['m', 'Oh ok, conference room wohi hai?'], ['t', 'Haan room 3. Client bhi aa raha hai'], ['m', 'Presentation ready hai, bas 2 slides update karni hain'], ['t', 'Budget wali slide zaroor update karna 💰'], ['m', 'Ji kar dunga 👍'], ['t', 'Thanks 🙂'], ['m', 'Printouts bhi le aun?'], ['t', 'Haan 5 copies kafi hain'], ['m', 'Ok 👌']],
+  [['t', 'Invoice number 2417 ka payment aa gaya? 🧾'], ['m', 'Abhi check karta hun'], ['m', 'Haan aaj subah clear ho gaya ✅'], ['t', 'Zabardast 👏 Ledger mein entry kar dena'], ['m', 'Kar di hai'], ['t', 'Aur pending invoices ki list bhi bhej do'], ['m', '3 pending hain, sheet share kar di 📎'], ['t', 'Shukriya 🙏'], ['m', 'Koi baat nahi']],
+  [['m', 'Aaj lunch kahan karna hai? 🍽️'], ['t', 'Canteen mein biryani hai aaj 😄'], ['m', 'Wah, phir canteen hi chalte hain'], ['t', '10 min mein niche milte hain'], ['m', 'Done 👍'], ['t', 'Waise HR ne leave policy ki email bheji hai, dekhi?'], ['m', 'Abhi nahi, dekhta hun 📧'], ['t', 'Annual leaves 2 barh gayi hain 🎉'], ['m', 'Achi news hai 😊']],
+  [['t', 'Laptop ka issue theek hua? 💻'], ['m', 'IT wale abhi dekh rahe hain'], ['t', 'Shared drive se files le lo tab tak'], ['m', 'Haan wahi kar raha hun'], ['t', 'Password reset karwana pare to ticket bana dena'], ['m', 'Ticket bana diya hai 🎫'], ['t', 'Good 👍'], ['m', 'Ab chal raha hai, shukriya 🙏'], ['t', 'Welcome 🙂']],
+  [['t', 'Training session kal 3 baje hai 📚'], ['m', 'Online hai ya office mein?'], ['t', 'Office mein, hall 2'], ['m', 'Ok, notebook le aunga 📝'], ['t', 'Attendance zaroori hai, manager ne kaha hai'], ['m', 'Ji samajh gaya 👍'], ['t', 'Aur feedback form bhi fill karna hoga baad mein'], ['m', 'Theek hai ✅'], ['t', 'See you kal 😊'], ['m', 'InshaAllah 👋']],
+];
+const fkPick = a => a[Math.floor(Math.random() * a.length)];
+function fkNew() {   // a new colleague and conversation: picked fresh every time hiding is turned on
+  const talk = fkPick(FK_TALKS), end = Date.now() - (2 + Math.floor(Math.random() * 25)) * 60000;
+  let at = end - talk.length * (2 + Math.random() * 4) * 60000;
+  return { name: fkPick(FK_NAMES), dp: fkPick(FK_DP), hue: Math.floor(Math.random() * 360), seen: Math.random() < .5 ? 'online' : 'last seen today at ' + new Date(end + 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK }),
+    list: talk.map(([w, x]) => { at += (1 + Math.random() * 5) * 60000; return { w, x, at: Math.min(at, end) }; }) };
+}
+let fk = null;
+function fkDraw() {
+  const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
+  $('fkName').textContent = fk.name; $('fkSeen').textContent = fk.seen; $('fkDp').textContent = fk.dp;
+  $('fkDp').style.background = `linear-gradient(135deg, hsl(${fk.hue} 45% 62%), hsl(${(fk.hue + 40) % 360} 50% 42%))`;
+  const box = $('fkMsgs'); box.replaceChildren(Object.assign(document.createElement('div'), { className: 'fkDay', textContent: 'Today' }));
+  fk.list.forEach((m, i) => {
+    const b = document.createElement('div'), meta = document.createElement('small');
+    b.className = 'fkB' + (m.w === 'm' ? ' fkMe' : '') + (i && fk.list[i - 1].w !== m.w ? ' gap' : '');
+    b.textContent = m.x; meta.textContent = t(m.at);
+    if (m.w === 'm') { const k = document.createElement('i'); k.textContent = '✓✓'; meta.appendChild(k); }
+    b.appendChild(meta); box.appendChild(b);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+function hideSet(on) {
+  hiding = on; document.body.classList.toggle('hiding', on); $('fake').hidden = !on;
+  if (on) { fk = store.get('fake') || fkNew(); store.set('fake', fk); fkDraw(); try { vnAudio.pause(); } catch {} }
+  else { fk = null; store.set('fake', null); $('fkText').value = ''; $('fkText').blur(); }
+  for (const el of document.querySelectorAll('video, audio')) {   // no sound from the real app while it is hidden
+    if (on && !el.muted) { el.muted = true; el.dataset.hideMuted = '1'; }
+    else if (!on && el.dataset.hideMuted) { el.muted = false; delete el.dataset.hideMuted; }
+  }
+  if (!on) { renderChat(); render(); }
+}
+let hideAskAt = 0;
+$('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
+$('fkShow').onclick = () => { tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); };   // the passcode first; with no passcode set, straight back
+addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
+$('fkForm').onsubmit = ev => {   // typed here: shown here only, never sent
+  ev.preventDefault(); const x = $('fkText').value.trim().slice(0, 500); if (!x || !fk) return;
+  fk.list.push({ w: 'm', x, at: Date.now() }); store.set('fake', fk); $('fkText').value = ''; fkDraw();
+};
+if (store.get('fake')) hideSet(true);   // it stays hidden after the app is closed and opened again
+function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen() && !hiding; }
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
 const ONLINE_LINES = [['Sync', 'Cloud sync connected'], ['Backup', 'Backup device is online'], ['Sync', 'Paired device active'], ['Devices', 'Linked device connected']];
 const MSG_LINES = [['History', n => n === 1 ? 'New result saved' : 'New results saved'], ['Updates', n => n === 1 ? 'Update ready to install' : 'Updates ready to install'], ['Storage', n => n === 1 ? 'File synced to this phone' : 'Files synced to this phone']];   // the count is on the red badge
@@ -7476,7 +7691,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16), pk: pinLast(), cs: chatSig(), wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16) + (partnerPush && partnerKeys ? '+' : ''), pk: pinLast(), cs: chatSig(), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });

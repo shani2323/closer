@@ -5,6 +5,12 @@ const PART = 1 << 19, MOST = 8, WAIT_MS = 120000;
 const SHELL = 'loveline-shell-1', LIBS = new Set(['mqtt.min.js', 'hls.light.min.js', 'rapier2d.mjs', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest']);
 const here = p => new URL(p, self.registration.scope).href;
 const keptV = async () => { const c = await caches.open(SHELL), r = await c.match(here('__v')); return r ? r.text() : ''; };
+// Xed 14 Nov: the app's big block of code is kept as its own file on this phone. The browser then keeps its ready-to-run form, so opening skips that work.
+const APP_JS = /^app-v-[\d-]+\.js$/;
+function split(t, v) {
+  const all = [...t.matchAll(/<script>([\s\S]*?)<\/script>/g)], m = all[all.length - 1];
+  return m ? { html: t.slice(0, m.index) + `<script src="app-${v}.js"></script>` + t.slice(m.index + m[0].length), js: m[1] } : null;
+}
 let pulling = null;
 function shellPull(want) {   // fetch the newest app page; keep it only if it is complete (and is version `want`, when one is named)
   return pulling = pulling || (async () => {
@@ -12,8 +18,10 @@ function shellPull(want) {   // fetch the newest app page; keep it only if it is
       const r = await fetch(here('index.html') + '?nc=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return '';
       const t = await r.text(), v = (t.match(/const APP_V = '(v-[\d-]+)'/) || [])[1];
       if (!v || !t.includes('</html>') || (want && v !== want)) return '';
-      const c = await caches.open(SHELL);
-      await c.put(here('__app'), new Response(t, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })); await c.put(here('__v'), new Response(v));
+      const c = await caches.open(SHELL), s = split(t, v);
+      if (s) await c.put(here(`app-${v}.js`), new Response(s.js, { headers: { 'Content-Type': 'text/javascript; charset=utf-8' } }));   // the code first, then the page that asks for it
+      await c.put(here('__app'), new Response(s ? s.html : t, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })); await c.put(here('__v'), new Response(v));
+      for (const req of await c.keys()) { const n = new URL(req.url).pathname.split('/').pop(); if (APP_JS.test(n) && n !== `app-${v}.js`) c.delete(req); }
       for (const req of await c.keys()) { const n = new URL(req.url).pathname.split('/').pop(); if (LIBS.has(n)) fetch(req.url, { cache: 'no-cache' }).then(x => x.ok && c.put(req.url, x)).catch(() => {}); }   // the helper files are re-checked with each new version
       return v;
     } catch { return ''; } finally { pulling = null; }
@@ -39,6 +47,13 @@ self.addEventListener('message', e => {
 });
 self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of you, with the app closed. The message is fixed here, so no words travel through the helper.
   const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  let kind = ''; try { kind = e.data ? e.data.text() : ''; } catch {}   // q: an unread message, o: the other one is online, u: several unread messages; nothing: Thinking of you
+  if (kind === 'q' || kind === 'o' || kind === 'u') {   // Xed 14 Nov. The words are fixed here; only the one letter travelled, sealed for this phone.
+    if (open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) return;   // the app is on screen and shows it itself
+    await self.registration.showNotification('1+1=1', kind === 'u' ? { body: '💬 New messages', tag: 'msg', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' }
+      : { body: kind === 'q' ? '💬 New message' : '🟢 Online now', tag: kind === 'q' ? 'msg' : 'on', silent: true, icon: 'icon-192.png' });   // quiet: no sound
+    return;
+  }
   if (Date.now() > testUntil && open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) { open.forEach(c => c.postMessage({ t: 'pushed' })); return; }   // the open page shows its own heart (and shows a test alert itself if this helper restarted and forgot the test); an iPhone must always be shown something
   await self.registration.showNotification('1+1=1', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
 })()));
@@ -55,6 +70,14 @@ self.addEventListener('fetch', e => {
       if (hit) { e.waitUntil(shellCheck().catch(() => {})); return hit; }
       e.waitUntil(shellPull().catch(() => {}));
       return fetch(e.request, { cache: 'no-store' }).catch(() => fetch(e.request));
+    })());
+    return;
+  }
+  if (e.request.method === 'GET' && u.origin === location.origin && APP_JS.test(name)) {   // the app's code: from this phone; if it ever went missing, cut again from the server's page of the same version
+    e.respondWith((async () => {
+      const hit = await (await caches.open(SHELL)).match(u.href); if (hit) return hit;
+      const t = await (await fetch(here('index.html') + '?nc=' + Date.now(), { cache: 'no-store' })).text(), v = (t.match(/const APP_V = '(v-[\d-]+)'/) || [])[1], s = name === `app-${v}.js` && split(t, v);
+      return s ? new Response(s.js, { headers: { 'Content-Type': 'text/javascript; charset=utf-8' } }) : new Response('location.reload()', { headers: { 'Content-Type': 'text/javascript' } });
     })());
     return;
   }
