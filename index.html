@@ -296,21 +296,14 @@
   .tick.st3 { color: #53bdeb; }
   .typing { position: relative; z-index: 2; height: 0; padding: 0 10px; font-size: 13px; line-height: 20px; color: var(--label2); transform: translateY(-26px); pointer-events: none; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0, 0, 0, .9); }   /* Xed 14 Nov: floats over the last bubble and takes no room, so nothing jumps */
   .hideBtn { display: grid; place-items: center; padding: 0; } .hideBtn svg { width: 19px; height: 19px; }
-  .fake { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: #0b141a; color: #e9edef; animation: fkIn 180ms ease-out; }
+  .fake { position: fixed; inset: 0; z-index: 60; overflow: hidden; padding: max(12px, env(safe-area-inset-top)) 16px 0; animation: fkIn 180ms ease-out;   /* Xed 14 Nov: the same look as the real app */
+    background: radial-gradient(60% 40% at 15% 8%, rgba(94, 92, 230, .30), transparent 70%), radial-gradient(55% 35% at 90% 30%, rgba(191, 90, 242, .22), transparent 70%), radial-gradient(70% 45% at 40% 95%, rgba(255, 122, 184, .14), transparent 70%), var(--bg); }
+  .fake .fkIn { max-width: 480px; margin: 0 auto; }
+  .fake .topbar { position: relative; }
+  .fake .dock { position: absolute; }
+  .fake .compose .send:not(.mic) { display: none; } .fake .compose.typed .send:not(.mic) { display: grid; } .fake .compose.typed .mic { display: none; }
   .fake[hidden] { display: none; }
   @keyframes fkIn { from { opacity: 0; } }
-  .fkTop { display: flex; align-items: center; gap: 11px; padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: #1f2c34; }
-  .fkDp { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-size: 21px; }
-  .fkWho { flex: 1; min-width: 0; } .fkWho b { display: block; font-size: 16.5px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .fkWho small { display: block; margin-top: 1px; font-size: 12.5px; color: #8696a0; }
-  .fkShow { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: none; color: #aebac1; } .fkShow:active { background: rgba(255, 255, 255, .08); } .fkShow svg { width: 21px; height: 21px; }
-  .fkMsgs { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 12px; overscroll-behavior: contain; }
-  .fkDay { align-self: center; margin: 6px 0 8px; padding: 4px 10px; border-radius: 8px; background: #182229; color: #8696a0; font-size: 12px; }
-  .fkB { max-width: 80%; padding: 6px 9px 7px; border-radius: 9px; background: #202c33; font-size: 15px; line-height: 1.32; overflow-wrap: anywhere; white-space: pre-wrap; }
-  .fkB.fkMe { align-self: flex-end; background: #005c4b; } .fkB.gap { margin-top: 8px; }
-  .fkB small { float: right; margin: 7px 0 -4px 10px; font-size: 11px; color: rgba(233, 237, 239, .6); } .fkB small i { margin-left: 3px; font-style: normal; color: #53bdeb; letter-spacing: -2px; }
-  .fkBar { display: flex; gap: 8px; padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
-  .fkBar input { flex: 1; min-width: 0; height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: #2a3942; color: #e9edef; font: inherit; font-size: 16px; outline: none; }
-  .fkSend { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #00a884; color: #fff; } .fkSend svg { width: 22px; height: 22px; }
   body.hiding .pop, body.hiding .float, body.hiding .veil, body.hiding .ring, body.hiding .turnFx, body.hiding .result, body.hiding #toast { display: none !important; }   /* nothing of the real app shows through */
   @media (prefers-reduced-motion: reduce) { .fake { animation: none; } }
   .quick { display: grid; grid-template-rows: repeat(2, 44px); grid-auto-flow: column; grid-auto-columns: 44px; gap: 2px; overflow-x: auto; margin-bottom: 8px; padding: 6px; border-radius: 26px; scrollbar-width: none; }
@@ -1267,7 +1260,7 @@
 </div></div>
 
 <div class="toast glass hide" id="toast" role="status"></div>
-<div class="fake" id="fake" hidden><div class="fkTop"><span class="fkDp" id="fkDp"></span><div class="fkWho"><b id="fkName"></b><small id="fkSeen"></small></div><button type="button" class="fkShow" id="fkShow" aria-label="Show"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12C3 10 6.5 5 12 5s9 5 9.5 7c-.5 2-4 7-9.5 7s-9-5-9.5-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div><div class="fkMsgs" id="fkMsgs"></div><form class="fkBar" id="fkForm" autocomplete="off"><input id="fkText" maxlength="500" placeholder="Message" aria-label="Message" enterkeyhint="send"><button class="fkSend" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></form></div>
+<div class="fake" id="fake" hidden></div>
 <input type="file" id="imFile" accept="image/*" hidden>
 <div class="statSheet" id="findSheet" hidden role="dialog" aria-label="Search messages"><div class="stTop findTop"><input id="findQ" type="search" placeholder="Search all messages" autocomplete="off" enterkeyhint="search" aria-label="Search all messages"><button type="button" id="findX" aria-label="Close search">✕</button></div><div class="statBody" id="findBody"></div></div>
 <div class="statSheet" id="statSheet" hidden role="dialog" aria-label="Our stats"><div class="stTop"><b>Us, in numbers</b><button type="button" id="statX" aria-label="Close the stats">✕</button></div><div class="statBody" id="statBody"></div></div>
@@ -6363,7 +6356,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261114-152226';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-153351';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7503,25 +7496,47 @@ function fkNew() {   // a new colleague and conversation: picked fresh every tim
     list: talk.map(([w, x]) => { at += (1 + Math.random() * 5) * 60000; return { w, x, at: Math.min(at, end) }; }) };
 }
 let fk = null;
-function fkDraw() {
+const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12C3 10 6.5 5 12 5s9 5 9.5 7c-.5 2-4 7-9.5 7s-9-5-9.5-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+const fkCopy = el => { const c = el.cloneNode(true); for (const x of [c, ...c.querySelectorAll('[id]')]) x.removeAttribute('id'); for (const x of c.querySelectorAll('[hidden]')) x.remove(); c.inert = false; c.removeAttribute('aria-hidden'); return c; };   // the real part's exact look, with nothing that acts on the real app
+const fkDp = (el, big) => { el.replaceChildren(); el.textContent = fk.dp; el.style.cssText = `display: grid; place-items: center; font-size: ${big ? 21 : 15}px; background: linear-gradient(135deg, hsl(${fk.hue} 45% 62%), hsl(${(fk.hue + 40) % 360} 50% 42%))`; };
+function fkBuild() {   // copies of the real top bar, chat header and message box, filled with the colleague
+  const box = $('fake'), wrap = document.createElement('div'); wrap.className = 'fkIn';
+  const top = fkCopy($('topbar')); top.querySelectorAll('.status').forEach(x => x.remove());
+  top.querySelectorAll('[role=tab]').forEach(t => { t.setAttribute('aria-selected', t.dataset.p === 'chat'); t.onclick = () => top.querySelectorAll('[role=tab]').forEach(x => x.setAttribute('aria-selected', x === t)); });
+  const eye = top.querySelector('.hideBtn'); eye.innerHTML = EYE_ON; eye.setAttribute('aria-label', 'Show'); eye.dataset.fk = 'show';
+  const dock = fkCopy($('dock')); dock.classList.add('open');
+  dock.querySelectorAll('.grab, .peek, .pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .bubble, .lp').forEach(x => x.remove());
+  const who = dock.querySelector('.chatWho'); if (who) { fkDp(who.querySelector('.dp'), true); who.querySelector('b').textContent = fk.name; who.querySelector('small').textContent = fk.seen; }
+  const form = dock.querySelector('.compose'), input = form.querySelector('input');
+  input.value = ''; input.oninput = () => form.classList.toggle('typed', !!input.value.trim()); form.querySelectorAll('[disabled]').forEach(x => x.disabled = false);
+  form.querySelector('.mic').onclick = () => form.requestSubmit();
+  form.onsubmit = ev => {   // typed here: shown here only, never sent
+    ev.preventDefault(); const x = input.value.trim().slice(0, 500); if (!x || !fk) return;
+    fk.list.push({ w: 'm', x, at: Date.now() }); store.set('fake', fk); input.value = ''; form.classList.remove('typed'); fkDraw();
+  };
+  wrap.appendChild(top); box.replaceChildren(wrap, dock);
+  const msgs = dock.querySelector('.msgs'), room = innerHeight - top.getBoundingClientRect().bottom - (dock.getBoundingClientRect().height - msgs.getBoundingClientRect().height) - 12;
+  msgs.style.maxHeight = msgs.style.height = Math.max(160, room) + 'px';   // the chat fills the screen under the top bar
+}
+function fkDraw() {   // the real chat's own bubbles, times and ticks
   const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
-  $('fkName').textContent = fk.name; $('fkSeen').textContent = fk.seen; $('fkDp').textContent = fk.dp;
-  $('fkDp').style.background = `linear-gradient(135deg, hsl(${fk.hue} 45% 62%), hsl(${(fk.hue + 40) % 360} 50% 42%))`;
-  const box = $('fkMsgs'); box.replaceChildren(Object.assign(document.createElement('div'), { className: 'fkDay', textContent: 'Today' }));
+  const msgs = $('fake').querySelector('.msgs'); if (!msgs) return;
+  for (const b of msgs.querySelectorAll('.bubble')) b.remove();
   fk.list.forEach((m, i) => {
-    const b = document.createElement('div'), meta = document.createElement('small');
-    b.className = 'fkB' + (m.w === 'm' ? ' fkMe' : '') + (i && fk.list[i - 1].w !== m.w ? ' gap' : '');
-    b.textContent = m.x; meta.textContent = t(m.at);
-    if (m.w === 'm') { const k = document.createElement('i'); k.textContent = '✓✓'; meta.appendChild(k); }
-    b.appendChild(meta); box.appendChild(b);
+    const b = document.createElement('div'), meta = document.createElement('span'), first = m.w === 't' && (!i || fk.list[i - 1].w !== 't');
+    b.className = 'bubble' + (m.w === 'm' ? ' mine' : '') + (first ? ' dpd' : '') + (emojiOnly(m.x) ? ' big' : '');
+    if (first) { const f = document.createElement('span'); f.className = 'dp bdp'; fkDp(f); b.appendChild(f); }
+    b.appendChild(document.createTextNode(m.x)); meta.className = 'meta'; meta.textContent = t(m.at);
+    if (m.w === 'm') { const k = document.createElement('span'); k.className = 'tick st3'; k.textContent = '✓✓'; meta.appendChild(k); }
+    b.appendChild(meta); msgs.appendChild(b);
   });
-  box.scrollTop = box.scrollHeight;
+  msgs.scrollTop = msgs.scrollHeight;
 }
 function hideSet(on) {
   hiding = on; document.body.classList.toggle('hiding', on); $('fake').hidden = !on;
   for (const el of document.body.children) if (!['fake', 'lock'].includes(el.id) && el.tagName !== 'SCRIPT') { el.inert = on; on ? el.setAttribute('aria-hidden', 'true') : el.removeAttribute('aria-hidden'); }   // review 14 Nov: the real app cannot be reached at all while hidden
-  if (on) { fk = store.get('fake') || fkNew(); store.set('fake', fk); fkDraw(); try { vnAudio.pause(); } catch {} }
-  else { fk = null; store.set('fake', null); $('fkText').value = ''; $('fkText').blur(); }
+  if (on) { fk = store.get('fake') || fkNew(); store.set('fake', fk); fkBuild(); fkDraw(); try { vnAudio.pause(); } catch {} }
+  else { fk = null; store.set('fake', null); $('fake').replaceChildren(); }
   for (const el of document.querySelectorAll('video, audio')) {   // no sound from the real app while it is hidden
     if (on && !el.muted) { el.muted = true; el.dataset.hideMuted = '1'; }
     else if (!on && el.dataset.hideMuted) { el.muted = false; delete el.dataset.hideMuted; }
@@ -7530,12 +7545,8 @@ function hideSet(on) {
 }
 let hideAskAt = 0;
 $('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
-$('fkShow').onclick = () => { tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); };   // the passcode first; with no passcode set, straight back
+$('fake').addEventListener('click', ev => { if (!ev.target.closest('[data-fk=show]')) return; tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); });   // the passcode first; with no passcode set, straight back
 addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
-$('fkForm').onsubmit = ev => {   // typed here: shown here only, never sent
-  ev.preventDefault(); const x = $('fkText').value.trim().slice(0, 500); if (!x || !fk) return;
-  fk.list.push({ w: 'm', x, at: Date.now() }); store.set('fake', fk); $('fkText').value = ''; fkDraw();
-};
 if (store.get('fake')) hideSet(true);   // it stays hidden after the app is closed and opened again
 function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen() && !hiding; }
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
