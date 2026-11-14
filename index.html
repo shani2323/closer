@@ -487,6 +487,9 @@
   .gifBox { position: relative; width: 220px; max-width: 100%; aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, .06); }
   .gifBox.veiled video { filter: blur(26px); transform: scale(1.15); }
   .gifVeil { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(30, 0, 30, .55); color: #fff; font-size: 14px; font-weight: 600; }
+  .gifReplay { position: absolute; inset: 0; margin: auto; width: 54px; height: 54px; padding: 0; border-radius: 50%; display: none; place-items: center; background: rgba(0, 0, 0, .42); -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%); border: .5px solid rgba(255, 255, 255, .28); color: #fff; animation: tpIn 200ms cubic-bezier(.2, .9, .3, 1); }   /* Xed 14 Nov: a GIF plays 3 times, then rests until tapped */
+  .gifReplay svg { width: 26px; height: 26px; } .gifReplay:active { transform: scale(.92); transition: transform 100ms ease-out; }
+  .gifBox.gifRest .gifReplay { display: grid; } .gifBox.gifRest video { filter: brightness(.8); }
   .gifTag { position: absolute; left: 6px; top: 6px; padding: 1px 5px; border-radius: 5px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 10px; font-weight: 800; }
   .gifBox .meta { position: absolute; right: 6px; bottom: 5px; margin: 0; float: none; padding: 2px 6px; border-radius: 9px; background: rgba(0, 0, 0, .45); color: #fff; }
   /* photos (Xed 13 Nov) */
@@ -3435,11 +3438,11 @@ function sendGif(it, x) {
 }
 function gifHtml(c, meta) {
   const g = c.gif, hide = g.x && !gifRevealed.has(c.id);   // one standard size for every GIF (Xed 13 Nov); the clip fills it
-  return `<div class="gifBox${hide ? ' veiled' : ''}" data-gif="${esc(c.id)}"><video class="gifVid" muted loop playsinline preload="none"${g.p && !hide ? ` poster="${esc(g.p)}"` : ''} data-src="${esc(g.v)}"></video>${hide ? '<span class="gifVeil">18+ · tap to see</span>' : ''}<span class="gifTag">GIF</span>${meta}</div>`;
+  return `<div class="gifBox${hide ? ' veiled' : ''}" data-gif="${esc(c.id)}"><video class="gifVid" muted playsinline preload="none"${g.p && !hide ? ` poster="${esc(g.p)}"` : ''} data-src="${esc(g.v)}"></video>${hide ? '<span class="gifVeil">18+ · tap to see</span>' : `<button type="button" class="gifReplay" aria-label="Play the GIF again"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.2v4.3h4.3"/></svg></button>`}<span class="gifTag">GIF</span>${meta}</div>`;
 }
 const gifKeep = () => { const m = new Map(); for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video[src]')) m.set(v.closest('.gifBox').dataset.gif, v); return m; };
 function gifRestore(m) {   // the chat redraws often: keep each playing GIF instead of loading it again
-  for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video')) { const old = m.get(v.closest('.gifBox').dataset.gif); if (old && old.getAttribute('src') === v.dataset.src) { v.replaceWith(old); const b = old.closest('.gifBox'); b.classList.add('loading'); if (old.readyState >= 2) b.classList.add('ready'); } }   // Xed 14 Nov: what plays is decided only by what is on screen
+  for (const v of $('msgs').querySelectorAll('.gifBox:not(.veiled) video')) { const old = m.get(v.closest('.gifBox').dataset.gif); if (old && old.getAttribute('src') === v.dataset.src) { v.replaceWith(old); const b = old.closest('.gifBox'); b.classList.add('loading'); if (old.readyState >= 2) b.classList.add('ready'); b.classList.toggle('gifRest', gifDone(old)); } }   // Xed 14 Nov: what plays is decided only by what is on screen
 }
 async function resendMsg(c) {   // the same thing again, as a new message from this phone (Xed 13 Nov)
   if (c.gif) return sendGif({ v: c.gif.v, p: c.gif.p, w: c.gif.w, h: c.gif.h }, c.gif.x);
@@ -3452,6 +3455,8 @@ async function resendMsg(c) {   // the same thing again, as a new message from t
   sendChat(c.text);
 }
 function gifClick(ev) {
+  const again = ev.target.closest('.gifReplay');
+  if (again) { const b = again.closest('.gifBox'), v = b.querySelector('video'); tap(); gifPlays.set(b.dataset.gif, 0); b.classList.remove('gifRest'); gifLive(v); v.currentTime = 0; v.play().catch(() => {}); return true; }   // 3 more plays
   const box = ev.target.closest('.gifBox.veiled'); if (!box) return false;
   tap(); gifRevealed.add(box.dataset.gif); renderChat(); return true;
 }
@@ -3514,7 +3519,14 @@ async function gifLoad(fresh) {
   }; }
 }
 const gifLive = v => { if (v.getAttribute('src') || !v.dataset.src || v.closest('.veiled')) return; v.preload = 'auto'; v.src = v.dataset.src; v.closest('.gifBox').classList.add('loading'); };
-const gifInChat = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (e.isIntersecting) { gifLive(v); if (v.getAttribute('src')) v.play().catch(() => {}); } else v.pause(); } }, { root: $('msgs') });   // only the GIFs you can see play
+const GIF_TIMES = 3, gifPlays = new Map();   // per GIF while the app is open: how many times it has played
+const gifDone = v => (gifPlays.get(v.closest('.gifBox').dataset.gif) || 0) >= GIF_TIMES;
+const gifInChat = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (e.isIntersecting) { gifLive(v); v.closest('.gifBox').classList.toggle('gifRest', gifDone(v)); if (v.getAttribute('src') && !gifDone(v)) v.play().catch(() => {}); } else v.pause(); } }, { root: $('msgs') });   // only the GIFs you can see play
+$('msgs').addEventListener('ended', ev => {   // one play over: again, until it has played 3 times
+  const v = ev.target, b = v.closest && v.closest('.gifBox'); if (!b) return;
+  const n = (gifPlays.get(b.dataset.gif) || 0) + 1; gifPlays.set(b.dataset.gif, n);
+  if (n < GIF_TIMES) { v.currentTime = 0; v.play().catch(() => {}); } else b.classList.add('gifRest');
+}, true);   // only the GIFs you can see play
 const gifNear = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (e.isIntersecting) gifLive(v); else if (v.getAttribute('src')) { v.pause(); v.removeAttribute('src'); v.load(); v.closest('.gifBox').classList.remove('loading', 'ready'); } } }, { root: $('msgs'), rootMargin: '700px 0px' });   // Xed 14 Nov: a chat full of GIFs loads only those near the screen and lets go of far ones
 const gifSeen = new IntersectionObserver(es => {   // only the GIFs on screen play, to save data
   for (const e of es) { const v = e.target.querySelector('video'); if (!v) continue; if (e.isIntersecting) { if (!v.src && v.dataset.src) v.src = v.dataset.src; v.play().catch(() => {}); } else v.pause(); }
@@ -6415,7 +6427,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261114-181808';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-182927';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
