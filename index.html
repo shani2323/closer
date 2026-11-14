@@ -294,13 +294,13 @@
   .big .meta { float: none; display: block; text-align: right; margin: 0; }
   .tick { margin-left: 3px; letter-spacing: -3px; }
   .tick.st3 { color: #53bdeb; }
-  .typing { position: relative; z-index: 2; height: 0; padding: 0 4px; transform: translateY(-34px); pointer-events: none; }   /* Xed 14 Nov: sits in a slot kept free under the last message, so nothing jumps and nothing overlaps */
+  .typing { position: relative; z-index: 2; flex: none; height: 0; padding: 0; overflow: visible; pointer-events: none; }   /* Xed 14 Nov: sits in a slot kept free under the last message, so nothing jumps and nothing overlaps */
   .msgs { padding-bottom: 36px !important; }
-  .tp { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px 0 10px; border-radius: 14px; background: rgba(38, 50, 58, .96); color: var(--label2); font-size: 12.5px; font-weight: 500; letter-spacing: -.01em; box-shadow: 0 2px 10px rgba(0, 0, 0, .35); animation: tpIn 180ms cubic-bezier(.2, .9, .3, 1); }
-  .tp svg { width: 15px; height: 15px; flex: none; color: #ff5c93; }
-  .tp .dots { display: inline-flex; gap: 3px; } .tp .dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .35; animation: tpDot 1.2s infinite ease-in-out; } .tp .dots i:nth-child(2) { animation-delay: .15s; } .tp .dots i:nth-child(3) { animation-delay: .3s; }
-  @keyframes tpDot { 0%, 60%, 100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2.5px); } }
-  @keyframes tpIn { from { opacity: 0; transform: translateY(4px) scale(.96); } }
+  .tp { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px 0 11px; border-radius: 15px; transform: translateY(2px); background: var(--glass); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: .5px solid var(--hair); box-shadow: inset 0 .5px 0 var(--edge); color: var(--label2); font-size: 13px; letter-spacing: -.01em; transform-origin: 0 100%; animation: tpIn 220ms cubic-bezier(.2, .9, .3, 1); }   /* Xed 14 Nov: the same glass as the message box */
+  .tp svg { width: 15px; height: 15px; flex: none; color: currentColor; }
+  .tp .dots { display: inline-flex; gap: 4px; padding: 0 1px; } .tp .dots i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .35; animation: tpDot 1.2s infinite ease-in-out; } .tp .dots i:nth-child(2) { animation-delay: .15s; } .tp .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes tpDot { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: .85; transform: translateY(-2px); } }
+  @keyframes tpIn { from { opacity: 0; transform: translateY(2px) scale(.85); } }
   @media (prefers-reduced-motion: reduce) { .tp, .tp .dots i { animation: none; } .tp .dots i { opacity: .7; } }
   #chatSeen.typingNow { color: #34c759; }
   .hideBtn { display: grid; place-items: center; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; color: var(--label); } .hideBtn svg { width: 18px; height: 18px; } .hideBtn:active { transform: scale(.92); transition: transform 100ms ease-out; }
@@ -1083,7 +1083,8 @@
   // Xed 12 Nov: lock after 15 s with no touch or typing. Held off while a video plays in Watch, and on her phone while a toy is in use (lockHold, set by the app below)
   const IDLE = 30000;   // Xed 12 Nov: 30 s by default (was 15 s); games, Play, Draw and Watch keep their own rules
   let lastAct = Date.now();
-  for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'wheel']) addEventListener(ev, () => { lastAct = Date.now(); }, { capture: true, passive: true });
+  for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'beforeinput', 'compositionupdate', 'wheel']) addEventListener(ev, () => { lastAct = Date.now(); }, { capture: true, passive: true });   // every key, also from phone keyboards that only report whole words
+  window.lockPoke = () => { lastAct = Date.now(); };   // Xed 14 Nov: the other one typing or writing to you also counts: 30 s from their last key
   setInterval(() => {
     const h = window.lockHold ? window.lockHold() : false;   // true: never now; a number: wait that long instead of 15 s
     if (mode || document.hidden || h === true) { lastAct = Date.now(); return; }
@@ -1798,7 +1799,7 @@ function render() {
   $('muteBtn').textContent = $('audio').muted ? 'Unmute' : 'Mute';
   document.body.classList.toggle('calling', hearing && listenGate);
   document.body.classList.toggle('listening', (hearing && !listenGate && !$('audio').muted) || !!mic);
-  $('typing').hidden = Date.now() > typingUntil;
+  $('typing').hidden = false;   // always in the list (empty when nobody types), so showing it never moves the messages
   const tk = typingRec ? 'rec' : typingPh ? 'ph' : 'tx', tkey = Date.now() > typingUntil ? '' : tk;
   if ($('typing').dataset.k !== tkey) {   // drawn only when it changes, so the dots keep moving smoothly
     $('typing').dataset.k = tkey;
@@ -2450,7 +2451,7 @@ function gotChat(m) {
     const vn = cleanVn(m.vn), im = !vn && cleanIm(m.im), gif = !vn && !im && cleanGif(m.gif);
     const nc = { id: m.id, who: 'them', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}), ...(!vn && !im && !gif && lpFor(m.text, m.lp) ? { lp: lpFor(m.text, m.lp) } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}) }, last = chat[chat.length - 1], late = last && last.at - nc.at > 120000 ? chat.findIndex(o => o.at > nc.at) : -1;
     late < 0 ? chat.push(nc) : chat.splice(late, 0, nc);   // written long before it arrived (the phone was offline): in its place in time, so scrolling back never skips messages
-    saveChat(); renderChat(); tap();
+    saveChat(); renderChat(); tap(); if (window.lockPoke) lockPoke();   // a new message to read: the 30 s start again
     if ($('toEnd').classList.contains('on')) { newBelow++; toEndState(); }   // reading older messages: count the new ones on the arrow
     if (vn || im) vnWant(m.id); else if (!gif) { chatFx(m.text); emoLearnFrom(nc.text); }
     if (!chatInFront()) { unseen++; store.set('unseen:' + room, unseen); lockNote(true); }
@@ -3603,7 +3604,9 @@ function renderChat() {
   keepShow = false;
   const keepV = gifKeep();
   for (const c of view) lpWant(c);
+  const tpEl = $('typing'); tpEl.remove();   // the typing bubble lives right under the last message
   box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
+  box.appendChild(tpEl);
   box.scrollTop = toEnd ? box.scrollHeight : keep;
   gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) gifInChat.observe(v);
   toEndState();
@@ -6392,7 +6395,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261114-160003';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-164510';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -6779,7 +6782,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'ack') gotAck(m);
   if (m.t === 'react') gotReact(m);
   if (m.t === 'seen') gotSeen();
-  if (m.t === 'typing') { typingUntil = Date.now() + 3500; typingRec = m.rec === true; typingPh = m.ph === true; render(); }
+  if (m.t === 'typing') { typingUntil = Date.now() + 3500; typingRec = m.rec === true; typingPh = m.ph === true; render(); if (window.lockPoke) lockPoke(); }
   if (m.t === 'vget') gotVget(m);
   if (m.t === 'toyst') gotToySt(m);
   if (m.t === 'del') gotDel(m);
