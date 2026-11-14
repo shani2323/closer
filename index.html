@@ -2244,6 +2244,7 @@ const cleared = new Set(store.get('chatCleared:' + room, []));   // messages cle
 let lastClear = store.get('lastClear:' + room, null);
 function forgetIds(ids) { for (const i of ids) cleared.add(i); store.set('chatCleared:' + room, [...cleared].slice(-600)); }
 function clearChat() {
+  emoLearn = {}; store.set('emoLearn:' + room, {}); store.set('emoLearnHist:' + room, 1);
   const ids = chat.map(c => c.id);
   forgetIds(ids); chat = []; older = []; olderDone = false; chatShow = 80; viewTop = null; findAll = null; archSeen.clear(); archMedia.clear(); archIds.clear();
   archTx('readwrite', st => { st.clear(); }).catch(() => {});
@@ -2427,7 +2428,7 @@ function gotChat(m) {
   if (!chat.some(c => c.id === m.id && c.who === 'them')) {
     const re = cleanRe(m.re);
     const vn = cleanVn(m.vn), im = !vn && cleanIm(m.im), gif = !vn && !im && cleanGif(m.gif);
-    const nc = { id: m.id, who: 'them', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}), ...(!vn && !im && !gif && cleanLp(m.lp) ? { lp: cleanLp(m.lp) } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}) }, last = chat[chat.length - 1], late = last && last.at - nc.at > 120000 ? chat.findIndex(o => o.at > nc.at) : -1;
+    const nc = { id: m.id, who: 'them', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : m.text.slice(0, 500), at: +m.at || Date.now(), st: 2, ...(re ? { re } : {}), ...(!vn && !im && !gif && lpFor(m.text, m.lp) ? { lp: lpFor(m.text, m.lp) } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}) }, last = chat[chat.length - 1], late = last && last.at - nc.at > 120000 ? chat.findIndex(o => o.at > nc.at) : -1;
     late < 0 ? chat.push(nc) : chat.splice(late, 0, nc);   // written long before it arrived (the phone was offline): in its place in time, so scrolling back never skips messages
     saveChat(); renderChat(); tap();
     if ($('toEnd').classList.contains('on')) { newBelow++; toEndState(); }   // reading older messages: count the new ones on the arrow
@@ -2455,7 +2456,7 @@ function gotChatHist(m) {
   for (const it of m.items.slice(0, 200)) {
     if (!it || typeof it.id !== 'string' || it.id.length > 24 || typeof it.x !== 'string' || !['me', 'them'].includes(it.w)) continue;
     if (cleared.has(it.id) || chat.some(c => c.id === it.id)) continue;
-    const re = cleanRe(it.re), vn = cleanVn(it.vn), im = !vn && cleanIm(it.im), gif = !vn && !im && cleanGif(it.gif), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(it.ed > 0 && !vn && !im && !gif ? { ed: +it.ed } : {}), ...(!vn && !im && !gif && cleanLp(it.lp) ? { lp: cleanLp(it.lp) } : {}), ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im, ...(im.vo ? { pl: true } : {}) } : {}), ...(gif ? { gif } : {}) };
+    const re = cleanRe(it.re), vn = cleanVn(it.vn), im = !vn && cleanIm(it.im), gif = !vn && !im && cleanGif(it.gif), c = { id: it.id, who: it.w === 'me' ? 'them' : 'me', text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : it.x.slice(0, 500), at: +it.at || Date.now(), st: 3, ...(it.ed > 0 && !vn && !im && !gif ? { ed: +it.ed } : {}), ...(!vn && !im && !gif && lpFor(it.x, it.lp) ? { lp: lpFor(it.x, it.lp) } : {}), ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im, ...(im.vo ? { pl: true } : {}) } : {}), ...(gif ? { gif } : {}) };
     const at = chat.findIndex(o => o.at > c.at); at < 0 ? chat.push(c) : chat.splice(at, 0, c); n++;
   }
   if (n) { saveChat(); renderChat(); notify(`${n} message${n > 1 ? 's' : ''} brought back from ${who()}'s phone.`); }
@@ -3248,7 +3249,7 @@ function emoFor(word) {
   return null;
 }
 // Xed 14 Nov: hints learn from what you really send, know a few two-word phrases, stay quiet after "not", and can be switched off
-let emoLearn = store.get('emoLearn') || {};   // what the two of you really write: word -> { n: times written, e: { emoji: score } }; 'two words' -> { e }
+let emoLearn = store.get('emoLearn:' + room) || {};   // what the two of you really write: word -> { n: times written, e: { emoji: score } }; 'two words' -> { e }
 const EMO_PHRASES = new Map(Object.entries({ 'good night': ['😴', '🌙'], 'shab bakhair': ['😴', '🌙'], 'good morning': ['☀️', '🥰'], 'subah bakhair': ['☀️', '🥰'], 'miss you': ['🥺', '❤️'], 'miss u': ['🥺', '❤️'], 'yaad aa': ['🥺'], 'love you': ['❤️', '😘'], 'love u': ['❤️', '😘'], 'thank you': ['🙏', '🥰'], 'take care': ['🤗'], 'khayal rakhna': ['🤗'], 'come here': ['🫦'], 'idhar aao': ['🫦'], 'so cute': ['🥰'], 'so hot': ['🔥', '🥵'] }));
 const EMO_NOT = new Set(['not', 'no', 'never', 'dont', 'without', 'nahi', 'nahin', 'nhi', 'mat', 'na', 'bina']);
 const EMO_TOK = /[A-Za-z-]{2,}|\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/gu;
@@ -3267,7 +3268,7 @@ let emoSaveT = 0;
 const emoSave = () => { clearTimeout(emoSaveT); emoSaveT = setTimeout(() => {
   const keys = Object.keys(emoLearn);
   if (keys.length > 2000) { const sum = k => (emoLearn[k].n || 0) + Object.values(emoLearn[k].e || {}).reduce((x, y) => x + y, 0); for (const k of keys.sort((x, y) => sum(x) - sum(y)).slice(0, 400)) delete emoLearn[k]; }   // the least used go first
-  store.set('emoLearn', emoLearn);
+  store.set('emoLearn:' + room, emoLearn);
 }, 2000); };
 function emoLearnFrom(text) {   // every message, sent or received, old or new: the 3 words before an emoji are tied to it, the nearest most
   const tok = text.match(EMO_TOK) || [], word = x => !!x && /^[A-Za-z-]/.test(x);
@@ -3281,13 +3282,15 @@ function emoLearnFrom(text) {   // every message, sent or received, old or new: 
   if (tok.length) emoSave();
 }
 async function emoLearnHistory() {   // once per phone: everything already in the chat, also the kept older messages
-  if (store.get('emoLearnHist')) return;
+  if (store.get('emoLearnHist:' + room)) return;
   const seen = new Set(), take = c => { if (c && typeof c.text === 'string' && !c.vn && !c.im && !c.gif && !seen.has(c.id)) { seen.add(c.id); emoLearnFrom(c.text); } };
   emoLearn = {}; for (const c of chat) take(c);
   await archTx('readonly', st => { const q = st.openCursor(); q.onsuccess = () => { const cur = q.result; if (!cur) return; take(cur.value); cur.continue(); }; }).catch(() => {});
-  store.set('emoLearnHist', 1); emoSave();
+  store.set('emoLearnHist:' + room, 1); emoSave();
 }
-setTimeout(emoLearnHistory, 4000);   // after the app is up, so opening is not slowed
+setTimeout(emoLearnHistory, 4000);
+const emoForget = () => { clearTimeout(emoRedoT); emoRedoT = setTimeout(() => { store.set('emoLearnHist:' + room, 0); emoLearnHistory(); }, 3000); };   // review 14 Nov: deleted words leave what was learned too
+let emoRedoT = 0; try { localStorage.removeItem('closer:emoLearn'); localStorage.removeItem('closer:emoLearnHist'); } catch {}   // after the app is up, so opening is not slowed
 function emoHintShow() {
   const t = $('text'), h = $('emoHint'), v = t.value;
   const atEnd = t.selectionStart == null || t.selectionStart === v.length, m = atEnd && v.match(/(?:([A-Za-z-]{2,})\s+)?([A-Za-z-]{2,}) ?$/), list = m && emoPick(m[1], m[2]);   // right after the word, and still there after one space (Xed 13 Nov)
@@ -3551,6 +3554,7 @@ function lpWant(c) {
     if (c.lp) send({ t: 'lp', id: c.id, lp: c.lp });
   }).catch(() => { lpBusy.delete(c.id); lpTried.add(c.id); });   // no answer now: tried again the next time the app opens
 }
+const lpFor = (text, x) => { const lp = cleanLp(x); return lp && linksIn(text).includes(lp.u) ? lp : null; };   // review 14 Nov: every way a preview comes in uses this
 function gotLp(m) {
   const lp = cleanLp(m.lp), c = typeof m.id === 'string' && chat.find(x => x.id === m.id && x.who === 'them');
   if (!lp || !c || c.vn || c.im || c.gif || !linksIn(c.text).includes(lp.u)) return;   // only for a link that is really in that message
@@ -6359,7 +6363,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261114-151437';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261114-152226';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7405,6 +7409,7 @@ function dropMsgs(ids) {
   archTx('readwrite', st => { for (const id of ids) st.delete(id); const q = st.openCursor(); q.onsuccess = () => { const cur = q.result; if (!cur) return; if (unquote(cur.value)) cur.update(cur.value); cur.continue(); }; }).catch(() => {});
   if (replyTo && set.has(replyTo.id)) setReply(null);
   if (editing && set.has(editing)) setEdit(null);
+  emoForget();
   for (const id of ids) delete editOut[id]; store.set('editOut:' + room, editOut);
   if (vnCur && set.has(vnCur)) { vnAudio.pause(); vnCur = null; }
   findAll = null; saveChat(); vnGc(); renderChat();
@@ -7514,6 +7519,7 @@ function fkDraw() {
 }
 function hideSet(on) {
   hiding = on; document.body.classList.toggle('hiding', on); $('fake').hidden = !on;
+  for (const el of document.body.children) if (!['fake', 'lock'].includes(el.id) && el.tagName !== 'SCRIPT') { el.inert = on; on ? el.setAttribute('aria-hidden', 'true') : el.removeAttribute('aria-hidden'); }   // review 14 Nov: the real app cannot be reached at all while hidden
   if (on) { fk = store.get('fake') || fkNew(); store.set('fake', fk); fkDraw(); try { vnAudio.pause(); } catch {} }
   else { fk = null; store.set('fake', null); $('fkText').value = ''; $('fkText').blur(); }
   for (const el of document.querySelectorAll('video, audio')) {   // no sound from the real app while it is hidden
