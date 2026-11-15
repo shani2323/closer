@@ -1452,7 +1452,10 @@ const waits = new Set();
 const wait = ms => new Promise(r => waits.add([Date.now() + ms, r]));
 steady(() => { for (const w of waits) if (Date.now() >= w[0]) { waits.delete(w); w[1](); } }, 250);
 const linkLog = store.get('linkLog', []);   // times and events only, never words or names
-function logLink(t) { linkLog.push(new Date().toISOString().slice(5, 19).replace('T', ' ') + ' ' + t); if (linkLog.length > 300) linkLog.shift(); store.set('linkLog', linkLog); }
+// Xed 15 Nov: machine-readable events {n: counter, t: exact time (ms), s: this page load, e: event code, d: numbers and codes}. Never message words or names.
+const evLog = store.get('evLog', []), SESS = Math.random().toString(36).slice(2, 8); let evSeq = store.get('evSeq', 0), evUp = store.get('evUp', 0);
+function logEv(e, d) { evSeq++; evLog.push({ n: evSeq, t: Date.now(), s: SESS, e, ...(d ? { d } : {}) }); if (evLog.length > 400) evLog.shift(); store.set('evLog', evLog); store.set('evSeq', evSeq); }
+function logLink(t, e, d) { linkLog.push(new Date().toISOString().slice(5, 19).replace('T', ' ') + ' ' + t); if (linkLog.length > 300) linkLog.shift(); store.set('linkLog', linkLog); logEv(e || 'note', e ? d : { x: t }); }   // t: the sentence for the copy-report; e + d: the same thing as data
 const linkReport = () => [`Loveline report, ${navigator.userAgent}`, ...linkLog].join('\n');
 
 // ---- room
@@ -1483,8 +1486,8 @@ const room = hp.get('r');
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist().then(ok => logLink(ok ? 'storage kept' : 'storage may be cleared by the phone')); } catch {}   // ask Chrome and Safari never to auto-delete the chat, the pairing and the scores
 let partnerPush = store.get('partnerPush:' + room) || null, myPush = store.get('myPush:' + room) || null;
 let partnerKeys = store.get('partnerKeys:' + room) || null, myKeys = store.get('myKeys:' + room) || null;   // the two public keys of each phone's alert address: with them an alert can say which kind it is
-let boxSaidAt = 0, myBox = false, partnerBox = !!store.get('partnerBox:' + room);   // this phone's / the other phone's background helper can keep a message that came inside an alert
-const pushSay = () => send({ t: 'pushsub', endpoint: myPush, keys: myPush ? myKeys : null, ...(myPush && myBox ? { box: 1 } : {}) });
+let boxSaidAt = 0, myBox = 0, partnerBox = Number(store.get('partnerBox:' + room)) || 0;   // this phone's / the other phone's background helper can keep a message that came inside an alert (1), and also send "delivered" back from there (2)
+const pushSay = () => send({ t: 'pushsub', endpoint: myPush, keys: myPush ? myKeys : null, ...(myPush && myBox ? { box: myBox } : {}) });
 const keysOf = sub => { const k = (sub.toJSON() || {}).keys || {}; return k.p256dh && k.auth ? { p256dh: k.p256dh, auth: k.auth } : null; };
 // Her link always opens her side and his link his. A link for the other side of this couple asks first, so a mistake costs one press.
 const askSide = !firstVisit && lastSide && lastSide !== (isRemote ? 'remote' : 'host');   // any link for the other side asks first, so one phone never runs both sides (11 Nov: his phone had her side in a Chrome tab and kept finding itself)
@@ -2084,14 +2087,14 @@ async function startNet() {
       if (boardDirty) setTimeout(publishBoard, 3000);   // drawn while this phone had no connection
       c.subscribe(fileIn);
       const first = !online; online = true;
-      if (first) { logLink('relay reached'); isRemote ? hello() : publishState(); }
+      logEv('relay_up', { i: i + 1, first }); if (first) { logLink('relay reached'); isRemote ? hello() : publishState(); }
       render();
     });
     c.on('close', () => {
       c.fails = (c.fails || 0) + 1;   // Xed 14 Nov: a relay that keeps failing while another works is retried every 30 s, not every 2 s (less phone radio work); with no relay at all, every one is retried fast
       const any = clients.some(x => x.connected); for (const x of clients) x.options.reconnectPeriod = any && !x.connected && x.fails >= 5 ? 30000 : 2000;
       if (!online || clients.some(x => x.connected)) return;
-      online = false; logLink('all relays lost'); render();
+      online = false; logLink('all relays lost', 'relays_none', { fails: clients.map(x => x.fails || 0) }); render();
     });
     c.on('message', (topic, payload) => {
       if (topic === LOBBY_T) { gotLobby(payload.toString()); return; }
@@ -2106,7 +2109,7 @@ function checkRelays() {   // each relay sends this phone's own note back: if it
   const now = Date.now();
   clients.forEach((c, i) => {
     if (!c.connected) return;
-    if (c.echoes && now - c.heardAt > 9000) { logLink(`relay ${i + 1} went quiet, restarting it`); c.heardAt = now; try { c.stream.destroy(); } catch {} return; }
+    if (c.echoes && now - c.heardAt > 9000) { logLink(`relay ${i + 1} went quiet, restarting it`, 'relay_quiet', { i: i + 1, silentMs: now - c.heardAt, lagMs: Math.round(c.lag || 0) }); c.heardAt = now; try { c.stream.destroy(); } catch {} return; }
     if (now - c.pingAt >= (lanes ? 1000 : 3000)) { c.pingAt = now; c.publish(echoTopic(i), String(now)); }
   });
 }
@@ -2441,7 +2444,7 @@ function sendChat(text) {
   if (!$('quick').hidden) { $('quick').hidden = true; fitDock(); }   // the emoji panel closes once something is sent
   toEndNext = true;
   chat.push(c); saveChat(); renderChat(); chatFx(text);
-  send({ t: 'msg', id: c.id, text, at: c.at, re: c.re }).then(ok => { if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
+  send({ t: 'msg', id: c.id, text, at: c.at, re: c.re }).then(ok => { logEv('msg_out', { id: c.id, sent: !!ok, ms: Date.now() - c.at }); if (ok && c.st < 1) { c.st = 1; saveChat(); renderChat(); } });
 }
 function cleanRe(r) {
   if (!r || typeof r.id !== 'string' || r.id.length > 24 || typeof r.x !== 'string' || !['me', 'them'].includes(r.w)) return null;
@@ -2451,6 +2454,7 @@ function gotChat(m) {
   if (typeof m.text !== 'string' || typeof m.id !== 'string') return;
   if (cleared.has(m.id)) { send({ t: 'ack', id: m.id }); return; }   // cleared: just stop the resending
   typingUntil = 0;
+  logEv('msg_in', { id: m.id, lagMs: Number.isFinite(m.at) ? Date.now() - m.at : null, dup: chat.some(c => c.id === m.id) || cleared.has(m.id) });
   if (archIds.has(m.id) && !chat.some(c => c.id === m.id)) {   // already kept on this phone, just no longer among the newest 200: confirm it, never add it again
     archTx('readonly', st => st.get(m.id)).then(o => { if (!o) return; if (o.vn || o.im) { if (vnHave.has(m.id) || o.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!o.pl }); } else send({ t: 'ack', id: m.id, seen: true }); }).catch(() => {});
     return;
@@ -2494,7 +2498,7 @@ function gotChatHist(m) {
 function gotAck(m) {
   const c = chat.find(c => c.id === m.id && c.who === 'me');
   const st = c && (c.vn || c.im) ? (m.pl ? 3 : 2) : m.seen ? 3 : 2;   // a voice note turns blue only when it was played, not when the chat was looked at
-  if (c && (c.st || 0) < st) { c.st = st; saveChat(); renderChat(); }
+  if (c && (c.st || 0) < st) { logEv('msg_st', { id: c.id, st, ageMs: Date.now() - c.at, via: m.rcp ? 'receipt' : 'live' }); c.st = st; saveChat(); renderChat(); }
   if (c && c.im && c.im.vo && m.pl && vnHave.has(c.id)) imSpent(c.id);   // she opened his view-once photo: it goes from his phone too
   if (!c && m.vn) archTx('readwrite', st => { const q = st.get(m.id); q.onsuccess = () => {   // an older message, kept only in the phone's database
     const o = q.result; if (!o || o.who !== 'me') return;
@@ -4211,8 +4215,8 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   if (m.tv < towerV) send({ t: 'tower', tower, v: towerV });
   if (Number.isFinite(m.lv) && m.lv < ludoV) send({ t: 'ludo', l: ludo, v: ludoV });
   const pu = m.pu || '', mine = (myPush || '').slice(-16) + (myPush && myKeys ? '+' : '');
-  if (mine !== pu.replace(/\+b$/, '+')) pushSay();
-  else if (/\+b$/.test(pu) !== !!(myPush && myKeys && myBox) && Date.now() - boxSaidAt > 60000) { boxSaidAt = Date.now(); pushSay(); }   // only the "can keep messages" part differs (an older version): once a minute is plenty
+  if (mine !== pu.replace(/\+b2?$/, '+')) pushSay();
+  else if ((/\+b2$/.test(pu) ? 2 : /\+b$/.test(pu) ? 1 : 0) !== (myPush && myKeys ? myBox : 0) && Date.now() - boxSaidAt > 60000) { boxSaidAt = Date.now(); pushSay(); }   // only the "can keep messages" part differs (an older version): once a minute is plenty
   if (Number.isFinite(m.pk) && m.pk < pinLast()) send({ t: 'pins', all: pins });   // pins changed while the other phone was away
   if (typeof m.cs === 'string' && m.cs !== chatSig()) sendChatIds();   // the two chats differ: swap what is missing
   if (m.wv < wstate.v) send({ t: 'wplay', id: wstate.id, playing: wstate.playing, pos: curPos(), v: wstate.v, hold: !!wstate.hold, re: true });
@@ -6434,7 +6438,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261115-003816';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261115-133916';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -6445,7 +6449,7 @@ async function checkNewer() {
   if (document.hidden || $('text').value || document.activeElement === $('text') || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing (or about to) or watching
   try {
     const t = (await (await fetch('v.txt?nc=' + Date.now(), { cache: 'no-store' })).text()).trim(), v = /^v-[\d-]+$/.test(t) ? t : '';   // 20 bytes, not the whole app
-    if (isRemote ? mayRun || hearing || mic : Object.values(state).some(e => e.connected && e.level)) return;   // never while a toy runs: a reload would drop her toys' Bluetooth mid-session, and his sound
+    if (isRemote ? mayRun || hearing || mic : Object.values(state).some(e => e.connected)) { if (v && v !== APP_V && checkNewer.held !== v) { checkNewer.held = v; logLink(`update ${v} waits: a toy is connected`, 'update_wait', { v }); } return; }   // never while a toy is connected (Xed 15 Nov: also at 0, a pause mid-session): a reload drops her toys' Bluetooth, and his sound
     if (v && v !== APP_V && (store.get('reloadedFor') !== v || Date.now() - (store.get('reloadedAt') || 0) > 600000)) { if (!(await shellHas(v))) return;   // this phone's own copy is brought up to date first, so the reload lands on the new version
       store.set('reloadedFor', v); store.set('reloadedAt', Date.now()); location.replace(location.pathname + '?u=' + Date.now() + location.hash); }
   } catch {}
@@ -7085,7 +7089,7 @@ function write(c, bytes) {   // one Bluetooth write at a time per egg
 }
 const command = (suc, vib) => [0x55, 0x03, 0x05, suc, 0x00, vib];   // one message carries both: Max's strength, then Leo's
 const ups = () => [...tries.values()].filter(c => c.up);
-const SILENT_ASKS = 8;   // this many questions in a row with no answer: the link is dead even if nobody said so
+const SILENT_ASKS = 20, EGG_QUIET = 12;   // this many questions in a row with no answer: the link is dead even if nobody said so / that egg is shown as off. Xed 15 Nov: 8 and 5 cut Leo off while he was still in reach (her report: let go, back 1 s later, twice in 8 s)
 
 async function connectEgg() {
   if (!navigator.bluetooth) { notify('This browser cannot use Bluetooth. Open this page in Chrome on Android.'); return; }
@@ -7096,11 +7100,12 @@ async function connectEgg() {
   if (answering) { notify('That one is already connected. Pick the other one.'); return; }
   if (c.up) { logLink('picked a silent egg again: starting it fresh'); c.up = false; c.linking = null; c.q = null; c.busy = false; try { c.device.gatt.disconnect(); } catch {} await wait(800); }
   for (let i = 0; i < 3 && !c.up; i++) {   // the first try often fails on Android
-    try { await linkUp(c); } catch (e) { logLink(`connect failed: ${e.message}`); await wait(1200); }
+    try { await linkUp(c); } catch (e) { logLink(`connect failed: ${e.message}`, 'egg_fail', { d: eggTag(c), err: String(e.message).slice(0, 80), at: 'first' }); await wait(1200); }
   }
   if (!c.up) { notify('Connecting… keep it switched on and close to the phone.'); keepTrying(c); render(); }
   if (!wakeLock) keepScreenOn();
 }
+const eggTag = c => String(c.device && c.device.id || '').slice(-4);   // which egg link, without the whole address
 function eggFor(device) {
   let c = tries.get(device.id);
   if (!c) { c = { device, up: false, sent: '', seen: {} }; tries.set(device.id, c); }
@@ -7113,7 +7118,7 @@ async function keepTrying(c) {   // for as long as Loveline is open: an egg swit
   c.trying = true;
   for (let n = 0; !parked && !c.up; n++) {
     if (n) await nearby(c.device);   // straight back at first: he was here a moment ago
-    try { await linkUp(c); logLink(`back after ${n + 1} tries`); } catch (e) { if (n % 10 === 0) logLink(`rejoin try ${n + 1} failed: ${e.message}`); await wait(3000); }
+    try { await linkUp(c); logLink(`back after ${n + 1} tries`, 'egg_back', { d: eggTag(c), tries: n + 1 }); } catch (e) { if (n % 10 === 0) logLink(`rejoin try ${n + 1} failed: ${e.message}`, 'egg_fail', { d: eggTag(c), err: String(e.message).slice(0, 80), at: 'rejoin', n: n + 1 }); await wait(3000); }
   }
   c.trying = false;
 }
@@ -7152,10 +7157,10 @@ async function linkOnce(c) {
     try { c.device.gatt.disconnect(); } catch {}
     throw new Error('Bluetooth took too long');
   })]).finally(() => { over = true; });
-  c.up = true; c.sent = '';
+  const gap = c.downAt ? Date.now() - c.downAt : null; c.up = true; c.sent = ''; c.upAt = Date.now(); c.ups = (c.ups || 0) + 1;
   write(c, [0x55, 0x04]);   // the answer says which eggs this connection reaches; never wait on it, a dying link can leave it hanging
   write(c, [0x55, 0x0b]);   // the official app sends this after connecting too
-  logLink('egg link up');
+  logLink('egg link up', 'egg_up', { d: eggTag(c), n: c.ups, gapMs: gap });
   store.set('eggsSeen', true);
   if (!wakeLock) keepScreenOn();
   render();
@@ -7172,29 +7177,29 @@ function eggAnswered(c, kind, bat) {
   e.batHist = (e.batHist || []).concat(bat).slice(-5);
   const was = e.battery;
   e.battery = Math.round(e.batHist.reduce((a, v) => a + v, 0) / e.batHist.length);
-  if (!e.connected) { e.connected = true; e.level = 0; notify(label(kind) + ' connected.'); render(); publishStateSoon(); }
+  if (!e.connected) { e.connected = true; e.level = 0; logLink(`${kind} answering, battery ${bat}%`, 'egg_on', { kind, bat }); notify(label(kind) + ' connected.'); render(); publishStateSoon(); }
   if (was != null && was > 20 && e.battery <= 20) notify(`${label(kind)} battery is low. Top strength is now held at ${batteryCap(e.battery)}%.`);
 }
 function eggGone(kind) {   // fail safe: he comes back at 0, never at the old strength
   const e = state[kind];
   if (!e.connected) return;
-  logLink(`${kind} lost, battery ${e.battery}%`);
+  logLink(`${kind} lost, battery ${e.battery}%`, 'egg_off', { kind, bat: e.battery });
   e.connected = false; e.level = 0; stopMix(true);
   render(); publishStateSoon();
   notify(`${label(kind)} is off or out of reach. He joins again by himself at 0 when he's back on.`);
 }
 async function dropped(c) {
   if (!c.up || parked) return;
-  logLink('Bluetooth dropped the egg link');
-  c.up = false;
+  logLink('Bluetooth dropped the egg link', 'egg_drop', { d: eggTag(c), upMs: c.upAt ? Date.now() - c.upAt : null, kinds: Object.keys(c.seen), n: c.ups });
+  c.up = false; c.downAt = Date.now();
   for (const kind in c.seen) if (!ups().some(o => Date.now() - (o.seen[kind] || 0) < 2500)) eggGone(kind);   // no other connection still reaches him
   await wait(1500);
   keepTrying(c);
 }
 function letGo(c) {   // the link is dead but nobody said so: the phone still holds the egg, so nothing can see or reach it until we let go
-  logLink('egg stopped answering, letting go of it');
-  c.up = false;
-  for (const kind in c.seen) if (!ups().some(o => o.seen[kind] && (o.miss[kind] || 0) < 5)) eggGone(kind);
+  logLink('egg stopped answering, letting go of it', 'egg_letgo', { d: eggTag(c), upMs: c.upAt ? Date.now() - c.upAt : null, asked: c.asked, miss: c.miss, n: c.ups });
+  c.up = false; c.downAt = Date.now();
+  for (const kind in c.seen) if (!ups().some(o => o.seen[kind] && (o.miss[kind] || 0) < EGG_QUIET)) eggGone(kind);
   try { c.device.gatt.disconnect(); } catch {}
   keepTrying(c);
 }
@@ -7245,6 +7250,37 @@ async function keepScreenOn() { try { wakeLock = await navigator.wakeLock.reques
 // ---- Thinking of you: a heart and chime if the app is open, a phone notification if it is closed.
 // No web page can get past silent mode or vibration off: the notification follows that phone's own settings.
 const BUZZ = 'https://loveline-buzz.shani2323.workers.dev', BUZZ_KEY = 'BCs48HNSCwBFX4GZijT0ybur-uYk_WKo84e5xn6QJLGLhr9fjMBpINXHKBDoAuDR2wZCUfDHy0XIhirwNKT5aVs';
+// Xed 15 Nov: this phone's event log (times and events only, never words or names) goes to the log store once a minute, so problems on either phone can be looked at without asking for a report.
+let logTag = '';
+crypto.subtle.digest('SHA-256', new TextEncoder().encode('loveline-log|' + room)).then(h => { logTag = [...new Uint8Array(h).slice(0, 4)].map(b => b.toString(16).padStart(2, '0')).join(''); }).catch(() => {});
+function sendLog() {
+  const pend = evLog.filter(x => x.n > evUp).slice(0, 100);
+  if (!logTag || !pend.length || sendLog.busy) return;
+  const upTo = pend[pend.length - 1].n; sendLog.busy = true;
+  fetch(BUZZ + '/log', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ s: isRemote ? 'his' : 'her', p: logTag, v: APP_V, ua: navigator.userAgent, e: pend }) })
+    .then(r => { if (r.ok) { evUp = upTo; store.set('evUp', evUp); if (evLog.some(x => x.n > evUp)) setTimeout(sendLog, 500); } }).catch(() => {}).finally(() => { sendLog.busy = false; });
+}
+async function snapshot(why) {   // the whole state of this phone at one moment: the numbers needed to see why something failed
+  try {
+    const cn = navigator.connection || {}, bt = navigator.getBattery ? await navigator.getBattery().catch(() => null) : null;
+    logEv('snap', { why, up: Math.round((Date.now() - startedAt) / 1000), hid: document.hidden, on: navigator.onLine, rel: clients.map(c => c.connected ? Math.round(c.lag || 0) : -1), relFail: clients.map(c => c.fails || 0),
+      pOn: partnerOnline(), pBg: !!partnerBgAt, pAgoS: Math.round((Date.now() - partnerSeen) / 1000), eggs: Object.fromEntries(Object.entries(state).map(([k, e]) => [k, { c: !!e.connected, b: e.battery, l: e.level }])),
+      links: [...tries.values()].map(c => ({ d: eggTag(c), up: !!c.up, tr: !!c.trying, as: c.asked || 0, n: c.ups || 0, upS: c.upAt && c.up ? Math.round((Date.now() - c.upAt) / 1000) : null })),
+      push: { me: !!myPush, keys: !!myKeys, box: myBox, p: !!partnerPush, pkeys: !!partnerKeys, pbox: partnerBox, perm: window.Notification ? Notification.permission : 'none' }, sw: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+      net: { t: cn.effectiveType, rtt: cn.rtt, dl: cn.downlink, sd: cn.saveData }, bat: bt ? { l: Math.round(bt.level * 100), ch: bt.charging } : null, mem: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : null,
+      chat: chat.length, unread: chat.filter(c => c.who === 'me' && (c.st || 0) < 2).length, carry: carrying.size, tz: new Date().getTimezoneOffset() });
+  } catch (e) { logEv('err', { m: 'snapshot ' + String(e.message).slice(0, 100) }); }
+}
+let partnerWas = null;
+setInterval(() => { const on = partnerOnline(); if (on !== partnerWas) { if (partnerWas !== null) logLink(on ? 'partner app connected' : 'partner app gone quiet', 'partner', { on, bg: !!partnerBgAt }); partnerWas = on; } }, 2000);
+let errN = 0, errMin = 0;
+function logErr(m, src, l, c, st) { const min = Math.floor(Date.now() / 60000); if (min !== errMin) { errMin = min; errN = 0; } if (++errN > 10) return; logEv('err', { m: String(m).slice(0, 160), src: String(src || '').split('/').pop().slice(0, 40), l, c, st: String(st || '').slice(0, 300) }); }
+addEventListener('error', e => logErr(e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack));
+addEventListener('unhandledrejection', e => logErr('rejection: ' + (e.reason && e.reason.message || e.reason), '', 0, 0, e.reason && e.reason.stack));
+document.addEventListener('freeze', () => logEv('freeze')); document.addEventListener('resume', () => logEv('resume'));
+addEventListener('pagehide', e => { logEv('pagehide', { persisted: e.persisted }); sendLog(); }); addEventListener('pageshow', e => { if (e.persisted) logEv('pageshow', { persisted: true }); });
+setInterval(sendLog, 60000); setTimeout(sendLog, 8000); setTimeout(() => snapshot('open'), 6000); setInterval(() => snapshot('5min'), 300000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) sendLog(); else snapshot('shown'); });
 const okEndpoint = e => typeof e === 'string' && e.length < 800 && /^https:\/\/[^\s]+$/.test(e);
 let buzzAt = 0, chime = null;
 function makeChime() {
@@ -7275,6 +7311,7 @@ let nudge = store.get('nudge:' + room) || { id: '', at: 0 }, frontSince = Date.n
 function wake(kind, next) {
   const was = nudge, push = partnerPush; nudge = next; store.set('nudge:' + room, nudge);
   fetch(BUZZ, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: push, ...(partnerKeys ? { keys: partnerKeys, kind } : {}) }) }).then(r => r.json()).then(a => {
+    logLink(`reminder alert ${kind}: Google said ${a.status}`, 'alert_r', { kind, status: a.status });
     if ((a.status === 404 || a.status === 410) && partnerPush === push) { store.set('deadPush:' + room, push); partnerPush = null; store.set('partnerPush:' + room, null); send({ t: 'pushdead' }); render(); showAlerts(); }   // their phone's alert address no longer exists
   }).catch(() => { nudge = was; store.set('nudge:' + room, nudge); });   // no internet just now: tried again at the next look
 }
@@ -7308,11 +7345,13 @@ function carry(leaving) {
     let box = 'P.' + await seal({ ...msgOf(c), from: me, ts: Date.now() }, pairKey);
     if (box.length > 3500 && (c.lp || (c.im && c.im.t))) { const o = msgOf(c); delete o.lp; if (o.im) o.im = { ...o.im, t: '' }; box = 'P.' + await seal({ ...o, from: me, ts: Date.now() }, pairKey); }   // too big: the message goes without its small picture preview
     if (box.length > 3500) { carrying.delete(c.id); c.cr = -1; saveChat(); return; }   // too big for an alert (a link preview with a picture): the old reminder covers it
-    fetch(BUZZ, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: push, keys, kind: 'm', box }) }).then(r => r.ok ? r.json() : { status: 0 }).then(a => {
+    const back = partnerBox >= 2 && myPush && myKeys ? { e: myPush, k: myKeys, i: c.id } : undefined, t0 = Date.now();   // Xed 15 Nov: her sleeping phone sends "delivered" back to this address
+    fetch(BUZZ, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: push, keys, kind: 'm', box, back }) }).then(r => r.ok ? r.json() : { status: 0 }).then(a => {
       carrying.delete(c.id); c.cr = a.status >= 200 && a.status < 300 ? 1 : -1; saveChat();   // turned down by the helper or Google: final, the old reminder covers it
+      logLink(`message sent inside an alert${back ? ' (asks for delivered)' : ''}: Google said ${a.status}`, 'alert_m', { id: c.id, status: a.status, back: !!back, size: box.length, ms: Date.now() - t0, ageMs: t0 - c.at });
       if (c.cr > 0) return;
       if ((a.status === 404 || a.status === 410) && partnerPush === push) { store.set('deadPush:' + room, push); partnerPush = null; store.set('partnerPush:' + room, null); send({ t: 'pushdead' }); render(); showAlerts(); }   // their phone's alert address no longer exists
-    }).catch(() => carrying.delete(c.id));   // no internet just now (or the app was frozen mid-way): tried again at the next look
+    }).catch(() => { carrying.delete(c.id); logLink('message alert could not reach the helper, tries again', 'alert_m_fail', { id: c.id, ms: Date.now() - t0 }); });   // no internet just now (or the app was frozen mid-way): tried again at the next look
   });
 }
 async function drainBox() {   // messages that came inside alerts while this app slept, kept by the background helper
@@ -7323,7 +7362,10 @@ async function drainBox() {   // messages that came inside alerts while this app
     const [keys, list] = await new Promise((res, rej) => { const st = db.transaction('m').objectStore('m'), k = st.getAllKeys(), g = st.getAll(); g.onsuccess = () => res([k.result || [], g.result || []]); g.onerror = () => rej(g.error); });
     const all = await Promise.all(list.map(async (o, i) => { const m = o && typeof o.t === 'string' && o.t.startsWith('P.') ? await unseal(o.t.slice(2), pairKey).catch(() => null) : null; return { k: keys[i], t: o && o.t, at: m ? +m.at || 0 : 0, mine: !!m, old: !o || Date.now() - (o.at || 0) > 7 * 86400e3 }; }));
     got = all.filter(o => o.mine);
-    const drop = all.filter(o => o.mine || o.old).map(o => o.k);   // what this app cannot unlock stays for the app that can (a second tab, another pairing), up to a week
+    const tick = list.map((o, i) => ({ k: keys[i], d: o && o.d })).filter(o => typeof o.d === 'string' && chat.some(c => c.id === o.d && c.who === 'me'));   // Xed 15 Nov: her sleeping phone said these arrived
+    tick.forEach(o => gotAck({ id: o.d, rcp: 1 }));
+    if (got.length || tick.length) logLink(`background helper had ${got.length} messages and ${tick.length} delivered receipts waiting`, 'inbox', { msgs: got.length, receipts: tick.length, oldestAgeS: got.length ? Math.round((Date.now() - Math.min(...got.map(o => o.at || Date.now()))) / 1000) : null });
+    const drop = all.filter(o => o.mine || o.old).map(o => o.k).concat(tick.map(o => o.k));   // what this app cannot unlock stays for the app that can (a second tab, another pairing), up to a week
     if (drop.length) await new Promise(res => { const x = db.transaction('m', 'readwrite'); for (const k of drop) x.objectStore('m').delete(k); x.oncomplete = x.onerror = x.onabort = res; });
     db.close();
   } catch { return; }
@@ -7332,8 +7374,8 @@ async function drainBox() {   // messages that came inside alerts while this app
 }
 function askBox() {   // is this phone's background helper new enough to keep messages?
   if (!navigator.serviceWorker) return;
-  navigator.serviceWorker.ready.then(r => new Promise(res => { const ch = new MessageChannel(); ch.port1.onmessage = e => res(!!(e.data && e.data.box)); r.active.postMessage({ t: 'caps' }, [ch.port2]); setTimeout(() => res(false), 4000); }))
-    .then(b => { if (b !== myBox) { myBox = b; if (myPush) pushSay(); } }).catch(() => {});
+  navigator.serviceWorker.ready.then(r => new Promise(res => { const ch = new MessageChannel(); ch.port1.onmessage = e => res(e.data && e.data.box === 2 ? 2 : e.data && e.data.box ? 1 : 0); r.active.postMessage({ t: 'caps' }, [ch.port2]); setTimeout(() => res(0), 4000); }))
+    .then(b => { if (b !== myBox) { myBox = b; logLink(`this phone: alerts ${myPush ? 'on' : 'off'}, helper level ${b}, notifications ${window.Notification ? Notification.permission : 'none'}`, 'push_me', { on: !!myPush, box: b, perm: window.Notification ? Notification.permission : 'none' }); if (myPush) pushSay(); } }).catch(() => {});
 }
 if (navigator.serviceWorker) {
   let boxT = 0; navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.t === 'box') { clearTimeout(boxT); boxT = setTimeout(drainBox, 700); } });   // a burst of alerts is taken in together, in order
@@ -7370,7 +7412,8 @@ function gotPushSub(m) {
   if (m.endpoint && m.endpoint === store.get('deadPush:' + room)) { send({ t: 'pushdead' }); return; }   // the same dead address again: ask for a new one
   partnerPush = m.endpoint; store.set('partnerPush:' + room, partnerPush);
   const k = m.endpoint && m.keys; partnerKeys = k && /^[\w-]{80,100}$/.test(k.p256dh) && /^[\w-]{16,30}$/.test(k.auth) ? { p256dh: k.p256dh, auth: k.auth } : null; store.set('partnerKeys:' + room, partnerKeys);
-  partnerBox = !!(partnerKeys && m.box); store.set('partnerBox:' + room, partnerBox);
+  partnerBox = !partnerKeys || !m.box ? 0 : m.box === 2 ? 2 : 1; store.set('partnerBox:' + room, partnerBox);
+  logLink(`partner alerts ${partnerPush ? 'on' : 'off'}, their helper level ${partnerBox}`, 'push_partner', { on: !!partnerPush, keys: !!partnerKeys, box: partnerBox });
   render(); showAlerts();
 }
 const fromB64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
@@ -7827,7 +7870,7 @@ steady(() => {   // every tick: animate orbs; on the egg phone also drive the eg
 }, TICK_MS);
 let lastBeat = Date.now(), netWarned = false, hereAt = 0, factsAt = 0;
 function wokeUp(gap) {   // the phone or Chrome put this page to sleep: its connections may be dead without saying so
-  logLink(`woke after ${Math.round(gap / 1000)} s asleep`);
+  logLink(`woke after ${Math.round(gap / 1000)} s asleep`, 'wake', { gapS: Math.round(gap / 1000) });
   for (const c of clients) if (c.connected && c.stream) try { c.stream.destroy(); } catch {}
   for (const c of ups()) { c.asked = 0; c.miss = {}; }
   if (wakeLock) keepScreenOn();
@@ -7839,7 +7882,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16) + (partnerPush && partnerKeys ? '+' : '') + (partnerPush && partnerKeys && partnerBox ? 'b' : ''), pk: pinLast(), cs: chatSig(), wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16) + (partnerPush && partnerKeys ? '+' : '') + (partnerPush && partnerKeys && partnerBox ? partnerBox === 2 ? 'b2' : 'b' : ''), pk: pinLast(), cs: chatSig(), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
@@ -7857,7 +7900,7 @@ steady(() => {   // once a second: presence, safety check, status ask
       c.asked++; for (const k in c.seen) c.miss[k] = (c.miss[k] || 0) + 1;
       if (c.asked >= SILENT_ASKS) letGo(c);
     }
-    for (const kind in KINDS) if (state[kind].connected && !ups().some(c => c.seen[kind] && (c.miss[kind] || 0) < 5)) eggGone(kind);   // he stopped answering, counted in unanswered questions so a slow phone is no false alarm
+    for (const kind in KINDS) if (state[kind].connected && !ups().some(c => c.seen[kind] && (c.miss[kind] || 0) < EGG_QUIET)) eggGone(kind);   // he stopped answering, counted in unanswered questions so a slow phone is no false alarm
     if (ups().length && !partnerOnline() && Date.now() - hereAt > 3000) { hereAt = Date.now(); send({ t: 'here', eggs: Object.values(state).filter(e => e.connected).length }, true); }   // lets his phone find this page if an empty one took him
     if (!online && Date.now() - startedAt > 8000 && !netWarned) { netWarned = true; notify('This phone can\'t reach the internet. Your partner can\'t reach you until it can.', 9000); }
     if (online) netWarned = false;
@@ -7916,7 +7959,7 @@ else {
     leaving = true; location.replace(location.pathname);
   };
   document.addEventListener('visibilitychange', () => {
-    logLink(document.hidden ? 'screen off or tab hidden' : 'back on screen');
+    logLink(document.hidden ? 'screen off or tab hidden' : 'back on screen', 'vis', { hidden: document.hidden });
     if (!document.hidden && wakeLock) keepScreenOn();
     if (!document.hidden && keepAlive) keepAlive.play().catch(() => {});
   });
