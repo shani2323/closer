@@ -1360,6 +1360,7 @@
     <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
     <button type="button" class="ghost" id="fakeCodeBtn">Set fake passcode</button>
     <label class="row"><span>Emoji suggestions while typing</span><input type="checkbox" class="switch" id="emoOn"></label>
+    <label class="row"><span>Send technical logs to fix problems (times and events only, never messages or names)</span><input type="checkbox" class="switch" id="logsOn"></label>
     <button type="button" class="ghost danger" id="clearChat">Clear chat</button>
     <button type="button" class="ghost danger" id="resetAll">Reset all game scores</button>
   </form>
@@ -3345,6 +3346,8 @@ $('emoHint').onclick = ev => {
 for (const e of ['input', 'keyup', 'click', 'focus']) $('text').addEventListener(e, emoHintShow);
 $('emoOn').checked = store.get('emoHintOn', true);
 $('emoOn').onchange = ev => { store.set('emoHintOn', ev.target.checked); emoHintShow(); };
+$('logsOn').checked = store.get('logsOn', true);   // Xed 15 Nov: each phone can stop sending its technical log; what is kept on the phone for the copy-report is unchanged
+$('logsOn').onchange = ev => store.set('logsOn', ev.target.checked);
 $('compose').addEventListener('submit', () => setTimeout(emoHintShow, 0));
 $('dpPick').onclick = $('myDp').onclick = () => { tap(); $('dpFile').click(); };
 $('dpFile').onchange = () => { const f = $('dpFile').files[0]; $('dpFile').value = ''; if (!f) return; if (!/^image\//.test(f.type || 'image/')) { notify('That file is not a photo.'); return; } dpCropOpen(f); };
@@ -6438,7 +6441,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261115-133916';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261115-141449';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7255,7 +7258,7 @@ let logTag = '';
 crypto.subtle.digest('SHA-256', new TextEncoder().encode('loveline-log|' + room)).then(h => { logTag = [...new Uint8Array(h).slice(0, 4)].map(b => b.toString(16).padStart(2, '0')).join(''); }).catch(() => {});
 function sendLog() {
   const pend = evLog.filter(x => x.n > evUp).slice(0, 100);
-  if (!logTag || !pend.length || sendLog.busy) return;
+  if (!logTag || !pend.length || sendLog.busy || !store.get('logsOn', true)) return;
   const upTo = pend[pend.length - 1].n; sendLog.busy = true;
   fetch(BUZZ + '/log', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ s: isRemote ? 'his' : 'her', p: logTag, v: APP_V, ua: navigator.userAgent, e: pend }) })
     .then(r => { if (r.ok) { evUp = upTo; store.set('evUp', evUp); if (evLog.some(x => x.n > evUp)) setTimeout(sendLog, 500); } }).catch(() => {}).finally(() => { sendLog.busy = false; });
