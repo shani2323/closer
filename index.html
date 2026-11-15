@@ -3500,17 +3500,23 @@ const gifFetch = async url => {   // Xed 14 Nov: a short drop while two dozen GI
   }
   return { err: last };
 };
-let gifTok = 0;
+let gifTok = 0, gifLogN = 0;
+const gifKind = u => /\/ph\?id=/.test(u) ? 'ph' : /redgifs/.test(u) ? 'red' : /giphy/.test(u) ? 'giphy' : 'other';   // which site, never the clip address
+function gifClipLog(v, where, ok) {   // the first 6 clips of each search and every failure; every GIF in the chat
+  if (!v.dataset.t0 || v.dataset.logged) return; v.dataset.logged = 1;
+  if (where === 'grid' && ok && ++gifLogN > 6) return;
+  logEv('gif_clip', { w: where, ok, ms: Date.now() - +v.dataset.t0, k: gifKind(v.dataset.src || ''), err: ok ? 0 : (v.error && v.error.code) || 0 });
+}
 async function gifLoad(fresh) {
   if (!fresh && (gifBusy || gifEnd)) return;
   const tok = ++gifTok;
-  if (fresh) { gifPage = 1; gifItems = []; gifEnd = false; $('gifGrid').innerHTML = ''; $('gifGrid').scrollTop = 0; }
+  if (fresh) { gifPage = 1; gifItems = []; gifEnd = false; gifLogN = 0; $('gifGrid').innerHTML = ''; $('gifGrid').scrollTop = 0; }
   gifBusy = true; const want = `${gifSrc}|${gifQ}|${gifPage}`;
   $('gifNote').textContent = 'Loading…'; $('gifNote').hidden = false; $('gifNote').classList.remove('retry'); $('gifNote').removeAttribute('role');
   let d = null, err = '';
   const url = gifUrl(gifSrc, gifQ, gifPage, gifLang), kept = gifMem.get(url);
   if (kept && Date.now() - kept.at < 600000) d = kept.d;   // fetched ahead: shows at once
-  else { const g = await gifFetch(url); d = g.d || null; err = g.err || ''; if (d) gifKeepPage(url, d); }
+  else { const t0 = Date.now(); const g = await gifFetch(url); d = g.d || null; err = g.err || ''; if (d) gifKeepPage(url, d); logEv('gif_search', { src: gifSrc, pg: gifPage, ms: Date.now() - t0, n: d && Array.isArray(d.items) ? d.items.length : -1, err, typed: !!gifQ }); }   // Xed 15 Nov: GIF troubles show in the logs (never the search words)
   if (tok !== gifTok) return;   // a newer search started while this one was loading
   gifBusy = false;
   if (want !== `${gifSrc}|${gifQ}|${gifPage}`) return;
@@ -3530,7 +3536,7 @@ async function gifLoad(fresh) {
     sendGif(gifItems[+b.dataset.i], gifSrc === 'adult'); gifOpen(false);
   }; }
 }
-const gifLive = v => { if (v.getAttribute('src') || !v.dataset.src || v.closest('.veiled')) return; v.preload = 'auto'; v.src = v.dataset.src; v.closest('.gifBox').classList.add('loading'); };
+const gifLive = v => { if (v.getAttribute('src') || !v.dataset.src || v.closest('.veiled')) return; v.dataset.t0 = v.dataset.t0 || Date.now(); v.preload = 'auto'; v.src = v.dataset.src; v.closest('.gifBox').classList.add('loading'); };
 const GIF_TIMES = 3, gifPlays = new Map();   // per GIF while the app is open: how many times it has played
 const gifDone = v => (gifPlays.get(v.closest('.gifBox').dataset.gif) || 0) >= GIF_TIMES;
 const gifInChat = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (e.isIntersecting) { gifLive(v); v.closest('.gifBox').classList.toggle('gifRest', gifDone(v)); if (v.getAttribute('src') && !gifDone(v)) v.play().catch(() => {}); } else v.pause(); } }, { root: $('msgs') });   // only the GIFs you can see play
@@ -3541,13 +3547,14 @@ $('msgs').addEventListener('ended', ev => {   // one play over: again, until it 
 }, true);   // only the GIFs you can see play
 const gifNear = new IntersectionObserver(es => { for (const e of es) { const v = e.target; if (e.isIntersecting) gifLive(v); else if (v.getAttribute('src')) { v.pause(); v.removeAttribute('src'); v.load(); v.closest('.gifBox').classList.remove('loading', 'ready'); } } }, { root: $('msgs'), rootMargin: '700px 0px' });   // Xed 14 Nov: a chat full of GIFs loads only those near the screen and lets go of far ones
 const gifSeen = new IntersectionObserver(es => {   // only the GIFs on screen play, to save data
-  for (const e of es) { const v = e.target.querySelector('video'); if (!v) continue; if (e.isIntersecting) { if (!v.src && v.dataset.src) v.src = v.dataset.src; v.play().catch(() => {}); } else v.pause(); }
+  for (const e of es) { const v = e.target.querySelector('video'); if (!v) continue; if (e.isIntersecting) { if (!v.src && v.dataset.src) { v.dataset.t0 = Date.now(); v.src = v.dataset.src; } v.play().catch(() => {}); } else v.pause(); }
 }, { root: $('gifGrid'), rootMargin: '300px' });   // every GIF on screen plays, and the next ones are ready before they scroll in
-$('gifGrid').addEventListener('loadeddata', ev => { const b = ev.target.closest && ev.target.closest('.gifItem'); if (b) b.classList.add('ready'); }, true);
-$('gifGrid').addEventListener('error', ev => { const b = ev.target.closest && ev.target.closest('.gifItem'); if (b && ev.target.tagName === 'VIDEO') b.remove(); }, true);   // a clip that will not load leaves the grid
-$('msgs').addEventListener('loadeddata', ev => { const g = ev.target.closest && ev.target.closest('.gifBox'); if (g) g.classList.add('ready'); }, true);
+$('gifGrid').addEventListener('loadeddata', ev => { const b = ev.target.closest && ev.target.closest('.gifItem'); if (b) { b.classList.add('ready'); gifClipLog(ev.target, 'grid', true); } }, true);
+$('gifGrid').addEventListener('error', ev => { const b = ev.target.closest && ev.target.closest('.gifItem'); if (b && ev.target.tagName === 'VIDEO') { gifClipLog(ev.target, 'grid', false); b.remove(); } }, true);   // a clip that will not load leaves the grid
+$('msgs').addEventListener('loadeddata', ev => { const g = ev.target.closest && ev.target.closest('.gifBox'); if (g) { g.classList.add('ready'); gifClipLog(ev.target, 'chat', true); } }, true);
 $('msgs').addEventListener('error', ev => {   // a GIF in the chat that failed: try again once, a few seconds later
-  const v = ev.target; if (v.tagName !== 'VIDEO' || !v.closest('.gifBox') || v.dataset.again) return;
+  const v = ev.target; if (v.tagName !== 'VIDEO' || !v.closest('.gifBox')) return;
+  if (v.dataset.again) { gifClipLog(v, 'chat', false); return; }   // logged only once the second try failed too
   v.dataset.again = 1; setTimeout(() => { const u = v.getAttribute('src'); if (u) { v.src = u; v.play().catch(() => {}); } }, 3000);
 }, true);
 $('gifNote').onclick = () => { if (!$('gifNote').classList.contains('retry')) return; tap(); gifLoad(!gifItems.length); };
@@ -6441,7 +6448,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261115-141449';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261115-215549';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7277,7 +7284,8 @@ async function snapshot(why) {   // the whole state of this phone at one moment:
 let partnerWas = null;
 setInterval(() => { const on = partnerOnline(); if (on !== partnerWas) { if (partnerWas !== null) logLink(on ? 'partner app connected' : 'partner app gone quiet', 'partner', { on, bg: !!partnerBgAt }); partnerWas = on; } }, 2000);
 let errN = 0, errMin = 0;
-function logErr(m, src, l, c, st) { const min = Math.floor(Date.now() / 60000); if (min !== errMin) { errMin = min; errN = 0; } if (++errN > 10) return; logEv('err', { m: String(m).slice(0, 160), src: String(src || '').split('/').pop().slice(0, 40), l, c, st: String(st || '').slice(0, 300) }); }
+const noAddr = s => String(s || '').replace(/[?#][^\s)]*/g, '');   // Xed 15 Nov: the page address tail holds the room and key, so it never goes into a log
+function logErr(m, src, l, c, st) { if (/^ResizeObserver loop/.test(m)) return; const min = Math.floor(Date.now() / 60000); if (min !== errMin) { errMin = min; errN = 0; } if (++errN > 10) return; logEv('err', { m: noAddr(m).slice(0, 160), src: noAddr(src).split('/').pop().slice(0, 40), l, c, st: noAddr(st).slice(0, 300) }); }   // the ResizeObserver note is a harmless browser warning (200 of them on 15 Nov)
 addEventListener('error', e => logErr(e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack));
 addEventListener('unhandledrejection', e => logErr('rejection: ' + (e.reason && e.reason.message || e.reason), '', 0, 0, e.reason && e.reason.stack));
 document.addEventListener('freeze', () => logEv('freeze')); document.addEventListener('resume', () => logEv('resume'));
