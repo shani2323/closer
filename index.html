@@ -628,7 +628,7 @@
   .brushes::-webkit-scrollbar { display: none; }
   .brushes button { flex: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 20px; background: var(--fill); color: var(--label); font-family: inherit; font-size: 20px; line-height: 1; }
   .brushes { justify-content: space-between; }
-  @media (max-width: 370px) { .brushes { gap: 4px; overflow: visible; } .brushes button { flex: 0 1 40px; min-width: 0; height: auto; aspect-ratio: 1; font-size: 17px; } }   /* small phones: every brush in view, none scrolled away */
+  @media (max-width: 560px) { .brushes { gap: 4px; overflow: visible; } .brushes button { flex: 0 1 40px; min-width: 0; height: auto; aspect-ratio: 1; font-size: 17px; } }   /* small phones: every brush in view, none scrolled away */
   body.chatTab #chatGrab { display: none; }   /* the Chat section is already full size: no handle to drag */
   #sizeBtn i { display: block; border-radius: 50%; background: currentColor; }
   .brushes button[aria-pressed=true] { background: #fff; color: #000; }
@@ -638,6 +638,12 @@
   .sw::after { content: ''; position: absolute; inset: -9px -2px; }
   .sw { position: relative; width: 26px; height: 26px; padding: 0; border: 2px solid transparent; border-radius: 50%; box-shadow: inset 0 0 0 2px #000; }
   .sw[aria-pressed=true] { border-color: #fff; }
+  .sw { flex: 0 1 26px; min-width: 20px; height: auto; aspect-ratio: 1; }   /* 17 Nov: one more swatch; on a narrow phone they shrink a little instead of pushing the tools off */
+  .swAny { display: block; background: conic-gradient(#ff453a, #ffd60a, #30d158, #64d2ff, #0a84ff, #bf5af2, #ff453a); }
+  .swAny input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; cursor: pointer; }
+  .emojiRow[hidden] { display: none; }
+  .emojiRow { justify-content: flex-start; overflow-x: auto; }   /* 17 Nov: 10 brushes now, so every phone squeezes them into view; the sticker row swipes instead */
+  .emojiRow button { flex: none; width: 40px; height: 40px; aspect-ratio: auto; font-size: 22px; }
   .tool { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--fill); }
   .tool svg { width: 19px; height: 19px; }
   .tool[aria-pressed=true] { background: #fff; color: #000; }
@@ -1710,22 +1716,40 @@ const seenMine = `closer-v2/${room}/s${isRemote ? 'c' : 'h'}`, seenTheirs = `clo
 async function publishSeen() {
   if (!pairKey || document.hidden && !publishSeen.fg) return;
   publishSeen.fg = !document.hidden;
-  const p = await seal({ at: Date.now(), rd: readUpTo }, pairKey).catch(() => null);
+  const ri = chat.filter(c => c.who === 'them' && +c.at > readUpTo && readIds.has(c.id)).slice(-30).map(c => c.id);   // read, though an older one was not
+  const p = await seal({ at: Date.now(), rd: readUpTo, ri }, pairKey).catch(() => null);
   if (p) for (const c of clients) if (c.connected) c.publish(seenMine, p, { retain: true, qos: 1 });
 }
 // Xed 16 Nov: blue ticks went missing the same way: "read" was only said live. The note also carries the time of the newest message
 // from the other phone that this one has had on screen; every text message sent up to then turns blue over there (voice notes and photos still wait to be played or opened).
 let readUpTo = +store.get('readTo:' + room, 0) || 0;
+// Xed 16 Nov: read = the message itself was on screen, in the big chat or the small one under a game, Play or Watch.
+// Not covered by anything, app unlocked, not the fake office chat. Messages that never showed (above the newest 3 in the small chat) stay unread.
+const readIds = new Set();
+function bubbleShown(el) {
+  const r = el.getBoundingClientRect(), b = $('msgs').getBoundingClientRect();
+  const top = Math.max(r.top, b.top, 0), bot = Math.min(r.bottom, b.bottom, innerHeight);
+  if (r.width < 4 || bot - top < 8) return false;   // hidden, or scrolled out of sight
+  const hit = document.elementFromPoint(Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1), (top + bot) / 2);
+  return !!hit && (hit === el || el.contains(hit));   // nothing laid over it
+}
 function noteRead() {
-  if (!chatInFront()) return;
-  const t = chat.reduce((m, c) => c.who === 'them' && +c.at > m ? +c.at : m, 0);
-  if (t > readUpTo) { readUpTo = t; store.set('readTo:' + room, t); publishSeen(); }
+  if (document.hidden || hiding || !$('lock').hidden) return;
+  const fresh = [];
+  for (const el of $('msgs').querySelectorAll('.bubble:not(.mine)')) { const id = el.dataset.id; if (id && !readIds.has(id) && bubbleShown(el)) { readIds.add(id); fresh.push(id); } }
+  const them = chat.filter(c => c.who === 'them' && +c.at > readUpTo && !c.vn && !c.im).sort((a, b) => a.at - b.at);   // voice notes and photos keep their own rule: played or opened
+  let t = readUpTo;
+  for (const c of them) { if (!readIds.has(c.id)) break; t = +c.at; }   // read up to the first one not yet seen
+  const each = fresh.filter(id => them.some(c => c.id === id));
+  for (const id of each) send({ t: 'ack', id, seen: true });   // each one that showed turns blue at once, even with an older one still unseen above it
+  if (t > readUpTo) { readUpTo = t; store.set('readTo:' + room, t); send({ t: 'seen', rd: t }); }
+  if (each.length) publishSeen();   // and the kept note, for a phone that is asleep just now
 }
 async function gotLastOn(text) {
   const o = pairKey && text ? await unseal(text, pairKey) : null, at = o && Math.min(+o.at || 0, Date.now());
-  if (o && +o.rd) {
+  if (o && (+o.rd || Array.isArray(o.ri))) {
     let ch = false;
-    for (const c of chat) if (c.who === 'me' && c.st >= 1 && c.st < 3 && !c.vn && !c.im && c.at <= +o.rd) { c.st = 3; ch = true; logEv('msg_st', { id: c.id, st: 3, ageMs: Date.now() - c.at, via: 'note' }); }
+    for (const c of chat) if (c.who === 'me' && c.st >= 1 && c.st < 3 && !c.vn && !c.im && (c.at <= +o.rd || Array.isArray(o.ri) && o.ri.includes(c.id))) { c.st = 3; ch = true; logEv('msg_st', { id: c.id, st: 3, ageMs: Date.now() - c.at, via: 'note' }); }
     if (ch) { saveChat(); renderChat(); }
   }
   if (!at || partnerOnline() || at <= seenAt()) return;   // live: the usual signs say it better
@@ -2488,7 +2512,7 @@ function gotChat(m) {
   typingUntil = 0;
   logEv('msg_in', { id: m.id, lagMs: Number.isFinite(m.at) ? Date.now() - m.at : null, dup: chat.some(c => c.id === m.id) || cleared.has(m.id) });
   if (archIds.has(m.id) && !chat.some(c => c.id === m.id)) {   // already kept on this phone, just no longer among the newest 200: confirm it, never add it again
-    archTx('readonly', st => st.get(m.id)).then(o => { if (!o) return; if (o.vn || o.im) { if (vnHave.has(m.id) || o.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!o.pl }); } else send({ t: 'ack', id: m.id, seen: chatInFront() }); }).catch(() => {});
+    archTx('readonly', st => st.get(m.id)).then(o => { if (!o) return; if (o.vn || o.im) { if (vnHave.has(m.id) || o.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!o.pl }); } else send({ t: 'ack', id: m.id }); }).catch(() => {});
     return;
   }
   if (!chat.some(c => c.id === m.id && c.who === 'them')) {
@@ -2503,7 +2527,7 @@ function gotChat(m) {
   }
   const vc = chat.find(c => c.id === m.id && c.who === 'them');
   if (vc && (vc.vn || vc.im)) { if (vnHave.has(m.id) || vc.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!vc.pl }); return; }   // a voice note counts as delivered only once all its sound is here
-  send({ t: 'ack', id: m.id, seen: chatInFront() });   // Xed 16 Nov: read only when the chat itself is on screen, unlocked (not another section, not the lock)
+  send({ t: 'ack', id: m.id });   // delivered; "read" follows from noteRead once the bubble has really been on screen (Xed 16 Nov)
   noteRead();
 }
 // Chat history heals itself: if one phone lost messages (a new install, cleared phone storage), the other phone sends them back.
@@ -2539,9 +2563,9 @@ function gotAck(m) {
     if (o.im && o.im.vo && m.pl) { archMedia.delete(o.id); if (vnHave.has(o.id)) imSpent(o.id); }
   }; }).catch(() => {});
 }
-function gotSeen() {
+function gotSeen(m) {   // rd: read up to that time (16 Nov); without it, an older app: everything delivered
   let changed = false;
-  for (const c of chat) if (c.who === 'me' && c.st === 2 && !c.vn && !c.im) { c.st = 3; changed = true; }
+  for (const c of chat) if (c.who === 'me' && c.st >= 1 && c.st < 3 && !c.vn && !c.im && (m && +m.rd ? c.at <= +m.rd : c.st === 2)) { c.st = 3; changed = true; }
   if (changed) { saveChat(); renderChat(); }
 }
 const msgOf = c => ({ t: 'msg', id: c.id, text: c.text, at: c.at, re: c.re, ...(c.lp ? { lp: c.lp } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) });
@@ -4141,10 +4165,12 @@ document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (o
 // ---- drawing: both draw and erase on the same board at once; points are 0..1 so any screen size matches
 const board = $('board'), bctx = board.getContext('2d');
 const COLORS = ['#ffffff', '#ff7ab8', '#bf5af2', '#ff453a', '#0a84ff', '#30d158'];
-let strokes = [], pen = { c: '#ff7ab8', w: 4, e: false, b: 'pen', m: false }, drawing = null;
-const BRUSHES = { __proto__: null, pen: ['✏️', 'Pen'], neon: ['✨', 'Neon'], rainbow: ['🌈', 'Rainbow'], hearts: ['❤️', 'Hearts'], stars: ['⭐', 'Stars'] };
+let strokes = [], pen = { c: '#ff7ab8', w: 4, e: false, b: 'pen', m: false, x: '😘' }, drawing = null;
+const BRUSHES = { __proto__: null, pen: ['✏️', 'Pen'], neon: ['✨', 'Neon'], rainbow: ['🌈', 'Rainbow'], hearts: ['❤️', 'Hearts'], stars: ['⭐', 'Stars'], spray: ['💨', 'Spray'], sparkle: ['💫', 'Sparkle'], emoji: ['😘', 'Emoji stickers'] };   // Xed 17 Nov: spray, sparkle and emoji stickers
+const EMOJIS = ['😘', '🥰', '😍', '💋', '❤️', '💕', '🔥', '😈', '🌹', '🌸', '🦋', '⭐', '✨', '🍓', '🍒', '🍑', '💦', '👅', '🎀', '👑'];
+const rnd = (s, i, k) => { let h = 2166136261; for (const ch of s.id + ':' + i + ':' + k) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16; return (h >>> 0) / 4294967296; };   // the same "random" on both phones, so spray and sparkle look identical there
 const STAMP = { __proto__: null, hearts: '❤️', stars: '⭐' };
-const SIZES = [2, 4, 8];
+const SIZES = [2, 4, 8, 14];
 function sizeBoard() {
   const w = Math.round(board.getBoundingClientRect().width * (devicePixelRatio || 1));
   if (w && w !== board.width) { board.width = board.height = w; }
@@ -4163,10 +4189,21 @@ function paint(s, from, mirror) {
   bctx.save();
   bctx.globalCompositeOperation = s.e ? 'destination-out' : 'source-over';
   bctx.lineCap = bctx.lineJoin = 'round';
-  if (STAMP[b]) {
-    const gap = (s.w * 4 + 10) / 360;
-    bctx.font = `${Math.round(lw * 3.4 + W / 30)}px system-ui, sans-serif`; bctx.textAlign = 'center'; bctx.textBaseline = 'middle';
-    for (let i = from; i < p.length; i++) if (!i || Math.floor(d[i] / gap) > Math.floor(d[i - 1] / gap)) bctx.fillText(STAMP[b], X(p[i]), Y(p[i]));
+  const sticker = b === 'emoji' ? s.x : STAMP[b], big = b === 'emoji';
+  if (sticker) {   // an emoji sticker: one tap puts down one big emoji, a drag lays a trail of them
+    const gap = big ? (s.w * 7 + 26) / 360 : (s.w * 4 + 10) / 360;
+    bctx.font = `${Math.round(big ? lw * 4 + W / 12 : lw * 3.4 + W / 30)}px system-ui, sans-serif`; bctx.textAlign = 'center'; bctx.textBaseline = 'middle';
+    for (let i = from; i < p.length; i++) if (!i || Math.floor(d[i] / gap) > Math.floor(d[i - 1] / gap)) bctx.fillText(sticker, X(p[i]), Y(p[i]));
+  } else if (b === 'spray') {   // paint-can mist: soft dots scattered round the finger
+    bctx.fillStyle = s.c; bctx.globalAlpha = .7;
+    const r = lw * 3 + W / 120, dot = Math.max(1.5, lw * .55), n = 10 + s.w * 3;
+    for (let i = from; i < p.length; i++) {   // also fills the gap from the last point, so a quick stroke is not just a few puffs
+      const x0 = i ? X(p[i - 1]) : X(p[i]), y0 = i ? Y(p[i - 1]) : Y(p[i]), steps = Math.max(1, Math.ceil(Math.hypot(X(p[i]) - x0, Y(p[i]) - y0) / (r * .6)));
+      for (let j = 1; j <= steps; j++) for (let k = 0; k < n; k++) {
+        const a = rnd(s, i, j * 97 + k) * 6.2832, q = Math.sqrt(rnd(s, i, j * 97 + k + 50)) * r, cx = x0 + (X(p[i]) - x0) * j / steps, cy = y0 + (Y(p[i]) - y0) * j / steps;
+        bctx.fillRect(cx + (mirror ? -1 : 1) * Math.cos(a) * q - dot / 2, cy + Math.sin(a) * q - dot / 2, dot, dot);
+      }
+    }
   } else {
     const a = Math.max(0, from - 1);
     const line = (width, col) => {
@@ -4179,6 +4216,15 @@ function paint(s, from, mirror) {
     };
     if (b === 'neon') { bctx.shadowColor = s.c; bctx.shadowBlur = lw * 4; line(lw * 1.4, s.c); bctx.shadowBlur = 0; line(lw * .5, 'rgba(255,255,255,.9)'); }
     else line(lw * (s.e ? 5 : 1), s.c);
+    if (b === 'sparkle') {   // little twinkles thrown off the line, white and in its colour
+      const gap = (s.w * 3 + 14) / 360, sz = lw * 2 + W / 40;
+      bctx.textAlign = 'center'; bctx.textBaseline = 'middle';
+      for (let i = Math.max(1, from); i < p.length; i++) if (Math.floor(d[i] / gap) > Math.floor(d[i - 1] / gap)) {
+        const a = rnd(s, i, 1) * 6.2832, q = (.6 + rnd(s, i, 2)) * (lw * 2 + W / 60), z = sz * (.6 + rnd(s, i, 3) * .7);
+        bctx.font = `${Math.round(z)}px system-ui, sans-serif`; bctx.fillStyle = rnd(s, i, 4) < .5 ? '#fff' : s.c;
+        bctx.fillText('✦', X(p[i]) + (mirror ? -1 : 1) * Math.cos(a) * q, Y(p[i]) + Math.sin(a) * q);
+      }
+    }
   }
   bctx.restore();
 }
@@ -4191,7 +4237,7 @@ function theirFinger(m) {   // a glowing dot where the other person is drawing r
 function redraw() { bctx.clearRect(0, 0, board.width, board.height); strokes.forEach(s => seg(s, 0)); }
 // Xed 12 Nov: a drawing stays until someone erases it, even overnight with both apps closed. Each phone keeps its own copy,
 // and the relays hold one sealed copy (only the two phones can open it), so a phone opened fresh gets it while the other sleeps.
-const boardTopic = `closer-v2/${room}/b`, lineOf = s => ({ id: s.id, c: s.c, w: s.w, e: s.e, b: s.b, m: s.m, st: s.t, pts: s.pts });
+const boardTopic = `closer-v2/${room}/b`, lineOf = s => ({ id: s.id, c: s.c, w: s.w, e: s.e, b: s.b, m: s.m, x: s.x, st: s.t, pts: s.pts });
 let boardCut = 0, boardDirty = false, boardT = 0;
 { const g = store.get('board:' + room, null); if (g && Array.isArray(g.s)) { boardCut = +g.cut || 0; strokes = g.s.filter(s => s && Array.isArray(s.pts) && (s.t || 0) > boardCut); } }
 function markBoard(mine) {   // save here soon; a change made on this phone also goes to the relays
@@ -4229,7 +4275,7 @@ async function gotBoard(text) {   // the copy kept on the relay: add what this p
 const point = e => { const r = board.getBoundingClientRect(); return [+((e.clientX - r.left) / r.width).toFixed(4), +((e.clientY - r.top) / r.height).toFixed(4)]; };
 board.onpointerdown = e => {
   board.setPointerCapture(e.pointerId);
-  drawing = { id: b64url(rand(6)), c: pen.c, w: pen.w, e: pen.e, b: pen.b, m: pen.m, t: Math.max(Date.now(), boardCut + 1), pts: [point(e)], sent: 0 };
+  drawing = { id: b64url(rand(6)), c: pen.c, w: pen.w, e: pen.e, b: pen.b, m: pen.m, x: pen.b === 'emoji' ? pen.x : undefined, t: Math.max(Date.now(), boardCut + 1), pts: [point(e)], sent: 0 };
   strokes.push(drawing); seg(drawing, 0);
 };
 board.onpointermove = e => { if (!drawing) return; drawing.pts.push(point(e)); seg(drawing, drawing.pts.length - 1); };
@@ -4240,7 +4286,7 @@ function resendLine(s) {   // the other phone may have dropped out half way thro
 function flushDraw() {   // send new points about 20 times a second while drawing
   const d = drawing;
   if (!d || d.sent >= d.pts.length) return;
-  send({ t: 'draw', id: d.id, c: d.c, w: d.w, e: d.e, b: d.b, m: d.m, st: d.t, pts: d.pts.slice(d.sent) });
+  send({ t: 'draw', id: d.id, c: d.c, w: d.w, e: d.e, b: d.b, m: d.m, x: d.x, st: d.t, pts: d.pts.slice(d.sent) });
   d.sent = d.pts.length;
 }
 setInterval(flushDraw, 50);
@@ -4280,7 +4326,7 @@ function gotDraw(m, quiet) {
   if (!s) {
     const t = +m.st || +m.ts || Date.now();
     if (t <= boardCut) return;   // erased already
-    s = { id: m.id, c: /^#[0-9a-f]{6}$/i.test(m.c) ? m.c : '#ffffff', w: Math.max(1, Math.min(12, +m.w || 4)), e: !!m.e, b: m.b in BRUSHES ? m.b : 'pen', m: m.m === true, t, pts: [] };
+    s = { id: m.id, c: /^#[0-9a-f]{6}$/i.test(m.c) ? m.c : '#ffffff', w: Math.max(1, Math.min(16, +m.w || 4)), e: !!m.e, b: m.b in BRUSHES ? m.b : 'pen', m: m.m === true, x: m.b === 'emoji' ? (EMOJIS.includes(m.x) ? m.x : '😘') : undefined, t, pts: [] };
     strokes.push(s);
   }
   const from = s.pts.length;
@@ -4291,17 +4337,25 @@ function gotDraw(m, quiet) {
 $('tools').insertAdjacentHTML('afterbegin', COLORS.map(c => `<button class="sw" style="background:${c}" data-c="${c}" aria-label="Colour ${c}"></button>`).join(''));
 $('brushes').innerHTML = Object.keys(BRUSHES).map(b => `<button type="button" data-b="${b}" aria-label="${BRUSHES[b][1]}" title="${BRUSHES[b][1]}">${BRUSHES[b][0]}</button>`).join('')
   + '<button type="button" id="mirrorBtn" aria-label="Mirror" title="Mirror: draws both sides">🪞</button><button type="button" id="sizeBtn" aria-label="Brush size" title="Brush size"><i></i></button>';
+$('brushes').insertAdjacentHTML('afterend', '<div class="brushes emojiRow" id="emojiRow" aria-label="Emoji stickers" hidden>' + EMOJIS.map(x => `<button type="button" data-x="${x}" aria-label="Sticker ${x}">${x}</button>`).join('') + '</div>');
+$('tools').querySelector('.tool').insertAdjacentHTML('beforebegin', '<label class="sw swAny" aria-label="Any colour"><input type="color" id="anyColor" value="#ffd60a"></label>');   // any colour at all (17 Nov)
 function renderTools() {
-  document.querySelectorAll('.sw').forEach(b => b.setAttribute('aria-pressed', !pen.e && b.dataset.c === pen.c));
+  document.querySelectorAll('.sw[data-c]').forEach(b => b.setAttribute('aria-pressed', !pen.e && b.dataset.c === pen.c));
+  document.querySelector('.swAny').setAttribute('aria-pressed', !pen.e && !COLORS.includes(pen.c));
+  $('emojiRow').hidden = pen.e || pen.b !== 'emoji';
+  document.querySelectorAll('#emojiRow [data-x]').forEach(b => b.setAttribute('aria-pressed', b.dataset.x === pen.x));
+  document.querySelector('#brushes [data-b="emoji"]').textContent = pen.x;   // the sticker button shows the chosen emoji
   $('eraser').setAttribute('aria-pressed', pen.e);
   document.querySelectorAll('#brushes [data-b]').forEach(b => b.setAttribute('aria-pressed', !pen.e && b.dataset.b === pen.b));
   $('mirrorBtn').setAttribute('aria-pressed', pen.m);
-  $('sizeBtn').firstChild.style.width = $('sizeBtn').firstChild.style.height = [5, 9, 15][SIZES.indexOf(pen.w)] + 'px';   // the dot shows the size
+  $('sizeBtn').firstChild.style.width = $('sizeBtn').firstChild.style.height = [5, 9, 15, 21][SIZES.indexOf(pen.w)] + 'px';   // the dot shows the size
 }
 document.querySelectorAll('#brushes [data-b]').forEach(b => b.onclick = () => { tap(); pen.b = b.dataset.b; pen.e = false; renderTools(); });
 $('mirrorBtn').onclick = () => { tap(); pen.m = !pen.m; renderTools(); };
 $('sizeBtn').onclick = () => { tap(); pen.w = SIZES[(SIZES.indexOf(pen.w) + 1) % SIZES.length]; renderTools(); };
-document.querySelectorAll('.sw').forEach(b => b.onclick = () => { pen.c = b.dataset.c; pen.e = false; renderTools(); });
+document.querySelectorAll('.sw[data-c]').forEach(b => b.onclick = () => { pen.c = b.dataset.c; pen.e = false; renderTools(); });
+document.querySelectorAll('#emojiRow [data-x]').forEach(b => b.onclick = () => { tap(); pen.x = b.dataset.x; pen.b = 'emoji'; pen.e = false; renderTools(); });
+$('anyColor').oninput = () => { if (/^#[0-9a-f]{6}$/i.test($('anyColor').value)) { pen.c = $('anyColor').value; pen.e = false; renderTools(); } };
 $('eraser').onclick = () => { pen.e = !pen.e; renderTools(); };
 $('clearBtn').onclick = () => { boardCut = Math.max(Date.now(), boardCut + 1); strokes = []; redraw(); send({ t: 'draw', clear: true, at: boardCut }); markBoard(true); };
 $('saveBtn').onclick = () => {   // downloads a picture; Android's gallery shows the Downloads folder
@@ -4395,6 +4449,17 @@ const CARDS = {
       '{X} ke saath aap khud ko sab se zyada safe kab mehsoos karti hain?',
       'Aap ko {X} kis outfit mein sab se acha lagta hai?',
       'Aap kya chahti hain jo {X} zyada dafa kare, bed par ya bed se bahar?',
+      // Xed 17 Nov: threesome fantasies, massage and fantasies (added at the end so used-card memory stays right)
+      'Threesome ki fantasy mein aap ko sab se zyada kya excite karta hai: dekhna, dekha jana, ya dono taraf se pyaar?',
+      'Agar ek raat ke liye threesome ho, to aap pehle kis ko choomengi, {X} ko ya teesre ko?',
+      'Threesome mein aap kaunsi cheez kabhi nahi hone dengi? Apni had batayein.',
+      'Kya aap ne kabhi {X} ko kisi aur ke saath imagine kiya hai? Us waqt aap ko kaisa laga?',
+      'Body massage mein aap ko kaunsa hissa sab se zyada pasand hai jahan {X} ke haath hon?',
+      'Oil massage aap ko kaisi chahiye: aahista aur lambi, ya tez aur garam?',
+      'Aap ki woh fantasy kaunsi hai jo kisi film ya kahani se aayi hai?',
+      'Love making ki kis jagah ki fantasy hai jo aap ne kabhi kisi ko nahi batayi: beach, car, hotel ya kahin aur?',
+      'Kaunsi role play fantasy aap {X} ke saath try karna chahti hain?',
+      'Agar {X} aaj raat aap ki ek fantasy poori kar sake, to woh kaunsi hogi?',
     ],
     dare: [
       'Voice note mein {X} ko teen cheezein batayein jo aap ko us mein sab se zyada pasand hain.',
@@ -4472,6 +4537,15 @@ const CARDS = {
       'Chat mein {X} ko apni sab se garam yaad likhein jo us ke saath judi hai.',
       'Lipstick laga kar haath par kiss ka nishaan banayein aur us ki photo {X} ko bhejein.',
       '{X} ko voice note bhejein: "aaj raat sapne mein aana", aisi awaaz mein ke woh so na sake.',
+      // Xed 17 Nov: threesome fantasies, massage and fantasies (added at the end so used-card memory stays right)
+      'Voice note mein {X} ko apni threesome fantasy shuru se aakhir tak sunayein, aahista aur detail mein.',
+      'Chat mein {X} ko likhein ke threesome mein aap teesre shakhs ko kya karne dengi aur kya nahi.',
+      'Video call par lotion ya oil le kar apni gardan aur kandhon ki massage karein, jab tak {X} "bas" na likhe.',
+      'Voice note mein {X} ko step by step batayein ke aap us ki poori body ki massage kaise karengi, sar se paon tak.',
+      'Video call par 2 minute {X} ke kehne par apni massage karein: woh batayega haath kahan rakhne hain.',
+      'Chat mein apni sab se wild fantasy teen jumlon mein likhein, phir {X} ek jumla aage likhe.',
+      'Voice note mein ek role play shuru karein: aap massage therapist hain aur {X} aap ka client.',
+      'Chat mein {X} ko apni fantasy ki jagah, waqt aur kapre likhein, jaise kisi film ka scene ho.',
     ],
   },
   remote: {
@@ -4550,6 +4624,17 @@ const CARDS = {
       'Aap {S} ke liye kya karna chahte hain jo kisi ne us ke liye nahi kiya?',
       'Aap pehle kis cheez par fida huay: us ki ankhein, awaaz ya hansi?',
       'Aap kya chahte hain jo {S} zyada dafa kare, bed par ya bed se bahar?',
+      // Xed 17 Nov: threesome fantasies, massage and fantasies (added at the end so used-card memory stays right)
+      'Threesome ki fantasy mein aap ko sab se zyada kya excite karta hai: dekhna, dekha jana, ya dono?',
+      'Threesome mein aap {S} ko sab se pehle kya karte dekhna chahenge?',
+      'Threesome mein aap ki had kya hai? Kaunsi cheez kabhi nahi hone denge?',
+      'Kya aap ne kabhi {S} ko kisi aur ke saath imagine kiya hai? Us waqt aap ko kaisa laga?',
+      '{S} ki body ka kaunsa hissa aap sab se lambi massage ke liye chunenge?',
+      'Oil massage mein aap {S} ko kaise chhoona pasand karenge: aahista aur lamba, ya tez aur garam?',
+      'Kaunsi role play fantasy aap {S} ke saath try karna chahte hain?',
+      'Love making ki kis jagah ki fantasy hai jo aap ne kabhi kisi ko nahi batayi?',
+      'Agar {S} aaj raat aap ki ek fantasy poori kar sake, to woh kaunsi hogi?',
+      'Aap ki woh fantasy kaunsi hai jo kisi film ya kahani se aayi hai?',
     ],
     dare: [
       'Voice note mein {S} ko teen cheezein batayein jo aap ko us mein sab se zyada pasand hain.',
@@ -4627,6 +4712,15 @@ const CARDS = {
       'Chat mein {S} ko us ke saath apni sab se garam yaad likhein.',
       '{S} ko chat mein likhein ke agli mulaqat ki pehli raat aap usay sone nahi denge, aur kyun.',
       'Voice note bhejein: "aaj raat sapne mein aana", aisi awaaz mein ke {S} so na sake.',
+      // Xed 17 Nov: threesome fantasies, massage and fantasies (added at the end so used-card memory stays right)
+      'Voice note mein {S} ko apni threesome fantasy shuru se aakhir tak sunayein, aahista aur detail mein.',
+      'Chat mein {S} ko likhein ke threesome mein aap teesre shakhs ko kya karne denge aur kya nahi.',
+      'Voice note mein {S} ko step by step batayein ke aap us ki poori body ki oil massage kaise karenge, sar se paon tak.',
+      'Video call par 2 minute {S} ko batayein ke woh apne haath kahan rakhe aur apni massage kaise kare.',
+      'Video call par oil ya lotion le kar apne seene aur kandhon ki massage karein, jab tak {S} "bas" na likhe.',
+      'Chat mein apni sab se wild fantasy teen jumlon mein likhein, phir {S} ek jumla aage likhe.',
+      'Voice note mein ek role play shuru karein: aap massage therapist hain aur {S} aap ki client.',
+      'Chat mein {S} ko apni fantasy ki jagah, waqt aur kapre likhein, jaise kisi film ka scene ho.',
     ],
   },
 };
@@ -5294,7 +5388,10 @@ function drawLudo() {
   lreacts = lreacts.filter(o => { const age = now - o.t0; if (age > 2.2) return false; if (o.ph) { if (age < 0) return true; c.save(); c.globalAlpha = Math.min(1, (2.2 - age) * 1.5); const fs = cs * .48 * (1 + Math.max(0, .25 - age) * 1.2); c.font = `700 ${fs}px system-ui`; const tw = c.measureText(o.e).width, px = Math.max(tw / 2 + cs * .3, Math.min(W - tw / 2 - cs * .3, o.x * W + Math.sin(age * 3) * cs * .12)), py = W * (.8 - age * .25); c.fillStyle = 'rgba(20,20,24,.82)'; c.beginPath(); c.roundRect(px - tw / 2 - cs * .25, py - fs * .85, tw + cs * .5, fs * 1.5, fs * .75); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(o.e, px, py - fs * .1); c.restore(); return true; } c.save(); c.globalAlpha = Math.min(1, (2.2 - age) * 1.5); c.font = `${cs * (.7 + Math.min(.3, age))}px system-ui`; c.textAlign = 'center'; c.fillText(o.e, o.x * W + Math.sin(age * 4 + o.x * 9) * cs * .2, W * (.85 - age * .3)); c.restore(); return true; });
 }
 let lreacts = [], lreactAt = 0;
-const LREACT = ['😈', '😂', '😘', '🙈', '🔥', 'Reti 😏', 'Main nahi khelna 😤', 'Wah wah 👏', 'Cheating! 🫵', 'Bas karo 🙏', 'Lucky! 🍀', 'Ab dekho 😎', 'Hahaha 🤣', 'Bachao 😱', 'Ye lo 💅'];
+const LREACT = ['😈', '😂', '😘', '🙈', '🔥', 'Reti 😏', 'Main nahi khelna 😤', 'Wah wah 👏', 'Cheating! 🫵', 'Bas karo 🙏', 'Lucky! 🍀', 'Ab dekho 😎', 'Hahaha 🤣', 'Bachao 😱', 'Ye lo 💅',
+  // Xed 17 Nov: more fun phrases (the row swipes)
+  'Meri baari! 🙋', 'Chhakka do 🎲', 'Gayi goti 😈', 'Dil toot gaya 💔', 'Rehem karo 🥺', 'Kya baat hai 😍', 'Jeet meri 🏆', 'Ghar jao 🏠', 'Itna bura? 🙄',
+  'Pehle kiss 😘', 'Haar maan lo 🏳️', 'Mazaa aa gaya 🤩', 'Dekhte hain 👀', 'Oye hoye 😜', 'Sorry jaan 😇', 'Teri toh 😠', 'Pyaar se 🥰'];
 function ludoReact(e, mine) {
   if (!LREACT.includes(e)) return;
   const ph = e.includes(' '), em = ph ? e.slice(e.lastIndexOf(' ') + 1) : e;   // a phrase floats up in a bubble, with its face twice beside it
@@ -5304,7 +5401,7 @@ function ludoReact(e, mine) {
 }
 // Tower gets the same reactions: built from the same list, floating up over the tower
 $('treact').innerHTML = LREACT.filter(e => !e.includes(' ')).map(e => `<button type="button" data-e="${e}" aria-label="Send ${e}">${e}</button>`).join('');
-$('tphr').innerHTML = LREACT.filter(e => e.includes(' ')).map(e => `<button type="button" data-e="${e}">${e}</button>`).join('');
+$('tphr').innerHTML = $('lphr').innerHTML = LREACT.filter(e => e.includes(' ')).map(e => `<button type="button" data-e="${e}">${e}</button>`).join('');   // Ludo's row from the same list (17 Nov)
 function towerReact(e, mine) {
   if (!LREACT.includes(e)) return;
   const box = $('tfloat'), ph = e.includes(' '), em = ph ? e.slice(e.lastIndexOf(' ') + 1) : e;
@@ -6480,7 +6577,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261116-123151';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261117-002541';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -6866,7 +6963,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'clearchat') gotClear(m);
   if (m.t === 'ack') gotAck(m);
   if (m.t === 'react') gotReact(m);
-  if (m.t === 'seen') gotSeen();
+  if (m.t === 'seen') gotSeen(m);
   if (m.t === 'typing') { typingUntil = Date.now() + 3500; typingRec = m.rec === true; typingPh = m.ph === true; render(); if (window.lockPoke) lockPoke(); }
   if (m.t === 'vget') gotVget(m);
   if (m.t === 'toyst') gotToySt(m);
@@ -7591,8 +7688,7 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
   if (hearing && !listenGate) { listenGate = true; $('audio').muted = true; send({ t: 'listening', on: false }); muted = true; }
   if (muted) { notify('Your headphones changed, so the sound was muted. Put them back in to keep listening.'); render(); }
 });
-let chatWasFront = false;   // Xed 16 Nov: blue ticks only once the chat is really open on screen and unlocked, checked every second
-setInterval(() => { const f = chatInFront(); if (f && !chatWasFront) send({ t: 'seen' }); chatWasFront = f; noteRead(); }, 1000);
+setInterval(noteRead, 1000);   // Xed 16 Nov: blue ticks once a message has really been on screen, checked every second
 $('compose').onsubmit = ev => { ev.preventDefault(); sendTyped(); };   // Send keeps the box selected by itself, so an open keyboard stays open and a closed one stays closed
 $('clearChat').onclick = ev => { ev.stopPropagation(); tap(); if (!chat.length && !older.length) { notify('The chat is already empty.'); return; } $('nameSheet').hidden = true; $('clearSheet').hidden = false; };
 $('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askNo').textContent = 'Refuse'; if (lobbyMode) return lobbySubmit(); const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
