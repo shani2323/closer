@@ -1704,6 +1704,35 @@ function gotFront(m) {
   if (m.fg ? !partnerBgAt : partnerBgAt && partnerBgAt <= at) return;
   partnerBgAt = at; store.set('bgAt:' + room, at); render();
 }
+// Xed 16 Nov: "not seen for 11 h" while she had opened Loveline 8 times that morning: her app was only ever heard live, and his app slept
+// each time. Now each phone leaves a sealed note on the relays saying when it was last on screen, and the other phone reads it whenever it connects.
+const seenMine = `closer-v2/${room}/s${isRemote ? 'c' : 'h'}`, seenTheirs = `closer-v2/${room}/s${isRemote ? 'h' : 'c'}`;
+async function publishSeen() {
+  if (!pairKey || document.hidden && !publishSeen.fg) return;
+  publishSeen.fg = !document.hidden;
+  const p = await seal({ at: Date.now(), rd: readUpTo }, pairKey).catch(() => null);
+  if (p) for (const c of clients) if (c.connected) c.publish(seenMine, p, { retain: true, qos: 1 });
+}
+// Xed 16 Nov: blue ticks went missing the same way: "read" was only said live. The note also carries the time of the newest message
+// from the other phone that this one has had on screen; every text message sent up to then turns blue over there (voice notes and photos still wait to be played or opened).
+let readUpTo = +store.get('readTo:' + room, 0) || 0;
+function noteRead() {
+  if (!chatInFront()) return;
+  const t = chat.reduce((m, c) => c.who === 'them' && +c.at > m ? +c.at : m, 0);
+  if (t > readUpTo) { readUpTo = t; store.set('readTo:' + room, t); publishSeen(); }
+}
+async function gotLastOn(text) {
+  const o = pairKey && text ? await unseal(text, pairKey) : null, at = o && Math.min(+o.at || 0, Date.now());
+  if (o && +o.rd) {
+    let ch = false;
+    for (const c of chat) if (c.who === 'me' && c.st >= 1 && c.st < 3 && !c.vn && !c.im && c.at <= +o.rd) { c.st = 3; ch = true; logEv('msg_st', { id: c.id, st: 3, ageMs: Date.now() - c.at, via: 'note' }); }
+    if (ch) { saveChat(); renderChat(); }
+  }
+  if (!at || partnerOnline() || at <= seenAt()) return;   // live: the usual signs say it better
+  partnerBgAt = at; store.set('bgAt:' + room, at); render();
+}
+steady(() => { if (!document.hidden) publishSeen(); }, 30000);
+document.addEventListener('visibilitychange', publishSeen);   // the moment it leaves the screen too, if the phone lets it out
 let meOnlineAt = 0;
 const meShown = () => online || Date.now() - meOnlineAt < SHOW_GRACE_MS;
 steady(() => { if (online) meOnlineAt = Date.now(); if (partnerShown() + ',' + meShown() !== shownOnline) render(); }, 1000);   // online / away shows within a second of the 30 s, not up to 20 s late
@@ -2085,6 +2114,7 @@ async function startNet() {
       c.subscribe(isRemote ? topicFromHost : topicFromRemote);
       c.subscribe(LOBBY_T);
       c.subscribe(boardTopic);   // the relay sends its kept copy of the drawing straight away
+      c.subscribe(seenTheirs); noteRead(); publishSeen();   // when the other phone was last on screen (and what it read), even if this one slept through it
       if (boardDirty) setTimeout(publishBoard, 3000);   // drawn while this phone had no connection
       c.subscribe(fileIn);
       const first = !online; online = true;
@@ -2100,6 +2130,7 @@ async function startNet() {
     c.on('message', (topic, payload) => {
       if (topic === LOBBY_T) { gotLobby(payload.toString()); return; }
       if (topic === boardTopic) { gotBoard(payload.toString()); return; }
+      if (topic === seenTheirs) { gotLastOn(payload.toString()); return; }
       if (topic === echoTopic(i)) { c.echoes = true; c.heardAt = Date.now(); c.lag = c.heardAt - +payload.toString(); return; }
       topic === fileIn ? slowIn(payload.toString()) : incoming(payload.toString());
     });
@@ -2457,7 +2488,7 @@ function gotChat(m) {
   typingUntil = 0;
   logEv('msg_in', { id: m.id, lagMs: Number.isFinite(m.at) ? Date.now() - m.at : null, dup: chat.some(c => c.id === m.id) || cleared.has(m.id) });
   if (archIds.has(m.id) && !chat.some(c => c.id === m.id)) {   // already kept on this phone, just no longer among the newest 200: confirm it, never add it again
-    archTx('readonly', st => st.get(m.id)).then(o => { if (!o) return; if (o.vn || o.im) { if (vnHave.has(m.id) || o.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!o.pl }); } else send({ t: 'ack', id: m.id, seen: true }); }).catch(() => {});
+    archTx('readonly', st => st.get(m.id)).then(o => { if (!o) return; if (o.vn || o.im) { if (vnHave.has(m.id) || o.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!o.pl }); } else send({ t: 'ack', id: m.id, seen: chatInFront() }); }).catch(() => {});
     return;
   }
   if (!chat.some(c => c.id === m.id && c.who === 'them')) {
@@ -2472,7 +2503,8 @@ function gotChat(m) {
   }
   const vc = chat.find(c => c.id === m.id && c.who === 'them');
   if (vc && (vc.vn || vc.im)) { if (vnHave.has(m.id) || vc.pl) send({ t: 'ack', id: m.id, vn: true, pl: !!vc.pl }); return; }   // a voice note counts as delivered only once all its sound is here
-  send({ t: 'ack', id: m.id, seen: !document.hidden && !hiding });
+  send({ t: 'ack', id: m.id, seen: chatInFront() });   // Xed 16 Nov: read only when the chat itself is on screen, unlocked (not another section, not the lock)
+  noteRead();
 }
 // Chat history heals itself: if one phone lost messages (a new install, cleared phone storage), the other phone sends them back.
 const chatSig = () => { const all = [...new Set([...chat.map(c => c.id), ...[...cleared].filter(x => !x.startsWith('clear:'))])]; let h = 2166136261; for (const id of all.sort()) for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return all.length + ':' + (h >>> 0).toString(36); };
@@ -6448,7 +6480,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261115-215549';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261116-123151';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7371,11 +7403,11 @@ async function drainBox() {   // messages that came inside alerts while this app
   try {
     const db = await new Promise((res, rej) => { const r = indexedDB.open('loveline-inbox', 1); r.onupgradeneeded = () => r.result.createObjectStore('m', { autoIncrement: true }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
     const [keys, list] = await new Promise((res, rej) => { const st = db.transaction('m').objectStore('m'), k = st.getAllKeys(), g = st.getAll(); g.onsuccess = () => res([k.result || [], g.result || []]); g.onerror = () => rej(g.error); });
-    const all = await Promise.all(list.map(async (o, i) => { const m = o && typeof o.t === 'string' && o.t.startsWith('P.') ? await unseal(o.t.slice(2), pairKey).catch(() => null) : null; return { k: keys[i], t: o && o.t, at: m ? +m.at || 0 : 0, mine: !!m, old: !o || Date.now() - (o.at || 0) > 7 * 86400e3 }; }));
+    const all = await Promise.all(list.map(async (o, i) => { const m = o && typeof o.t === 'string' && o.t.startsWith('P.') ? await unseal(o.t.slice(2), pairKey).catch(() => null) : null; return { k: keys[i], t: o && o.t, at: m ? +m.at || 0 : 0, inAt: o && +o.at || 0, mine: !!m, old: !o || Date.now() - (o.at || 0) > 7 * 86400e3 }; }));
     got = all.filter(o => o.mine);
     const tick = list.map((o, i) => ({ k: keys[i], d: o && o.d })).filter(o => typeof o.d === 'string' && chat.some(c => c.id === o.d && c.who === 'me'));   // Xed 15 Nov: her sleeping phone said these arrived
     tick.forEach(o => gotAck({ id: o.d, rcp: 1 }));
-    if (got.length || tick.length) logLink(`background helper had ${got.length} messages and ${tick.length} delivered receipts waiting`, 'inbox', { msgs: got.length, receipts: tick.length, oldestAgeS: got.length ? Math.round((Date.now() - Math.min(...got.map(o => o.at || Date.now()))) / 1000) : null });
+    if (got.length || tick.length) logLink(`background helper had ${got.length} messages and ${tick.length} delivered receipts waiting`, 'inbox', { msgs: got.length, receipts: tick.length, oldestAgeS: got.length ? Math.round((Date.now() - Math.min(...got.map(o => o.at || Date.now()))) / 1000) : null, reachedS: got.map(o => o.at && o.inAt ? Math.round((o.inAt - o.at) / 1000) : null) });   // Xed 16 Nov: how long after sending each one reached this phone while the app was closed
     const drop = all.filter(o => o.mine || o.old).map(o => o.k).concat(tick.map(o => o.k));   // what this app cannot unlock stays for the app that can (a second tab, another pairing), up to a week
     if (drop.length) await new Promise(res => { const x = db.transaction('m', 'readwrite'); for (const k of drop) x.objectStore('m').delete(k); x.oncomplete = x.onerror = x.onabort = res; });
     db.close();
@@ -7559,7 +7591,8 @@ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechang
   if (hearing && !listenGate) { listenGate = true; $('audio').muted = true; send({ t: 'listening', on: false }); muted = true; }
   if (muted) { notify('Your headphones changed, so the sound was muted. Put them back in to keep listening.'); render(); }
 });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) send({ t: 'seen' }); });
+let chatWasFront = false;   // Xed 16 Nov: blue ticks only once the chat is really open on screen and unlocked, checked every second
+setInterval(() => { const f = chatInFront(); if (f && !chatWasFront) send({ t: 'seen' }); chatWasFront = f; noteRead(); }, 1000);
 $('compose').onsubmit = ev => { ev.preventDefault(); sendTyped(); };   // Send keeps the box selected by itself, so an open keyboard stays open and a closed one stays closed
 $('clearChat').onclick = ev => { ev.stopPropagation(); tap(); if (!chat.length && !older.length) { notify('The chat is already empty.'); return; } $('nameSheet').hidden = true; $('clearSheet').hidden = false; };
 $('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askNo').textContent = 'Refuse'; if (lobbyMode) return lobbySubmit(); const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
