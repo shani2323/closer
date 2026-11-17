@@ -6181,15 +6181,19 @@ async function carryFor(id) {
   } catch { notify('Your phone could not fetch that video. Save it to your phone, then press Add video.', 15000); }
 }
 // a link to a video somewhere else: the file plays straight in our player; a site with its own player shows that player
-const FINDER = 'https://loveline-finder.kaka.deno.net';   // reads a web page and answers with the video inside it
+const FINDERS = ['https://13.215.146.59:8443', 'https://3.11.52.88:8443', 'https://loveline-finder.kaka.deno.net'];   // reads a web page and answers with the video inside it. 17 Nov: Xed's own Singapore and London servers first, Deno last (Deno suspended it for its free-plan limit); the next one is asked only when one is down
 const homeNet = h => /^\[|^[\d.]+$|^[^.]+\.?$|\.(local|localhost|localdomain|internal|lan|home|intranet|arpa|nip\.io|sslip\.io|xip\.io|plex\.direct)\.?$/i.test(h);   // best effort: it sees only the name, not where a name or a redirect really leads
 async function findVideo(page) {
   try {
     const u = new URL(page);
     if (homeNet(u.hostname)) return null;
     u.hash = ''; u.username = ''; u.password = '';
-    const r = await fetch(`${FINDER}/?u=${encodeURIComponent(u.href)}`, { signal: AbortSignal.timeout(20000) });
-    return r.ok ? await r.json() : null;
+    for (const f of FINDERS) {
+      const r = await fetch(`${f}/?u=${encodeURIComponent(u.href)}`, { signal: AbortSignal.timeout(12000) }).catch(() => null);
+      if (r && r.ok) return await r.json();
+      if (r && r.status === 400) return null;   // not a public site: the same answer everywhere. "No video" is asked again elsewhere: London gets xhamster's UK age-check page instead
+    }
+    return null;
   } catch { return null; }
 }
 const playsHere = u => { const L = u && readLink(u); return L && (L[0] === 'file' || L[0] === 'stream') ? L : null; };
@@ -6578,7 +6582,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261117-112643';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261117-131947';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
