@@ -621,6 +621,11 @@
   .panelHead { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 10px; }
   .panelHead b { font-size: 17px; letter-spacing: -.02em; }
   .done { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--blue); font-size: 14px; font-weight: 600; }
+  .undoRow { display: flex; gap: 6px; margin: 0 8px 0 auto; }   /* Xed 17 Nov: undo and redo sit up by Done, away from the brushes */
+  .undoRow button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); transition: opacity 150ms ease; }
+  .undoRow svg { width: 17px; height: 17px; }
+  .undoRow button:active:not(:disabled) { transform: scale(.94); transition: transform 100ms ease-out; }
+  .undoRow button:disabled { opacity: .3; }
   .boardWrap { position: relative; }
   .theirDot { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; pointer-events: none;
               background: radial-gradient(circle, #fff 0 25%, rgba(255, 122, 184, .9) 45%, rgba(255, 122, 184, 0) 70%); transition: left 60ms linear, top 60ms linear; }
@@ -1137,7 +1142,7 @@
   <div class="eggs" id="eggs"></div>
 
   <section class="panelBox glass" id="drawPanel" hidden>
-    <div class="panelHead"><b>Draw together</b><button class="done" data-close>Done</button></div>
+    <div class="panelHead"><b>Draw together</b><span class="undoRow"><button type="button" id="undoBtn" aria-label="Undo" title="Undo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button><button type="button" id="redoBtn" aria-label="Redo" title="Redo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button></span><button class="done" data-close>Done</button></div>
     <div class="boardWrap"><canvas id="board" aria-label="Shared drawing board"></canvas><span class="theirDot" id="theirDot" hidden></span></div>
     <div class="brushes" id="brushes"></div>
     <div class="tools" id="tools"><button class="tool" id="eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21h10M5.5 13.5l6-6 6 6-5 5H9z"/></svg></button><button class="tool" id="clearBtn" aria-label="Clear both boards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button><button class="tool" id="saveBtn" aria-label="Save drawing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>
@@ -4243,15 +4248,66 @@ function redraw() { bctx.clearRect(0, 0, board.width, board.height); strokes.for
 // and the relays hold one sealed copy (only the two phones can open it), so a phone opened fresh gets it while the other sleeps.
 const boardTopic = `closer-v2/${room}/b`, lineOf = s => ({ id: s.id, c: s.c, w: s.w, e: s.e, b: s.b, m: s.m, x: s.x, st: s.t, pts: s.pts });
 let boardCut = 0, boardDirty = false, boardT = 0;
-{ const g = store.get('board:' + room, null); if (g && Array.isArray(g.s)) { boardCut = +g.cut || 0; strokes = g.s.filter(s => s && Array.isArray(s.pts) && (s.t || 0) > boardCut); } }
+// Xed 17 Nov: lines taken back with Undo are remembered (id and time), so no older copy, on the other phone or the relays, brings them back
+let boardGone = new Map(), undoes = [], redoes = [];   // undoes/redoes: this phone's own steps, newest last
+const goneOk = g => Array.isArray(g) && typeof g[0] === 'string' && Number.isFinite(+g[1]);
+{ const g = store.get('board:' + room, null); if (g && Array.isArray(g.s)) { boardCut = +g.cut || 0; strokes = g.s.filter(s => s && Array.isArray(s.pts) && (s.t || 0) > boardCut); if (Array.isArray(g.del)) boardGone = new Map(g.del.filter(goneOk).map(([id, t]) => [id, +t])); } }
 function markBoard(mine) {   // save here soon; a change made on this phone also goes to the relays
   if (mine) boardDirty = true;
-  clearTimeout(boardT); boardT = setTimeout(() => { store.set('board:' + room, { cut: boardCut, s: strokes.map(s => ({ ...lineOf(s), st: undefined, t: s.t })) }); if (boardDirty) publishBoard(); }, 1500);
+  for (const [id, t] of boardGone) if (t <= boardCut) boardGone.delete(id);   // a Clear already covers these
+  while (boardGone.size > 400) boardGone.delete(boardGone.keys().next().value);
+  clearTimeout(boardT); boardT = setTimeout(() => { store.set('board:' + room, { cut: boardCut, del: [...boardGone], s: strokes.map(s => ({ ...lineOf(s), st: undefined, t: s.t })) }); if (boardDirty) publishBoard(); }, 1500);
 }
+function dropLines(list) {   // lines taken back by Undo, here or on the other phone
+  let hit = false;
+  for (const [id, t] of list) {
+    if (t <= boardCut) continue;
+    boardGone.set(id, t);
+    const n = strokes.length; strokes = strokes.filter(s => s.id !== id); hit = hit || strokes.length < n;
+  }
+  return hit;
+}
+function copyLine(s, k) {   // a line put back by Undo or Redo: a new line that looks the same, on top
+  const n = { id: b64url(rand(6)), c: s.c, w: s.w, e: s.e, b: s.b, m: s.m, x: s.x, t: Math.max(Date.now(), boardCut + 1) + k / 1000, pts: s.pts.slice() };
+  strokes.push(n); seg(n, 0); send({ t: 'stroke', s: lineOf(n) }); resendLine(n);
+  return n;
+}
+const liveLine = s => strokes.some(x => x.id === s.id);
+function renderUndo() {
+  $('undoBtn').disabled = !undoes.some(a => a.k === 'cut' || liveLine(a.s));
+  $('redoBtn').disabled = !redoes.length;
+}
+function clearBoard() {
+  boardCut = Math.max(Date.now(), boardCut + 1); strokes = []; redraw(); send({ t: 'draw', clear: true, at: boardCut }); markBoard(true);
+}
+function undoStep() {
+  if (drawing) return;
+  while (undoes.length) {
+    const a = undoes.pop();
+    if (a.k === 'add') {   // take back my last line (or eraser stroke, which brings back what it rubbed out)
+      if (!liveLine(a.s)) continue;   // already gone: the other phone cleared the board
+      dropLines([[a.s.id, a.s.t]]); redraw(); send({ t: 'draw', del: [[a.s.id, a.s.t]] }); markBoard(true);
+      redoes.push(a);
+    } else {   // take back my Clear: every line comes back, for both
+      a.lines.forEach((s, i) => copyLine(s, i)); markBoard(true);
+      redoes.push({ k: 'cut' });
+    }
+    tap(); break;
+  }
+  renderUndo();
+}
+function redoStep() {
+  if (drawing) return;
+  const a = redoes.pop(); if (!a) return;
+  if (a.k === 'add') { undoes.push({ k: 'add', s: copyLine(a.s, 0) }); markBoard(true); }
+  else { undoes.push({ k: 'cut', lines: strokes.slice() }); clearBoard(); }
+  tap(); renderUndo();
+}
+$('undoBtn').onclick = undoStep; $('redoBtn').onclick = redoStep;
 async function publishBoard() {
   if (!pairKey || !clients.some(c => c.connected)) return;
   try {
-    const z = new Uint8Array(await new Response(new Blob([JSON.stringify({ cut: boardCut, s: strokes.map(lineOf) })]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    const z = new Uint8Array(await new Response(new Blob([JSON.stringify({ cut: boardCut, del: [...boardGone], s: strokes.map(lineOf) })]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
     const iv = rand(12), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, pairKey, z)), out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
     let payload = ''; for (let i = 0; i < out.length; i += 8192) payload += String.fromCharCode(...out.subarray(i, i + 8192)); payload = btoa(payload);   // a big drawing is too long for b64() in one go
     let sent = false;
@@ -4268,13 +4324,15 @@ async function gotBoard(text) {   // the copy kept on the relay: add what this p
   } catch { return; }
   if (!o || !Array.isArray(o.s)) return;
   const cut = +o.cut || 0, before = JSON.stringify(strokes.map(s => [s.id, s.pts.length]));
-  if (cut > boardCut) { boardCut = cut; strokes = strokes.filter(s => (s.t || 0) > cut); }
+  if (cut > boardCut) { boardCut = cut; strokes = strokes.filter(s => (s.t || 0) > cut); undoes = []; redoes = []; }
+  const del = Array.isArray(o.del) ? o.del.filter(goneOk).map(([id, t]) => [id, +t]) : [];
+  dropLines(del);
   for (const x of o.s) if (x && (+x.st || 0) > boardCut) gotWhole(x, true);
   strokes.sort((a, b) => (a.t || 0) - (b.t || 0));
-  const theirs = new Map(o.s.map(x => [x && x.id, x && Array.isArray(x.pts) ? x.pts.length : 0]));
-  if (boardCut > cut || strokes.some(s => !(theirs.get(s.id) >= s.pts.length))) boardDirty = true;   // this phone has more than the relay copy: put it there
+  const theirs = new Map(o.s.map(x => [x && x.id, x && Array.isArray(x.pts) ? x.pts.length : 0])), theirDel = new Set(del.map(g => g[0]));
+  if (boardCut > cut || strokes.some(s => !(theirs.get(s.id) >= s.pts.length)) || [...boardGone.keys()].some(id => !theirDel.has(id))) boardDirty = true;   // this phone has more than the relay copy: put it there
   if (JSON.stringify(strokes.map(s => [s.id, s.pts.length])) !== before) { if (panel === 'draw') redraw(); }
-  markBoard(false);
+  markBoard(false); renderUndo();
 }
 const point = e => { const r = board.getBoundingClientRect(); return [+((e.clientX - r.left) / r.width).toFixed(4), +((e.clientY - r.top) / r.height).toFixed(4)]; };
 board.onpointerdown = e => {
@@ -4283,7 +4341,7 @@ board.onpointerdown = e => {
   strokes.push(drawing); seg(drawing, 0);
 };
 board.onpointermove = e => { if (!drawing) return; drawing.pts.push(point(e)); seg(drawing, drawing.pts.length - 1); };
-board.onpointerup = board.onpointercancel = () => { flushDraw(); if (drawing) { resendLine(drawing); markBoard(true); } drawing = null; };
+board.onpointerup = board.onpointercancel = () => { flushDraw(); if (drawing) { resendLine(drawing); markBoard(true); undoes.push({ k: 'add', s: drawing }); if (undoes.length > 100) undoes.shift(); redoes = []; } drawing = null; renderUndo(); };
 function resendLine(s) {   // the other phone may have dropped out half way through this line
   for (const ms of [3000, 10000, 30000, 60000]) setTimeout(() => { if (strokes.includes(s)) send({ t: 'stroke', s: lineOf(s) }); }, ms);
 }
@@ -4296,6 +4354,7 @@ function flushDraw() {   // send new points about 20 times a second while drawin
 setInterval(flushDraw, 50);
 function resync() {   // the other phone came back: send what is open here so both screens match again
   if (boardCut) send({ t: 'draw', clear: true, at: boardCut });   // an erase made while the other phone was away
+  if (boardGone.size) send({ t: 'draw', del: [...boardGone] });   // lines taken back with Undo while it was away
   for (const x of strokes) send({ t: 'stroke', s: lineOf(x) });
 }
 const libSize = () => Object.keys(vidMap).length + gone.size;
@@ -4323,9 +4382,10 @@ function gotDraw(m, quiet) {
   if (m.clear) {   // only lines drawn before the erase go; one started after it on the other phone stays
     const at = +m.at || +m.ts || Date.now();
     if (at <= boardCut) return;
-    boardCut = at; strokes = strokes.filter(s => (s.t || 0) > at); redraw(); markBoard(false); return;
+    boardCut = at; strokes = strokes.filter(s => (s.t || 0) > at); redraw(); markBoard(false); undoes = []; redoes = []; renderUndo(); return;
   }
-  if (typeof m.id !== 'string' || !Array.isArray(m.pts)) return;
+  if (Array.isArray(m.del)) { if (dropLines(m.del.filter(goneOk).map(([id, t]) => [id, +t])) && panel === 'draw') redraw(); markBoard(false); renderUndo(); return; }   // the other phone pressed Undo
+  if (typeof m.id !== 'string' || !Array.isArray(m.pts) || boardGone.has(m.id)) return;
   let s = strokes.find(x => x.id === m.id);
   if (!s) {
     const t = +m.st || +m.ts || Date.now();
@@ -4361,7 +4421,7 @@ document.querySelectorAll('.sw[data-c]').forEach(b => b.onclick = () => { pen.c 
 document.querySelectorAll('#emojiRow [data-x]').forEach(b => b.onclick = () => { tap(); pen.x = b.dataset.x; pen.b = 'emoji'; pen.e = false; renderTools(); });
 $('anyColor').oninput = () => { if (/^#[0-9a-f]{6}$/i.test($('anyColor').value)) { pen.c = $('anyColor').value; pen.e = false; renderTools(); } };
 $('eraser').onclick = () => { pen.e = !pen.e; renderTools(); };
-$('clearBtn').onclick = () => { boardCut = Math.max(Date.now(), boardCut + 1); strokes = []; redraw(); send({ t: 'draw', clear: true, at: boardCut }); markBoard(true); };
+$('clearBtn').onclick = () => { if (strokes.length) { undoes.push({ k: 'cut', lines: strokes.slice() }); redoes = []; } clearBoard(); renderUndo(); };   // Undo brings it all back
 $('saveBtn').onclick = () => {   // downloads a picture; Android's gallery shows the Downloads folder
   const c = document.createElement('canvas'); c.width = board.width; c.height = board.height;
   const x = c.getContext('2d'); x.fillStyle = '#0b0b0d'; x.fillRect(0, 0, c.width, c.height); x.drawImage(board, 0, 0);
@@ -6585,7 +6645,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261117-161447';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261117-204838';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
