@@ -471,6 +471,10 @@
   .gifChips::-webkit-scrollbar { display: none; }
   .gifChips button { flex: none; height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); color: var(--label); font-size: 13px; white-space: nowrap; }
   .gifChips button.on { background: var(--blue); color: #fff; }
+  .gifChips button.sug { display: flex; align-items: center; gap: 5px; }   /* Xed 18 Nov: a suggested search word */
+  .gifChips button.sug svg { width: 13px; height: 13px; opacity: .6; }
+  .gifChips button:active { transform: scale(.96); transition: transform 100ms ease-out; }
+  .gifSkel { pointer-events: none; }
   .gifGrid { flex: 1; min-height: 0; overflow-y: auto; columns: 2; column-gap: 6px; padding-bottom: 8px; scrollbar-width: none; }
   .gifItem:not(.ready), .gifBox.loading:not(.ready):not(.veiled) { background: linear-gradient(100deg, rgba(255, 255, 255, .05) 30%, rgba(255, 255, 255, .13) 50%, rgba(255, 255, 255, .05) 70%) 0 0 / 300% 100%; animation: gifShim 1.4s linear infinite; }   /* still loading: a soft shimmer, and it cannot be sent yet */
   .gifItem:not(.ready) video { opacity: .55; }
@@ -3546,10 +3550,34 @@ function gifOpen(on) {
   fitDock();
 }
 function gifChips() {
-  $('gifChips').innerHTML = GIF_CHIPS[gifSrc].map(([l, q, lang], i) => `<button type="button" data-i="${i}" class="${q === gifQ && !$('gifQ').value ? 'on' : ''}">${esc(l)}</button>`).join('');
-  for (const b of $('gifChips').querySelectorAll('button')) b.onclick = () => { const [, q, lang] = GIF_CHIPS[gifSrc][+b.dataset.i]; tap(); $('gifQ').value = ''; gifQ = q; gifLang = lang || ''; gifLoad(true); gifChips(); };
   for (const b of document.querySelectorAll('#gifSrc button')) b.classList.toggle('on', b.dataset.src === gifSrc);
+  if ($('gifQ').value.trim() && gifSugs.length) {   // Xed 18 Nov: while typing, real search words that match, so one tap finds the exact GIF
+    $('gifChips').innerHTML = gifSugs.map((s, i) => `<button type="button" class="sug${s.toLowerCase() === gifQ.toLowerCase() ? ' on' : ''}" data-s="${i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>${esc(s)}</button>`).join('');
+    for (const b of $('gifChips').querySelectorAll('button')) b.onclick = () => { const s = gifSugs[+b.dataset.s]; tap(); clearTimeout(gifT); $('gifQ').value = s; gifQ = s; gifLang = ''; gifLoad(true); gifChips(); };
+    return;
+  }
+  $('gifChips').innerHTML = GIF_CHIPS[gifSrc].map(([l, q, lang], i) => `<button type="button" data-i="${i}" class="${q === gifQ && !$('gifQ').value ? 'on' : ''}">${esc(l)}</button>`).join('');
+  for (const b of $('gifChips').querySelectorAll('button')) b.onclick = () => { const [, q, lang] = GIF_CHIPS[gifSrc][+b.dataset.i]; tap(); $('gifQ').value = ''; gifQ = q; gifLang = lang || ''; gifSugs = []; gifLoad(true); gifChips(); };
 }
+let gifSugs = [], gifSugT = 0, gifSugTok = 0;
+function gifSuggest() {   // asked a moment after the last letter; an answer for older letters is dropped
+  clearTimeout(gifSugT);
+  const q = $('gifQ').value.trim(), src = gifSrc, tok = ++gifSugTok;
+  if (q.length < 2) { gifSugs = []; gifChips(); return; }
+  gifSugT = setTimeout(() => fetch(`${CARRIER}/gifsug?src=${src}&q=${encodeURIComponent(q.toLowerCase())}`).then(r => r.ok ? r.json() : null).then(d => {
+    if (tok !== gifSugTok || !d || !Array.isArray(d.s)) return;
+    gifSugs = [...new Set(d.s.filter(s => typeof s === 'string' && s.length < 50))].slice(0, 8); gifChips();
+  }).catch(() => {}), 150);
+}
+function gifNormal() {   // Xed 18 Nov: back to the normal GIFs (on typing a message, and when the app leaves the screen)
+  if (gifSrc !== 'adult') return;
+  gifSrc = 'gif'; gifQ = ''; gifLang = ''; gifSugs = []; $('gifQ').value = ''; $('gifQ').placeholder = 'Search GIFs and memes';
+  gifItems = []; ++gifTok; gifBusy = false; $('gifGrid').innerHTML = ''; $('gifNote').hidden = true;
+  if (!$('gifPanel').hidden) gifLoad(true);
+  gifChips();
+}
+$('text').addEventListener('input', () => { if ($('text').value) gifNormal(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) gifNormal(); });
 // GIF pages are fetched ahead (Xed 13 Nov: quick): the first page soon after the app opens, and the next page while you look at this one
 const gifMem = new Map(), gifUrl = (src, q, p, l) => `${CARRIER}/gif?src=${src}&q=${encodeURIComponent(q)}&p=${p}${l ? '&l=' + l : ''}`;
 function gifKeepPage(url, d) { if (d && Array.isArray(d.items) && d.items.length) { gifMem.set(url, { d, at: Date.now() }); if (gifMem.size > 40) gifMem.delete(gifMem.keys().next().value); } }
@@ -3575,9 +3603,9 @@ function gifClipLog(v, where, ok) {   // the first 6 clips of each search and ev
 async function gifLoad(fresh) {
   if (!fresh && (gifBusy || gifEnd)) return;
   const tok = ++gifTok;
-  if (fresh) { gifPage = 1; gifItems = []; gifEnd = false; gifLogN = 0; $('gifGrid').innerHTML = ''; $('gifGrid').scrollTop = 0; }
+  if (fresh) { gifPage = 1; gifItems = []; gifEnd = false; gifLogN = 0; $('gifGrid').scrollTop = 0; $('gifGrid').innerHTML = [1.25, .8, 1, 1.3, .9, 1.1].map(r => `<div class="gifItem gifSkel" style="aspect-ratio:${r}" aria-hidden="true"></div>`).join(''); }   // Xed 18 Nov: soft tiles where the GIFs will be, instead of a line of text
   gifBusy = true; const want = `${gifSrc}|${gifQ}|${gifPage}`;
-  $('gifNote').textContent = 'Loading…'; $('gifNote').hidden = false; $('gifNote').classList.remove('retry'); $('gifNote').removeAttribute('role');
+  $('gifNote').textContent = 'Loading…'; $('gifNote').hidden = !!$('gifGrid').querySelector('.gifSkel'); $('gifNote').classList.remove('retry'); $('gifNote').removeAttribute('role');
   let d = null, err = '';
   const url = gifUrl(gifSrc, gifQ, gifPage, gifLang), kept = gifMem.get(url);
   if (kept && Date.now() - kept.at < 600000) d = kept.d;   // fetched ahead: shows at once
@@ -3585,6 +3613,7 @@ async function gifLoad(fresh) {
   if (tok !== gifTok) return;   // a newer search started while this one was loading
   gifBusy = false;
   if (want !== `${gifSrc}|${gifQ}|${gifPage}`) return;
+  for (const s of $('gifGrid').querySelectorAll('.gifSkel')) s.remove();
   if (err || !d || !Array.isArray(d.items)) {
     if (err === 'nokey') { $('gifNote').textContent = 'Normal GIFs need a free GIPHY key on the carrier first. 18+ works now.'; return; }
     $('gifNote').textContent = gifItems.length ? 'Load more' : navigator.onLine === false ? 'This phone is offline. Tap to try again.' : 'GIFs did not load. Tap to try again.';
@@ -3626,10 +3655,10 @@ $('gifNote').onclick = () => { if (!$('gifNote').classList.contains('retry')) re
 addEventListener('online', () => { if ($('gifNote').classList.contains('retry') && !$('gifPanel').hidden) gifLoad(!gifItems.length); });   // back online: tries again by itself
 $('gifGrid').addEventListener('scroll', () => { const g = $('gifGrid'); if (g.scrollHeight - g.scrollTop - g.clientHeight < 300) gifLoad(false); }, { passive: true });
 $('gifBtn').onclick = () => { tap(); gifOpen($('gifPanel').hidden); };
-$('gifQ').addEventListener('input', () => { clearTimeout(gifT); gifT = setTimeout(() => { gifQ = $('gifQ').value.trim(); gifLang = ''; gifLoad(true); gifChips(); }, 450); });
+$('gifQ').addEventListener('input', () => { gifSuggest(); clearTimeout(gifT); gifT = setTimeout(() => { gifQ = $('gifQ').value.trim(); gifLang = ''; gifLoad(true); gifChips(); }, 350); });
 $('gifQ').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); clearTimeout(gifT); gifQ = $('gifQ').value.trim(); gifLang = ''; gifLoad(true); $('gifQ').blur(); } });
 for (const b of document.querySelectorAll('#gifSrc button')) b.onclick = () => {
-  const go = () => { gifSrc = b.dataset.src; gifQ = ''; gifLang = ''; $('gifQ').value = ''; $('gifQ').placeholder = gifSrc === 'adult' ? 'Search 18+ GIFs' : 'Search GIFs and memes'; gifLoad(true); gifChips(); };
+  const go = () => { gifSrc = b.dataset.src; gifQ = ''; gifLang = ''; gifSugs = []; $('gifQ').value = ''; $('gifQ').placeholder = gifSrc === 'adult' ? 'Search 18+ GIFs' : 'Search GIFs and memes'; gifLoad(true); gifChips(); };
   tap();
   if (b.dataset.src === 'adult' && !gifAdultOk) {
     newShow('18+ GIFs', 'Adult GIFs from RedGIFs, for the two of you. In the chat they stay blurred until tapped. Show them on this phone?', 'Yes, I am 18+', 'Not now', () => { newClose(); gifAdultOk = true; store.set('gifAdult', true); go(); }, () => newClose());
@@ -6645,7 +6674,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261117-204838';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261118-033747';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
