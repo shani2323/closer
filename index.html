@@ -1012,6 +1012,7 @@
     $l('lockCancel').textContent = 'Cancel';
     $l('lockCancel').style.visibility = changing && m !== 'calc' ? 'visible' : 'hidden';   // only a change of passcode can be cancelled; no Forgot (Xed 11 Nov)
     try { document.activeElement && document.activeElement.blur(); } catch {}
+    dispatchEvent(new Event('lockshow'));   // Xed 18 Nov: the app tidies up behind the lock (the GIF screen closes)
   }
   function behind(off) { if (!$l('lock')) return; for (const el of document.body.children) if (el.id !== 'lock' && el.tagName !== 'SCRIPT') el.inert = off; }   // nothing behind the lock can be tapped or reached
   function cover(on) { if (mode) return; $l('lock').classList.toggle('cover', on); $l('lock').hidden = !on; }
@@ -3499,7 +3500,8 @@ steady(stSync, 10000);   // counted in the background, so totals keep growing pa
 // blurred in the chat until tapped, and the 18+ tab asks once on each phone.
 const GIF_CHIPS = {
   gif: [['🔥 Trending', ''], ['❤️ Love', 'love'], ['😘 Kiss', 'kiss'], ['🤗 Hug', 'hug'], ['🥺 Miss you', 'miss you'], ['😂 Funny', 'funny'], ['🎬 Bollywood', 'bollywood', 'hi'], ['🇮🇳 Hindi memes', 'hindi meme', 'hi'], ['🇵🇰 Pakistani memes', 'pakistani meme', 'ur'], ['Urdu', 'urdu', 'ur'], ['SRK', 'shahrukh khan', 'hi'], ['🌙 Good night', 'good night'], ['☀️ Good morning', 'good morning'], ['😂 Kya baat hai', 'kya baat hai', 'hi'], ['🙄 Chal hat', 'chal hat', 'hi'], ['🤪 Pagal', 'pagal', 'hi'], ['😏 Acha ji', 'acha ji', 'hi'], ['😤 Uff', 'uff', 'hi'], ['🥲 Bas karo', 'bas karo', 'hi'], ['🙏 Sorry', 'sorry'], ['😡 Angry', 'angry'], ['💃 Dance', 'dance']],
-  adult: [['🔥 Trending', ''], ['💑 Couple', 'couple'], ['🌹 Romantic', 'romantic'], ['💋 Kissing', 'kissing'], ['🔥 Threesome', 'threesome'], ['FFM', 'ffm'], ['MMF', 'mmf'], ['🌺 Exotic', 'erotic'], ['❤️‍🔥 Passionate', 'passionate'], ['✨ Sensual', 'sensual'], ['💆 Massage', 'massage'], ['🏝️ Beach', 'beach'], ['🌳 Outdoor', 'outdoor'], ['🚿 Shower', 'shower'], ['👙 Lingerie', 'lingerie'], ['😈 Teasing', 'teasing'], ['🇮🇳 Desi', 'desi'], ['🎥 Amateur couple', 'amateur couple']],
+  // Xed 18 Nov: 18+ leans romantic and oral: the first page mixes both (the finder's MIX), and their buttons come first
+  adult: [['💞 For us', ''], ['🌹 Romantic', 'romantic'], ['❤️‍🔥 Passionate', 'passionate'], ['✨ Sensual', 'sensual'], ['💋 Kissing', 'kissing'], ['💑 Couple', 'couple'], ['💆 Massage', 'massage'], ['🫦 Blowjob', 'blowjob'], ['👅 Licking her', 'pussy licking'], ['♋ 69', '69'], ['👅 Oral', 'oral'], ['👀 Eye contact', 'eye contact'], ['🪑 Face sitting', 'face sitting'], ['🔥 Trending', '*'], ['🔥 Threesome', 'threesome'], ['FFM', 'ffm'], ['MMF', 'mmf'], ['🌺 Exotic', 'erotic'], ['🏝️ Beach', 'beach'], ['🌳 Outdoor', 'outdoor'], ['🚿 Shower', 'shower'], ['👙 Lingerie', 'lingerie'], ['😈 Teasing', 'teasing'], ['🇮🇳 Desi', 'desi'], ['🎥 Amateur couple', 'amateur couple']],
 };
 let gifSrc = 'gif', gifQ = '', gifLang = '', gifPage = 1, gifItems = [], gifBusy = false, gifEnd = false, gifT = 0, gifAdultOk = store.get('gifAdult', false) === true;
 const gifRevealed = new Set();   // 18+ GIFs shown this time the app is open; blurred again next time
@@ -3543,6 +3545,7 @@ function gifClick(ev) {
 }
 // the panel
 function gifOpen(on) {
+  if (on && gifSrc === 'adult') gifNormal();   // Xed 18 Nov: the GIF screen always opens on the normal GIFs, never 18+
   $('gifPanel').hidden = !on; $('gifBtn').classList.toggle('on', on);
   const typed = on && $('text').value.trim();
   if (typed) { $('gifQ').value = typed; gifQ = typed; gifLang = ''; $('text').value = ''; $('text').dispatchEvent(new Event('input')); }
@@ -3576,8 +3579,10 @@ function gifNormal() {   // Xed 18 Nov: back to the normal GIFs (on typing a mes
   if (!$('gifPanel').hidden) gifLoad(true);
   gifChips();
 }
-$('text').addEventListener('input', () => { if ($('text').value) gifNormal(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) gifNormal(); });
+const gifShut = () => { if (!$('gifPanel').hidden) gifOpen(false); gifNormal(); };   // Xed 18 Nov: closed, and back to normal for next time
+$('text').addEventListener('input', () => { if ($('text').value) gifShut(); });   // typing a message
+document.addEventListener('visibilitychange', () => { if (document.hidden) gifShut(); });
+addEventListener('lockshow', gifShut);   // the lock screen came up
 // GIF pages are fetched ahead (Xed 13 Nov: quick): the first page soon after the app opens, and the next page while you look at this one
 const gifMem = new Map(), gifUrl = (src, q, p, l) => `${CARRIER}/gif?src=${src}&q=${encodeURIComponent(q)}&p=${p}${l ? '&l=' + l : ''}`;
 function gifKeepPage(url, d) { if (d && Array.isArray(d.items) && d.items.length) { gifMem.set(url, { d, at: Date.now() }); if (gifMem.size > 40) gifMem.delete(gifMem.keys().next().value); } }
@@ -6674,7 +6679,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261118-033747';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261118-045257';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -8045,6 +8050,7 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks
   msgs.scrollTop = msgs.scrollHeight;
 }
 function hideSet(on) {
+  if (on) gifShut();   // Xed 18 Nov: the hide (office chat) button closes the GIF screen too
   hiding = on; document.body.classList.toggle('hiding', on); $('fake').hidden = !on;
   for (const el of document.body.children) if (!['fake', 'lock'].includes(el.id) && el.tagName !== 'SCRIPT') { el.inert = on; on ? el.setAttribute('aria-hidden', 'true') : el.removeAttribute('aria-hidden'); }   // review 14 Nov: the real app cannot be reached at all while hidden
   if (on) { fk = store.get('fake') || fkNew(); store.set('fake', fk); fkBuild(); fkDraw(); try { vnAudio.pause(); } catch {} }
