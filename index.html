@@ -1393,7 +1393,8 @@ mqttReady.catch(() => {});
 //   status ask 55 04 once a second; reply 55 84 01 x 00 00 (suction) or 55 84 00 00 01 x (vibrating)
 // Pairing: the link key only carries hello/welcome/busy. The first phone to say hello is paired; after that the
 // two phones talk with a key made from their own key pairs (ECDH), so a copied link alone cannot read or control.
-const BROKERS = [['wss://broker.emqx.io:8084/mqtt'], ['wss://broker.hivemq.com:8884/mqtt'], ['wss://public.cloud.shiftr.io:443', { username: 'public', password: 'public' }], ['wss://test.mosquitto.org:8081/']];   // all used (the 4th added 13 Nov: two of the first three had stopped answering); first copy to arrive wins
+const BROKERS = [['wss://broker.emqx.io:8084/mqtt'], ['wss://broker.hivemq.com:8884/mqtt'], ['wss://public.cloud.shiftr.io:443', { username: 'public', password: 'public' }], ['wss://test.mosquitto.org:8081/'],
+  ['wss://13.215.146.59:8443/mqtt', {}, 'own'], ['wss://3.11.52.88:8443/mqtt', {}, 'own']];   // Xed 17 Nov: his own relays (Singapore, London) after the public ones; never used for video (1 TB a month each)   // all used (the 4th added 13 Nov: two of the first three had stopped answering); first copy to arrive wins
 const FACES = ['🧔‍♂️', '👨‍🦱', '👱‍♂️', '👨', '🤴', '😈', '🦊', '🐺', '🍆', '🔥'];
 const KINDS = { __proto__: null, vib: 'Vibrates', suc: 'Suction' };   // each egg's job
 let ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
@@ -2127,11 +2128,11 @@ async function startNet() {
   if (isRemote) { stopPending = kept('stopAt') || 0; mayRun = !!kept('mayRun'); }
   if (isRemote) { hostPair = store.get('hostPair:' + room); if (hostPair) pairKey = await derive(hostPair.pub); }
   else { pair = store.get('pair:' + room); if (pair) pairKey = await derive(pair.pub); }
-  drainBox();
+  drainBox(); boxIn();
   await mqttReady;
-  BROKERS.forEach(([url, login], i) => {
+  BROKERS.forEach(([url, login, own], i) => {
     const c = mqtt.connect(url, { clientId: `closer_${me}_${i}${b64url(rand(3))}`, keepalive: 15, reconnectPeriod: 2000, connectTimeout: 8000, ...login });
-    clients.push(c);
+    c.own = !!own; clients.push(c);
     c.on('connect', () => {
       c.heardAt = Date.now(); c.pingAt = 0; c.lag = 0; c.fails = 0; c.options.reconnectPeriod = 2000;
       c.subscribe(echoTopic(i));
@@ -2142,7 +2143,7 @@ async function startNet() {
       if (boardDirty) setTimeout(publishBoard, 3000);   // drawn while this phone had no connection
       c.subscribe(fileIn);
       const first = !online; online = true;
-      logEv('relay_up', { i: i + 1, first }); if (first) { logLink('relay reached'); isRemote ? hello() : publishState(); }
+      logEv('relay_up', { i: i + 1, first }); if (first) { logLink('relay reached'); isRemote ? hello() : publishState(); boxIn(); }
       if (first) for (const m of chat) if (m.who === 'me' && !((m.st || 0) >= 1) && Date.now() - m.at < 86400000) send(msgOf(m)).then(ok => { if (ok && (m.st || 0) < 1) { m.st = 1; saveChat(); renderChat(); } });   // 17 Nov: typed while no relay was reached (e.g. the first second after the phone woke the app): goes out now, not only when the other phone comes on
       render();
     });
@@ -2236,7 +2237,7 @@ async function handle(txt, late) {
 }
 let sendQ = Promise.resolve();
 function send(obj, viaLink = false) {   // in order: sound setup messages must not overtake each other; resolves true once sent
-  if (obj.t === 'msg' && !viaLink) { setTimeout(carry, 400); setTimeout(carry, 6500); }   // Xed 14 Nov: a message that cannot reach her app goes inside a phone alert
+  if (obj.t === 'msg' && !viaLink) { setTimeout(carry, 400); setTimeout(carry, 6500); setTimeout(boxOut, 700); setTimeout(boxOut, 6600); }   // Xed 14 Nov: a message that cannot reach her app goes inside a phone alert
   sendQ = sendQ.then(async () => {
     const key = viaLink ? linkKey : pairKey;
     if (parked || (!online && !direct()) || !key) return false;
@@ -2558,6 +2559,8 @@ function gotAck(m) {
   const st = c && (c.vn || c.im) ? (m.pl ? 3 : 2) : m.seen ? 3 : 2;   // a voice note turns blue only when it was played, not when the chat was looked at
   if (c && (c.st || 0) < st) { logEv('msg_st', { id: c.id, st, ageMs: Date.now() - c.at, via: m.rcp ? 'receipt' : 'live' }); c.st = st; saveChat(); renderChat(); }
   if (c && c.im && c.im.vo && m.pl && vnHave.has(c.id)) imSpent(c.id);   // she opened his view-once photo: it goes from his phone too
+  if (c && (c.vn || c.im) && m.vn && !c.fa) { c.fa = 1; saveChat(); if (c.bf) boxDel(c.id, false); }   // the file itself is there: the mailbox copy goes
+  if (c && (c.vn || c.im) && m.rcp && !m.vn && !c.fa && !c.rq) { c.rq = 1; saveChat(); }   // a receipt from a sleeping phone: only the message reached it, not the file yet
   if (!c && m.vn) archTx('readwrite', st => { const q = st.get(m.id); q.onsuccess = () => {   // an older message, kept only in the phone's database
     const o = q.result; if (!o || o.who !== 'me') return;
     o.st = Math.max(o.st || 0, m.pl ? 3 : 2); st.put(o);
@@ -2656,7 +2659,7 @@ async function gotVpart(m) {
   const c = chat.find(x => x.id === m.id && (x.vn || x.im)); if (!c || imSpentNow(c)) return;
   const mt = (c.vn || c.im).m, blob = new Blob(p.got, { type: mt });
   if (!(await vnTx('readwrite', s => { s.put({ b: blob, m: mt }, m.id); }).then(() => true, () => false))) { vnGone.set(m.id, Date.now()); renderChat(); return; }   // not stored: not confirmed; asked for again in a minute
-  vnHave.add(m.id); renderChat();
+  vnHave.add(m.id); renderChat(); boxDel(m.id, true);   // a copy may also wait in the mailbox: no longer needed
   send({ t: 'ack', id: m.id, vn: true, pl: !!c.pl });
 }
 // ---- the bubble: play, waveform (tap or drag to jump), length, speed while playing
@@ -6276,7 +6279,7 @@ let noDirectSince = window.RTCPeerConnection ? Date.now() : 0, slowInQ = Promise
 const slowSeen = new Set();
 const LANE_ROOM = 8, SLOW_PIECE = 60000;
 let laneRoom = 2, laneGrew = 0;   // pieces waiting for an answer per connection; the third relay refuses pieces this big
-const slowClient = () => clients.find(c => c && c.connected);
+const slowClient = () => clients.find(c => c && c.connected && !c.own);
 function fileLine() {
   if (fcDirect()) { noDirectSince = Date.now(); return fc; }
   return pairKey && partnerOnline() && slowClient() && Date.now() - noDirectSince > 3000 ? slowLine : null;
@@ -6314,7 +6317,7 @@ const slowLine = {   // looks like the direct channel to the code that sends fil
     const iv = rand(12);
     crypto.subtle.encrypt({ name: 'AES-GCM', iv }, pairKey, plain).then(ct => {
       const out = new Uint8Array(12 + ct.byteLength); out.set(iv); out.set(new Uint8Array(ct), 12);
-      const to = lane ? [lane] : clients.filter(c => c.connected).slice(0, 2);   // requests go on both relays: the other phone may only hear one
+      const to = lane ? [lane] : clients.filter(c => c.connected && !c.own).slice(0, 2);   // requests go on both relays: the other phone may only hear one
       if (!to.length) { done(); return; }
       const body = lane ? out : b64(out);
       to.forEach(c => c.publish(lane ? dataOut : fileOut, body, { qos: lane ? 1 : 0 }, done));
@@ -6582,7 +6585,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261117-131947';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261117-161447';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7527,8 +7530,110 @@ if (navigator.serviceWorker) {
   navigator.serviceWorker.addEventListener('controllerchange', askBox);
 }
 askBox();
-steady(() => { carry(false); nudgeCheck(false); }, 15000);
-document.addEventListener('visibilitychange', () => { if (document.hidden) { carry(true); nudgeCheck(true); } else { frontSince = Date.now(); drainBox(); } });
+steady(() => { carry(false); nudgeCheck(false); boxOut(false); }, 15000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) { carry(true); nudgeCheck(true); boxOut(true); } else { frontSince = Date.now(); drainBox(); boxIn(); } });
+// ---- the mailbox on Xed's own servers (17 Nov). What has not reached the other phone (a message, a photo, a voice note) waits
+// there, locked on this phone first, for up to a week; the other phone takes it when it next opens, even if this one is off by
+// then. The mailbox address comes from the room and the private link key, so only these two phones know it.
+const BOXES = ['https://13.215.146.59:8443/box', 'https://3.11.52.88:8443/box'];
+let boxA = null, boxInAt = 0, boxInBusy = false, boxFileBusy = false;
+const boxSending = new Set(), boxTried = new Map(), boxWait = new Map();   // boxWait: after a failure, wait longer each time (a full server: an hour) before sending again
+const boxFailed = (k, status) => { const n = ((boxWait.get(k) || {}).n || 0) + 1; boxWait.set(k, { n, until: Date.now() + (status === 507 ? 3600e3 : [60e3, 300e3, 1800e3][n - 1] || 3600e3) }); };
+const boxWaiting = k => (boxWait.get(k) || {}).until > Date.now();
+async function boxAddr() {
+  if (!boxA) {
+    const h = async t => b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`loveline-box:${room}:${hp.get('k')}:${t}`))));
+    boxA = { me: await h(isRemote ? 'to-c' : 'to-h'), them: await h(isRemote ? 'to-h' : 'to-c'), fMe: await h(isRemote ? 'files-to-c' : 'files-to-h'), fThem: await h(isRemote ? 'files-to-h' : 'files-to-c') };
+  }
+  return boxA;
+}
+async function sealBytes(bytes, id) {   // the file is bound to its message: a file swapped on the server is refused
+  const iv = rand(12), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(id) }, pairKey, bytes));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+  return out;
+}
+async function unsealBytes(b, id) {
+  try { return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(0, 12), additionalData: new TextEncoder().encode(id) }, pairKey, b.slice(12))); } catch { return null; }
+}
+function boxOut(leaving) {
+  if (!pairKey) return;
+  const here = partnerOnline() && !partnerBgAt, now = Date.now();
+  for (const c of chat) {
+    if (c.who !== 'me' || now - c.at > 86400000) continue;
+    const age = now - c.at, soon = !here || leaving === true;
+    if (!c.bx && (c.st || 0) < 2 && (soon || age >= 6000) && !boxWaiting('m' + c.id)) boxMsg(c);   // not delivered: the message waits in the mailbox
+    if ((c.vn || c.im) && !c.bf && !c.fa && ((c.st || 0) < 2 || c.rq) && vnHave.has(c.id) && !imSpentNow(c) && (soon || age >= 30000) && !boxWaiting('f' + c.id)) boxFile(c);   // the file has not arrived over there: it waits too
+  }
+}
+async function boxMsg(c) {
+  if (boxSending.has('m' + c.id)) return;
+  boxSending.add('m' + c.id);
+  try {
+    const a = await boxAddr(), body = 'P.' + await seal({ ...msgOf(c), from: me, ts: Date.now() }, pairKey);
+    const st = await Promise.all(BOXES.map(b => fetch(`${b}/m/${a.them}`, { method: 'POST', body, signal: AbortSignal.timeout(15000) }).then(r => r.status, () => 0))), ok = st.filter(x => x === 200).length;
+    if (ok) { c.bx = 1; saveChat(); } else boxFailed('m' + c.id, Math.max(...st));
+    logEv('box_out', { id: c.id, ok });
+  } catch {} finally { boxSending.delete('m' + c.id); }
+}
+async function boxFile(c) {
+  if (boxFileBusy || boxSending.has('f' + c.id)) return;   // one file at a time
+  boxFileBusy = true; boxSending.add('f' + c.id);
+  try {
+    const v = await vnLoad(c.id); if (!v || !v.b) return;
+    const a = await boxAddr(), body = await sealBytes(new Uint8Array(await v.b.arrayBuffer()), c.id), t0 = Date.now();
+    const st = await Promise.all(BOXES.map(b => fetch(`${b}/f/${a.fThem}/${c.id}`, { method: 'PUT', body, signal: AbortSignal.timeout(180000) }).then(r => r.status, () => 0))), ok = st.filter(x => x === 200).length;
+    if (!ok) boxFailed('f' + c.id, Math.max(...st));
+    else if (c.fa || imSpentNow(c)) boxDel(c.id, false);   // it arrived over the direct way while this was uploading: the copy goes at once
+    else { c.bf = 1; saveChat(); }
+    logEv('box_file_out', { id: c.id, ok, kb: Math.round(body.length / 1024), ms: Date.now() - t0 });
+  } catch {} finally { boxFileBusy = false; boxSending.delete('f' + c.id); }
+}
+function boxDel(id, mine) { boxAddr().then(a => BOXES.forEach(b => fetch(`${b}/f/${mine ? a.fMe : a.fThem}/${id}`, { method: 'DELETE', signal: AbortSignal.timeout(15000) }).catch(() => {}))).catch(() => {}); }   // mine: a copy left for this phone; else one this phone left for the other
+async function boxIn() {   // messages left in this phone's mailbox while it slept
+  if (boxInBusy || !pairKey || Date.now() - boxInAt < 5000) return;
+  boxInBusy = true; boxInAt = Date.now();
+  try {
+    const a = await boxAddr(), got = new Map();
+    await Promise.all(BOXES.map(async (b, i) => {
+      const k = `boxAt:${room}:${i}`;
+      for (let page = 0; page < 5; page++) {   // a long sleep can leave many: they come in parts
+        const since = Math.max(0, (+store.get(k, 0) || 0) - (page ? 0 : 10000));   // the last 10 s again: a message still being saved there is never skipped
+        const r = await fetch(`${b}/m/${a.me}?since=${since}`, { cache: 'no-store', signal: AbortSignal.timeout(10000) }).then(x => x.ok ? x.json() : null).catch(() => null);
+        if (!r || !Array.isArray(r.m)) return;
+        for (const o of r.m) if (o && typeof o.d === 'string' && o.d.startsWith('P.') && !got.has(o.d)) got.set(o.d, +o.at || 0);
+        if (r.m.length) store.set(k, Math.max(...r.m.map(o => +o.at || 0)));
+        if (!r.more || !r.m.length) return;
+      }
+    }));
+    const fresh = [...got].filter(([t]) => !seenPayloads.has(t)).sort((x, y) => x[1] - y[1]);
+    if (fresh.length) logEv('box_in', { n: fresh.length });
+    fresh.forEach(([t]) => incoming(t, true));   // like a message kept from an alert: only chat, and it says nothing about who is online now
+  } finally { boxInBusy = false; }
+}
+async function boxFiles() {   // a photo or voice note that cannot come from the other phone right now: is it in the mailbox?
+  if (boxFileBusy || !pairKey || !vnReady) return;
+  const now = Date.now(), c = chat.find(x => x.who === 'them' && (x.vn || x.im) && !vnHave.has(x.id) && !imSpentNow(x) && now - x.at < 7 * 86400e3 && now - (boxTried.get(x.id) || 0) > 60000 && (!partnerOnline() || vnGone.has(x.id) || now - x.at > 20000));
+  if (!c) return;
+  boxTried.set(c.id, now); boxFileBusy = true;
+  try {
+    const a = await boxAddr(), md = c.vn || c.im;
+    for (const b of BOXES) {
+      const r = await fetch(`${b}/f/${a.fMe}/${c.id}`, { cache: 'no-store', signal: AbortSignal.timeout(180000) }).catch(() => null);
+      if (!r || !r.ok) continue;
+      const plain = await unsealBytes(new Uint8Array(await r.arrayBuffer()), c.id);
+      if (!plain || plain.length !== md.s) continue;
+      if (vnHave.has(c.id) || imSpentNow(c) || !chat.includes(c)) { boxDel(c.id, true); break; }   // it came the direct way meanwhile, was opened (view once) or cleared: never stored again
+      if (!(await vnTx('readwrite', s => { s.put({ b: new Blob([plain], { type: md.m }), m: md.m }, c.id); }).then(() => true, () => false))) break;   // not stored: tried again in a minute
+      vnPend.delete(c.id); vnGone.delete(c.id); vnHave.add(c.id); renderChat();
+      logEv('box_file_in', { id: c.id, kb: Math.round(plain.length / 1024), ageS: Math.round((Date.now() - c.at) / 1000) });
+      send({ t: 'ack', id: c.id, vn: true, pl: !!c.pl });
+      boxDel(c.id, true);
+      break;
+    }
+  } catch {} finally { boxFileBusy = false; }
+}
+steady(() => { boxFiles(); if (!document.hidden && Date.now() - boxInAt > 60000) boxIn(); }, 5000);
+
 async function sendBuzz() {
   const now = Date.now();
   if (now - buzzAt < 3000) return;
