@@ -914,7 +914,13 @@
   .quote b { display: block; font-size: 12px; }
   .quote span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .85; }
   .dock.open .bubble { cursor: pointer; }
-  .bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }   /* a long press opens Loveline's own menu, not the browser's */
+  .bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: pan-y; }   /* sideways belongs to swipe-to-reply (18 Nov) */
+  .bubble.swiping { transition: none; will-change: transform; }
+  .bubble.swipeBack { transition: transform 300ms cubic-bezier(.2, .9, .3, 1); }   /* springs home, no bounce */
+  .swipeIcon { position: fixed; left: 0; top: 0; z-index: 60; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 16px; background: rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: #fff; opacity: 0; pointer-events: none; }
+  .swipeIcon svg { width: 17px; height: 17px; }
+  .swipeIcon.back { transition: opacity 200ms ease; }
+  @media (prefers-reduced-motion: reduce) { .bubble.swipeBack { transition-duration: 120ms; } }   /* a long press opens Loveline's own menu, not the browser's */
   .bubble.held { filter: brightness(1.25); }
   .bubble.flash { animation: bflash 1.4s ease-out; }
   @keyframes bflash { 0%, 35% { filter: brightness(1.7); } }
@@ -3581,6 +3587,7 @@ function gifNormal() {   // Xed 18 Nov: back to the normal GIFs (on typing a mes
 }
 const gifShut = () => { if (!$('gifPanel').hidden) gifOpen(false); gifNormal(); };   // Xed 18 Nov: closed, and back to normal for next time
 $('text').addEventListener('input', () => { if ($('text').value) gifShut(); });   // typing a message
+$('text').addEventListener('pointerdown', gifShut);   // Xed 18 Nov: even a tap on the message box closes the GIF screen (normal or 18+)
 document.addEventListener('visibilitychange', () => { if (document.hidden) gifShut(); });
 addEventListener('lockshow', gifShut);   // the lock screen came up
 // GIF pages are fetched ahead (Xed 13 Nov: quick): the first page soon after the app opens, and the next page while you look at this one
@@ -3876,6 +3883,53 @@ function holdToOpen(el, pick, open) {   // press and hold about half a second, w
   el.addEventListener('contextmenu', ev => { const t = pick(ev); if (!t) return; ev.preventDefault(); clearTimeout(pressT); pressAt = null; if (Date.now() - menuAt > 700) open(t); });   // Android's own long press opens Loveline's menu, never Chrome's
 }
 holdToOpen($('msgs'), ev => ev.target.closest('.bubble'), bubbleMenu);
+// Xed 18 Nov: swipe a message to the right to reply to it, like WhatsApp. The message follows the finger; a reply arrow
+// grows in behind it; past the mark the phone ticks once, and letting go there starts the reply. Up and down still scrolls.
+{
+  const MARK = 64, icon = document.createElement('div');
+  icon.className = 'swipeIcon'; icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5V20"/></svg>';
+  document.body.appendChild(icon);
+  const band = (x, d = 120, k = .55) => x * d * k / (d + k * x);   // past the mark it still moves, but slower and slower
+  let sw = null, quietUntil = 0;
+  const place = t => {
+    if (sw.el.isConnected) sw.el.style.transform = t ? `translateX(${t}px)` : '';
+    const p = Math.min(1, t / MARK);
+    icon.style.opacity = p; icon.style.transform = `translate(${sw.x0 + Math.min(t, MARK) / 2 - 16}px, ${sw.y0 - 16}px) scale(${sw.armed ? 1.12 : .55 + .45 * p})`;
+  };
+  $('msgs').addEventListener('pointerdown', ev => {
+    if (sw || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+    const el = ev.target.closest('.bubble'); if (!el || !el.dataset.id || ev.target.closest('.vnWave')) return;   // the voice wave is dragged to seek
+    const r = el.getBoundingClientRect();
+    sw = { el, id: el.dataset.id, pid: ev.pointerId, sx: ev.clientX, sy: ev.clientY, on: false, armed: false, t: 0, x0: r.left, y0: r.top + Math.min(r.height, 80) / 2 };
+  });
+  $('msgs').addEventListener('pointermove', ev => {
+    if (!sw || ev.pointerId !== sw.pid) return;
+    const dx = ev.clientX - sw.sx, dy = ev.clientY - sw.sy;
+    if (!sw.on) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { sw = null; return; }   // a scroll, not a swipe
+      if (dx < 10 || dx < Math.abs(dy) * 1.2) return;
+      sw.on = true; sw.el.classList.add('swiping'); icon.classList.remove('back'); try { sw.el.setPointerCapture(ev.pointerId); } catch {}
+    }
+    const raw = Math.max(0, dx), t = raw <= MARK ? raw : MARK + band(raw - MARK);
+    const armed = raw >= MARK;
+    if (armed && !sw.armed) tap();   // the tick says "let go now to reply"
+    sw.armed = armed; sw.t = t; place(t);
+  });
+  const end = ev => {
+    if (!sw || (ev && ev.pointerId !== sw.pid)) return;
+    const s = sw; sw = null;
+    if (!s.on) return;
+    quietUntil = Date.now() + 400;   // the tap that ends a swipe opens nothing
+    s.el.classList.remove('swiping'); s.el.classList.add('swipeBack'); s.el.style.transform = '';
+    icon.classList.add('back'); icon.style.opacity = 0;
+    setTimeout(() => s.el.classList.remove('swipeBack'), 320);
+    const c = s.armed && ev && ev.type === 'pointerup' ? msgById(s.id) : null;
+    if (c) { openChat(); setReply(c); $('text').focus(); }
+  };
+  $('msgs').addEventListener('pointerup', end); $('msgs').addEventListener('pointercancel', end);
+  $('msgs').addEventListener('click', ev => { if (Date.now() < quietUntil) { ev.stopPropagation(); ev.preventDefault(); } }, true);
+}
 holdToOpen($('pinBar'), () => $('pinBar'), bar => {
   const p = pinList()[pinAt]; if (!p) return;
   openMsgMenu(bar, [['Go to message', () => jumpTo(p.id)], ['Unpin', () => setPin(p, false)]]);
@@ -6679,7 +6733,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261118-045257';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261118-050257';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
