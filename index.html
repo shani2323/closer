@@ -2166,6 +2166,7 @@ async function forgetPartner() {
   logLink('forgot the partner phone: moved to a new room');
   leaving = true;
   if (!isRemote) await stopAll().catch(() => {});
+  if (myPush) await Promise.race([navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => sub && sub.unsubscribe()), new Promise(res => setTimeout(res, 3000))]).catch(() => {});   // the old alert address dies, so the forgotten phone can no longer ring this one; the new room makes a fresh one with no question (checkPush)
   const mine = []; for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key && key.startsWith('closer:') && key.endsWith(':' + room)) mine.push(key); }
   for (const key of mine) { const what = key.slice(7, -room.length - 1); if (!keep.includes(what)) try { localStorage.setItem('closer:' + what + ':' + r, localStorage.getItem(key)); } catch {} }
   store.set('lobbyStrikes', []); store.set('proveStrikes', []); store.set('lobbyMoves', []);
@@ -6769,7 +6770,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261118-231830';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261118-232349';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
