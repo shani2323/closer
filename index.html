@@ -257,7 +257,7 @@
   .chatWhoT b { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chatWhoT small { display: block; font-size: 12px; color: var(--label2); }
   .chatWhoT small.live { color: var(--green); }
-  #clearSheet, #askSheet, #newSheet, #delSheet { z-index: 12; }
+  #clearSheet, #askSheet, #newSheet, #delSheet, #forgetSheet { z-index: 12; }
   .msgMenu button.danger { color: #ff453a; }
   /* the end of a game: the loser and the winner each see where it goes next; taps pass through, so Stop always works */
   .result { position: fixed; inset: 0; z-index: 13; display: grid; place-items: center; padding: 16px; pointer-events: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: resIn .35s ease-out; }
@@ -1259,8 +1259,8 @@
     <button class="row" id="rejoinBtn">Reconnect Leo and Max</button>
     <button class="row" id="copyLink">Copy your partner's link</button>
     <button class="row switchSide" hidden>Switch this phone to his side</button>
-    <button class="row danger" id="forget" hidden>Forget paired phone</button>
     <button class="row findPartner">Find my partner's phone</button>
+    <button class="row danger forgetPartner" hidden>Forget partner's phone</button>
     <button class="row copyReport">Copy connection report</button>
   </section>
 
@@ -1269,6 +1269,7 @@
     <p class="note" id="remoteText"></p>
     <button class="row switchSide" hidden>Switch this phone to her side</button>
     <button class="row findPartner">Find my partner's phone</button>
+    <button class="row danger forgetPartner" hidden>Forget partner's phone</button>
     <button class="row copyReport">Copy connection report</button>
   </section>
 </main>
@@ -1358,6 +1359,15 @@
     <p>It disappears from both phones, with no trace that it was there.</p>
     <button class="primary danger" id="delYes">Delete for both</button>
     <button type="button" class="ghost" id="delNo">Cancel</button>
+  </form>
+</div>
+<div class="sheet" id="forgetSheet" hidden>
+  <form id="forgetForm" class="glass">
+    <div class="grabber"></div>
+    <h2 id="forgetTitle">Forget your partner's phone?</h2>
+    <p id="forgetText"></p>
+    <button class="primary danger" id="forgetYes">Forget</button>
+    <button type="button" class="ghost" id="forgetNo">Cancel</button>
   </form>
 </div>
 <div class="sheet" id="clearSheet" hidden>
@@ -1888,6 +1898,7 @@ function render() {
   }
   if (tkey) { $('chatSeen').textContent = tk === 'rec' ? 'recording audio…' : tk === 'ph' ? 'sending a photo…' : 'typing…'; $('chatSeen').classList.add('typingNow'); } else $('chatSeen').classList.remove('typingNow');   // the header says it too, like WhatsApp
 
+  for (const b of document.querySelectorAll('.forgetPartner')) b.hidden = !(isRemote ? hostPair : pair);
   if (isRemote) {
     const [t, p] = clockOff ? ['The two phone clocks disagree', `They are ${Math.abs(clockOff)} minutes apart. Turn on automatic date and time on both phones.`]
       : blocked === 'code' ? ['Passcode does not match', `This phone's passcode is not the same as ${who()}'s. Tap your name, then Change passcode, and use the one you both use.`]
@@ -1908,7 +1919,6 @@ function render() {
     $('connect').textContent = n === 0 ? (bt === 'nochrome' ? 'Copy address' : bt === 'notfound' || bt === 'blocked' ? 'Try again' : store.get('eggsSeen') ? `Bring ${label('vib')} and ${label('suc')} back` : `Connect ${label('vib')} and ${label('suc')}`) : n === 1 ? `Make it a threesome: bring ${who2(outK)} in` : `Bring ${who2('vib')} or ${who2('suc')} in`;
     $('hostHint').textContent = n === 2 ? `${label('vib')} and ${label('suc')} are both here.` : n === 1 ? `${label(inK)} is here. Switch ${label(outK)} on to join you both.` : `Switch ${label('vib')} and ${label('suc')} on and close the official app.`;
     $('allowLabel').textContent = `Let ${partnerName || 'your partner'} control`;
-    $('forget').hidden = !pair;
     $('allow').checked = allow;
   }
 }
@@ -2138,6 +2148,31 @@ function lobbyFind() {
   store.set('lobbyStrikes', []); store.set('proveStrikes', []); store.set('lobbyMoves', []); lobbyStuck = false; lobbyOk.clear(); lobbyYes.clear(); lobbyNo.clear(); lobbyNot.clear(); lobbyPeers.clear(); lobbyManual = true; lobbyPaused = false; lobbyTick();
   notify("Looking for your partner's phone. Keep Loveline open on both phones, with the same passcode.", 7000);
 }
+// Xed 18 Nov: either phone can forget the other. This phone moves to a brand-new private room of its own, carrying its chat, scores
+// and settings, but not the pairing or the partner's alert address. The other phone notices it is alone. Both then look for each
+// other by the passcode exactly as two new phones do: his phone asks Connect once, her phone hands over its room. Her old link stops working.
+function forgetAsk() {
+  tap();
+  if (!myV()) return notify('Set a passcode first, the same one on both phones. Without it the phones cannot find each other again.', 7000);
+  $('forgetTitle').textContent = `Forget ${who()}'s phone?`;
+  $('forgetText').textContent = `The two phones stop being connected${isRemote ? '' : ', and your old private link stops working'}. Your chat stays on this phone. Then both phones look for each other by your passcode, as on a new phone, and ${isRemote ? 'you tap' : who() + ' taps'} Connect once.`;
+  $('forgetSheet').hidden = false;
+}
+async function forgetPartner() {
+  if (leaving) return;
+  const r = b64url(rand(12)), k = b64url(rand(32)), keep = ['pair', 'hostPair', 'partnerPush', 'partnerKeys', 'partnerBox'];
+  const told = await send({ t: 'forgot' }).catch(() => false); hushed = true;
+  if (told) await new Promise(res => setTimeout(res, 700));   // a moment for the note to leave before the reload
+  logLink('forgot the partner phone: moved to a new room');
+  leaving = true;
+  if (!isRemote) await stopAll().catch(() => {});
+  const mine = []; for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key && key.startsWith('closer:') && key.endsWith(':' + room)) mine.push(key); }
+  for (const key of mine) { const what = key.slice(7, -room.length - 1); if (!keep.includes(what)) try { localStorage.setItem('closer:' + what + ':' + r, localStorage.getItem(key)); } catch {} }
+  store.set('lobbyStrikes', []); store.set('proveStrikes', []); store.set('lobbyMoves', []);
+  if (isRemote) store.set('lastRemote', location.origin + location.pathname + '#r=' + r + '&k=' + k); else store.set('hostRoom', { r, k });
+  await Promise.race([moveDbs(room, r), new Promise(res => setTimeout(res, 6000))]).catch(() => {});
+  location.replace(location.pathname + (isRemote ? '#r=' + r + '&k=' + k : '#h=1&r=' + r + '&k=' + k)); location.reload();
+}
 async function startNet() {
   linkKey = await crypto.subtle.importKey('raw', unb64url(hp.get('k')), 'AES-GCM', false, ['encrypt', 'decrypt']);
   keys = await loadKeys();
@@ -2252,11 +2287,12 @@ async function handle(txt, late) {
   await Promise.race([isRemote ? fromHost(m, viaLink) : fromRemote(m, viaLink), new Promise(r => setTimeout(r, 3000))]);
 }
 let sendQ = Promise.resolve();
+let hushed = false;   // set once this phone has forgotten its partner: nothing more goes out, or the other phone would think it came back
 function send(obj, viaLink = false) {   // in order: sound setup messages must not overtake each other; resolves true once sent
   if (obj.t === 'msg' && !viaLink) { setTimeout(carry, 400); setTimeout(carry, 6500); setTimeout(boxOut, 700); setTimeout(boxOut, 6600); }   // Xed 14 Nov: a message that cannot reach her app goes inside a phone alert
   sendQ = sendQ.then(async () => {
     const key = viaLink ? linkKey : pairKey;
-    if (parked || (!online && !direct()) || !key) return false;
+    if (parked || hushed || (!online && !direct()) || !key) return false;
     obj.from = me; obj.ts = Date.now();
     const payload = (viaLink ? 'L.' : 'P.') + await seal(obj, key);
     if (!viaLink && direct()) dc.send(payload);
@@ -6733,7 +6769,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261118-050257';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261118-231830';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7156,6 +7192,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'pushsub') gotPushSub(m);
   if (m.t === 'pin' && gotPin(m)) { pinAt = 0; savePins(); notify(m.on ? `${who()} pinned a message.` : `${who()} unpinned a message.`); }
   if (m.t === 'pins' && m.all && typeof m.all === 'object') { let got = false; for (const [id, p] of Object.entries(m.all).slice(0, 2000)) got = gotPin({ ...p, id }) || got; if (got) savePins(); }
+  if (m.t === 'forgot') { partnerSeen = 0; notify(`${who()} forgot this phone. The phones look for each other again by your passcode.`, 9000); render(); }
   if (m.t === 'pushdead') checkPush(true);   // the other phone found this phone's alert address dead: make a new one
   if (m.t === 'resync') resync();
   if (m.t === 'stroke' && m.s) gotWhole(m.s);
@@ -7952,6 +7989,10 @@ $('clearChat').onclick = ev => { ev.stopPropagation(); tap(); if (!chat.length &
 $('askForm').onsubmit = ev => { ev.preventDefault(); $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askNo').textContent = 'Refuse'; if (lobbyMode) return lobbySubmit(); const m = asking; asking = null; if (m) isRemote ? takeHost(m) : letIn(m); };
 $('askNo').onclick = () => { $('askSheet').hidden = true; $('askYes').textContent = 'Allow'; $('askNo').textContent = 'Refuse'; if (lobbyMode) return lobbyCancel(); if (asking) { refused.add(asking.from); if (!isRemote) send({ t: 'busy', to: asking.from, no: true }, true); logLink('a new phone or page was refused'); } asking = null; };
 for (const b of document.querySelectorAll('.findPartner')) b.onclick = lobbyFind;
+for (const b of document.querySelectorAll('.forgetPartner')) b.onclick = forgetAsk;
+$('forgetNo').onclick = () => { $('forgetSheet').hidden = true; };
+$('forgetSheet').onclick = ev => { if (ev.target === $('forgetSheet')) $('forgetSheet').hidden = true; };
+$('forgetForm').onsubmit = ev => { ev.preventDefault(); $('forgetSheet').hidden = true; forgetPartner(); };
 for (const b of document.querySelectorAll('.copyReport')) b.onclick = async () => { try { await navigator.clipboard.writeText(linkReport()); notify('Connection report copied. Paste it to Claude.'); } catch { notify('Could not copy. Try again with this page on screen.'); } };
 $('clearNo').onclick = () => { $('clearSheet').hidden = true; };
 // ---- delete a message for both, like Telegram (Xed 13 Nov): gone from both phones, no "deleted" mark. Sent again every
@@ -8343,19 +8384,6 @@ else {
   $('copyLink').onclick = async () => {
     tap();
     try { await navigator.clipboard.writeText(shareUrl); notify("Copied. Send it to your partner, and keep it private: anyone with it can join."); } catch { prompt("Your partner's link", shareUrl); }
-  };
-  $('forget').onclick = async () => {
-    if (!confirm('Remove the paired phone? This makes a brand-new private link, and the old one stops working. The videos and chat on this phone are deleted too. Send the new link to your partner afterwards.')) return;
-    await stopAll();
-    await tx(['meta', 'blobs', 'parts'], 'readwrite', t => { t('meta').clear(); t('blobs').clear(); t('parts').clear(); }).catch(() => {});
-    store.set('chat:' + room, null);
-    store.set('tower:' + room, null);
-    store.set('gameScore:' + room, null);
-    store.set('partnerPush:' + room, null);
-    if (myPush) await alertsOff();
-    store.set('pair:' + room, null);
-    store.set('hostRoom', { r: b64url(rand(12)), k: b64url(rand(32)) });
-    leaving = true; location.replace(location.pathname);
   };
   document.addEventListener('visibilitychange', () => {
     logLink(document.hidden ? 'screen off or tab hidden' : 'back on screen', 'vis', { hidden: document.hidden });
