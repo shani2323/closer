@@ -1903,6 +1903,7 @@ function render() {
     const [t, p] = clockOff ? ['The two phone clocks disagree', `They are ${Math.abs(clockOff)} minutes apart. Turn on automatic date and time on both phones.`]
       : blocked === 'code' ? ['Passcode does not match', `This phone's passcode is not the same as ${who()}'s. Tap your name, then Change passcode, and use the one you both use.`]
       : blocked === 'tries' ? ['Too many wrong passcodes', `${who()}'s phone keeps new phones out now. There, open Play and tap "Find my partner's phone". Then open Loveline here again.`]
+      : blocked === 'taken' ? ['On your other phone', `${who()} is connected to your other phone now. Leave this screen and come back, and this phone takes over.`]
       : blocked === 'no' ? ['This phone was refused', `${who()} did not allow this phone.`]
       : blocked && lockOn() ? ['Checking your passcode', `${who()}'s phone is checking that this phone uses the same passcode. It only takes a moment.`]
       : blocked ? ['Asking to connect', `${who()} has to tap Allow on the other phone. This happens on a new phone or in a private tab.`]
@@ -1983,7 +1984,7 @@ function tryPay(k, tag) {   // every phone that has not proven the passcode cost
   return true;
 }
 function lobbyPausedNote() { if (lobbyPaused) return; lobbyPaused = true; notify('Finding is paused on this phone: 5 phones tried a different passcode. To look again, tap "Find my partner\'s phone" in Play.', 9000); }
-const lobbyLooking = () => online && !document.hidden && $('lock').hidden && $('nameSheet').hidden && !partnerOnline();   // never while connected, never behind the lock
+const lobbyLooking = () => online && !document.hidden && $('lock').hidden && $('nameSheet').hidden && (!partnerOnline() || !isRemote);   // her phone never moves, so it can answer while connected (18 Nov: his second phone could not reach her)   // never while connected, never behind the lock
 const phoneId = store.get('phoneId') || (() => { const x = b64url(rand(9)); store.set('phoneId', x); return x; })();   // the same in every Loveline window on this phone, so two windows never pair with each other
 let lobbyStuck = false;
 const lobbyHello = () => ({ t: 'ok', name: myName, side: isRemote ? 'remote' : 'host', rh: lobbyRh, pid: phoneId, av: APP_V });
@@ -2035,6 +2036,7 @@ async function lobbyTick() {
 }
 setInterval(lobbyTick, 4000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) lobbyTick(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && isRemote && takenOver) { takenOver = false; blocked = false; logLink('opened again: taking over from his other phone'); hello(); } });
 async function lobbyPeer(from, A, pay) {
   let p = lobbyPeers.get(from);
   if (p && p.A === A) {
@@ -2082,6 +2084,7 @@ async function gotLobby(txt) {
     if (b.av !== APP_V) { if (Date.now() - avAt > 20000) { avAt = Date.now(); checkNewer(); } return; }   // both phones must run the same copy first; the older one updates itself
     if (b.rh === lobbyRh || lobbyOk.has(m.from) || p.sideNo) return;   // same room: the normal connection is on its way
     const nm = typeof b.name === 'string' && b.name.trim() ? b.name.trim().slice(0, 24) : 'your partner', sig = b.side + '|' + nm, same = b.side === (isRemote ? 'remote' : 'host');
+    if (same && isRemote) return;   // Xed 19 Nov: he has two phones on his side; one of his phones never asks anything about another (it once switched his second phone to her side)
     if (!same && !isRemote) { if (!p.noted) { p.noted = true; notify(`Found ${nm}. When ${nm} taps Connect, the phones connect. Nothing to tap here.`, 8000); } return; }   // her phone never asks and never moves (Xed 11 Nov: she got no box)
     if (!same && lobbyYes.has(sig.toLowerCase())) { lobbyOk.add(m.from); lobbyBox(m.from, { t: 'go' }); return; }   // Connect was tapped for this partner already; they only opened the app again
     if (!same && lobbyNot.has(sig.toLowerCase())) return;
@@ -2160,7 +2163,7 @@ function forgetAsk() {
 }
 async function forgetPartner() {
   if (leaving) return;
-  const r = b64url(rand(12)), k = b64url(rand(32)), keep = ['pair', 'hostPair', 'partnerPush', 'partnerKeys', 'partnerBox'];
+  const r = b64url(rand(12)), k = b64url(rand(32)), keep = ['pair', 'hostPair', 'hisPhones', 'partnerPush', 'partnerKeys', 'partnerBox'];
   const told = await send({ t: 'forgot' }).catch(() => false); hushed = true;
   if (told) await new Promise(res => setTimeout(res, 700));   // a moment for the note to leave before the reload
   logLink('forgot the partner phone: moved to a new room');
@@ -2195,7 +2198,7 @@ async function startNet() {
       if (boardDirty) setTimeout(publishBoard, 3000);   // drawn while this phone had no connection
       c.subscribe(fileIn);
       const first = !online; online = true;
-      logEv('relay_up', { i: i + 1, first }); if (first) { logLink('relay reached'); isRemote ? hello() : publishState(); boxIn(); }
+      logEv('relay_up', { i: i + 1, first }); if (first) { logLink('relay reached'); isRemote ? (takenOver || hello()) : publishState(); boxIn(); }
       if (first) for (const m of chat) if (m.who === 'me' && !((m.st || 0) >= 1) && Date.now() - m.at < 86400000) send(msgOf(m)).then(ok => { if (ok && (m.st || 0) < 1) { m.st = 1; saveChat(); renderChat(); } });   // 17 Nov: typed while no relay was reached (e.g. the first second after the phone woke the app): goes out now, not only when the other phone comes on
       render();
     });
@@ -2279,7 +2282,7 @@ async function handle(txt, late) {
     return;
   }
   clockOff = 0;
-  if (viaLink !== ['hello', 'welcome', 'busy', 'clock', 'here', 'prove', 'proof', 'proved'].includes(m.t)) return;
+  if (viaLink !== ['hello', 'welcome', 'busy', 'clock', 'here', 'prove', 'proof', 'proved', 'taken'].includes(m.t)) return;
   if (['state', 'set', 'stop', 'lead', 'rename', 'mix', 'wplay', 'wbeat', 'vlib'].includes(m.t)) {   // a copy can arrive late by the slower route: never let it undo a newer change
     const slot = m.t + (m.egg || '');
     if (m.ts < (lastTs[slot] || 0)) return;
@@ -6770,7 +6773,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261118-232349';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261119-001919';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7054,7 +7057,7 @@ steady(() => {   // once a second: keep the library in step, fetch missing video
 }, 1000);
 
 // ---- remote side
-let helloAt = 0;
+let helloAt = 0, takenOver = false;   // Xed 18 Nov, two phones on his side: the one opened last is the one connected; the other waits quietly
 function hello() { if (!keys) return; helloAt = Date.now(); send({ t: 'hello', pub: keys.pub, name: myName }, true); }
 function stopReached() { if (stopWarned) notify('Stop reached her phone.'); stopPending = 0; stopWarned = false; keep('stopAt', 0); }
 function dropMoves() { for (const k in moving) { delete moving[k]; state[k].editUntil = 0; } leadWant = null; }
@@ -7109,6 +7112,7 @@ async function fromHost(m, viaLink) {
     if (m.t === 'prove') { answerProve(m); return; }
     if (m.t === 'proof') { await gotProof(m); return; }
     if (m.t === 'proved') { await gotProved(m); return; }
+    if (m.t === 'taken') { if (!takenOver) { takenOver = true; blocked = 'taken'; partnerSeen = 0; logLink('her phone moved to his other phone'); render(); } return; }
     if (m.t === 'busy' && m.why === 'code' && m.from === askedBy && !hostPair) { refusedV = myV(); if (window.lockRefused) window.lockRefused(); }
     if (m.t === 'busy' && !partnerOnline() && !(blocked === 'code' && !m.why && myV() === refusedV)) { blocked = m.why === 'code' || m.why === 'tries' ? m.why : m.no ? 'no' : 'ask'; render(); }   // a refused passcode stays shown until it is changed
     if (m.t === 'welcome' && typeof m.from === 'string') {
@@ -7285,6 +7289,9 @@ function gotName(n) {
 // ---- egg side (the phone with Bluetooth)
 async function letIn(m) {
   if (!pair || pair.id !== m.from || !sameKey(pair.pub, m.pub)) {
+    if (pair && pair.id !== m.from) send({ t: 'taken', to: pair.id }, true);   // his other phone: it goes quiet until he opens it again
+    const his = [pair, { id: m.from, pub: pubOnly(m.pub) }, ...store.get('hisPhones:' + room, [])].filter(Boolean);
+    store.set('hisPhones:' + room, his.filter((x, i) => his.findIndex(y => y.id === x.id) === i).slice(0, 3));
     pair = { id: m.from, pub: pubOnly(m.pub) }; store.set('pair:' + room, pair);
     pairKey = await derive(pair.pub);
     for (const k in KINDS) state[k].heardN = 0;
@@ -7362,7 +7369,8 @@ async function fromRemote(m, viaLink) {
     if (m.t === 'proof') { if (m.to === me) await gotProof(m); return; }
     if (m.t === 'proved') { if (m.to === me) await gotProved(m); return; }
     if (m.t === 'busy') { if (m.to === me && m.why === 'code' && m.from === askedBy && pair && pair.id === m.from) { refusedV = myV(); if (window.lockRefused) window.lockRefused(); } return; }   // only the calculator shows
-    if (pair && !(pair.id === m.from && sameKey(pair.pub, m.pub))) newPhone(m);
+    const known = store.get('hisPhones:' + room, []).some(x => x.id === m.from && sameKey(x.pub, m.pub));   // one of his phones paired here before: it takes over with no check (18 Nov: he has two)
+    if (pair && !(pair.id === m.from && sameKey(pair.pub, m.pub)) && !known) newPhone(m);
     else await letIn(m);
     return;
   }
@@ -8325,7 +8333,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   if (lanes) paceVideo();
   if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16) + (partnerPush && partnerKeys ? '+' : '') + (partnerPush && partnerKeys && partnerBox ? partnerBox === 2 ? 'b2' : 'b' : ''), pk: pinLast(), cs: chatSig(), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
-    if (!partnerOnline() && Date.now() - helloAt > 3000) hello();
+    if (!partnerOnline() && !takenOver && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
     if (stopPending && hostZeroAt > stopPending) stopReached();
     else if (stopPending) {
