@@ -1516,11 +1516,11 @@ if (!hp.has('r') || !hp.has('k')) {
   hp = new URLSearchParams({ h: '1', r: saved ? saved.r : b64url(rand(12)), k: saved ? saved.k : b64url(rand(32)) });
   history.replaceState(null, '', '#' + hp);
 }
-const room = hp.get('r');
-if (store.get('deadRooms', []).includes(room)) {   // Xed 19 Nov: a second window (a Chrome tab) still in a room this phone forgot came back and pulled the phone back into it; it follows the new room instead
+if (store.get('deadRooms', []).includes(hp.get('r'))) {   // Xed 19 Nov: a window in a room this phone left (Forget, or joined hers). An iPhone's reload kept opening the old address, so this switches in place: no reload that could land here again
   const want = isRemote ? store.get('lastRemote') : store.get('hostRoom'), r = isRemote ? roomOf(want) : want && want.r;
-  if (r && r !== room && !store.get('deadRooms', []).includes(r)) { location.replace(isRemote ? want : location.pathname + '#h=1&r=' + want.r + '&k=' + want.k); location.reload(); throw new Error('leaving a forgotten room'); }
+  if (r && r !== hp.get('r') && !store.get('deadRooms', []).includes(r)) { hp = isRemote ? new URLSearchParams(String(want).split('#')[1] || '') : new URLSearchParams({ h: '1', r: want.r, k: want.k }); history.replaceState(null, '', '#' + hp); }
 }
+const room = hp.get('r');
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist().then(ok => logLink(ok ? 'storage kept' : 'storage may be cleared by the phone')); } catch {}   // ask Chrome and Safari never to auto-delete the chat, the pairing and the scores
 let partnerPush = store.get('partnerPush:' + room) || null, myPush = store.get('myPush:' + room) || null;
 let partnerKeys = store.get('partnerKeys:' + room) || null, myKeys = store.get('myKeys:' + room) || null;   // the two public keys of each phone's alert address: with them an alert can say which kind it is
@@ -2119,7 +2119,7 @@ async function gotLobby(txt) {
     const moves = store.get('lobbyMoves', []).filter(t => Date.now() - t < 180000);
     if (moves.length >= 2) { if (!lobbyStuck) { lobbyStuck = true; logLink('moved twice in 3 minutes: not moving again'); notify('Connecting got stuck, so this phone stopped moving. Open Play and tap "Find my partner\'s phone" to try again.', 9000); } return; }   // a safety stop: never reload in circles
     moves.push(Date.now()); store.set('lobbyMoves', moves);
-    store.set('deadRooms', store.get('deadRooms', []).filter(x => x !== b.r));   // joining a room again makes it live again on this phone
+    store.set('deadRooms', [...store.get('deadRooms', []).filter(x => x !== b.r && x !== room), room].slice(-20));   // joining a room makes it live on this phone; the room left behind is dead, so a reload that lands back in it (an iPhone does that, 19 Nov) goes on to her room
     const part = (isRemote ? '' : 'h=1&') + 'r=' + b.r + '&k=' + b.k;
     logLink('joined her room without a link');
     if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
@@ -6779,7 +6779,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261119-012957';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261119-014515';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
