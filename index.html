@@ -1517,6 +1517,10 @@ if (!hp.has('r') || !hp.has('k')) {
   history.replaceState(null, '', '#' + hp);
 }
 const room = hp.get('r');
+if (store.get('deadRooms', []).includes(room)) {   // Xed 19 Nov: a second window (a Chrome tab) still in a room this phone forgot came back and pulled the phone back into it; it follows the new room instead
+  const want = isRemote ? store.get('lastRemote') : store.get('hostRoom'), r = isRemote ? roomOf(want) : want && want.r;
+  if (r && r !== room && !store.get('deadRooms', []).includes(r)) { location.replace(isRemote ? want : location.pathname + '#h=1&r=' + want.r + '&k=' + want.k); location.reload(); throw new Error('leaving a forgotten room'); }
+}
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist().then(ok => logLink(ok ? 'storage kept' : 'storage may be cleared by the phone')); } catch {}   // ask Chrome and Safari never to auto-delete the chat, the pairing and the scores
 let partnerPush = store.get('partnerPush:' + room) || null, myPush = store.get('myPush:' + room) || null;
 let partnerKeys = store.get('partnerKeys:' + room) || null, myKeys = store.get('myKeys:' + room) || null;   // the two public keys of each phone's alert address: with them an alert can say which kind it is
@@ -2115,6 +2119,7 @@ async function gotLobby(txt) {
     const moves = store.get('lobbyMoves', []).filter(t => Date.now() - t < 180000);
     if (moves.length >= 2) { if (!lobbyStuck) { lobbyStuck = true; logLink('moved twice in 3 minutes: not moving again'); notify('Connecting got stuck, so this phone stopped moving. Open Play and tap "Find my partner\'s phone" to try again.', 9000); } return; }   // a safety stop: never reload in circles
     moves.push(Date.now()); store.set('lobbyMoves', moves);
+    store.set('deadRooms', store.get('deadRooms', []).filter(x => x !== b.r));   // joining a room again makes it live again on this phone
     const part = (isRemote ? '' : 'h=1&') + 'r=' + b.r + '&k=' + b.k;
     logLink('joined her room without a link');
     if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
@@ -2173,6 +2178,7 @@ async function forgetPartner() {
   const mine = []; for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key && key.startsWith('closer:') && key.endsWith(':' + room)) mine.push(key); }
   for (const key of mine) { const what = key.slice(7, -room.length - 1); if (!keep.includes(what)) try { localStorage.setItem('closer:' + what + ':' + r, localStorage.getItem(key)); } catch {} }
   store.set('lobbyStrikes', []); store.set('proveStrikes', []); store.set('lobbyMoves', []);
+  store.set('deadRooms', [...store.get('deadRooms', []).filter(x => x !== r), room].slice(-20));   // no window on this phone may go back into it
   if (isRemote) store.set('lastRemote', location.origin + location.pathname + '#r=' + r + '&k=' + k); else store.set('hostRoom', { r, k });
   await Promise.race([moveDbs(room, r), new Promise(res => setTimeout(res, 6000))]).catch(() => {});
   location.replace(location.pathname + (isRemote ? '#r=' + r + '&k=' + k : '#h=1&r=' + r + '&k=' + k)); location.reload();
@@ -6773,7 +6779,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261119-002448';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261119-004603';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
