@@ -6779,7 +6779,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261119-004603';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261119-011947';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -8415,6 +8415,7 @@ function followRoom() {   // also one side: Xed's own phone had her side in a Ch
   const role = store.get('role'), side = role === 'remote' || role === 'host' ? role : isRemote ? 'remote' : 'host';
   const want = side === 'remote' ? store.get('lastRemote') : store.get('hostRoom'), r = side === 'remote' ? roomOf(want) : want && want.r;
   if (!r || (side === 'host' && !want.k) || (r === room && side === (isRemote ? 'remote' : 'host'))) return;
+  if (document.hidden) { parkHere(); return; }   // Xed 19 Nov: a window in the background only pauses; it moves when it is looked at, so it never takes the phone's one running place from the window in use
   leaving = true; logLink(side === (isRemote ? 'remote' : 'host') ? 'another Loveline window on this phone uses another room: following it' : `this phone was switched to ${side === 'remote' ? 'his' : 'her'} side in another window: following it`);
   if (!isRemote) stopAll();   // her toys stop before this window leaves her side
   location.replace(side === 'remote' ? want : location.pathname + '#h=1&r=' + want.r + '&k=' + want.k); location.reload();
