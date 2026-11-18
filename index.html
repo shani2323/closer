@@ -2282,7 +2282,7 @@ async function handle(txt, late) {
     return;
   }
   clockOff = 0;
-  if (viaLink !== ['hello', 'welcome', 'busy', 'clock', 'here', 'prove', 'proof', 'proved', 'taken'].includes(m.t)) return;
+  if (viaLink !== ['hello', 'welcome', 'busy', 'clock', 'here', 'prove', 'proof', 'proved'].includes(m.t)) return;
   if (['state', 'set', 'stop', 'lead', 'rename', 'mix', 'wplay', 'wbeat', 'vlib'].includes(m.t)) {   // a copy can arrive late by the slower route: never let it undo a newer change
     const slot = m.t + (m.egg || '');
     if (m.ts < (lastTs[slot] || 0)) return;
@@ -6773,7 +6773,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261119-001919';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261119-002228';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7112,7 +7112,6 @@ async function fromHost(m, viaLink) {
     if (m.t === 'prove') { answerProve(m); return; }
     if (m.t === 'proof') { await gotProof(m); return; }
     if (m.t === 'proved') { await gotProved(m); return; }
-    if (m.t === 'taken') { if (!takenOver) { takenOver = true; blocked = 'taken'; partnerSeen = 0; logLink('her phone moved to his other phone'); render(); } return; }
     if (m.t === 'busy' && m.why === 'code' && m.from === askedBy && !hostPair) { refusedV = myV(); if (window.lockRefused) window.lockRefused(); }
     if (m.t === 'busy' && !partnerOnline() && !(blocked === 'code' && !m.why && myV() === refusedV)) { blocked = m.why === 'code' || m.why === 'tries' ? m.why : m.no ? 'no' : 'ask'; render(); }   // a refused passcode stays shown until it is changed
     if (m.t === 'welcome' && typeof m.from === 'string') {
@@ -7122,6 +7121,7 @@ async function fromHost(m, viaLink) {
     return;
   }
   if (!hostPair || m.from !== hostPair.id) return;
+  if (m.t === 'taken') { if (!takenOver) { takenOver = true; blocked = 'taken'; partnerSeen = 0; logLink('her phone moved to his other phone'); render(); } return; }
   blocked = false;
   seen(m);
   gotName(m.name);
@@ -7289,7 +7289,7 @@ function gotName(n) {
 // ---- egg side (the phone with Bluetooth)
 async function letIn(m) {
   if (!pair || pair.id !== m.from || !sameKey(pair.pub, m.pub)) {
-    if (pair && pair.id !== m.from) send({ t: 'taken', to: pair.id }, true);   // his other phone: it goes quiet until he opens it again
+    if (pair && pair.id !== m.from && pairKey) { const t = 'P.' + await seal({ t: 'taken', from: me, ts: Date.now() }, pairKey); for (const c of clients) if (c.connected) c.publish(topicFromHost, t); }   // his other phone goes quiet until he opens it again; locked with its own key, so nobody else can send this
     const his = [pair, { id: m.from, pub: pubOnly(m.pub) }, ...store.get('hisPhones:' + room, [])].filter(Boolean);
     store.set('hisPhones:' + room, his.filter((x, i) => his.findIndex(y => y.id === x.id) === i).slice(0, 3));
     pair = { id: m.from, pub: pubOnly(m.pub) }; store.set('pair:' + room, pair);
@@ -7369,7 +7369,7 @@ async function fromRemote(m, viaLink) {
     if (m.t === 'proof') { if (m.to === me) await gotProof(m); return; }
     if (m.t === 'proved') { if (m.to === me) await gotProved(m); return; }
     if (m.t === 'busy') { if (m.to === me && m.why === 'code' && m.from === askedBy && pair && pair.id === m.from) { refusedV = myV(); if (window.lockRefused) window.lockRefused(); } return; }   // only the calculator shows
-    const known = store.get('hisPhones:' + room, []).some(x => x.id === m.from && sameKey(x.pub, m.pub));   // one of his phones paired here before: it takes over with no check (18 Nov: he has two)
+    const known = !refused.has(m.from) && store.get('hisPhones:' + room, []).some(x => x.id === m.from && sameKey(x.pub, m.pub));   // one of his phones paired here before: it takes over with no check (18 Nov: he has two)
     if (pair && !(pair.id === m.from && sameKey(pair.pub, m.pub)) && !known) newPhone(m);
     else await letIn(m);
     return;
