@@ -1988,7 +1988,7 @@ function tryPay(k, tag) {   // every phone that has not proven the passcode cost
   return true;
 }
 function lobbyPausedNote() { if (lobbyPaused) return; lobbyPaused = true; notify('Finding is paused on this phone: 5 phones tried a different passcode. To look again, tap "Find my partner\'s phone" in Play.', 9000); }
-const lobbyLooking = () => online && !document.hidden && $('lock').hidden && $('nameSheet').hidden && (!partnerOnline() || !isRemote);   // her phone never moves, so it can answer while connected (18 Nov: his second phone could not reach her)   // never while connected, never behind the lock
+const lobbyLooking = () => online && !document.hidden && (!isRemote || ($('lock').hidden && $('nameSheet').hidden && !partnerOnline()));   // her phone never asks, never moves: it answers even behind its lock (19 Nov: the 30 s idle lock stopped finding)   // her phone never moves, so it can answer while connected (18 Nov: his second phone could not reach her)   // never while connected, never behind the lock
 const phoneId = store.get('phoneId') || (() => { const x = b64url(rand(9)); store.set('phoneId', x); return x; })();   // the same in every Loveline window on this phone, so two windows never pair with each other
 let lobbyStuck = false;
 const lobbyHello = () => ({ t: 'ok', name: myName, side: isRemote ? 'remote' : 'host', rh: lobbyRh, pid: phoneId, av: APP_V });
@@ -6779,7 +6779,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261119-011947';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261119-012957';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
