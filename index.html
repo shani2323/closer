@@ -2089,7 +2089,8 @@ async function gotLobby(txt) {
     if (b.rh === lobbyRh || lobbyOk.has(m.from) || p.sideNo) return;   // same room: the normal connection is on its way
     const nm = typeof b.name === 'string' && b.name.trim() ? b.name.trim().slice(0, 24) : 'your partner', sig = b.side + '|' + nm, same = b.side === (isRemote ? 'remote' : 'host');
     if (same) return;   // Xed 19 Nov: her phone only finds his side, his phones only find her side; a phone never asks anything about a phone on its own side (it once switched his second phone to her side)
-    if (!same && isRemote && hostPair && !partnerOnline()) { lobbyBox(m.from, { t: 'come', r: room, k: hp.get('k') }); if (!p.came) { p.came = true; logLink('her phone opened in another room: asked it to come here'); } return; }   // Xed 19 Nov: her phone had two copies of Loveline with separate memories, one in an old room; his paired phone is the anchor
+    if (!same && isRemote && hostPair && !partnerOnline() && !(p.cameAt && Date.now() - p.cameAt > 12000)) { lobbyBox(m.from, { t: 'come', r: room, k: hp.get('k') }); if (!p.came) { p.came = true; p.cameAt = Date.now(); logLink('her phone opened in another room: asked it to come here'); } return; }   // she stays where she is (she is with his other phone): after 12 s this phone asks Connect as usual   // Xed 19 Nov: her phone had two copies of Loveline with separate memories, one in an old room; his paired phone is the anchor
+    if (!same && !isRemote && pair && !partnerOnline() && lobbyGives(p)) { lobbyBox(m.from, { t: 'link', r: room, k: hp.get('k'), auto: 1 }); if (!p.pulled) { p.pulled = true; logLink('his phone opened in another room: asked it to come here'); } return; }   // Xed 19 Nov: both sides are anchors; her paired phone brings any stray copy of his into their room, no tap
     if (!same && !isRemote) { if (!p.noted) { p.noted = true; notify(`Found ${nm}. When ${nm} taps Connect, the phones connect. Nothing to tap here.`, 8000); } return; }   // her phone never asks and never moves (Xed 11 Nov: she got no box)
     if (!same && lobbyYes.has(sig.toLowerCase())) { lobbyOk.add(m.from); lobbyBox(m.from, { t: 'go' }); return; }   // Connect was tapped for this partner already; they only opened the app again
     if (!same && lobbyNot.has(sig.toLowerCase())) return;
@@ -2128,7 +2129,7 @@ async function gotLobby(txt) {
     Promise.race([moveDbs(room, b.r), new Promise(r => setTimeout(r, 6000))]).catch(() => {}).then(() => { location.replace(location.pathname + '#h=1&r=' + b.r + '&k=' + b.k); location.reload(); });
     return;
   }
-  if (!lobbyOk.has(m.from)) return;   // his phone moves only after Connect was tapped on it
+  if (!lobbyOk.has(m.from) && !(b.t === 'link' && b.auto && isRemote && !hostPair)) return;   // his phone moves after Connect was tapped, or by itself when it is not paired and her paired phone calls it
   if (b.t === 'link' && !leaving && !lobbyGives(p) && b.r !== room && /^[\w-]{8,64}$/.test(b.r) && /^[\w-]{20,64}$/.test(b.k)) {
     const moves = store.get('lobbyMoves', []).filter(t => Date.now() - t < 180000);
     if (moves.length >= 2) { if (!lobbyStuck) { lobbyStuck = true; logLink('moved twice in 3 minutes: not moving again'); notify('Connecting got stuck, so this phone stopped moving. Open Play and tap "Find my partner\'s phone" to try again.', 9000); } return; }   // a safety stop: never reload in circles
@@ -6793,7 +6794,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261119-142953';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261119-145852';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7217,7 +7218,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'pushsub') gotPushSub(m);
   if (m.t === 'pin' && gotPin(m)) { pinAt = 0; savePins(); notify(m.on ? `${who()} pinned a message.` : `${who()} unpinned a message.`); }
   if (m.t === 'pins' && m.all && typeof m.all === 'object') { let got = false; for (const [id, p] of Object.entries(m.all).slice(0, 2000)) got = gotPin({ ...p, id }) || got; if (got) savePins(); }
-  if (m.t === 'forgot') { if (isRemote) { hostPair = null; store.set('hostPair:' + room, null); } partnerSeen = 0; notify(`${who()} forgot this phone. The phones look for each other again by your passcode.`, 9000); render(); }
+  if (m.t === 'forgot') { if (isRemote) { hostPair = null; store.set('hostPair:' + room, null); } else { pair = null; store.set('pair:' + room, null); } partnerSeen = 0; notify(`${who()} forgot this phone. The phones look for each other again by your passcode.`, 9000); render(); }
   if (m.t === 'pushdead') checkPush(true);   // the other phone found this phone's alert address dead: make a new one
   if (m.t === 'resync') resync();
   if (m.t === 'stroke' && m.s) gotWhole(m.s);
