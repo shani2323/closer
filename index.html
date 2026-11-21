@@ -113,6 +113,10 @@
                    box-shadow: 0 3px 8px rgba(0, 0, 0, .2); transition: transform .2s cubic-bezier(.3, .7, .4, 1); }
   .switch:checked { background: var(--green); }
   .switch:checked::after { transform: translateX(20px); }
+  #ghostRow small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.3; letter-spacing: -.005em; color: var(--label2); }
+  #ghostOn::after { transition: transform .2s cubic-bezier(.3, .7, .4, 1), width .1s ease-out; }   /* the knob stretches the moment a finger lands, like iOS; no overshoot */
+  #ghostOn:active::after { width: 33px; } #ghostOn:checked:active::after { transform: translateX(14px); }
+  @media (prefers-reduced-motion: reduce) { #ghostOn::after { transition: none; } }
   .live { color: var(--label2); font-size: 15px; }
   .mute { height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: var(--fill); font-size: 14px; font-weight: 500; }
 
@@ -311,6 +315,7 @@
   .fake .dock { position: absolute; }
   .fake .compose .send:not(.mic) { display: none; } .fake .compose.typed .send:not(.mic) { display: grid; } .fake .compose.typed .mic { display: none; }
   .fake[hidden] { display: none; }
+  .fake .fkUn { align-self: center; margin: 6px 0; padding: 4px 12px; border-radius: 8px; background: var(--fill); color: var(--label2); font-size: 12.5px; font-weight: 500; letter-spacing: 0; }
   @keyframes fkIn { from { opacity: 0; } }
   body.hiding .pop, body.hiding .float, body.hiding .veil, body.hiding .ring, body.hiding .turnFx, body.hiding .result, body.hiding #toast { display: none !important; }   /* nothing of the real app shows through */
   @media (prefers-reduced-motion: reduce) { .fake { animation: none; } }
@@ -1391,6 +1396,7 @@
     <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
     <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
     <button type="button" class="ghost" id="fakeCodeBtn">Set fake passcode</button>
+    <label class="row" id="ghostRow"><span>Ghost mode<small>She sees you offline, your last seen stops, and her messages stay unread</small></span><input type="checkbox" class="switch" id="ghostOn"></label>
     <label class="row"><span>Emoji suggestions while typing</span><input type="checkbox" class="switch" id="emoOn"></label>
     <label class="row"><span>Send technical logs to fix problems (times and events only, never messages or names)</span><input type="checkbox" class="switch" id="logsOn"></label>
     <button type="button" class="ghost danger" id="clearChat">Clear chat</button>
@@ -1556,6 +1562,11 @@ let bt = navigator.bluetooth ? 'ok' : 'nochrome';   // ok, nochrome, off, blocke
 const tries = new Map();   // one record per egg she has picked; kept for the whole visit
 let mic = null, hearing = false;   // live sound: my microphone stream / partner's sound playing here
 let hiding = false;   // the fake office chat is on (Xed 14 Nov)
+// Xed 22 Nov, ghost mode (his side only): his phone keeps talking to hers as always, but every message carries the time he turned it on,
+// and her phone shows him away and "last seen" frozen at that time. Her messages arrive (two grey ticks) but never turn blue while it is on.
+let ghostAt = isRemote ? +store.get('ghostAt', 0) || 0 : 0;   // his phone: when ghost mode was turned on (0 = off)
+let ghost = store.get('ghost:' + room, null) || { g: 0, at: 0 };   // her phone: his ghost time (g, his clock) and the same moment on this phone's clock (at)
+const ghostHeld = new Set(store.get('ghostHeld:' + room, []) || []);   // his phone: voice notes and photos played during ghost mode; they turn blue once seen after it
 let listenGate = true, partnerListening = false, typingUntil = 0, typingSent = 0, typingRec = false, typingPh = false;   // sound stays muted until headphones are confirmed
 let vidGate = true, vidAsk = false;   // video sound follows the same rule: muted until this phone confirms headphones
 let seenTogether = null, seenTrio = null;   // last mode shown, to notice when it changes
@@ -1714,7 +1725,7 @@ function seenText(t) {   // Xed 12 Nov: how long ago, not a clock time: "not see
 }
 function renderSeen() {   // the chat header: her name, and online or when she was last here
   $('chatName').textContent = who(); if ($('chatDp') && !partnerDp) $('chatDp').textContent = who().trim().charAt(0).toUpperCase();
-  $('chatSeen').textContent = partnerShown() ? 'online' : seenText(seenAt()) || (isRemote ? 'waiting' : 'not here yet');
+  $('chatSeen').textContent = partnerShown() ? 'online' : seenText(seenShown()) || (isRemote ? 'waiting' : 'not here yet');
   $('chatSeen').classList.toggle('live', partnerShown());
   $('chatPeek').innerHTML = `<b>${esc(who())}</b> <i>· ${esc($('chatSeen').textContent)}</i>`;   // the small chat says it too
   $('chatPeek').classList.toggle('live', partnerShown());
@@ -1731,7 +1742,13 @@ const SHOW_GRACE_MS = 30000;
 // Xed 12 Nov: online means Loveline is on the other screen. In the background (another app, screen off) it still runs and talks,
 // but after 30 s there both phones show the other as away; "not seen for" counts from when it left the screen.
 let hidAt = document.hidden ? Date.now() : 0;
-const partnerShown = () => Date.now() - partnerSeen < SHOW_GRACE_MS && !(partnerBgAt && Date.now() - partnerBgAt >= SHOW_GRACE_MS);
+const partnerLive = () => Date.now() - partnerSeen < SHOW_GRACE_MS && !(partnerBgAt && Date.now() - partnerBgAt >= SHOW_GRACE_MS);
+const partnerShown = () => !ghost.at && partnerLive();   // ghost mode: the screen says away, whatever the link knows
+const seenShown = () => ghost.at || seenAt();   // ghost mode: "last seen" stays at the moment he turned it on
+function gotGhost(m) {   // every message of his says whether ghost mode is on
+  const g = +m.gh || 0; if (g === ghost.g) return;
+  ghost = { g, at: g && Date.now() - Math.max(0, m.ts - g) }; store.set('ghost:' + room, ghost); render();
+}
 const sayFront = () => send({ t: 'front', fg: !document.hidden, bg: document.hidden ? Date.now() - hidAt : 0 });
 document.addEventListener('visibilitychange', () => { hidAt = document.hidden ? Date.now() : 0; sayFront(); });
 steady(sayFront, 10000);   // repeated, so a lost one is mended within 10 s
@@ -1748,7 +1765,7 @@ async function publishSeen() {
   if (!pairKey || document.hidden && !publishSeen.fg) return;
   publishSeen.fg = !document.hidden;
   const ri = chat.filter(c => c.who === 'them' && +c.at > readUpTo && readIds.has(c.id)).slice(-30).map(c => c.id);   // read, though an older one was not
-  const p = await seal({ at: Date.now(), rd: readUpTo, ri }, pairKey).catch(() => null);
+  const p = await seal({ at: ghostAt || Date.now(), rd: readUpTo, ri, ...(ghostAt ? { gh: ghostAt } : {}) }, pairKey).catch(() => null);
   if (p) for (const c of clients) if (c.connected) c.publish(seenMine, p, { retain: true, qos: 1 });
 }
 // Xed 16 Nov: blue ticks went missing the same way: "read" was only said live. The note also carries the time of the newest message
@@ -1765,7 +1782,8 @@ function bubbleShown(el) {
   return !!hit && (hit === el || el.contains(hit));   // nothing laid over it
 }
 function noteRead() {
-  if (document.hidden || hiding || !$('lock').hidden) return;
+  if (document.hidden || hiding || !$('lock').hidden || ghostAt) return;   // ghost mode: nothing counts as read
+  for (const id of ghostHeld) { const el = $('msgs').querySelector(`.bubble[data-id="${CSS.escape(id)}"]`); if (el && bubbleShown(el)) { ghostHeld.delete(id); store.set('ghostHeld:' + room, [...ghostHeld]); send({ t: 'ack', id, vn: true, pl: true }); } }   // played in ghost mode, on screen now: blue
   const fresh = [];
   for (const el of $('msgs').querySelectorAll('.bubble:not(.mine)')) { const id = el.dataset.id; if (id && !readIds.has(id) && bubbleShown(el)) { readIds.add(id); fresh.push(id); } }
   const them = chat.filter(c => c.who === 'them' && +c.at > readUpTo && !c.vn && !c.im).sort((a, b) => a.at - b.at);   // voice notes and photos keep their own rule: played or opened
@@ -1778,6 +1796,7 @@ function noteRead() {
 }
 async function gotLastOn(text) {
   const o = pairKey && text ? await unseal(text, pairKey) : null, at = o && Math.min(+o.at || 0, Date.now());
+  if (o && !o.gh && ghost.g && +o.at > ghost.g) { ghost = { g: 0, at: 0 }; store.set('ghost:' + room, ghost); render(); }   // he turned ghost mode off while this phone slept
   if (o && (+o.rd || Array.isArray(o.ri))) {
     let ch = false;
     for (const c of chat) if (c.who === 'me' && c.st >= 1 && c.st < 3 && !c.vn && !c.im && (c.at <= +o.rd || Array.isArray(o.ri) && o.ri.includes(c.id))) { c.st = 3; ch = true; logEv('msg_st', { id: c.id, st: 3, ageMs: Date.now() - c.at, via: 'note' }); }
@@ -1797,7 +1816,8 @@ function render() {
   const together = isRemote || partnerShown(), trio = onKinds.length === 2;
   // The toys-only "just you" screen: a phone never linked to a partner, or a partner gone 3 hours or more. A short absence
   // (a few seconds, minutes, an hour) changes nothing: both phones stay where they were (Xed 11 Nov).
-  const longAway = !together && seenAt() > 0 && Date.now() - seenAt() >= LONG_AWAY_MS, alone = !together && ((!pair && !partnerName) || longAway);   // no last-seen time known yet counts as a short absence
+  const here = isRemote || partnerLive();   // ghost mode only changes what the screen says: the chat never hides while he is really here
+  const longAway = !here && seenAt() > 0 && Date.now() - seenAt() >= LONG_AWAY_MS, alone = !here && ((!pair && !partnerName) || longAway);   // no last-seen time known yet counts as a short absence
   document.body.classList.toggle('alone', alone);
   shownOnline = partnerShown() + ',' + meShown();
   longGone = longAway;
@@ -1869,7 +1889,7 @@ function render() {
   renderWatchCtl(canControl);
   const items = [
     [myName || 'You', meShown(), meShown() ? '' : ', offline'],
-    [who(), partnerShown(), partnerShown() ? '' : seenAt() ? `, ${seenText(seenAt())}` : isRemote ? ', waiting' : ', not here'],
+    [who(), partnerShown(), partnerShown() ? '' : seenShown() ? `, ${seenText(seenShown())}` : isRemote ? ', waiting' : ', not here'],
     ...(solo ? onKinds : Object.keys(KINDS)).map(k => [faces[k] + ' ' + label(k), state[k].connected, state[k].connected ? (state[k].battery != null ? ` ${state[k].battery}%` : '') : toySeen[k] ? `, off, ${seenText(toySeen[k])}` : ', off']),
   ];
   renderSeen(); noteToys();
@@ -2273,7 +2293,7 @@ function restoreOwn() {   // after a refresh: what this phone had open, unless t
 const seen = m => {
   if (!(m.ts > lastSeenTs)) return;
   const back = !partnerOnline(), first = !syncAsked;
-  lastSeenTs = m.ts; partnerSeen = Date.now();
+  lastSeenTs = m.ts; partnerSeen = Date.now(); gotGhost(m);
   if (partnerSeen - seenSaved > 15000) { seenSaved = partnerSeen; store.set('seenAt:' + room, partnerSeen); }   // kept for "last seen" after a reload
   if (back || first) { syncAsked = true; setTimeout(() => { if (first) restoreOwn(); send({ t: 'resync' }); }, 800); }   // ask what is open over there
 };   // only newer messages count as the partner being here
@@ -2315,10 +2335,12 @@ let sendQ = Promise.resolve();
 let hushed = false;   // set once this phone has forgotten its partner: nothing more goes out, or the other phone would think it came back
 function send(obj, viaLink = false) {   // in order: sound setup messages must not overtake each other; resolves true once sent
   if (obj.t === 'msg' && !viaLink) { setTimeout(carry, 400); setTimeout(carry, 6500); setTimeout(boxOut, 700); setTimeout(boxOut, 6600); }   // Xed 14 Nov: a message that cannot reach her app goes inside a phone alert
+  if (ghostAt && obj.t === 'typing') return sendQ;   // ghost mode: no "typing…" over there
+  if (ghostAt && obj.t === 'ack' && obj.pl) { ghostHeld.add(obj.id); store.set('ghostHeld:' + room, [...ghostHeld]); obj = { ...obj, pl: false }; }   // ghost mode: played or opened still says only "arrived"
   sendQ = sendQ.then(async () => {
     const key = viaLink ? linkKey : pairKey;
     if (parked || hushed || (!online && !direct()) || !key) return false;
-    obj.from = me; obj.ts = Date.now();
+    obj.from = me; obj.ts = Date.now(); if (ghostAt) obj.gh = ghostAt;
     const payload = (viaLink ? 'L.' : 'P.') + await seal(obj, key);
     if (!viaLink && direct()) dc.send(payload);
     for (const c of clients) if (c.connected) c.publish(isRemote ? topicFromRemote : topicFromHost, payload);
@@ -3485,6 +3507,8 @@ $('emoOn').checked = store.get('emoHintOn', true);
 $('emoOn').onchange = ev => { store.set('emoHintOn', ev.target.checked); emoHintShow(); };
 $('logsOn').checked = store.get('logsOn', true);   // Xed 15 Nov: each phone can stop sending its technical log; what is kept on the phone for the copy-report is unchanged
 $('logsOn').onchange = ev => store.set('logsOn', ev.target.checked);
+if (!isRemote) $('ghostRow').remove();
+else { $('ghostOn').checked = !!ghostAt; $('ghostOn').onchange = ev => { ghostAt = ev.target.checked ? Date.now() : 0; store.set('ghostAt', ghostAt); sayFront(); publishSeen(); }; }   // her phone hears it at once
 $('compose').addEventListener('submit', () => setTimeout(emoHintShow, 0));
 $('dpPick').onclick = $('myDp').onclick = () => { tap(); $('dpFile').click(); };
 $('dpFile').onchange = () => { const f = $('dpFile').files[0]; $('dpFile').value = ''; if (!f) return; if (!/^image\//.test(f.type || 'image/')) { notify('That file is not a photo.'); return; } dpCropOpen(f); };
@@ -4299,7 +4323,7 @@ function openPanel(p, fromPartner, quiet) {
   if (p === 'watch') { renderVids(); renderPlayer(); }
   renderGame();
   if (chatTab) { openChat(); scrollTo({ top: 0 }); chatTabRoom(); requestAnimationFrame(chatTabRoom); $('msgs').scrollTop = $('msgs').scrollHeight; }   // the conversation fills everything under the title
-  if (!fromPartner) { panelV = nextV(panelV); keep('panelV', panelV); send({ t: 'panel', p, v: panelV }); }
+  if (!fromPartner) { if (!ghostAt) { panelV = nextV(panelV); keep('panelV', panelV); send({ t: 'panel', p, v: panelV }); } }   // ghost mode: his sections never move her phone
   else if (changed && !quiet) {   // a game left for Chat or Play: "left"; a game opened: "opened"; Chat <-> Play: nothing to say
     const game = x => x !== 'chat' && x !== 'play';
     if (game(p)) { tap(); notify(`${who()} opened ${PANELS[p]}.`); }
@@ -6794,7 +6818,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261119-145852';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261122-021403';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7687,7 +7711,7 @@ function nudgeCheck(leaving) {   // leaving: this phone is going off screen and 
     if (many ? (leaving || now - c.at >= 10000) && now - (nudge.uAt || 0) >= 120000 : (leaving || now - c.at >= NUDGE_MS) && now - nudge.at >= NUDGE_GAP_MS) wake(many ? 'u' : 'q', { ...nudge, id: c.id, at: now, ...(many ? { uAt: now } : {}) });
     return;
   }
-  if (!leaving && !document.hidden && partnerKeys && !partnerOnline() && now - frontSince >= 60000 && now - (nudge.oAt || 0) >= 1800000) wake('o', { ...nudge, oAt: now });
+  if (!leaving && !document.hidden && !ghostAt && partnerKeys && !partnerOnline() && now - frontSince >= 60000 && now - (nudge.oAt || 0) >= 1800000) wake('o', { ...nudge, oAt: now });
 }
 // Xed 14 Nov: she is often in WhatsApp, where Loveline sleeps and the relays keep nothing, so a message used to wait until both apps
 // were open together. Now a message that cannot reach her app also goes inside a phone alert, sealed with the two phones' own key
@@ -8118,24 +8142,62 @@ const chatIsOpen = () => $('dock').classList.contains('open');
 // their messages are waiting unseen. Not on the calculator (it must look like only a calculator), not on the plain cover.
 let unseen = +store.get('unseen:' + room) || 0, noteSeed = 0, noteWas = '';
 // ---- hide (Xed 14 Nov): like "hide balance" in a bank app. One tap swaps the whole app, every section, for an ordinary chat with an
-// office colleague: a new random name, picture and conversation every time. What is typed there stays on this phone. Coming back asks for the passcode.
-const FK_NAMES = isRemote ? ['Usman Ali', 'Bilal Ahmed', 'Hamza Sheikh', 'Faisal Khan', 'Saad Qureshi', 'Ahmed Raza', 'Zeeshan Malik', 'Imran Shah', 'Kamran Javed', 'Adeel Hussain', 'Waqas Iqbal', 'Omer Farooq']
+// office colleague or friend. Xed 22 Nov: the same one all day (Pakistan date), a different name, picture, length, times and unread count the next day.
+// What is typed there stays on this phone. Coming back asks for the passcode.
+const FK_NAMES = isRemote ? ['Usman Ali', 'Bilal Ahmed', 'Hamza Sheikh', 'Faisal Khan', 'Saad Qureshi', 'Ahmed Raza', 'Zeeshan Malik', 'Imran Shah', 'Kamran Javed', 'Adeel Hussain', 'Waqas Iqbal', 'Omer Farooq',
+  'Asad Mehmood', 'Junaid Akhtar', 'Danish Butt', 'Haris Siddiqui', 'Shahzad Anwar', 'Nabeel Aslam', 'Rizwan Haider', 'Talha Mirza', 'Arslan Chaudhry', 'Fahad Rehman', 'Salman Abbasi', 'Tariq Nawaz']
   : ['Sana Tariq', 'Ayesha Khan', 'Hira Malik', 'Mehwish Ali', 'Amna Sheikh', 'Fatima Raza', 'Maryam Javed', 'Zainab Ahmed', 'Rabia Qureshi', 'Nida Hussain', 'Saba Iqbal', 'Iqra Farooq'];
 const FK_DP = ['🌸', '🌻', '🏔️', '🌅', '🌊', '🌙', '🚗', '🏏', '🦋', '🌴', '☕', '📚', '🌷', '🐈', '🌿', '⛰️'];
-const FK_TALKS = [   // t: them, m: me
-  [['t', 'Assalam o alaikum, monthly report ka kya status hai? 📊'], ['m', 'Walaikum salam, almost done hai. Bas sales figures add karne hain'], ['t', 'Theek hai, 4 baje tak bhej dena please 🙏'], ['m', 'Ji zaroor 👍'], ['t', 'Aur last month se comparison bhi daal dena'], ['m', 'Done, ek chart bhi bana diya hai 📈'], ['t', 'Perfect 👌'], ['m', 'Email kar di hai, check kar lein'], ['t', 'Mil gayi. Sir ko forward kar di ✅'], ['m', 'Great 😊']],
-  [['t', 'Kal ki meeting 11 baje shift ho gayi hai 📅'], ['m', 'Oh ok, conference room wohi hai?'], ['t', 'Haan room 3. Client bhi aa raha hai'], ['m', 'Presentation ready hai, bas 2 slides update karni hain'], ['t', 'Budget wali slide zaroor update karna 💰'], ['m', 'Ji kar dunga 👍'], ['t', 'Thanks 🙂'], ['m', 'Printouts bhi le aun?'], ['t', 'Haan 5 copies kafi hain'], ['m', 'Ok 👌']],
-  [['t', 'Invoice number 2417 ka payment aa gaya? 🧾'], ['m', 'Abhi check karta hun'], ['m', 'Haan aaj subah clear ho gaya ✅'], ['t', 'Zabardast 👏 Ledger mein entry kar dena'], ['m', 'Kar di hai'], ['t', 'Aur pending invoices ki list bhi bhej do'], ['m', '3 pending hain, sheet share kar di 📎'], ['t', 'Shukriya 🙏'], ['m', 'Koi baat nahi']],
-  [['m', 'Aaj lunch kahan karna hai? 🍽️'], ['t', 'Canteen mein biryani hai aaj 😄'], ['m', 'Wah, phir canteen hi chalte hain'], ['t', '10 min mein niche milte hain'], ['m', 'Done 👍'], ['t', 'Waise HR ne leave policy ki email bheji hai, dekhi?'], ['m', 'Abhi nahi, dekhta hun 📧'], ['t', 'Annual leaves 2 barh gayi hain 🎉'], ['m', 'Achi news hai 😊']],
-  [['t', 'Laptop ka issue theek hua? 💻'], ['m', 'IT wale abhi dekh rahe hain'], ['t', 'Shared drive se files le lo tab tak'], ['m', 'Haan wahi kar raha hun'], ['t', 'Password reset karwana pare to ticket bana dena'], ['m', 'Ticket bana diya hai 🎫'], ['t', 'Good 👍'], ['m', 'Ab chal raha hai, shukriya 🙏'], ['t', 'Welcome 🙂']],
-  [['t', 'Training session kal 3 baje hai 📚'], ['m', 'Online hai ya office mein?'], ['t', 'Office mein, hall 2'], ['m', 'Ok, notebook le aunga 📝'], ['t', 'Attendance zaroori hai, manager ne kaha hai'], ['m', 'Ji samajh gaya 👍'], ['t', 'Aur feedback form bhi fill karna hoga baad mein'], ['m', 'Theek hai ✅'], ['t', 'See you kal 😊'], ['m', 'InshaAllah 👋']],
+const FK_BITS = [   // short everyday talks; a fake chat is 1 to 4 of them, hours apart. t: them, m: me
+  [['t', 'Kal match dekha? 🏏'], ['m', 'Haan last over bohat tense tha 😅'], ['t', 'Woh catch kamaal tha']],
+  [['t', 'Petrol phir barh gaya ⛽'], ['m', 'Haan yaar, ab bike hi theek hai']],
+  [['m', 'Gaari ki service kab karwani hai?'], ['t', 'Saturday subah, workshop 9 baje khulti hai 🔧'], ['m', 'Theek hai']],
+  [['t', 'Sabzi le aana wapsi pe 🥬'], ['m', 'Kya kya lana hai?'], ['t', 'Aloo, tamatar, dhania. Bas'], ['m', 'Ok 👍']],
+  [['t', 'Bijli ka bill aa gaya 😬'], ['m', 'Kitna aaya?'], ['t', 'Pichle mahine se 2000 zyada'], ['m', 'AC kam chalana parega']],
+  [['m', 'Shaadi ka card mil gaya?'], ['t', 'Haan, 14 tareekh ko hai na 💐'], ['m', 'Mehndi pe chalna hai?'], ['t', 'Pakka 😄']],
+  [['t', 'Main road pe bohat traffic hai 🚗'], ['m', 'Doosre raste se aa raha hun'], ['t', 'Acha kiya']],
+  [['m', 'Internet ka package khatam ho gaya 😩'], ['t', 'Easypaisa se kar lo, 2 min ka kaam hai'], ['m', 'Kar diya, shukriya']],
+  [['t', 'Monthly report bhej di? 📊'], ['m', 'Haan subah hi email kar di thi'], ['t', 'Mil gayi 👍']],
+  [['t', 'Kal ki meeting 11 baje shift ho gayi hai 📅'], ['m', 'Ok, room wohi hai?'], ['t', 'Haan room 3']],
+  [['m', 'Lunch ka kya plan hai? 🍽️'], ['t', 'Canteen mein biryani hai aaj'], ['m', 'Chalo 10 min mein niche']],
+  [['t', 'Laptop theek hua? 💻'], ['m', 'IT wale abhi dekh rahe hain'], ['t', 'Shared drive se kaam chala lo tab tak']],
+  [['t', 'Baarish shuru ho gayi idhar 🌧️'], ['m', 'Yahan abhi sirf badal hain'], ['t', 'Chhatri le kar nikalna']],
+  [['m', 'Doctor ka appointment mil gaya?'], ['t', 'Haan, Thursday 5 baje'], ['m', 'Acha 👍']],
+  [['t', 'Gym kal se pakka? 💪'], ['m', 'InshaAllah, 6 baje'], ['t', 'Late mat hona 😂']],
+  [['t', 'Bachon ki fees kal tak jama karwani hai'], ['m', 'Kal bank chala jaun ga 🏦'], ['t', 'Challan bhej raha hun'], ['t', '📎 Bhej diya']],
+  [['m', 'Eid pe gaon ja rahe ho?'], ['t', 'Haan, chand raat ko nikal jayenge 🌙'], ['m', 'Ticket book ho gayi?'], ['t', 'Abhi nahi, kal karwata hun']],
+  [['t', 'Woh charger wapis kar dena 🔌'], ['m', 'Oh sorry, kal le aata hun'], ['t', 'Koi baat nahi']],
+  [['t', 'Kal shaam cricket? Ground book hai 🏏'], ['m', 'Kitne baje?'], ['t', '5 baje, apna bat le aana']],
+  [['m', 'Ghar pohanch gaye?'], ['t', 'Haan abhi pohancha'], ['m', 'Acha 👍']],
+  [['t', 'Chai pe aao 4 baje ☕'], ['m', 'Thoda kaam reh gaya hai, phir aata hun'], ['t', 'Theek hai']],
+  [['t', 'Phone ki screen toot gayi 😩'], ['m', 'Market mein sasti lag jati hai'], ['t', 'Kal jaunga']],
+  [['m', 'Salary aa gayi?'], ['t', 'Abhi tak nahi, shayad kal'], ['m', 'Same here 😅']],
+  [['t', 'Plumber kab aayega?'], ['m', 'Usne 3 baje ka kaha hai'], ['t', 'Ghar pe koi hoga?'], ['m', 'Haan, sab ghar pe hain 👍']],
+  [['t', 'Kal office jaldi aana, audit hai 📋'], ['m', 'Ji, 8:30 tak aa jaunga']],
+  [['m', 'Weekend pe kya kar rahe ho?'], ['t', 'Kuch khaas nahi, ghar pe hi'], ['m', 'Dinner pe chalte hain 🍕'], ['t', 'Done 👌']],
+  [['t', 'Assalam o alaikum'], ['m', 'Walaikum salam, kaise ho?'], ['t', 'Alhamdulillah, aap sunao?'], ['m', 'Sab theek 🙂']],
+  [['t', 'Gas subah se nahi aa rahi 😤'], ['m', 'Hamare bhi yahi haal hain'], ['t', 'Cylinder lena parega']],
+  [['t', 'Woh file mil gayi?'], ['t', 'Jo kal di thi'], ['m', 'Haan desk pe rakhi hai 📁']],
+  [['m', 'Mechanic ka number bhejna'], ['t', 'Purana wala ya naya?'], ['m', 'Naya wala'], ['t', 'Abhi bhejta hun']],
 ];
-const fkPick = a => a[Math.floor(Math.random() * a.length)];
-function fkNew() {   // a new colleague and conversation: picked fresh every time hiding is turned on
-  const talk = fkPick(FK_TALKS), end = Date.now() - (2 + Math.floor(Math.random() * 25)) * 60000;
-  let at = end - talk.length * (2 + Math.random() * 4) * 60000;
-  return { name: fkPick(FK_NAMES), dp: fkPick(FK_DP), hue: Math.floor(Math.random() * 360), seen: Math.random() < .5 ? 'online' : 'last seen today at ' + new Date(end + 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK }),
-    list: talk.map(([w, x]) => { at += (1 + Math.random() * 5) * 60000; return { w, x, at: Math.min(at, end) }; }) };
+const FK_MORE = ['Free ho to call karna 📞', 'Reply kar dena jab time mile', 'Acha suno', 'Ek kaam tha', 'Kal baat karte hain', 'Kahan ho?', '👍', 'Theek hai phir'];
+const fkRand = s => () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };   // the same numbers for the same day
+function fkNew() {   // today's colleague and conversation: drawn from the date, so it stays put all day
+  const day = Math.floor((Date.now() + 5 * 3600e3) / 864e5), r = fkRand(day * 2 + (isRemote ? 1 : 0)), pick = a => a[Math.floor(r() * a.length)];   // Pakistan is 5 hours ahead, all year
+  const name = pick(FK_NAMES), dp = pick(FK_DP), hue = Math.floor(r() * 360);
+  const bits = FK_BITS.map(b => [r(), b]).sort((x, y) => x[0] - y[0]).slice(0, 1 + Math.floor(r() * 4)).map(x => x[1]);
+  const un = r() < .45 ? 0 : 1 + Math.floor(r() * 3), flat = bits.flat(), tail = flat.length - 1 - flat.findLastIndex(m => m[0] !== 't');   // unread: none, or 1 to 3 of their last messages
+  if (un > tail) bits.push(Array.from({ length: un - tail }, () => ['t', pick(FK_MORE)]));   // not enough of theirs at the end: they wrote again later
+  let end = day * 864e5 - 5 * 3600e3 + (480 + Math.floor(r() * 930)) * 60000;   // the last message: between 8 AM and 11:30 PM
+  if (end > Date.now() - 120000) end -= 864e5;   // not reached yet today: it was yesterday
+  const list = []; let at = end;
+  for (let i = bits.length - 1; i >= 0; i--) {
+    for (let j = bits[i].length - 1; j >= 0; j--) { list.unshift({ w: bits[i][j][0], x: bits[i][j][1], at }); at -= (r() < .6 ? .3 + r() * 2 : 2 + r() * 12) * 60000; }
+    at -= (25 + r() * 275) * 60000;   // and hours between one talk and the next
+  }
+  const sAt = Math.min(end + (1 + Math.floor(r() * 25)) * 60000, Date.now() - 60000), live = Date.now() - end < 15 * 60000 && r() < .5;
+  const seen = live ? 'online' : `last seen ${Math.floor((sAt + 5 * 3600e3) / 864e5) === day ? 'today' : 'yesterday'} at ` + new Date(sAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
+  return { name, dp, hue, seen, un, list };
 }
 let fk = null;
 const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.4 12c1-3.6 4.6-7.6 9.6-7.6s8.6 4 9.6 7.6c-1 3.6-4.6 7.6-9.6 7.6S3.4 15.6 2.4 12z"/><circle cx="12" cy="12" r="3.4"/></svg>';
@@ -8148,13 +8210,13 @@ function fkBuild() {   // copies of the real top bar, chat header and message bo
   const eye = top.querySelector('.hideBtn'); eye.innerHTML = EYE_ON; eye.setAttribute('aria-label', 'Show'); eye.dataset.fk = 'show';
   const dock = fkCopy($('dock')); dock.classList.add('open');
   dock.querySelectorAll('.grab, .peek, .pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .bubble, .lp').forEach(x => x.remove());
-  const who = dock.querySelector('.chatWho'); if (who) { fkDp(who.querySelector('.dp'), true); who.querySelector('b').textContent = fk.name; who.querySelector('small').textContent = fk.seen; }
+  const who = dock.querySelector('.chatWho'); if (who) { fkDp(who.querySelector('.dp'), true); who.querySelector('b').textContent = fk.name; who.querySelector('small').textContent = fk.seen; who.querySelector('small').classList.toggle('live', fk.seen === 'online'); }   // green only when online, whatever the real header showed
   const form = dock.querySelector('.compose'), input = form.querySelector('input');
   input.value = ''; input.oninput = () => form.classList.toggle('typed', !!input.value.trim()); form.querySelectorAll('[disabled]').forEach(x => x.disabled = false);
   form.querySelector('.mic').onclick = () => form.requestSubmit();
   form.onsubmit = ev => {   // typed here: shown here only, never sent
     ev.preventDefault(); const x = input.value.trim().slice(0, 500); if (!x || !fk) return;
-    fk.list.push({ w: 'm', x, at: Date.now() }); store.set('fake', fk); input.value = ''; form.classList.remove('typed'); fkDraw();
+    fk.list.push({ w: 'm', x, at: Date.now() }); fk.un = 0; store.set('fake', fk); input.value = ''; form.classList.remove('typed'); fkDraw();
   };
   wrap.appendChild(top); box.replaceChildren(wrap, dock);
   const msgs = dock.querySelector('.msgs'), room = innerHeight - top.getBoundingClientRect().bottom - (dock.getBoundingClientRect().height - msgs.getBoundingClientRect().height) - 12;
@@ -8163,8 +8225,9 @@ function fkBuild() {   // copies of the real top bar, chat header and message bo
 function fkDraw() {   // the real chat's own bubbles, times and ticks
   const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
   const msgs = $('fake').querySelector('.msgs'); if (!msgs) return;
-  for (const b of msgs.querySelectorAll('.bubble')) b.remove();
+  for (const b of msgs.querySelectorAll('.bubble, .fkUn')) b.remove();
   fk.list.forEach((m, i) => {
+    if (fk.un && i === fk.list.length - fk.un) { const u = document.createElement('div'); u.className = 'fkUn'; u.textContent = `${fk.un} unread message${fk.un > 1 ? 's' : ''}`; msgs.appendChild(u); }   // like WhatsApp, above the new ones
     const b = document.createElement('div'), meta = document.createElement('span'), first = m.w === 't' && (!i || fk.list[i - 1].w !== 't');
     b.className = 'bubble' + (m.w === 'm' ? ' mine' : '') + (first ? ' dpd' : '') + (emojiOnly(m.x) ? ' big' : '');
     if (first) { const f = document.createElement('span'); f.className = 'dp bdp'; fkDp(f); b.appendChild(f); }
