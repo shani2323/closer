@@ -927,6 +927,20 @@
   .swipeIcon.back { transition: opacity 200ms ease; }
   @media (prefers-reduced-motion: reduce) { .bubble.swipeBack { transition-duration: 120ms; } }   /* a long press opens Loveline's own menu, not the browser's */
   .bubble.held { filter: brightness(1.25); }
+  /* Xed 22 Nov: select several messages. The bar slides down with no overshoot; a tick pops onto each chosen message; a message dips the instant it is pressed */
+  .selBar { position: fixed; top: 0; left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 12px; padding: max(8px, env(safe-area-inset-top)) 12px 8px; background: #121214; box-shadow: 0 .5px 0 rgba(255, 255, 255, .1);
+    transform: translateY(-110%); visibility: hidden; transition: transform 280ms cubic-bezier(.2, .8, .2, 1), visibility 0s 280ms; }
+  body.selecting .selBar { transform: none; visibility: visible; transition: transform 280ms cubic-bezier(.2, .8, .2, 1); }
+  .selBar b { flex: 1; font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+  .selBar button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: var(--fill); color: var(--label); font-size: 17px; }
+  .selBar button:active { transform: scale(.92); transition: transform 100ms ease-out; }
+  .selBar #selDel { color: var(--red); } .selBar svg { width: 21px; height: 21px; }
+  body.selecting #msgs .bubble:active { transform: scale(.97); transition: transform 100ms ease-out; }
+  .bubble.sel { position: relative; box-shadow: 0 0 0 2px var(--blue); }
+  .bubble.sel::after { content: "✓"; position: absolute; top: -7px; right: -7px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 12px; font-weight: 700; line-height: 1; letter-spacing: 0; box-shadow: 0 0 0 2px var(--bg); animation: selIn 200ms cubic-bezier(.2, .8, .2, 1); }
+  .bubble.mine.sel::after { right: auto; left: -7px; }
+  @keyframes selIn { from { transform: scale(.3); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .selBar { transform: none; opacity: 0; transition: opacity 150ms, visibility 0s 150ms; } body.selecting .selBar { transform: none; opacity: 1; transition: opacity 150ms; } .bubble.sel::after { animation: none; } body.selecting #msgs .bubble:active { transform: none; filter: brightness(1.25); } }
   .bubble.flash { animation: bflash 1.4s ease-out; }
   @keyframes bflash { 0%, 35% { filter: brightness(1.7); } }
   .pinMark { width: 11px; height: 11px; margin-right: 3px; vertical-align: -1px; opacity: .65; }
@@ -1357,12 +1371,14 @@
     <button type="button" class="ghost" id="askNo">Refuse</button>
   </form>
 </div>
+<div class="selBar" id="selBar" role="toolbar" aria-label="Selected messages"><button type="button" id="selX" aria-label="Stop selecting">✕</button><b id="selN" aria-live="polite"></b><button type="button" id="selDel" aria-label="Delete the selected messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>
 <div class="sheet" id="delSheet" hidden>
   <form id="delForm" class="glass">
     <div class="grabber"></div>
-    <h2>Delete message?</h2>
-    <p>It disappears from both phones, with no trace that it was there.</p>
+    <h2 id="delTitle">Delete message?</h2>
+    <p>For both: it disappears from both phones, with no trace that it was there. For me: only from this phone.</p>
     <button class="primary danger" id="delYes">Delete for both</button>
+    <button type="button" class="ghost danger" id="delMe">Delete for me</button>
     <button type="button" class="ghost" id="delNo">Cancel</button>
   </form>
 </div>
@@ -2159,7 +2175,7 @@ async function gotLobby(txt) {
     logLink('joined her room without a link');
     if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
       store.set('lastRemote', location.origin + location.pathname + '#' + part); store.set('hostPair:' + b.r, null);
-      for (const k of ['chat', 'chatCleared', 'delOut', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
+      for (const k of ['chat', 'chatCleared', 'delOut', 'delAll', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
         const was = store.get(k + ':' + room), there = store.get(k + ':' + b.r);
         if (was == null) continue;
         if (k === 'chat' && Array.isArray(there) && there.length) { const all = new Map(); for (const c of [...there, ...was]) if (c && c.id) all.set(c.id, c); store.set('chat:' + b.r, [...all.values()].sort((a, c) => a.at - c.at).slice(-200)); }
@@ -2638,6 +2654,7 @@ function sendChatIds() { if (Date.now() - chatIdsAt < 15000) return; chatIdsAt =
 function gotChatIds(m) {   // send back what the other phone is missing
   if (!Array.isArray(m.ids)) return;
   const have = new Set(m.ids.filter(x => typeof x === 'string').slice(0, 1000));
+  const back = [...have].filter(id => delAll.has(id)).slice(0, 300); if (back.length) send({ t: 'del', ids: back });   // deleted for both, yet it holds it again (a wipe, an old mailbox copy): it goes again
   const miss = chat.filter(c => !have.has(c.id) && !cleared.has(c.id)).map(c => ({ id: c.id, w: c.who, x: c.text, at: c.at, ...(c.ed ? { ed: c.ed } : {}), ...(c.lp ? { lp: c.lp } : {}), ...(c.re ? { re: reOut(c.re) } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}) }));
   for (let i = 0; i < miss.length; i += 20) send({ t: 'chathist', items: miss.slice(i, i + 20) });
   sendChatIds();   // and ask for what this phone is missing
@@ -3852,6 +3869,7 @@ function renderChat() {
   box.scrollTop = toEnd ? box.scrollHeight : keep;
   gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) { gifInChat.observe(v); gifNear.observe(v); }
   toEndState();
+  if (sel) selPaint();   // the ticks survive a redraw
   $('chatGrab').hidden = !chat.length;
   fitDock();
 }
@@ -3890,6 +3908,7 @@ function burst(text) {   // full-screen moment: the emoji pops big in the middle
 }
 // ---- pinned messages: as many as you like, on both phones, until one of you unpins (Clear chat keeps them)
 const PIN_SVG = '<svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg>';
+let sel = null;   // Xed 22 Nov: the ids ticked in select mode (null: not selecting)
 let pins = store.get('pins:' + room) || {}, pinAt = 0, menuFor = null, menuAt = 0, pressT = 0, pressAt = null;   // pins: id -> { x: text, w: whose, on, at: when changed }
 const pinList = () => Object.entries(pins).filter(([, p]) => p.on).sort((a, b) => b[1].at - a[1].at).map(([id, p]) => ({ id, ...p }));
 const pinLast = () => Math.max(0, ...Object.values(pins).map(p => p.at));
@@ -3927,6 +3946,7 @@ function jumpTo(id, gone = 'That message is no longer in the chat, but it stays 
 }
 const MENU_IC = {   // the small picture at the right of each menu row
   Reply: '<path d="M10 6l-6 6 6 6"/><path d="M4 12h10a6 6 0 0 1 6 6v1"/>', Pin: '<path d="M15 3l6 6-2.500 1.200-3.900 3.900.700 4.400-1.600 1.600-3.800-3.800L5 21.200"/><path d="M9.900 16.300 3.800 20"/>', Unpin: '<path d="M15 3l6 6-2.500 1.200-3.900 3.900.700 4.400-1.600 1.600-3.800-3.800L5 21.200"/><path d="M4 4l16 16"/>',
+  Select: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.8"/>',
   'Send again': '<path d="M14 5l6 6-6 6"/><path d="M20 11H10a6 6 0 0 0-6 6v2"/>', Copy: '<rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   Delete: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>' };
 function openMsgMenu(target, items, head) {   // a small menu next to what was held, growing out of it; head: an optional row above the items
@@ -3947,16 +3967,28 @@ function bubbleMenu(b) {
   const c = msgById(b.dataset.id); if (!c) return;
   const on = !!(pins[c.id] && pins[c.id].on), row = document.createElement('div');
   row.className = 'rxRow'; row.setAttribute('aria-label', 'React');
-  for (const e of REACTS) { const x = document.createElement('button'); x.type = 'button'; x.textContent = e; x.setAttribute('aria-label', 'React ' + e); if (c.rx && c.rx.me === e) x.className = 'on'; x.onclick = ev => { ev.stopPropagation(); closeMsgMenu(); react(c, e); }; row.appendChild(x); }
-  openMsgMenu(b, [
+  for (const e of REACTS) { const x = document.createElement('button'); x.type = 'button'; x.textContent = e; x.setAttribute('aria-label', 'React ' + e); if (c.rx && c.rx.me === e) x.className = 'on'; x.onclick = ev => { ev.stopPropagation(); closeMsgMenu(); selEnd(); react(c, e); }; row.appendChild(x); }
+  const items = [
     ['Reply', () => { openChat(); setReply(c); backToTyping(); }],
     [on ? 'Unpin' : 'Pin', () => setPin({ id: c.id, x: c.text.slice(0, 200), w: c.who }, !on)],
     ...(c.im && c.im.vo ? [] : [['Send again', () => resendMsg(c)]]),
     ...(c.vn || c.im || c.gif ? [] : [['Copy', () => { if (navigator.clipboard) navigator.clipboard.writeText(c.text).then(() => notify('Copied.')).catch(() => {}); }]]),
     ...(canEdit(c) ? [['Edit', () => { openChat(); setEdit(c); backToTyping(); }]] : []),
-    ['Delete', () => { delFor = c.id; $('delSheet').hidden = false; }],
-  ], row);
+    ['Delete', () => { delFor = [c.id]; showDel(); }],
+  ].map(([l, f]) => [l, () => { selEnd(); f(); }]);   // any action on the one message ends select mode
+  items.splice(-1, 0, ['Select', () => { if (!sel) selStart(c.id); }]);   // Select keeps it, ticked, for more
+  openMsgMenu(b, items, row);
 }
+function selPaint() {   // the ticks, the count and the bar
+  document.body.classList.toggle('selecting', !!sel);
+  if (sel) $('selN').textContent = sel.size;
+  for (const el of $('msgs').querySelectorAll('.bubble[data-id]')) el.classList.toggle('sel', !!sel && sel.has(el.dataset.id));
+}
+function selStart(id) { sel = new Set([id]); selPaint(); }
+function selToggle(id) { if (!sel) return; sel.has(id) ? sel.delete(id) : sel.add(id); if (!sel.size) sel = null; selPaint(); }   // the last tick taken off: select mode ends
+function selEnd() { if (!sel) return; sel = null; selPaint(); }
+$('selX').onclick = () => { tap(); selEnd(); };
+$('selDel').onclick = () => { if (!sel) return; tap(); delFor = [...sel]; showDel(); };
 function holdToOpen(el, pick, open) {   // press and hold about half a second, without moving, opens the menu
   el.addEventListener('pointerdown', ev => {
     const t = pick(ev); if (!t) return;
@@ -3967,7 +3999,11 @@ function holdToOpen(el, pick, open) {   // press and hold about half a second, w
   for (const e of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(e, () => { clearTimeout(pressT); pressAt = null; });
   el.addEventListener('contextmenu', ev => { const t = pick(ev); if (!t) return; ev.preventDefault(); clearTimeout(pressT); pressAt = null; if (Date.now() - menuAt > 700) open(t); });   // Android's own long press opens Loveline's menu, never Chrome's
 }
-holdToOpen($('msgs'), ev => ev.target.closest('.bubble'), bubbleMenu);
+holdToOpen($('msgs'), ev => ev.target.closest('.bubble'), b => {   // Xed 22 Nov: holding a message also ticks it, like WhatsApp; in select mode holding just ticks
+  if (sel) { if (b.dataset.id) { menuAt = Date.now(); tap(); selToggle(b.dataset.id); } return; }
+  if (b.dataset.id && msgById(b.dataset.id)) selStart(b.dataset.id);
+  bubbleMenu(b);
+});
 // Xed 18 Nov: swipe a message to the right to reply to it, like WhatsApp. The message follows the finger; a reply arrow
 // grows in behind it; past the mark the phone ticks once, and letting go there starts the reply. Up and down still scrolls.
 {
@@ -3983,7 +4019,7 @@ holdToOpen($('msgs'), ev => ev.target.closest('.bubble'), bubbleMenu);
     icon.style.opacity = p; icon.style.transform = `translate(${sw.x0 + Math.min(t, MARK) / 2 - 16}px, ${sw.y0 - 16}px) scale(${sw.armed ? 1.12 : .55 + .45 * p})`;
   };
   $('msgs').addEventListener('pointerdown', ev => {
-    if (sw || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+    if (sw || sel || (ev.pointerType === 'mouse' && ev.button !== 0)) return;   // select mode: no swipe to reply
     const el = ev.target.closest('.bubble'); if (!el || !el.dataset.id || ev.target.closest('.vnWave')) return;   // the voice wave is dragged to seek
     const r = el.getBoundingClientRect();
     sw = { el, id: el.dataset.id, pid: ev.pointerId, sx: ev.clientX, sy: ev.clientY, on: false, armed: false, t: 0, x0: r.left, y0: r.top + Math.min(r.height, 80) / 2 };
@@ -6818,7 +6854,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261122-021403';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261122-024548';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -8051,9 +8087,13 @@ for (const b of document.querySelectorAll('.copyReport')) b.onclick = async () =
 $('clearNo').onclick = () => { $('clearSheet').hidden = true; };
 // ---- delete a message for both, like Telegram (Xed 13 Nov): gone from both phones, no "deleted" mark. Sent again every
 // 5 s until the other phone confirms, so it also goes from a phone that was away; a late copy never brings it back.
-let delOut = store.get('delOut:' + room, []), delFor = null;   // ids still to be confirmed by the other phone
+let delOut = store.get('delOut:' + room, []), delFor = null;   // ids still to be confirmed by the other phone; delFor: the ids the delete sheet is asking about
+const delAll = new Set(store.get('delAll:' + room, []));   // Xed 22 Nov: deleted for both, by either phone: told again to a phone that brings one back (a wipe, an old mailbox copy)
+const delGone = ids => { for (const i of ids) delAll.add(i); store.set('delAll:' + room, [...delAll].slice(-600)); };
 function dropMsgs(ids) {
   const set = new Set(ids);
+  if (unseen) { const n = chat.filter(c => c.who === 'them').slice(-unseen).filter(c => set.has(c.id)).length; if (n) { unseen -= n; store.set('unseen:' + room, unseen); } }   // unseen ones deleted: the lock screen count goes down too
+  if (sel) { for (const id of ids) sel.delete(id); if (!sel.size) selEnd(); }
   forgetIds(ids);
   chat = chat.filter(c => !set.has(c.id)); older = older.filter(c => !set.has(c.id));
   for (const id of ids) {
@@ -8073,17 +8113,19 @@ function dropMsgs(ids) {
   if (vnCur && set.has(vnCur)) { vnAudio.pause(); vnCur = null; }
   findAll = null; saveChat(); vnGc(); renderChat();
 }
-function deleteMsg(id) {
-  dropMsgs([id]);
-  delOut = [...delOut.filter(x => x !== id), id].slice(-300); store.set('delOut:' + room, delOut);
-  send({ t: 'del', ids: [id] });
+function deleteMsgs(ids) {   // for both phones
+  for (const c of chatAll()) if (ids.includes(c.id) && c.who === 'me' && (c.vn || c.im) && c.bf) boxDel(c.id, false);   // a photo or voice note still waiting in the mailbox goes from there too
+  dropMsgs(ids); delGone(ids);
+  delOut = [...delOut.filter(x => !ids.includes(x)), ...ids].slice(-300); store.set('delOut:' + room, delOut);
+  send({ t: 'del', ids });
 }
 function gotDel(m) {
   if (!Array.isArray(m.ids)) return;
   const ids = m.ids.filter(x => typeof x === 'string' && /^[\w-]{1,24}$/.test(x)).slice(0, 300);
   if (!ids.length) return;
-  dropMsgs(ids); send({ t: 'delok', ids });
+  dropMsgs(ids); delGone(ids); send({ t: 'delok', ids });
 }
+function showDel() { $('delTitle').textContent = delFor.length > 1 ? `Delete ${delFor.length} messages?` : 'Delete message?'; $('delSheet').hidden = false; }
 function gotDelOk(m) {
   if (!Array.isArray(m.ids)) return;
   const done = new Set(m.ids); delOut = delOut.filter(x => !done.has(x)); store.set('delOut:' + room, delOut);
@@ -8094,7 +8136,8 @@ steady(() => {   // an edit keeps going out until the other phone confirms it; g
 }, 5000);
 $('delNo').onclick = () => { $('delSheet').hidden = true; delFor = null; };
 $('delSheet').onclick = ev => { if (ev.target === $('delSheet')) { $('delSheet').hidden = true; delFor = null; } };
-$('delForm').onsubmit = ev => { ev.preventDefault(); $('delSheet').hidden = true; if (delFor) { tap(); deleteMsg(delFor); } delFor = null; };
+$('delForm').onsubmit = ev => { ev.preventDefault(); $('delSheet').hidden = true; if (delFor) { tap(); deleteMsgs(delFor); selEnd(); } delFor = null; };
+$('delMe').onclick = () => { $('delSheet').hidden = true; if (delFor) { tap(); dropMsgs(delFor); selEnd(); } delFor = null; };   // only this phone: remembered as cleared here, so the other phone never sends it back
 
 $('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
 $('clearForm').onsubmit = ev => { ev.preventDefault(); $('clearSheet').hidden = true; clearChat(); };
@@ -8104,6 +8147,7 @@ $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap a
   if (ev.target.closest('.e2e')) { showCode(); return; }
   const b = ev.target.closest('.bubble'), now = Date.now();
   if (now - menuAt < 700) { ev.preventDefault(); return; }   // that was a long press: the menu is up (checked first, so the hold never also opens a view-once photo or a link)
+  if (sel) { ev.preventDefault(); if (b && b.dataset.id) { tap(); selToggle(b.dataset.id); } return; }   // select mode: a tap ticks or unticks, never plays, opens or replies
   if (ev.target.closest('a.lnk')) return;   // a link: the browser opens it
   if (vnClick(ev) || imClick(ev) || gifClick(ev)) return;
   if (ev.target.closest('.rx') && b) { tap(); bubbleMenu(b); return; }   // the reaction badge: change or take off your reaction
@@ -8275,6 +8319,7 @@ function lockNote(bump) {
 }
 setInterval(() => { if (unseen && chatInFront()) { unseen = 0; store.set('unseen:' + room, 0); } lockNote(); }, 1000);
 const closeChat = () => {
+  selEnd();   // leaving the chat leaves select mode
   if (chatTab) { openPanel('play'); return; }   // closing the Chat section goes to Play, on both phones
   $('dock').classList.remove('open'); fitDock();
 };
@@ -8294,6 +8339,7 @@ holdBack();
 addEventListener('popstate', () => {
   if (location.hash !== startHash) return;
   if (!$('delSheet').hidden) { $('delSheet').hidden = true; delFor = null; history.pushState(null, ''); return; }
+  if (sel) { selEnd(); history.pushState(null, ''); return; }   // Back leaves select mode first
   if (dpCropShut() || imBack() || closeInfo() || closeStats() || closeFind() || (!$('gifPanel').hidden && (gifOpen(false), true))) { history.pushState(null, ''); return; }
   if (chatIsOpen() && !chatTab) closeChat();
   else if (panel !== 'chat') { if (okToLeave('chat')) openPanel('chat'); }
