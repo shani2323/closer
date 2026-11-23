@@ -5923,7 +5923,7 @@ function applyPress(s, v, act) {
 }
 function gotPzLive(m) {   // the other phone's level, live: the same ring and the same presses here
   if (m.g !== press.g || m.lv !== press.lv || pzTurn(press) !== other(myRole)) return;
-  if (m.k === 'go' && Number.isFinite(m.d)) pzWatch = { g: m.g, lv: m.lv, L: pzMine(pzLevel(m.lv), other(myRole)), t0: performance.now() + Math.max(0, Math.min(PZ_READY, m.d)), ps: [], done: false };
+  if (m.k === 'go' && Number.isFinite(m.d) && !(pzWatch && pzWatch.g === m.g && pzWatch.lv === m.lv)) pzWatch = { g: m.g, lv: m.lv, L: pzMine(pzLevel(m.lv), other(myRole)), t0: performance.now() + Math.max(0, Math.min(PZ_READY, m.d)), ps: [], done: false };
   const w = pzWatch; if (!w || w.lv !== m.lv) return;
   if (m.k === 'dn' && Number.isFinite(m.ms)) { w.ps.push({ d: m.ms, u: null }); if (panel === 'pressure') pzBurst(w.ps.length); }
   if (m.k === 'up' && Number.isFinite(m.ms)) { const p = w.ps.find(x => x.u == null); if (p) p.u = m.ms; }
@@ -7162,7 +7162,7 @@ let wstate = { id: null, playing: false, pos: 0, base: 0, v: 0, from: '' };
 let toyRanAt = 0;   // the 15 s auto-lock waits while a video plays in Watch; on her phone also while a toy runs, or ran in the last minute (pauses between patterns)
 window.lockHold = () => {
   if (vnBusy()) return true;   // a voice note being recorded or played (Xed 13 Nov)
-  if (panel === 'pressure' && [pzRun, pzWatch].some(o => o && !o.done)) return true;   // a Pressure level being played or watched lasts a few seconds: never locked halfway
+  if (panel === 'pressure' && [pzRun, pzWatch].some(o => o && !o.done && performance.now() - o.t0 < o.L.ring + 3000)) return true;   // a Pressure level being played or watched lasts a few seconds: never locked halfway, and never held longer than the level itself
   if (panel === 'watch' && wstate.playing && here() && !vid.paused && !vid.ended) return true;   // Xed 12 Nov: only a video really moving on this phone, not paused, ended or still loading
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
@@ -7223,7 +7223,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261123-075815';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261123-082311';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
