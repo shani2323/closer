@@ -764,7 +764,15 @@
   @keyframes pzPassF { 0% { box-shadow: inset 0 0 70px rgba(48, 209, 88, .55); } 100% { box-shadow: inset 0 0 0 rgba(48, 209, 88, 0); } }
   @media (prefers-reduced-motion: reduce) { .pzStage i.pzc { animation: none; } }
   .pzRes { min-height: 20px; margin: 2px 0 6px; text-align: center; font-size: 14px; line-height: 1.35; color: var(--label2); }
-  #pzGo { flex: 0 0 auto; width: auto; min-width: 96px; height: 40px; padding: 0 14px; margin: 0; border-radius: 20px; font-size: 14px; }   /* sits in the reactions row, like Ludo's Roll */
+  .pzClk { position: absolute; right: -6px; top: -4px; min-width: 46px; text-align: right; font: 800 20px/1 system-ui, sans-serif; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: color-mix(in srgb, #ff453a calc(var(--h, 0) * 100%), #d7f9ff); transform-origin: 100% 0; transform: scale(calc(1 + .45 * var(--h, 0))); pointer-events: none; }
+  .pzClk.hot { text-shadow: 0 0 14px rgba(255, 69, 58, .9); }
+  .pzArena.pzThud { animation: pzThud 200ms ease-out; }
+  @keyframes pzThud { 0% { transform: scale(1); } 30% { transform: scale(1.035); } 100% { transform: scale(1); } }
+  #pressurePanel [hidden] { display: none; }
+  #pzCall { flex: 1 1 0; height: 40px; padding: 0 14px; margin: 0; border: 0; border-radius: 20px; background: var(--fill); color: var(--label); font-size: 14px; font-weight: 600; }
+  #pzCall:active, #pzPlay:active { transform: scale(.97); transition: transform 100ms ease-out; }
+  @media (prefers-reduced-motion: reduce) { .pzArena.pzThud { animation: none; } .pzClk { transform: none; } }
+  #pzPlay { flex: 0 0 auto; width: auto; min-width: 96px; height: 40px; padding: 0 14px; margin: 0; border-radius: 20px; font-size: 14px; }   /* sits in the reactions row, like Ludo's Roll */
   .pzHow { margin: 10px 0 0; font-size: 14px; line-height: 1.45; color: var(--label2); }
   .pzHow summary { cursor: pointer; font-weight: 600; color: var(--label); }
   .pzHow p { margin: 8px 0 0; } .pzHow b { color: var(--label); font-weight: 600; }
@@ -1284,17 +1292,17 @@
     <p class="turn" id="pzTurn" aria-live="polite"></p>
     <p class="ludoWins" id="pzWins"></p>
     <p class="pzNote" id="pzNote" aria-live="polite"></p>
-    <div class="pzArena"><canvas id="pzRing" aria-hidden="true"></canvas><button type="button" class="pzBtn" id="pzBtn"><span id="pzPic"></span><span id="pzSay"></span><span id="pzBig"></span></button><div class="tfloat" id="pfloat" aria-hidden="true"></div></div>
+    <div class="pzArena"><canvas id="pzRing" aria-hidden="true"></canvas><b class="pzClk" id="pzClk" aria-hidden="true"></b><button type="button" class="pzBtn" id="pzBtn"><span id="pzPic"></span><span id="pzSay"></span><span id="pzBig"></span></button><div class="tfloat" id="pfloat" aria-hidden="true"></div></div>
     <div class="pzStage" id="pzStage" aria-hidden="true"></div>
     <p class="pzRes" id="pzRes" aria-live="polite"></p>
-    <div class="ludoDock"><button class="primary" id="pzGo">Start</button><div class="lreact" id="preact" aria-label="Reactions"></div></div>
+    <div class="ludoDock"><button class="primary" id="pzPlay">Play solo</button><button id="pzCall">Call</button><div class="lreact" id="preact" aria-label="Reactions"></div></div>
     <div class="lphr" id="pphr" aria-label="Fun phrases"></div>
     <details class="pzHow"><summary>How to play</summary>
-      <p>Do what the big button says before the ring runs out. One mistake and your turn is over: no second chance. The time fits the level: more to read means more seconds (⏱ on top), and the pace tightens as you climb. <b>⚡ FAST</b> levels give you less.</p>
+      <p>Do what the big button says before the ring runs out. You keep going, level after level, until your first mistake: then your run is over. The time fits the level: more to read means more seconds (counted down beside the ring), and the pace tightens as you climb. <b>⚡ FAST</b> levels give you less. The ring burns the way the order reads: "Jaldi" rushes, "Ruko" freezes and lunges, counting levels break off in chunks, puzzles stay calm while you read and then drop.</p>
       <p>The orders are in Roman Urdu: <b>Ek dafa press karo</b> (press once) · <b>Do dafa press karo</b> (twice) · <b>2 second hold karo</b> (hold 2 seconds, not shorter, not longer) · <b>Kuch mat karo</b> (don't press, let the ring run out) · <b>Ring RED ho to press karo</b> · <b>Third blink pe press karo</b> · <b>Exactly zero pe press karo</b>.</p>
       <p>The game tries to trick you. The button changes its mind halfway ("PRESS! Abhi!" then "NAHI!"): only the last order counts. It flashes <b>NOW!</b> when you must not press, the button goes red before the ring does (only the ring counts), and countdowns lie. The writing shakes, blurs, fades away, jumbles, mirrors or turns upside down.</p>
       <p>Rules like "🐀 matlab do dafa press karo" last until "🐀 wala rule khatam"; when the picture shows, the rule beats the words. "Yaad rakho" (remember) gets asked a few levels later. <b>ULTA</b> means do the opposite. Puzzles: count the pictures, count the words, sums, letters, the colour of the text, the last order, and the 🐈 that sneaked past. Some levels use your partner's name.</p>
-      <p>You both play the same levels, taking turns: one plays while the other watches live. One passes and the other fails: the one who passed wins and the loser gets a dare. Both fail: a draw, next level.</p>
+      <p><b>Play solo</b> any time: only your best level counts. <b>Call</b> your partner to start a new match: the caller plays a full run first while the other watches live, then the other one plays. Each of you gets your own levels, so watching doesn't give the answers away. The lower level gets a dare. The same level is a draw.</p>
     </details>
     <button class="gameEnd" id="pzNew">New game</button>
   </section>
@@ -2256,7 +2264,7 @@ async function gotLobby(txt) {
     logLink('joined her room without a link');
     if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
       store.set('lastRemote', location.origin + location.pathname + '#' + part); store.set('hostPair:' + b.r, null);
-      for (const k of ['chat', 'chatCleared', 'delOut', 'delAll', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'press', 'pressWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
+      for (const k of ['chat', 'chatCleared', 'delOut', 'delAll', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'press', 'pressWins', 'pressBest', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
         const was = store.get(k + ':' + room), there = store.get(k + ':' + b.r);
         if (was == null) continue;
         if (k === 'chat' && Array.isArray(there) && there.length) { const all = new Map(); for (const c of [...there, ...was]) if (c && c.id) all.set(c.id, c); store.set('chat:' + b.r, [...all.values()].sort((a, c) => a.at - c.at).slice(-200)); }
@@ -4420,7 +4428,7 @@ const inPlay = () => playP === panel && playN >= 2;
 let panelV = 0, gameV = 0, libSentAt = 0;
 const myTie = Math.random();   // two changes in the same moment still have one winner
 const nextV = v => Math.max(Date.now(), Math.floor(v) + 1) + myTie;
-function gotPanel(m) { if (!(m.v > panelV)) return; if (panel === 'pressure' && m.p !== 'pressure' && pzRun && !pzRun.done) { pzHeld = m; return; }   // never pulled out in the middle of a Pressure level: it waits for the level to end
+function gotPanel(m) { if (!(m.v > panelV)) return; if (panel === 'pressure' && m.p !== 'pressure' && pzGo) { pzHeld = m; return; }   // never pulled out in the middle of a Pressure run: it waits for the run to end
   panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); }
 function openPanel(p, fromPartner, quiet) {
   if (!['chat', 'play', 'draw', 'game', 'tower', 'watch', 'ludo', 'pressure'].includes(p)) return;
@@ -5771,10 +5779,8 @@ function towerReact(e, mine, box = $('tfloat')) {   // Pressure floats them over
 }
 document.querySelectorAll('#treact button, #tphr button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); towerReact(b.dataset.e, true); send({ t: 'towerReact', e: b.dataset.e }); });
 document.querySelectorAll('#lreact button, #lphr button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); ludoReact(b.dataset.e, true); send({ t: 'ludoReact', e: b.dataset.e }); });
-// ---- Pressure (Xed 23 Nov): a one-button reflex game, turn by turn. Both phones get the same levels from one shared number (g).
-// In each round one of you plays level N while the other phone watches it live, then the other plays the same level; who goes
-// first changes every round. One passes and the other fails: the one who passed wins and the loser gets a dare. Both fail: a draw
-// round, on to the next level. Hard from the start, like the game it follows: tricks from level 2, and a clock that tightens every level.
+// ---- Pressure (Xed 23 Nov): a one-button reflex game. Do what the button says before the ring runs out, level after level, until the first mistake.
+// Both phones work out the same levels from one shared number, so the one not playing watches it live. Hard from the start, like the game it follows.
 const PZ_RULES = [['🐀', { a: 'tap', n: 2 }], ['🐍', { a: 'none' }], ['🔔', { a: 'tap', n: 1 }], ['🍌', { a: 'hold' }]];   // while its rule lasts, the picture overrides what the button says
 const PZ_NUM = ['', 'ek', 'do', 'teen', 'chaar', 'paanch', 'chhe'], PZ_COL = [['BLUE', '#2f7bff'], ['RED', '#ff3b5c'], ['GREEN', '#22c55e'], ['YELLOW', '#ffd60a']], PZ_SYM = ['⭐', '🌙', '❤️', '⚡'];
 const PZ_READY = 600, PZ_GRACE = 300, PZ_HOLD = [1800, 2800];   // "Ready…" before the ring; a tap counts once no second one follows within 0.3 s; a 2-second hold may end between 1.8 and 2.8 s: nobody counts 2 seconds exactly
@@ -5806,6 +5812,20 @@ function pzHuman(L) {   // how long this level takes a normal person, up to the 
   const a = L.act, n = a.a === 'tap' ? a.n : a.a === 'none' ? 0 : 1;
   const count = L.puz === 'words' ? pzWords(L.say) * 250 : L.puz === 'letters' ? L.say.split(' ')[0].length * 180 : L.puz === 'icons' ? Array.from(L.pic).length * 230 : L.puz === 'math' && L.say.split(' ').length > 6 ? 500 : L.nm === 'harf' ? a.n * 250 : 0;
   return pzRead(L) + (PZ_THINK[L.puz || L.nm || L.k] || 0) + count + n * PZ_TAP;
+}
+// Xed 23 Nov: the ring burns the way the words read (it always empties at the true end). Chosen from what is on the screen, never from the answer, so it gives nothing away.
+const PZ_RUSH = /jaldi|abhi|now/i, PZ_WAIT = /ruko|mat karo|haath|touch|wait|ulta|jhoot|mazaak|mana hai/i;
+const pzBurnKind = L => L.vis.zero ? 'sec' : 'red' in L.vis || 'blinks' in L.vis || L.vis.cyc ? 'even' : L.sw != null ? 'jump' : PZ_RUSH.test(L.say) ? 'rush' : PZ_WAIT.test(L.say + ' ' + L.note) ? 'surge'
+  : ['icons', 'words', 'letters'].includes(L.puz) || ['harf', 'name3'].includes(L.nm) || L.k === 'seenq' ? 'chunk' : L.act.a !== 'hold' && (PZ_THINK[L.puz || L.nm || L.k] || pzRead(L) > L.ring * .45) ? 'dive' : 'even';
+function pzBurn(o, t) {   // 0 full, 1 empty
+  const L = o.L, x = Math.min(1, Math.max(0, t / L.ring));
+  if (o.burn === 'rush') return 1 - Math.pow(1 - x, 1.7);   // "Jaldi!": half of it is gone at once, the rest crawls
+  if (o.burn === 'surge') return x - .85 * Math.sin(6 * Math.PI * x) / (6 * Math.PI);   // "Ruko": it freezes, lunges, freezes, lunges
+  if (o.burn === 'dive') { const k = Math.min(.7, pzRead(L) / L.ring), a = .55 * k; return x < k ? x * .55 : a + (x - k) / (1 - k) * (1 - a); }   // calm while you read, then it drops
+  if (o.burn === 'chunk') { const f = x * 9, i = Math.floor(f); return Math.min(1, (i + Math.max(0, (f - i - .75) / .25)) / 9); }   // counting: a chunk breaks off at a time
+  if (o.burn === 'sec') { const n = Math.ceil(L.vis.zero / 1000), r = Math.max(0, L.vis.zero - t) / 1000; return 1 - Math.ceil(r - 1e-6) / n; }   // only whole seconds
+  if (o.burn === 'jump') { const k = L.sw / L.ring, a = .7 * k, b = Math.min(.9, a + .14); return x < k ? x * .7 : b + (x - k) / (1 - k) * (1 - b); }   // it changes its mind: a bite of the ring goes with it
+  return x;
 }
 const pzClock = L => Math.max(1500, Math.round(pzHuman(L) * L.pace)) + (L.act.a === 'hold' ? PZ_HOLD[1] : 0);
 function pzLevels(seed, upto) {   // every level up to `upto`, the same on both phones: rules and things to remember carry over from level to level
@@ -5890,6 +5910,7 @@ function pzLevels(seed, upto) {   // every level up to `upto`, the same on both 
       L.fx = pick([...PZ_FX1, ...(i > 7 ? PZ_FX2 : []), ...(i > 14 ? PZ_FX3 : [])].filter(x => !(x === 'caps' && L.puz === 'letters') && !(x === 'hue' && L.ink)));
       if (L.fx === 'caps') { L.say = pzAlt(L.say); if (L.say0) L.say0 = pzAlt(L.say0); }
     }
+    L.pace = Math.max(1.15, pace * (1.06 - .02 * ((i - 1) % 7)) * (PZ_RUSH.test(L.say0 || L.say) ? .88 : 1));   // each stage winds up level by level, and an order that hurries you really does give less
     const rd = pzRead(L);   // nothing to react to comes before the order could be read
     L.ring = pzClock(L);
     if (a.a === 'red' || 'red' in v) { v.red = Math.round(rd + 300 + r() * 1700); L.ring = Math.max(L.ring, v.red + 900); if (a.a === 'red') { L.w = ease(900, 650); L.ring = v.red + L.w; if (i > 5 && r() < .5) v.btnRed = Math.round(v.red * (.3 + r() * .3)); } }   // the BUTTON flashes red first: a decoy, only the ring counts
@@ -5954,51 +5975,83 @@ function pzJudge(L, ps, t) {   // ps: presses { d: down, u: up or null } in ms s
   return t > w1 ? no(late) : null;
 }
 function pzWinsKept() { const w = store.get('pressWins:' + room) || {}, n = x => Number.isInteger(x) && x >= 0 ? x : 0; return { host: n(w.host), remote: n(w.remote) }; }   // every Pressure win ever, kept on this phone too
-function blankPress(first) { return { g: 1 + Math.floor(Math.random() * 2e9), lv: 1, first: first || 'host', res: { host: 0, remote: 0 }, why: { host: '', remote: '' }, last: null, win: null, wins: pzWinsKept(), best: 0, rs: +store.get('resetAt:' + room) || 0 }; }
-function cleanPress(s) {   // res: 0 not played this level yet, 1 passed, 2 failed; why: what went wrong; last: the round before; best: the highest level anyone passed
-  if (!s || typeof s !== 'object' || !Number.isInteger(s.g) || s.g < 1 || !Number.isInteger(s.lv) || s.lv < 1 || s.lv > 5000 || !['host', 'remote'].includes(s.first)) return null;
-  const res = o => ({ host: [1, 2].includes(o && o.host) ? o.host : 0, remote: [1, 2].includes(o && o.remote) ? o.remote : 0 });
-  const why = o => ({ host: o && typeof o.host === 'string' ? o.host.slice(0, 200) : '', remote: o && typeof o.remote === 'string' ? o.remote.slice(0, 200) : '' });
+// Xed 23 Nov: one person plays a whole run, level after level, until out. Anyone can play solo at any time (only their own best counts). Calling the
+// other one, who joins, starts a new match: one full run each, one after the other, each with their own levels (so watching the first never gives the
+// answers to the second). The higher level wins and the other gets a dare; the same level is a draw.
+function pzBestKept() { const w = store.get('pressBest:' + room) || {}, n = x => Number.isInteger(x) && x >= 0 && x <= 5000 ? x : 0; return { host: n(w.host), remote: n(w.remote) }; }
+function blankPress(first, on) { return { run: 1, g: 1 + Math.floor(Math.random() * 2e9), on: !!on, first: first || 'host', res: { host: 0, remote: 0 }, why: { host: '', remote: '' }, win: null, over: false, call: null, wins: pzWinsKept(), best: pzBestKept(), rs: +store.get('resetAt:' + room) || 0 }; }
+function cleanPress(s) {   // on: a match is being played; res: the level each one's run ended at (0: not played yet); why: the mistake; win: who won the last match; over: it has ended; call: who is calling the other one
+  if (!s || typeof s !== 'object' || s.run !== 1 || !Number.isInteger(s.g) || s.g < 1 || s.g > 4e9 || !['host', 'remote'].includes(s.first)) return null;   // a game from before the runs starts fresh (the wins are kept on the phone)
+  const lv = x => Number.isInteger(x) && x >= 0 && x <= 5000 ? x : 0, two = (o, f) => ({ host: f(o && o.host), remote: f(o && o.remote) }), role = x => ['host', 'remote'].includes(x) ? x : null;
   const won = r => s.wins && Number.isInteger(s.wins[r]) && s.wins[r] >= 0 && s.wins[r] < 1e6 ? s.wins[r] : pzWinsKept()[r];
-  return { g: s.g, lv: s.lv, first: s.first, res: res(s.res), why: why(s.why), last: s.last && Number.isInteger(s.last.lv) && s.last.lv >= 1 ? { lv: s.last.lv, res: res(s.last.res), why: why(s.last.why) } : null,
-    win: ['host', 'remote'].includes(s.win) ? s.win : null, wins: { host: won('host'), remote: won('remote') }, best: Number.isInteger(s.best) && s.best >= 0 && s.best <= 5000 ? s.best : 0, rs: Number.isFinite(s.rs) && s.rs > 0 ? s.rs : 0 };
+  return { run: 1, g: s.g, on: s.on === true, first: s.first, res: two(s.res, lv), why: two(s.why, x => typeof x === 'string' ? x.slice(0, 200) : ''), win: role(s.win), over: s.over === true, call: role(s.call),
+    wins: { host: won('host'), remote: won('remote') }, best: two(s.best, lv), rs: Number.isFinite(s.rs) && s.rs > 0 ? s.rs : 0 };
 }
 const savedPress = store.get('press:' + room) || {};
-let press = cleanPress(savedPress.s) || blankPress(), pressV = Number.isFinite(savedPress.v) ? savedPress.v : 0, pzRun = null, pzWatch = null, pzRaf = 0, pzHeld = null;   // pzRun: my level being played; pzWatch: theirs, seen live; pzHeld: their section change, waiting until my level ends
-const pzTurn = s => s.win ? null : !s.res[s.first] ? s.first : !s.res[other(s.first)] ? other(s.first) : null;
-const pzLevel = lv => pzLevels(press.g, lv)[lv - 1];
+let press = cleanPress(savedPress.s) || blankPress(), pressV = Number.isFinite(savedPress.v) ? savedPress.v : 0, pzGo = null, pzRun = null, pzWatch = null, pzSolo = null, pzRaf = 0, pzHeld = null;   // pzGo: my run, from its first level until I am out; pzRun: the level of it being played; pzWatch: theirs, seen live; pzSolo: how my last solo run ended; pzHeld: their section change, waiting until my run ends
+const pzTurn = s => !s.on ? null : !s.res[s.first] ? s.first : !s.res[other(s.first)] ? other(s.first) : null;
+const pzSeed = (g, r) => r === 'host' ? g : g * 7 % 1999999973 + 1;   // each one's own levels in a match
+function pzMake(seed, lv, role) { const L = pzMine(pzLevels(seed, lv)[lv - 1], role); return { seed, lv, L, burn: pzBurnKind(L), ps: [], done: false }; }
 function pressCommit(s, act) { s = cleanPress(s); const v = nextV(pressV); applyPress(s, v, act); send({ t: 'press', s, v, act }); }
 function gotPress(m) {
   if (!(m.v > pressV)) return;
   const s = cleanPress(m.s); if (!s) return;
   const rs0 = +store.get('resetAt:' + room) || 0;
-  if (s.rs < rs0) { pressV = Math.max(pressV, m.v); pressCommit({ ...press, rs: rs0, wins: pzWinsKept() }, null); return; }   // a game from before this phone's Reset: the Reset wins
+  if (s.rs < rs0) { pressV = Math.max(pressV, m.v); pressCommit({ ...press, rs: rs0, wins: pzWinsKept(), best: pzBestKept() }, null); return; }   // a game from before this phone's Reset: the Reset wins
   const a = m.act || {};
-  applyPress(s, m.v, a.k === 'end' && ['host', 'remote'].includes(a.r) ? { k: 'end', r: a.r, ok: a.ok === true } : null);
+  applyPress(s, m.v, ['end', 'call', 'join', 'no'].includes(a.k) && ['host', 'remote'].includes(a.r) ? { k: a.k, r: a.r } : null);
 }
 function applyPress(s, v, act) {
   const before = press; press = s; pressV = v; store.set('press:' + room, { s, v });
   if (s.rs > (+store.get('resetAt:' + room) || 0)) { wipeScores(s.rs); notify(`${who()} reset all game scores. Every game starts fresh.`); }
   const kept = pzWinsKept(); store.set('pressWins:' + room, { host: Math.max(kept.host, s.wins.host), remote: Math.max(kept.remote, s.wins.remote) });
-  if (s.g !== before.g) { pzRun = null; pzWatch = null; }
-  if (act && act.k === 'end') {
-    played('pressure');
-    if (act.r !== myRole && pzWatch && !pzWatch.done) { pzWatch.done = true; pzWatch.j = { ok: act.ok }; }
-    if (s.win && !before.win) {   // the round is decided: the lose and win screens on both phones, then the dare
-      const g = s.g, lose = other(s.win);
-      setTimeout(() => showResult(lose, 'Pressure'), 900);
-      if (act.r === myRole) setTimeout(() => { if (press.win && press.g === g) { NEWG.pressure.reset(); loserDare(lose); } }, 900 + TRESULT_MS + 500);   // only the phone that played last deals it, so it happens once
-    }
+  const bk = pzBestKept(); s.best = { host: Math.max(bk.host, s.best.host), remote: Math.max(bk.remote, s.best.remote) }; store.set('pressBest:' + room, s.best);
+  if (s.g !== before.g) { if (pzGo && !pzGo.solo) { pzGo = null; pzRun = null; } pzWatch = null; if (!pzGo) pzRun = null; pzSolo = null; }
+  if (act && act.r !== myRole) {
+    if (act.k === 'join') notify(`${who()} joined! ${pzTurn(s) === myRole ? 'You play first' : `${who()} plays first`} 🔴`);
+    if (act.k === 'no') notify(before.call === myRole ? `${who()} can't play now.` : `${who()} stopped calling.`);
+  }
+  if (s.call === other(myRole) && before.call !== s.call) pzCalled();
+  if (!s.call && pzCallUp) { pzCallUp = false; newClose(); }   // the call was taken back
+  if (act && act.k === 'end' && s.over && !before.over) {   // both have played: the lose and win screens on both phones, then the dare
+    const g = s.g, lose = s.win && other(s.win);
+    if (lose) setTimeout(() => showResult(lose, 'Pressure'), 1400);
+    else notify(`Draw! Both out at level ${s.res.host}. No dare this time.`);
+    if (lose && act.r === myRole) setTimeout(() => { if (press.over && press.g === g) loserDare(lose); }, 1400 + TRESULT_MS + 500);   // only the phone that played last deals it, so it happens once
   }
   renderPress();
 }
-function gotPzLive(m) {   // the other phone's level, live: the same ring and the same presses here
-  if (m.g !== press.g || m.lv !== press.lv || pzTurn(press) !== other(myRole)) return;
-  if (m.k === 'go' && Number.isFinite(m.d) && !(pzWatch && pzWatch.g === m.g && pzWatch.lv === m.lv)) pzWatch = { g: m.g, lv: m.lv, L: pzMine(pzLevel(m.lv), other(myRole)), t0: performance.now() + Math.max(0, Math.min(PZ_READY, m.d)), ps: [], done: false };
-  const w = pzWatch; if (!w || w.lv !== m.lv) return;
-  if (m.k === 'dn' && Number.isFinite(m.ms)) { w.ps.push({ d: m.ms, u: null }); if (panel === 'pressure') pzBurst(w.ps.length); }
+// ---- calling the other one to a match
+let pzCallUp = false;
+function pzCall() {
+  if (press.on || pzGo) return;
+  if (press.call === myRole) { pressCommit({ ...press, call: null }, { k: 'no', r: myRole }); return; }
+  pressCommit({ ...press, call: myRole }, { k: 'call', r: myRole });
+  if (!partnerOnline()) { sendChat('🔴 Pressure: come and play with me! Open Pressure and tap Join.'); notify(`${who()} isn't here, so the call went as a message too.`); }
+}
+function pzCalled() {   // their call: a sheet over whatever is open, or after my run
+  if (press.call !== other(myRole) || press.on || pzGo || newAsk || !$('newSheet').hidden) return;
+  pzCallUp = true; newAsk = null;
+  newShow(`${who()} is calling you 🔴`, `A Pressure match: one full run each, one by one. ${who()} plays first. The lower level gets a dare.`, 'Join', 'Not now', pzJoin, () => { pzCallUp = false; newClose(); if (press.call === other(myRole)) pressCommit({ ...press, call: null }, { k: 'no', r: myRole }); });
+  if (navigator.vibrate) navigator.vibrate([30, 40, 30, 40, 60]);
+}
+function pzJoin() {
+  if (pzCallUp) { pzCallUp = false; newClose(); }
+  if (press.call !== other(myRole) || press.on) return;
+  openPanel('pressure');
+  pressCommit({ ...blankPress(other(myRole), true), wins: press.wins, best: press.best }, { k: 'join', r: myRole });
+}
+function gotPzLive(m) {   // the other phone's run, live: the same ring and the same presses here
+  if (pzGo || !Number.isInteger(m.g) || !Number.isInteger(m.lv) || m.lv < 1 || m.lv > 500) return;   // nobody gets that far: never made to work out thousands of levels
+  if (m.k === 'go') {
+    const solo = m.solo === true, them = other(myRole);
+    if (!Number.isFinite(m.d) || m.g < 1 || m.g > 4e9 || (!solo && (pzTurn(press) !== them || m.g !== pzSeed(press.g, them))) || (pzWatch && pzWatch.seed === m.g && pzWatch.lv === m.lv)) return;
+    pzWatch = { ...pzMake(m.g, m.lv, them), solo, t0: performance.now() + Math.max(0, Math.min(PZ_READY, m.d)) };
+  }
+  const w = pzWatch; if (!w || w.lv !== m.lv || w.seed !== m.g) return;
+  if (m.k === 'dn' && Number.isFinite(m.ms) && w.ps.length < 40) { w.ps.push({ d: m.ms, u: null }); if (panel === 'pressure') pzBurst(w.ps.length); }
   if (m.k === 'up' && Number.isFinite(m.ms)) { const p = w.ps.find(x => x.u == null); if (p) p.u = m.ms; }
-  if (m.k === 'end') { w.done = true; w.j = { ok: m.ok === true }; }
+  if (m.k === 'end') { w.done = true; w.j = { ok: m.ok === true }; w.t1 = performance.now(); played('pressure'); }
   renderPress(); pzKick();
 }
 function pzKick() { if (!pzRaf && panel === 'pressure') pzRaf = requestAnimationFrame(pzLoop); }
@@ -6008,40 +6061,56 @@ function pzLoop() {
   if (!o || panel !== 'pressure') return;
   const t = performance.now() - o.t0;
   if (o === pzRun && t >= 0) { const j = pzJudge(o.L, o.ps, t); if (j) return pzEnd(j); }
-  if (o === pzWatch && t > o.L.ring + 3000) { o.done = true; return renderPress(); }   // their "end" never came: the result arrives with the game itself
+  if (o === pzWatch && t > o.L.ring + 3000) { pzWatch = null; return renderPress(); }   // their "end" never came: the result arrives with the game itself
   pzDraw(o, t); pzKick();
 }
-function pzStart() {
-  if (pzTurn(press) !== myRole || (pzRun && !pzRun.done)) return;
-  if (!pressV) pressCommit(press, null);   // the very first game: both phones take these levels
-  pzRun = { g: press.g, lv: press.lv, L: pzMine(pzLevel(press.lv), myRole), t0: performance.now() + PZ_READY, ps: [], done: false }; pzWatch = null;
-  send({ t: 'pzLive', k: 'go', g: press.g, lv: press.lv, d: PZ_READY });
+const PZ_GAP = 750;   // the tick shows, then the next level comes by itself
+function pzStart() {   // my run starts: the match's if it is my turn, else a solo one
+  if (pzGo) return;
+  const solo = pzTurn(press) !== myRole;
+  pzGo = { solo, g: press.g, seed: solo ? 1 + Math.floor(Math.random() * 2e9) : pzSeed(press.g, myRole), lv: 0 }; pzWatch = null; pzSolo = null;
+  pzNext();
+}
+function pzNext() {
+  const go = pzGo; if (!go) return;
+  go.lv++; pzRun = { ...pzMake(go.seed, go.lv, myRole), solo: go.solo, t0: performance.now() + PZ_READY };
+  send({ t: 'pzLive', k: 'go', g: go.seed, lv: go.lv, d: PZ_READY, solo: go.solo });
   renderPress(); pzKick();
 }
 function pzPress(k, t) {   // a finger landing (d) or lifting (u), in ms since the ring started
   const o = pzRun; if (!o || o.done || t < 0) return;
   if (k === 'd') o.ps.push({ d: t, u: null }); else { const p = o.ps.find(x => x.u == null); if (!p) return; p.u = t; }
-  send({ t: 'pzLive', k: k === 'd' ? 'dn' : 'up', g: o.g, lv: o.lv, ms: Math.round(t) });
+  send({ t: 'pzLive', k: k === 'd' ? 'dn' : 'up', g: o.seed, lv: o.lv, ms: Math.round(t) });
   if (k === 'd') { pzBurst(o.ps.length); if (navigator.vibrate) navigator.vibrate(12); }
   const j = pzJudge(o.L, o.ps, t); if (j) pzEnd(j); else pzDraw(o, t);   // drawn now, not at the next frame: the press shows the instant the finger lands
 }
-function pzEnd(j) {   // my level is over: tell the watching phone, then write the result into the game
-  const o = pzRun; if (!o || o.done) return;
-  o.done = true; o.j = j;
+function pzEnd(j) {   // this level is over: passed, the next one comes; a mistake, the run is over
+  const o = pzRun, go = pzGo; if (!o || o.done || !go) return;
+  o.done = true; o.j = j; o.t1 = performance.now(); played('pressure');
   if (navigator.vibrate) navigator.vibrate(j.ok ? 30 : [90, 50, 160]);
-  send({ t: 'pzLive', k: 'end', g: o.g, lv: o.lv, ok: j.ok });
-  if (pzHeld) { const h = pzHeld; pzHeld = null; setTimeout(() => gotPanel(h), 700); }   // their section change waited for this level
-  if (o.g !== press.g || o.lv !== press.lv || pzTurn(press) !== myRole) return renderPress();   // the game changed under it
-  const s = JSON.parse(JSON.stringify(press)), me = myRole, them = other(me);
-  s.res[me] = j.ok ? 1 : 2; s.why[me] = j.ok ? '' : j.why;
-  if (j.ok) s.best = Math.max(s.best, s.lv);
-  if (s.res[them]) {   // both have played this level: the round is decided
-    if ((s.res[me] === 1) !== (s.res[them] === 1)) { s.win = s.res[me] === 1 ? me : them; s.wins[s.win]++; }
-    else { s.last = { lv: s.lv, res: s.res, why: s.why }; s.lv++; s.first = other(s.first); s.res = { host: 0, remote: 0 }; s.why = { host: '', remote: '' }; }   // both passed, or both failed (a draw round): on to the next level, the other one first
-  }
-  pressCommit(s, { k: 'end', r: me, ok: j.ok });
+  send({ t: 'pzLive', k: 'end', g: o.seed, lv: o.lv, ok: j.ok });
+  if (!j.ok) return pzOut(j.why);
+  renderPress(); setTimeout(() => { if (pzGo === go && go.lv === o.lv) pzNext(); }, PZ_GAP);
 }
-function pzLeave() { if (pzRun && !pzRun.done) pzEnd({ ok: false, why: '{S} left in the middle of a level' }); }   // leaving the section or the app in the middle of a level loses it
+function pzOut(why) {
+  const go = pzGo, me = myRole, them = other(me); pzGo = null;
+  if (pzHeld) { const h = pzHeld; pzHeld = null; setTimeout(() => gotPanel(h), 1500); }   // their section change waited for this run
+  const s = JSON.parse(JSON.stringify(press)), better = go.lv > s.best[me]; s.best[me] = Math.max(s.best[me], go.lv);
+  if (go.solo || go.g !== press.g || pzTurn(press) !== me) {   // solo, or the match ended under it
+    pzSolo = { lv: go.lv, why, best: better };
+    if (better) pressCommit(s, null); else renderPress();
+  } else {
+    s.res[me] = go.lv; s.why[me] = why;
+    if (s.res[them]) { s.on = false; s.over = true; s.win = s.res[me] === s.res[them] ? null : s.res[me] > s.res[them] ? me : them; if (s.win) s.wins[s.win]++; }
+    pressCommit(s, { k: 'end', r: me });
+  }
+  if (press.call === them) setTimeout(pzCalled, 1600);   // they called while I played
+}
+function pzLeave() {   // leaving the section or the app in the middle of a run ends it
+  if (!pzGo) return;
+  if (pzRun && !pzRun.done) return pzEnd({ ok: false, why: '{S} left in the middle of the run' });
+  pzOut('{S} left in the middle of the run');
+}
 document.addEventListener('visibilitychange', () => { if (document.hidden) pzLeave(); });
 function pzOpen() { renderPress(); pzKick(); }
 const PZ_SEG = 36;   // ring pieces: more of them, so the ticks come faster
@@ -6083,7 +6152,7 @@ function pzFace(pic, say, big, tint, note, ink = '', fx = '', key = '', ring = 0
 function pzDraw(o, t) {
   const L = o.L, v = L.vis, j = o.done ? o.j : null, wait = t < 0 && !j, b = $('pzBtn'), run = !wait && !j, bait = L.sw != null && t < L.sw;
   let big = '', tint = '', say = wait ? 'Ready…' : bait ? L.say0 : L.say;
-  if (j) { big = j.ok ? '✓' : '💀'; if (!j.ok) say = 'OUT!'; }
+  if (j) { big = j.ok ? '✓' : '💀'; say = j.ok ? (o.lv % 7 ? '' : `Stage ${o.lv / 7 + 1}!`) : `OUT! Level ${o.lv}`; }
   else if (!wait && v.zero) big = String(Math.max(0, Math.ceil((v.zero - t) / 1000)));
   else if (!wait && v.cyc && t >= v.cyc.lead) { const it = v.cyc.items[Math.min(3, Math.floor((t - v.cyc.lead) / v.cyc.per))]; if (v.cyc.t === 'col') [big, tint] = PZ_COL[it]; else big = PZ_SYM[it]; }
   else if (run && v.cd && bait) big = String(Math.max(1, Math.ceil((L.sw - t) / (L.sw / 3))));   // a countdown that never reaches zero
@@ -6091,45 +6160,51 @@ function pzDraw(o, t) {
   if (run && v.btnRed != null && t >= v.btnRed && t < v.btnRed + 420) tint = '#ff2d55';
   if (run && L.fx === 'type') say = say.slice(0, Math.max(1, Math.ceil(say.length * Math.min(1, t / (L.ring * .3)))));
   if (run && L.fx === 'scramble' && t < L.ring * .25) say = pzScram(say, Math.floor(t / 90));
-  pzFace(wait ? '' : L.pic, say, big, tint, wait ? '' : L.note || (L.tez ? '⚡ FAST!' : ''), run ? L.ink || '' : '', run ? L.fx || '' : '', wait ? `${o.g}:${o.lv}:0` : `${o.g}:${o.lv}:${bait ? 1 : 2}`, L.ring);
+  pzFace(run ? L.pic : '', say, big, tint, !run ? '' : L.note || (L.tez ? '⚡ FAST!' : ''), run ? L.ink || '' : '', run ? L.fx || '' : '', `${o.seed}:${o.lv}:${wait ? 0 : j ? 3 : bait ? 1 : 2}`, L.ring);
   b.classList.toggle('blink', !wait && !j && !!v.blinks && v.blinks.some(x => t >= x && t < x + 170));
   b.classList.toggle('ok', !!j && j.ok); b.classList.toggle('bad', !!j && !j.ok);
-  const down = !j && o.ps.some(x => x.u == null), p = run ? Math.min(1, Math.max(0, t / L.ring)) : 0, frac = run ? 1 - p : 1, lit = Math.ceil(frac * PZ_SEG - 1e-6);
+  const down = !j && o.ps.some(x => x.u == null), p = run ? pzBurn(o, t) : 0, frac = run ? 1 - p : 1, lit = Math.ceil(frac * PZ_SEG - 1e-6);
   b.classList.toggle('down', down); b.classList.toggle('panic', run && p > .8);
+  if (run && o.lit != null && o.lit - lit >= 3) { const ar = b.parentNode; ar.classList.remove('pzThud'); void ar.offsetWidth; ar.classList.add('pzThud'); if (o === pzRun && navigator.vibrate) navigator.vibrate(18); }   // a chunk of the ring gone at once: a thud
   if (run && o.lit != null && lit < o.lit) { o.fl = { j: lit, at: performance.now() }; if (o === pzRun && p > .55 && navigator.vibrate) navigator.vibrate(p > .85 ? 14 : 7); }   // a tick: the piece flashes out; near the end the phone ticks too
   o.lit = run ? lit : null;
   // the heartbeat: the button pulses faster and harder as the time runs out, and trembles at the very end
-  if (run && !pzCalm.matches) { const hz = 1.2 + 4.5 * p * p, sc = (1 + (.012 + .04 * p) * Math.sin(2 * Math.PI * hz * t / 1000)) * (down ? .92 : 1), sh = p > .78 ? (p - .78) * 14 : 0;
+  if (run && !pzCalm.matches) { const hz = 1.1 + .1 * ((o.lv - 1) % 7) + 4.5 * p * p, sc = (1 + (.012 + .04 * p) * Math.sin(2 * Math.PI * hz * t / 1000)) * (down ? .92 : 1), sh = p > .78 ? (p - .78) * 14 : 0;
     b.style.transform = `translate(${((Math.random() - .5) * sh).toFixed(1)}px, ${((Math.random() - .5) * sh).toFixed(1)}px) scale(${sc.toFixed(4)})`; }
   else b.style.transform = run && down && !pzCalm.matches ? 'scale(.93)' : '';
   b.style.boxShadow = run && !b.classList.contains('blink') ? `0 0 0 1px rgba(255, 255, 255, .08), 0 0 ${Math.round(18 + 46 * p)}px ${Math.round(3 + 10 * p)}px rgba(255, ${Math.round(200 - 130 * p)}, 40, ${(.1 + .5 * p).toFixed(2)})` : '';
   if (!tint) b.style.background = run ? `radial-gradient(circle at 50% 32%, ${pzMix('#2c2c36', '#6a1c22', p)}, ${pzMix('#121217', '#2a070b', p)} 72%)` : '';   // the button itself heats up
   b.parentNode.style.setProperty('--pzp', p.toFixed(3)); $('pressurePanel').style.setProperty('--pzp', p.toFixed(3)); $('pressurePanel').style.setProperty('--pzh', j ? (j.ok ? '#30d158' : '#ff453a') : L.hue || '#3ff3ff');   // the whole panel heats up too, in the level's colour
-  const pn = $('pressurePanel'), fk = j ? `${o.g}:${o.lv}:${j.ok ? 1 : 0}` : ''; if (j && pn.dataset.fk !== fk) { pn.dataset.fk = fk; pn.classList.remove('pzPass', 'pzFail'); void pn.offsetWidth; pn.classList.add(j.ok ? 'pzPass' : 'pzFail'); }
+  const pn = $('pressurePanel'), fk = j ? `${o.seed}:${o.lv}:${j.ok ? 1 : 0}` : ''; if (j && pn.dataset.fk !== fk) { pn.dataset.fk = fk; pn.classList.remove('pzPass', 'pzFail'); void pn.offsetWidth; pn.classList.add(j.ok ? 'pzPass' : 'pzFail'); }
+  const ck = $('pzClk'), hide = v.zero || 'red' in v || 'blinks' in v || v.cyc, left = Math.max(0, L.ring - t) / 1000, ct = !run ? '' : hide ? '⏱ ?' : left.toFixed(1);   // the seconds left, counted down live; on the timing levels it would give the moment away
+  if (ck.textContent !== ct) ck.textContent = ct; ck.style.setProperty('--h', run && !hide ? p.toFixed(2) : 0); ck.classList.toggle('hot', run && !hide && p > .7);
   const calm = v.red == null ? pzMix(L.hue || '#3ff3ff', '#ffb020', Math.min(1, Math.max(0, (p - .3) / .6))) : '#3ff3ff';   // the level's own colour burning to amber; never red: red means "press now" on the red levels
   pzRing(frac, j ? (j.ok ? '#30d158' : '#ff453a') : !wait && v.red != null && t >= v.red ? '#ff2d55' : calm, p, o.fl);
 }
-function pzResult(s) {   // under the button: how this round is going, or how the last one ended
-  const why = r => s.why[r].replace('{S}', r === myRole ? 'You' : who());
-  if (s.win) return `✗ ${why(other(s.win))}`;
-  const done = ['host', 'remote'].filter(r => s.res[r]);
-  if (done.length) return done.map(r => s.res[r] === 1 ? `✓ ${r === myRole ? 'You' : who()}: passed` : `✗ ${why(r)}`).join(' · ');
-  if (s.last) return s.last.res.host === 1 ? `Level ${s.last.lv}: both passed ✓✓` : `Level ${s.last.lv}: both failed, a draw. Next level!`;
-  return '';
+function pzResult(s) {   // under the button: how the last run or match ended, or the level to beat
+  const say = (x, r) => x.replace('{S}', r === myRole ? 'You' : who()), out = r => `Level ${s.res[r]}: ${say(s.why[r], r)}`;
+  if (pzGo) return pzGo.solo || !s.res[other(myRole)] ? '' : `${who()} got to level ${s.res[other(myRole)]}: beat it!`;
+  if (pzSolo) return `${pzSolo.best ? '⭐ New best! ' : ''}${say(pzSolo.why, myRole)}`;
+  return ['host', 'remote'].filter(r => s.res[r]).map(out).join(' · ');
 }
 function renderPress() {
-  const s = press, name = who(), turn = pzTurn(s), live = pzRun && !pzRun.done ? pzRun : null, watch = pzWatch && !pzWatch.done ? pzWatch : null;
-  $('pzTurn').textContent = s.win ? (s.win === myRole ? `You won! ${name} gets a dare 😈` : `${name} won. You get a dare 😈`)
-    : (live ? `Level ${s.lv}: go!` : watch ? `${name}'s level ${s.lv}: watch live 👀` : turn === myRole ? `Your turn: level ${s.lv}` : `${name}'s turn: level ${s.lv}${partnerOnline() ? '' : `. ${name} isn't here right now`}`) + (() => { const L = (live || watch || {}).L || pzMine(pzLevel(s.lv), turn || myRole); return ` · ${L.tez ? '⚡ FAST ' : ''}⏱ ${(L.ring / 1000).toFixed(1)} s`; })();   // Xed 23 Nov: the clock changes every level, shown so you can see it
-  $('pzWins').textContent = `🏆 Wins: You ${s.wins[myRole]} · ${name} ${s.wins[other(myRole)]} · Best: level ${s.best}`;
-  const go = $('pzGo'); go.hidden = !!(live || watch); go.disabled = turn !== myRole; go.textContent = s.win ? 'Over' : turn === myRole ? 'Start' : 'Wait…';
+  const s = press, me = myRole, them = other(me), name = who(), turn = pzTurn(s), live = pzGo ? pzRun : null, watch = !pzGo && pzWatch && (!pzWatch.done || (pzWatch.j && pzWatch.j.ok && performance.now() - pzWatch.t1 < 3000)) ? pzWatch : null, o = live || watch;
+  $('pzTurn').textContent = o ? `${o === live ? (o.solo ? 'Solo · ' : '') + `Level ${o.lv}` : `${name}${o.solo ? ' (solo)' : ''}: level ${o.lv}, watch live 👀`}${o.L.tez ? ' · ⚡ FAST' : ''}`
+    : turn === me ? (s.res[them] ? `Your run! Beat level ${s.res[them]}` : `Your run! Play until you're out`) : turn ? `${name}'s run now${partnerOnline() ? '' : `. ${name} isn't here right now`}`
+    : s.call === them ? `${name} is calling you 🔴` : s.call === me ? `Calling ${name}…` : pzSolo ? `Solo: out at level ${pzSolo.lv}`
+    : s.over ? (s.win ? (s.win === me ? `You won! ${name} gets a dare 😈` : `${name} won. You get a dare 😈`) : 'Draw! Play again?') : `Play solo, or call ${name} to a match`;
+  $('pzWins').textContent = `🏆 You ${s.wins[me]} · ${name} ${s.wins[them]}   ⭐ Best level: You ${s.best[me] || '–'} · ${name} ${s.best[them] || '–'}`;
+  const go = $('pzPlay'), call = $('pzCall');
+  go.hidden = !!pzGo || !!(watch && !watch.solo); go.textContent = turn === me ? 'Start my run' : !turn && s.call === them ? `Join ${name}` : 'Play solo';
+  call.hidden = !!pzGo || s.on || s.call === them; call.textContent = s.call === me ? 'Cancel call' : `Call ${name}`;
+  $('preact').hidden = !call.hidden && !watch; if (watch) call.hidden = true;   // watching: the reactions take the place of the call button
+  $('pzNew').hidden = !s.on || !!pzGo;
   $('pzRes').textContent = pzResult(s);
-  const sg = Math.floor((s.lv - 1) / 7), at = (s.lv - 1) % 7, html = Array.from({ length: 7 }, (_, i) => `<i class="${i < at ? 'pzd' : i === at ? 'pzc' : ''}"></i>`).join('') + `<span>Stage ${sg + 1}</span>`;
+  const last = o || [pzRun, pzWatch].filter(x => x && x.done).sort((a, b) => b.t1 - a.t1)[0] || null, lv = last ? last.lv : 1, sg = Math.floor((lv - 1) / 7), at = (lv - 1) % 7, html = Array.from({ length: 7 }, (_, i) => `<i class="${i < at ? 'pzd' : i === at ? 'pzc' : ''}"></i>`).join('') + `<span>Stage ${sg + 1}</span>`;
   if ($('pzStage').innerHTML !== html) $('pzStage').innerHTML = html;   // 7 levels a stage, like the dots under the reference game's button
   if (panel !== 'pressure') return;
-  const o = live || watch || [pzWatch, pzRun].find(x => x && x.g === s.g && x.lv === s.lv && x.done);
-  if (o) return pzDraw(o, performance.now() - o.t0);
-  pzFace('', s.win ? 'Game over' : `Level ${s.lv}`, '', '', ''); $('pzBtn').classList.remove('blink', 'ok', 'bad', 'down', 'panic'); $('pzBtn').style.transform = $('pzBtn').style.boxShadow = $('pzBtn').style.background = ''; $('pzRing').parentNode.style.setProperty('--pzp', '0'); $('pressurePanel').style.setProperty('--pzp', '0'); $('pressurePanel').style.removeProperty('--pzh'); pzRing(1, 'rgba(63, 243, 255, .35)');
+  if (last) return pzDraw(last, performance.now() - last.t0);
+  pzFace('', turn === me ? 'Your run' : 'Ready?', '', '', ''); $('pzClk').textContent = ''; $('pzBtn').classList.remove('blink', 'ok', 'bad', 'down', 'panic'); $('pzBtn').style.transform = $('pzBtn').style.boxShadow = $('pzBtn').style.background = ''; $('pzRing').parentNode.style.setProperty('--pzp', '0'); $('pressurePanel').style.setProperty('--pzp', '0'); $('pressurePanel').style.removeProperty('--pzh'); pzRing(1, 'rgba(63, 243, 255, .35)');
 }
 $('pzBtn').addEventListener('pointerdown', e => {   // Pointer Events with the event's own time stamp: a double press and a 2-second hold are measured exactly, with no tap delay
   e.preventDefault(); const o = pzRun; if (!o || o.done) return;
@@ -6138,7 +6213,8 @@ $('pzBtn').addEventListener('pointerdown', e => {   // Pointer Events with the e
 });
 for (const k of ['pointerup', 'pointercancel']) $('pzBtn').addEventListener(k, e => { const o = pzRun; if (o && !o.done) pzPress('u', e.timeStamp - o.t0); });
 $('pzBtn').addEventListener('contextmenu', e => e.preventDefault());
-$('pzGo').onclick = () => { tap(); pzStart(); };
+$('pzPlay').onclick = () => { tap(); if (!pzTurn(press) && press.call === other(myRole)) pzJoin(); else pzStart(); };
+$('pzCall').onclick = () => { tap(); pzCall(); };
 $('pzNew').onclick = () => { tap(); askNew('pressure'); };
 document.querySelectorAll('#preact button, #pphr button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); towerReact(b.dataset.e, true, $('pfloat')); send({ t: 'pressReact', e: b.dataset.e }); });
 // the die lives on the board, in the open space inside the ring; pick it up anywhere there and throw it
@@ -6505,7 +6581,7 @@ $('towerNew').onclick = () => { tap(); askNew('tower'); };
 // A new game in the middle of one needs both of you: one asks, the other has 10 seconds to agree, otherwise the game goes on.
 const NEWG = {
   ludo: { what: 'This Ludo game ends on both phones.', done: () => !!ludo.win, reset: () => ludoCommit(blankLudo(other(ludo.win || myRole), true), null) },   // the loser, or the other one, starts
-  pressure: { what: 'This Pressure game ends on both phones.', done: () => !!press.win, reset: () => pressCommit(blankPress(press.win ? other(press.win) : other(press.first)), null) },   // the loser starts the next one
+  pressure: { what: 'This Pressure match ends on both phones, and a new one starts.', done: () => false, reset: () => pressCommit({ ...blankPress(other(press.first), true), wins: press.wins, best: press.best }, null) },
   tower: { what: 'This tower comes down on both phones. Your best height stays.', done: () => !tower.f, reset: () => { const t = blankTower(tower.best), v = nextV(towerV); t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v }); } }
 };
 window.lockAskHelp = () => partnerOnline() ? (send({ t: 'lockAsk' }), { asked: true, text: `Asked ${who()}. When ${who()} says yes, you can choose a new code.` }) : { asked: false, text: `${who()} must have Loveline open to say yes. Try again then.` };
@@ -6519,7 +6595,7 @@ $('fakeCodeBtn').onclick = () => {   // Xed 14 Nov: a second passcode that opens
 addEventListener('lockopen', fakeLabel); fakeLabel();
 $('lockChangeBtn').onclick = () => { tap(); $('nameSheet').hidden = true; if (window.lockChange) window.lockChange(); };
 function wipeScores(rs) {   // what only this phone keeps: every Ludo win and the tap streak best
-  store.set('resetAt:' + room, rs); store.set('ludoWins:' + room, { host: 0, remote: 0 }); store.set('pressWins:' + room, { host: 0, remote: 0 });
+  store.set('resetAt:' + room, rs); store.set('ludoWins:' + room, { host: 0, remote: 0 }); store.set('pressWins:' + room, { host: 0, remote: 0 }); store.set('pressBest:' + room, { host: 0, remote: 0 });
   tapBest = 0; store.set('tapBest', 0);
   for (const k in usedCards) delete usedCards[k];
   saveUsed();
@@ -7252,7 +7328,8 @@ let wstate = { id: null, playing: false, pos: 0, base: 0, v: 0, from: '' };
 let toyRanAt = 0;   // the 15 s auto-lock waits while a video plays in Watch; on her phone also while a toy runs, or ran in the last minute (pauses between patterns)
 window.lockHold = () => {
   if (vnBusy()) return true;   // a voice note being recorded or played (Xed 13 Nov)
-  if (panel === 'pressure' && [pzRun, pzWatch].some(o => o && !o.done && performance.now() - o.t0 < o.L.ring + 3000)) return true;   // a Pressure level being played or watched lasts a few seconds: never locked halfway, and never held longer than the level itself
+  if (panel === 'pressure' && pzGo && pzRun && performance.now() - pzRun.t0 < pzRun.L.ring + 3000) return true;   // my own Pressure run: never locked in the middle of a level, and never held longer than the level itself
+  if (panel === 'pressure' && pzWatch && performance.now() - pzWatch.t0 < pzWatch.L.ring + 3000) return 180000;   // watching theirs: 3 minutes after the last touch, however long their run
   if (panel === 'watch' && wstate.playing && here() && !vid.paused && !vid.ended) return true;   // Xed 12 Nov: only a video really moving on this phone, not paused, ended or still loading
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
@@ -7313,7 +7390,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261123-134111';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261123-142933';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
