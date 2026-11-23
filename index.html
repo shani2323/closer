@@ -725,23 +725,17 @@
   #pzSay.pzIn { animation: pzIn 260ms cubic-bezier(.2, 1.3, .4, 1) both; }
   #pzSay.fx-wobble { animation: pzIn 260ms both, pzWob .45s ease-in-out 260ms infinite alternate; }
   #pzSay.fx-shake { animation: pzIn 260ms both, pzJit 90ms linear 260ms infinite; }
-  #pzSay.fx-caps, #pzSay.fx-type, #pzSay.fx-scramble { animation: pzIn 260ms cubic-bezier(.2, 1.3, .4, 1) both; }
-  #pzSay.fx-spaced { letter-spacing: .3em; font-size: 15px; animation: pzIn 260ms both; }
-  #pzSay.fx-blur { animation: pzBlur var(--pzr) ease-out both; }
+  #pzSay.fx-caps, #pzSay.fx-type { animation: pzIn 260ms cubic-bezier(.2, 1.3, .4, 1) both; }
+  #pzSay.fx-spaced { letter-spacing: .16em; font-size: 18px; animation: pzIn 260ms both; }
   #pzSay.fx-shrink { animation: pzShrink var(--pzr) ease-in both; }
-  #pzSay.fx-fade { animation: pzFade var(--pzr) linear both; }
   #pzSay.fx-hue { animation: pzIn 260ms both, pzHue .6s linear infinite; }
   #pzSay.fx-glitch { animation: pzGl 1.1s steps(1) infinite; }
-  #pzSay.fx-mirror { transform: scaleX(-1); }
-  #pzSay.fx-flip { transform: rotate(180deg); }
   .pzBtn.panic #pzSay { text-shadow: 0 0 14px rgba(255, 80, 60, .9); }
   .pzArena.pzSwap::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, .55), transparent 65%); pointer-events: none; animation: pzSwap 360ms ease-out forwards; }
   @keyframes pzIn { from { transform: scale(1.35); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; filter: none; } }
   @keyframes pzWob { from { transform: rotate(-6deg) scale(1.03); } to { transform: rotate(6deg) scale(.97); } }
   @keyframes pzJit { 0% { transform: translate(1px, -1px); } 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, 2px); } 75% { transform: translate(-1px, -2px); } 100% { transform: translate(1px, 1px); } }
-  @keyframes pzBlur { 0% { filter: blur(8px); } 35%, 100% { filter: blur(0); } }
-  @keyframes pzShrink { from { transform: scale(1.15); } to { transform: scale(.5); } }
-  @keyframes pzFade { 0%, 45% { opacity: 1; } 75%, 100% { opacity: 0; } }
+  @keyframes pzShrink { from { transform: scale(1.15); } to { transform: scale(.8); } }
   @keyframes pzHue { 0% { color: #ff5ad1; } 33% { color: #3ff3ff; } 66% { color: #ffd60a; } 100% { color: #ff5ad1; } }
   @keyframes pzGl { 0%, 100% { transform: none; text-shadow: none; } 8% { transform: skewX(-18deg) translateX(-4px); text-shadow: 3px 0 #ff2d55, -3px 0 #3ff3ff; } 12% { transform: none; text-shadow: none; } 47% { transform: skewX(14deg) translateX(3px); text-shadow: -3px 0 #ff2d55, 3px 0 #3ff3ff; } 51% { transform: none; text-shadow: none; } }
   @keyframes pzSwap { from { opacity: 1; } to { opacity: 0; } }
@@ -749,8 +743,8 @@
   @keyframes pzCnt { from { opacity: 1; transform: translate(-50%, 12px) scale(.8); } to { opacity: 0; transform: translate(-50%, -30px) scale(1.3); } }
   @keyframes pzPop { 0% { transform: scale(.9); } 55% { transform: scale(1.08); } 100% { transform: scale(1); } }
   @keyframes pzShake { 0%, 100% { transform: translateX(0); } 15% { transform: translateX(-12px); } 35% { transform: translateX(10px); } 55% { transform: translateX(-7px); } 75% { transform: translateX(4px); } }
-  #pzPic { max-width: 100%; font-size: 40px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; } #pzPic.many { font-size: 24px; letter-spacing: 1px; } #pzPic:empty, #pzBig:empty { display: none; }   /* a row of pictures to count stays inside the button */
-  #pzSay { font-size: 19px; font-weight: 700; line-height: 1.2; letter-spacing: -.02em; text-align: center; overflow-wrap: anywhere; }
+  #pzPic { max-width: 100%; font-size: 40px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; } #pzPic.many { font-size: 24px; font-weight: 800; letter-spacing: 1px; } #pzPic:empty, #pzBig:empty { display: none; }   /* a row of pictures to count stays inside the button */
+  #pzSay { white-space: pre-line; font-size: 21px; font-weight: 700; line-height: 1.2; letter-spacing: -.02em; text-align: center; overflow-wrap: anywhere; }
   #pzBig { font-size: 36px; font-weight: 800; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .pzStage { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 4px 0 0; }
   .pzStage i { width: 8px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .14); }
@@ -1299,9 +1293,10 @@
     <div class="lphr" id="pphr" aria-label="Fun phrases"></div>
     <details class="pzHow"><summary>How to play</summary>
       <p>Do what the big button says before the ring runs out. You keep going, level after level, until your first mistake: then your run is over. The time fits the level: more to read means more seconds (counted down beside the ring), and the pace tightens as you climb. <b>⚡ FAST</b> levels give you less. The ring burns the way the order reads: "Jaldi" rushes, "Ruko" freezes and lunges, counting levels break off in chunks, puzzles stay calm while you read and then drop.</p>
-      <p>The orders are in Roman Urdu: <b>Ek dafa press karo</b> (press once) · <b>Do dafa press karo</b> (twice) · <b>2 second hold karo</b> (hold 2 seconds, not shorter, not longer) · <b>Kuch mat karo</b> (don't press, let the ring run out) · <b>Ring RED ho to press karo</b> · <b>Third blink pe press karo</b> · <b>Exactly zero pe press karo</b>.</p>
-      <p>The game tries to trick you. The button changes its mind halfway ("PRESS! Abhi!" then "NAHI!"): only the last order counts. It flashes <b>NOW!</b> when you must not press, the button goes red before the ring does (only the ring counts), and countdowns lie. The writing shakes, blurs, fades away, jumbles, mirrors or turns upside down.</p>
-      <p>Rules like "🐀 matlab do dafa press karo" last until "🐀 wala rule khatam"; when the picture shows, the rule beats the words. "Yaad rakho" (remember) gets asked a few levels later. <b>ULTA</b> means do the opposite. Puzzles: count the pictures, count the words, sums, letters, the colour of the text, the last order, and the 🐈 that sneaked past. Some levels use your partner's name.</p>
+      <p>The orders are short: <b>EK tap</b> (tap once) · <b>DO tap</b> (twice) · <b>2 second hold</b> · <b>Kuch mat karo</b> (don't touch, let the ring run out) · <b>Ring RED ho to tap</b> · <b>3rd blink pe tap</b> · <b>Zero pe tap</b>.</p>
+      <p>Questions: <b>Kitne 💀? Utne tap</b> (count them, tap that many), words, letters, easy sums, <b>Ye text RED hai? EK tap</b> (if not, don't touch). <b>ULTA karo</b> means do the opposite.</p>
+      <p>It tries to trick you: the button changes its mind halfway (only the last order counts), <b>NOW!</b> flashes when you must not tap, the button goes red before the ring does (only the ring counts), and countdowns lie.</p>
+      <p>Rules: "Rule: 🐀 = DO tap" means that whenever 🐀 shows, you tap twice, whatever the words say, until "Ye rule khatam". "Yaad rakho" is asked one or two levels later. Some levels use your partner's name.</p>
       <p><b>Play solo</b> any time: only your best level counts. <b>Call</b> your partner to start a new match: the caller plays a full run first while the other watches live, then the other one plays. Each of you gets your own levels, so watching doesn't give the answers away. The lower level gets a dare. The same level is a draw.</p>
     </details>
     <button class="gameEnd" id="pzNew">New game</button>
@@ -5785,38 +5780,35 @@ const PZ_RULES = [['🐀', { a: 'tap', n: 2 }], ['🐍', { a: 'none' }], ['🔔'
 const PZ_NUM = ['', 'ek', 'do', 'teen', 'chaar', 'paanch', 'chhe'], PZ_COL = [['BLUE', '#2f7bff'], ['RED', '#ff3b5c'], ['GREEN', '#22c55e'], ['YELLOW', '#ffd60a']], PZ_SYM = ['⭐', '🌙', '❤️', '⚡'];
 const PZ_READY = 600, PZ_GRACE = 300, PZ_HOLD = [1800, 2800];   // "Ready…" before the ring; a tap counts once no second one follows within 0.3 s; a 2-second hold may end between 1.8 and 2.8 s: nobody counts 2 seconds exactly
 // Xed 23 Nov: the screen is English; only the orders on the button are Roman Urdu, with the hard words in English, like Truth or Dare
-const pzSay = a => a.a === 'tap' ? `${['', 'Ek', 'Do', 'Teen', 'Chaar', 'Paanch', 'Chhe'][a.n]} dafa press karo` : a.a === 'none' ? 'Kuch mat karo' : a.a === 'hold' ? '2 second hold karo' : a.a === 'red' ? 'Ring RED ho to press karo' : a.a === 'blink' ? `${a.n === 3 ? 'Third' : 'Second'} blink pe press karo` : a.a === 'zero' ? 'Exactly zero pe press karo' : '';
-const pzLow = s => s.charAt(0).toLowerCase() + s.slice(1);
+const pzSay = a => a.a === 'tap' ? `${['', 'EK', 'DO', 'TEEN', 'CHAAR', 'PAANCH', 'CHHE'][a.n]} tap` : a.a === 'none' ? 'Kuch mat karo' : a.a === 'hold' ? '2 second hold' : a.a === 'red' ? 'Ring RED ho to tap' : a.a === 'blink' ? `${a.n === 3 ? '3rd' : '2nd'} blink pe tap` : a.a === 'zero' ? 'Zero pe tap' : '';   // Xed 23 Nov: short, the key word in capitals, always "tap"
 const pzTimes = n => n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`;
 const pzAlt = s => [...s].map((c, i) => i % 2 ? c.toLowerCase() : c.toUpperCase()).join('');   // aLtErNaTiNg case, one of the writing tricks
-// Xed 23 Nov: levels are little puzzles to read under the clock, like the game it follows ("one press per skull", "count these words"),
-// not only plain orders. Each kind of puzzle: count the pictures, count the words, sums, letters, the colour of the writing, a number
-// test, "no… no… this one", a double "no", the level before, and the cats that slipped past earlier. The answer is always pressing N times or not at all.
+// Little puzzles, one short question at a time: count the pictures, count the words, sums, letters, the colour of the text, a number test, "no… this one".
+// The answer is always tapping N times or not at all.
 const PZ_PAIRS = [['💀', '👻'], ['🐟', '🐠'], ['🍎', '🍐'], ['⭐', '✨'], ['❤️', '🖤'], ['🌶️', '🥕']];
-const PZ_WORDY = ['Do dafa press karo', 'Teen tap karo', 'Ek dafa', 'Kuch mat karo', 'Chaar', 'Jaldi karo', 'Paanch dafa press karo', 'Ring dekho, button nahi', 'Pyar se press karo', 'Ek'];   // the button's own words are counted, whatever they say
-const PZ_AWORD = ['LAHORE', 'KARACHI', 'SAMOSA', 'BANANA', 'PAPAYA', 'ANAAR', 'DHAMAKA', 'ISLAMABAD', 'PAKISTAN', 'MALAAI', 'BAADAL', 'QULFI'];
-const PZ_NEG = [['Press na karna mana hai', 1], ['Mat karo… ya karo? Mat karo', 0], ['Kuch na karna mana hai: ek tap', 1], ['Do dafa mat karo, ek dafa karo', 1]];
-const PZ_ALT = { tap1: ['Ek dafa press karo', 'Bas ek tap', 'Ek baar, jaldi!', 'Sirf ONE tap'], tap2: ['Do dafa press karo', 'Double tap, jaldi!', 'Do baar tap karo', 'Do dafa. Abhi!'], none: ['Kuch mat karo', 'Haath door ✋', 'Touch bhi mat karna', 'Ruko… bas ruko'], hold: ['2 second hold karo', 'Hold karo… 2 second', 'Finger rakho, 2 second'] };   // the same order said different ways
+const PZ_WORDY = ['Jaan', 'Love you', 'Meri jaan', 'I miss you', 'Kiss me now', 'Haan', 'Aa jao', 'I love you jaan', 'Mujhe yaad karo'];   // shown big; the question is how many words
+const PZ_AWORD = ['LAHORE', 'SAMOSA', 'BANANA', 'PAPAYA', 'ANAAR', 'JAAN', 'PYAAR', 'RAAT', 'DIL', 'BARSAAT'];
+const PZ_ALT = { tap1: ['EK tap', 'Sirf EK tap', 'Bas EK tap', 'EK tap, jaldi!'], tap2: ['DO tap', 'Double tap', 'DO tap, jaldi!'], none: ['Kuch mat karo', 'Touch mat karo', 'Haath door ✋'], hold: ['2 second hold', '2 second hold karo'] };   // the same order said different ways
 // Xed 23 Nov: the game's job is to trick you into a wrong move. Bait: the button says one thing, then changes its mind halfway
-const PZ_BAIT = { stop: ['PRESS! Abhi!', 'Jaldi press karo!', 'Ek tap… NOW!', 'Double tap, jaldi!'], go: ['Ruko… ruko…', 'Abhi nahi…', 'Wait…', 'Haath door…'] };
-const PZ_FX1 = ['wobble', 'shake', 'caps', 'spaced', 'type'], PZ_FX2 = ['blur', 'shrink', 'fade', 'glitch', 'hue'], PZ_FX3 = ['mirror', 'flip', 'scramble'];   // writing tricks, more of them as the levels climb
+const PZ_BAIT = { stop: ['TAP! Abhi!', 'Jaldi tap karo!', 'EK tap… NOW!'], go: ['Ruko… ruko…', 'Abhi nahi…', 'Wait…'] };
+const PZ_FX1 = ['wobble', 'spaced', 'caps'], PZ_FX2 = ['shake', 'hue', 'type', 'shrink'], PZ_FX3 = ['glitch'];   // writing tricks, more of them as the levels climb; all of them can still be read
 const PZ_HUES = ['#3ff3ff', '#8f7bff', '#3dffa0', '#5aa8ff'];   // each level's ring starts in its own colour, then burns to amber
 // Xed 23 Nov: realistic time. The clock is built from what a person needs for that very level: notice it, read it, work it out, press.
-// Writing tricks slow the reading, so they add time too. The level's pace multiplies it: 1.7x at the start, never under 1.15x, so every level can be done.
-const PZ_THINK = { math: 700, words: 300, ink: 600, num: 600, last: 500, neg: 1000, prev: 1000, seenq: 1000, quiz: 800, rule: 700, trick: 700, harf: 500, first: 600, wins: 1000, name3: 300 };
-const PZ_SLOW = { flip: 1.8, mirror: 1.6, scramble: 1.5, blur: 1.4, type: 1.3, glitch: 1.2, caps: 1.2, spaced: 1.2, shake: 1.15, shrink: 1.15, wobble: 1.1, fade: 1.1, hue: 1.1 };
-const PZ_WORD = 200, PZ_NOTE = 150, PZ_SEE = 500, PZ_TAP = 280;   // ms: to read a word of the order, a word of the small note (the same few notes every time), to notice the level, and to press once
+// Writing tricks slow the reading, so they add time too. The level's pace multiplies it: 1.8x at the start, never under 1.3x, so every level can be done.
+const PZ_THINK = { math: 1100, words: 400, ink: 900, num: 900, last: 500, quiz: 1200, rule: 1100, trick: 1000, harf: 600, first: 800, name3: 500 };
+const PZ_SLOW = { type: 1.3, glitch: 1.2, caps: 1.2, spaced: 1.2, shake: 1.15, shrink: 1.15, wobble: 1.1, hue: 1.1 };
+const PZ_WORD = 330, PZ_NOTE = 250, PZ_SEE = 800, PZ_TAP = 350;   // ms: to read a word of the order, a word of the small hint, to notice the level, and to tap once
 const pzWords = t => t ? t.trim().split(/\s+/).length : 0;
 const pzRead = L => PZ_SEE + Math.round(pzWords(L.say) * PZ_WORD * (PZ_SLOW[L.fx] || 1)) + pzWords(L.note) * PZ_NOTE;
 function pzHuman(L) {   // how long this level takes a normal person, up to the last press
   const a = L.act, n = a.a === 'tap' ? a.n : a.a === 'none' ? 0 : 1;
-  const count = L.puz === 'words' ? pzWords(L.say) * 250 : L.puz === 'letters' ? L.say.split(' ')[0].length * 180 : L.puz === 'icons' ? Array.from(L.pic).length * 230 : L.puz === 'math' && L.say.split(' ').length > 6 ? 500 : L.nm === 'harf' ? a.n * 250 : 0;
+  const count = L.puz === 'words' ? pzWords(L.pic) * 350 : L.puz === 'letters' ? L.pic.length * 250 : L.puz === 'icons' ? Array.from(L.pic).length * 320 : L.nm === 'harf' ? a.n * 300 : 0;
   return pzRead(L) + (PZ_THINK[L.puz || L.nm || L.k] || 0) + count + n * PZ_TAP;
 }
 // Xed 23 Nov: the ring burns the way the words read (it always empties at the true end). Chosen from what is on the screen, never from the answer, so it gives nothing away.
-const PZ_RUSH = /jaldi|abhi|now/i, PZ_WAIT = /ruko|mat karo|haath|touch|wait|ulta|jhoot|mazaak|mana hai/i;
+const PZ_RUSH = /jaldi|abhi|now/i, PZ_WAIT = /ruko|mat karo|tap mat|haath|touch|wait|ulta|mazaak/i;
 const pzBurnKind = L => L.vis.zero ? 'sec' : 'red' in L.vis || 'blinks' in L.vis || L.vis.cyc ? 'even' : L.sw != null ? 'jump' : PZ_RUSH.test(L.say) ? 'rush' : PZ_WAIT.test(L.say + ' ' + L.note) ? 'surge'
-  : ['icons', 'words', 'letters'].includes(L.puz) || ['harf', 'name3'].includes(L.nm) || L.k === 'seenq' ? 'chunk' : L.act.a !== 'hold' && (PZ_THINK[L.puz || L.nm || L.k] || pzRead(L) > L.ring * .45) ? 'dive' : 'even';
+  : ['icons', 'words', 'letters'].includes(L.puz) || ['harf', 'name3'].includes(L.nm) ? 'chunk' : L.act.a !== 'hold' && (PZ_THINK[L.puz || L.nm || L.k] || pzRead(L) > L.ring * .45) ? 'dive' : 'even';
 function pzBurn(o, t) {   // 0 full, 1 empty
   const L = o.L, x = Math.min(1, Math.max(0, t / L.ring));
   if (o.burn === 'rush') return 1 - Math.pow(1 - x, 1.7);   // "Jaldi!": half of it is gone at once, the rest crawls
@@ -5832,85 +5824,80 @@ function pzLevels(seed, upto) {   // every level up to `upto`, the same on both 
   const c = pzLevels.c; if (c && c.seed === seed && c.list.length >= upto) return c.list;
   const r = fkRand(seed), list = [], rules = new Map(), pick = a => a[Math.floor(r() * a.length)], basics = [{ a: 'tap', n: 1 }, { a: 'tap', n: 2 }, { a: 'none' }, { a: 'hold' }];
   const tapN = n => n ? { a: 'tap', n } : { a: 'none' }, mix = a => { for (let j = a.length - 1; j > 0; j--) { const q = Math.floor(r() * (j + 1)); [a[j], a[q]] = [a[q], a[j]]; } return a; };   // shuffled the same way on every phone (never sort with a random compare: Safari and Chrome differ)
-  let mem = null, taught = -9, cats = 0, catAt = 0;
+  let mem = null, taught = -9;
   for (let i = 1; i <= upto; i++) {
-    // the pace tightens every level: 1.7x a person's time at level 1, 1.48x at 10, 1.25x from 22 on
-    const st = Math.floor((i - 1) / 7), trend = Math.max(1.25, 1.7 * Math.pow(.985, i - 1)), ease = (hi, lo) => Math.round(lo + (hi - lo) * (trend - 1.25) / .45);   // ease: from its start value down to its hardest
+    // the pace tightens every level: 1.8x a person's time at level 1, 1.57x at 10, 1.45x from 16 on
+    const st = Math.floor((i - 1) / 7), trend = Math.max(1.45, 1.8 * Math.pow(.985, i - 1)), ease = (hi, lo) => Math.round(lo + (hi - lo) * (trend - 1.45) / .35);   // ease: from its start value down to its hardest
     // the speed is random too: most levels 92-115% of the trend, now and then a sudden fast one or a breath
-    const wave = i > 3 && r() < .14 ? 'tez' : i > 2 && r() < .1 ? 'saans' : '', pace = Math.max(1.15, trend * (wave === 'tez' ? .8 : wave === 'saans' ? 1.3 : .92 + r() * .23));
-    const old = [...rules].filter(([, x]) => i - x.at > 5), prev = list[i - 2], prevOk = prev && ['tap', 'none'].includes(prev.act.a) && !['teach', 'nm', 'bait'].includes(prev.k);
+    const wave = i > 3 && r() < .14 ? 'tez' : i > 2 && r() < .1 ? 'saans' : '', pace = Math.max(1.3, trend * (wave === 'tez' ? .8 : wave === 'saans' ? 1.3 : .92 + r() * .23));
+    const old = [...rules].filter(([, x]) => i - x.at > 5);
     let k = 'quiz';
     if (!(mem && mem.due === i)) {
-      const opts = [['basic', Math.max(1, 3 - st)], ['time', 2], ['trick', i > 1 ? 2 + st : 0], ['puz', i > 1 ? 5 + st : 1], ['mem', !mem && i > 1 ? 2 : 0], ['teach', i > 2 && rules.size < Math.min(2, 1 + st) && i - taught > 3 ? 3 : 0],
-        ['rule', rules.size ? 3 : 0], ['drop', old.length ? 2 : 0], ['seenq', cats && i - catAt >= 2 ? 2 : 0], ['prev', prevOk && i > 3 ? 1 : 0], ['nm', i > 1 ? 3 : 0], ['bait', i > 2 ? 2 + st : 0]];
+      const opts = [['basic', Math.max(1, 3 - st)], ['time', 2], ['trick', i > 1 ? 2 + st : 0], ['puz', i > 1 ? 5 + st : 1], ['mem', !mem && i > 1 ? 2 : 0], ['teach', i > 2 && rules.size < (st > 2 ? 2 : 1) && i - taught > 3 ? 3 : 0],
+        ['rule', rules.size ? 3 : 0], ['drop', old.length ? 2 : 0], ['nm', i > 1 ? 3 : 0], ['bait', i > 2 ? 2 + st : 0]];
       let x = r() * opts.reduce((s, o) => s + o[1], 0); k = opts.find(o => (x -= o[1]) < 0)[0];
     }
     const L = { k, act: null, say: '', pic: '', note: '', pre: '', ink: '', vis: {}, trend, pace, tez: wave === 'tez', hue: pick(PZ_HUES) };
     if (k === 'basic') { L.act = pick(basics); L.say = pick(PZ_ALT[L.act.a === 'tap' ? 'tap' + L.act.n : L.act.a]); }
-    else if (k === 'nm') { L.nm = pick(['kiss', 'love', 'look', 'harf', 'first', 'cute', 'wins', 'miss', 'name3']); L.nx = r(); L.act = { a: 'tap', n: 1 }; }   // worked out for whoever plays it: pzMine
+    else if (k === 'nm') { L.nm = pick(['kiss', 'love', 'look', 'harf', 'first', 'cute', 'miss', 'name3']); L.nx = r(); L.act = { a: 'tap', n: 1 }; }   // worked out for whoever plays it: pzMine
     else if (k === 'time') L.act = pick([{ a: 'red' }, { a: 'blink', n: 3 }, { a: 'blink', n: 2 }, { a: 'zero' }]);
-    else if (k === 'teach') { const [pic, act] = pick(PZ_RULES.filter(([p]) => !rules.has(p))); rules.set(pic, { act, at: i }); taught = i; Object.assign(L, { act: { a: 'tap', n: 1 }, rule: act, pic, say: 'Ready ho to ek tap', note: `Naya rule: ${pic} matlab ${pzLow(pzSay(act))}. Hamesha!` }); }
-    else if (k === 'rule') { const [pic, x] = pick([...rules]); Object.assign(L, { act: x.act, pic, pre: `The ${pic} rule! `, say: pzSay(pick(basics.filter(b => pzSay(b) !== pzSay(x.act)))) }); }
-    else if (k === 'drop') { const [pic] = pick(old); rules.delete(pic); Object.assign(L, { act: pick(basics), note: `${pic} wala rule khatam` }); }
-    else if (k === 'mem') { const t = pick(['num', 'col', 'sym']), v = t === 'num' ? 2 + Math.floor(r() * 3) : Math.floor(r() * 4); mem = { t, v, due: i + 2 + Math.floor(r() * 3) }; Object.assign(L, { act: pick(basics), note: `Yaad rakho: ${t === 'num' ? v : t === 'col' ? PZ_COL[v][0] : PZ_SYM[v]}` }); }
-    else if (k === 'seenq') { Object.assign(L, { act: tapN(cats), say: 'Ab tak jitni 🐈 dekhi, utni dafa press karo', pre: `🐈 showed up ${pzTimes(cats)}. ` }); cats = 0; }
-    else if (k === 'prev') { const n = prev.act.a === 'tap' ? prev.act.n : 0; Object.assign(L, { act: tapN(n), say: 'Pichle level mein jitni dafa press karna tha, utni dafa karo', pre: `The last level wanted ${n ? pzTimes(n) : 'no press'}. ` }); }
+    else if (k === 'teach') { const [pic, act] = pick(PZ_RULES.filter(([p]) => !rules.has(p))); rules.set(pic, { act, at: i }); taught = i; Object.assign(L, { act: { a: 'tap', n: 1 }, rule: act, pic, say: `Rule: ${pic} = ${pzSay(act)}\nSamjhe? EK tap` }); }   // the whole rule on the button, nothing else to do
+    else if (k === 'rule') { const [pic, x] = pick([...rules]); Object.assign(L, { act: x.act, pic, note: x.used ? '' : 'Rule yaad hai?', pre: `The ${pic} rule! `, say: pzSay(pick(basics.filter(b => pzSay(b) !== pzSay(x.act)))) }); x.used = true; }   // a hint the first time
+    else if (k === 'drop') { const [pic] = pick(old); rules.delete(pic); Object.assign(L, { act: { a: 'tap', n: 1 }, pic, say: 'Ye rule khatam\nSamjhe? EK tap' }); }
+    else if (k === 'mem') { const t = pick(['num', 'col', 'sym']), v = t === 'num' ? 2 + Math.floor(r() * 3) : Math.floor(r() * 4); mem = { t, v, due: i + 1 + Math.floor(r() * 2) }; Object.assign(L, { act: { a: 'tap', n: 1 }, say: `Yaad rakho: ${t === 'num' ? v : t === 'col' ? PZ_COL[v][0] : PZ_SYM[v]}\nSamjhe? EK tap` }); }
     else if (k === 'quiz') {   // one button: press as many times as the number, or press while the colour or sign you were told comes round
       const m = mem; mem = null;
-      if (m.t === 'num') Object.assign(L, { act: { a: 'tap', n: m.v }, say: 'Jo number yaad karwaya tha, utni dafa press karo', pre: `It was ${m.v}. ` });
+      if (m.t === 'num') Object.assign(L, { act: { a: 'tap', n: m.v }, say: 'Yaad wala number?\nUtne tap', pre: `It was ${m.v}. ` });
       else {
         const items = mix([0, 1, 2, 3].filter(j => j !== m.v)), at = 1 + Math.floor(r() * 3);
         items.splice(at, 0, m.v);
-        Object.assign(L, { act: { a: 'cyc' }, say: m.t === 'col' ? 'Jo color yaad karwaya tha, us pe press karo' : 'Jo symbol yaad karwaya tha, us pe press karo', vis: { cyc: { t: m.t, items, at, per: ease(1200, 850) } } });
+        Object.assign(L, { act: { a: 'cyc' }, say: m.t === 'col' ? 'Yaad wala COLOR aaye to tap' : 'Yaad wala SYMBOL aaye to tap', vis: { cyc: { t: m.t, items, at, per: ease(1200, 850) } } });
       }
     } else if (k === 'bait') {   // it says one thing, then changes its mind: only the last order counts
       const b = pick(['stop', 'stop', 'go', 'go', 'swap', 'count']); L.bait = b;
       if (b === 'stop') Object.assign(L, { act: { a: 'none' }, say0: pick(PZ_BAIT.stop), say: 'NAHI! Kuch mat karo ✋', pre: 'It was a trap! ' });
-      if (b === 'go') Object.assign(L, { act: { a: 'late' }, say0: pick(PZ_BAIT.go), say: 'AB! Ek tap!' });
-      if (b === 'swap') Object.assign(L, { act: { a: 'tap', n: 1 }, say0: 'Do dafa press karo', say: 'Nahi… sirf EK!', pre: 'It changed to once! ' });
-      if (b === 'count') Object.assign(L, { act: { a: 'none' }, say0: 'Zero pe press karo…', say: 'Mazaak! Kuch mat karo 😈', vis: { cd: 1 }, pre: 'It was a fake countdown! ' });
+      if (b === 'go') Object.assign(L, { act: { a: 'late' }, say0: pick(PZ_BAIT.go), say: 'AB! EK tap!' });
+      if (b === 'swap') Object.assign(L, { act: { a: 'tap', n: 1 }, say0: 'DO tap', say: 'Nahi… sirf EK!', pre: 'It changed to once! ' });
+      if (b === 'count') Object.assign(L, { act: { a: 'none' }, say0: 'Zero pe tap…', say: 'Mazaak! Kuch mat karo 😈', vis: { cd: 1 }, pre: 'It was a fake countdown! ' });
     } else if (k === 'puz') {
-      const p = pick(['icons', 'icons', 'words', 'math', 'math', 'letters', 'ink', 'num', 'last', 'neg']); L.puz = p;
+      const p = pick(['icons', 'icons', 'words', 'math', 'math', 'letters', 'ink', 'num', 'last']); L.puz = p;
       if (p === 'icons') {   // "one press per skull", with look-alikes mixed in; sometimes there is none at all
-        const [t, d] = pick(PZ_PAIRS), most = Math.min(5, 3 + Math.floor(st / 2)), n = r() < .12 ? 0 : 1 + Math.floor(r() * most), row = mix([...Array(n).fill(t), ...Array(1 + Math.floor(r() * 3)).fill(d)]);
-        Object.assign(L, { act: tapN(n), pic: row.join(''), say: st && r() < .5 ? `Sab count karo, ${d} ko chhor ke` : `Har ${t} pe ek tap`, pre: `There ${n === 1 ? 'was' : 'were'} ${n || 'no'} ${t}. ` });
+        const [t, d] = pick(PZ_PAIRS), n = r() < .1 ? 0 : 1 + Math.floor(r() * (st ? 4 : 3)), row = mix([...Array(n).fill(t), ...Array(1 + Math.floor(r() * 2)).fill(d)]);
+        Object.assign(L, { act: tapN(n), pic: row.join(''), say: `Kitne ${t}?\nUtne tap`, pre: `There ${n === 1 ? 'was' : 'were'} ${n || 'no'} ${t}. ` });
       }
-      if (p === 'words') { const s = pick(PZ_WORDY), n = s.split(/\s+/).length; Object.assign(L, { act: tapN(n), say: s, note: 'Button ke words count karo, utni dafa press karo', pre: `It had ${n} word${n === 1 ? '' : 's'}. ` }); }
-      if (p === 'math') {   // sums that come out between 0 and 5; times and three numbers from the second stage
+      if (p === 'words') { const w = pick(PZ_WORDY), n = pzWords(w); Object.assign(L, { act: tapN(n), pic: w, say: 'Kitne WORDS?\nUtne tap', pre: `It had ${n} word${n === 1 ? '' : 's'}. ` }); }
+      if (p === 'math') {   // easy sums that come out between 0 and 4
         let e, v;
-        do { const x = 1 + Math.floor(r() * 5), y = 1 + Math.floor(r() * 4), z = 1 + Math.floor(r() * 3), o = pick(st ? ['+', '−', '×', '3'] : ['+', '−']);
-          [e, v] = o === '+' ? [`${x} + ${y}`, x + y] : o === '−' ? [`${x} − ${y}`, x - y] : o === '×' ? [`${x} × ${y}`, x * y] : [`${x} + ${y} − ${z}`, x + y - z]; } while (v < 0 || v > 5);
-        Object.assign(L, { act: tapN(v), say: `${e} dafa press karo`, pre: `${e} = ${v}. ` });
+        do { const x = 1 + Math.floor(r() * 4), y = 1 + Math.floor(r() * 3), o = pick(st ? ['+', '−', '×'] : ['+', '−']);
+          [e, v] = o === '+' ? [`${x} + ${y}`, x + y] : o === '−' ? [`${x} − ${y}`, x - y] : [`${x} × ${y}`, x * y]; } while (v < 0 || v > 4);
+        Object.assign(L, { act: tapN(v), pic: e, say: 'Jawab kya?\nUtne tap', pre: `${e} = ${v}. ` });
       }
-      if (p === 'letters') { const s = pick(PZ_AWORD), n = (s.match(/A/g) || []).length; Object.assign(L, { act: tapN(n), say: `${s} mein jitne A hain, utni dafa press karo`, pre: `${s} has ${n || 'no'} A. ` }); }
-      if (p === 'ink') { const c = Math.floor(r() * 4), ink = r() < .5 ? c : Math.floor(r() * 4); Object.assign(L, { act: tapN(ink === c ? 1 : 0), say: `Agar text ka color ${PZ_COL[c][0]} hai, ek tap`, ink: PZ_COL[ink][1], pre: `The text was ${PZ_COL[ink][0]}. ` }); }
+      if (p === 'letters') { const w = pick(PZ_AWORD), n = (w.match(/A/g) || []).length; Object.assign(L, { act: tapN(n), pic: w, say: 'Kitne A?\nUtne tap', pre: `${w} has ${n || 'no'} A. ` }); }
+      if (p === 'ink') { const c = Math.floor(r() * 4), ink = r() < .5 ? c : Math.floor(r() * 4); Object.assign(L, { act: tapN(ink === c ? 1 : 0), say: `Ye text ${PZ_COL[c][0]} hai?\nEK tap`, ink: PZ_COL[ink][1], pre: `The text was ${PZ_COL[ink][0]}. ` }); }
       if (p === 'num') {
         const x = 1 + Math.floor(r() * 9);
-        if (r() < .5) { const y = 3 + Math.floor(r() * 5); Object.assign(L, { act: tapN(x > y ? 1 : 0), pic: String(x), say: `Number ${y} se bara ho to ek tap`, pre: `${x} is ${x > y ? '' : 'not '}bigger than ${y}. ` }); }
-        else Object.assign(L, { act: tapN(x % 2 ? 0 : 2), pic: String(x), say: 'Number EVEN ho to do dafa press karo', pre: `${x} is ${x % 2 ? 'odd' : 'even'}. ` });
+        if (r() < .5) { const y = 3 + Math.floor(r() * 5); Object.assign(L, { act: tapN(x > y ? 1 : 0), pic: String(x), say: `${y} se bara?\nEK tap`, pre: `${x} is ${x > y ? '' : 'not '}bigger than ${y}. ` }); }
+        else Object.assign(L, { act: tapN(x % 2 ? 0 : 2), pic: String(x), say: 'EVEN hai?\nDO tap', pre: `${x} is ${x % 2 ? 'odd' : 'even'}. ` });
       }
-      if (p === 'last') { const [a, b, c] = mix([1, 2, 3]); Object.assign(L, { act: tapN(c), say: `${pzSay(tapN(a)).replace(' press karo', '')}… nahi, ${PZ_NUM[b]}… nahi, ${PZ_NUM[c]} dafa press karo`, pre: 'Only the last order counted. ' }); }
-      if (p === 'neg') { const [s, n] = pick(PZ_NEG); Object.assign(L, { act: tapN(n), say: s, pre: 'Read it carefully. ' }); }
+      if (p === 'last') { const [a, b] = mix([1, 2, 3]); Object.assign(L, { act: tapN(b), say: `${pzSay(tapN(a))}…\nnahi, ${pzSay(tapN(b))}`, pre: 'Only the last order counted. ' }); }
     } else {   // a trick, always readable on the screen
-      const tr = pick(['ulta0', 'ulta1', 'joke', 'less', 'more', 'lie', 'dred', 'dblink']), ulta = 'ULTA = jo likha hai uska ulta karo';
-      if (tr === 'ulta0') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'ULTA: Kuch mat karo', note: ulta, pre: 'It said ULTA! ' });
-      if (tr === 'ulta1') Object.assign(L, { act: { a: 'none' }, say: 'ULTA: Ek dafa press karo', note: ulta, pre: 'It said ULTA! ' });
-      if (tr === 'joke') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'Kuch mat karo… mazaak tha! Ek tap' });
-      if (tr === 'less') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'Do dafa press karo, ek kam' });
-      if (tr === 'more') Object.assign(L, { act: { a: 'tap', n: 2 }, say: 'Ek dafa press karo, ek aur' });
-      if (tr === 'lie') { const act = pick(basics.slice(0, 3)); Object.assign(L, { act, say: pzSay(pick(basics.slice(0, 3).filter(b => pzSay(b) !== pzSay(act)))), note: `Button jhoot bol raha hai: asal mein ${pzLow(pzSay(act))}`, pre: 'The button lied! ' }); }
-      if (tr === 'dred') Object.assign(L, { act: { a: 'none' }, say: 'Ring RED hogi, phir bhi kuch mat karo', vis: { red: 0 } });
-      if (tr === 'dblink') Object.assign(L, { act: { a: 'none' }, say: 'Blinks count karo, par press mat karo', vis: { blinks: [] } });
+      const tr = pick(['ulta0', 'ulta1', 'joke', 'less', 'more', 'dred', 'dblink']);
+      if (tr === 'ulta0') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'ULTA karo:\nTap mat karo', pre: 'ULTA means the opposite! ' });
+      if (tr === 'ulta1') Object.assign(L, { act: { a: 'none' }, say: 'ULTA karo:\nEK tap', pre: 'ULTA means the opposite! ' });
+      if (tr === 'joke') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'Kuch mat karo…\nMazaak! EK tap' });
+      if (tr === 'less') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'DO tap se EK kam' });
+      if (tr === 'more') Object.assign(L, { act: { a: 'tap', n: 2 }, say: 'EK tap, phir EK aur' });
+      if (tr === 'dred') Object.assign(L, { act: { a: 'none' }, say: 'Ring RED hogi\nKuch mat karo', vis: { red: 0 } });
+      if (tr === 'dblink') Object.assign(L, { act: { a: 'none' }, say: 'Blink hoga\nKuch mat karo', vis: { blinks: [] } });
       L.trick = tr;
     }
-    if (i > 2 && cats < 4 && !L.pic && ['basic', 'time', 'puz', 'trick'].includes(k) && r() < .22) { L.pic = '🐈'; cats++; catAt = i; }   // a cat slips past now and then; nobody says to count them
     const a = L.act, v = L.vis;   // how long the ring lasts, and when it turns red, blinks or reaches zero
     L.say = L.say || pzSay(a);
-    if (i > 2 && a.a !== 'cyc' && r() < Math.min(.65, .12 + .03 * i)) {   // a writing trick
-      L.fx = pick([...PZ_FX1, ...(i > 7 ? PZ_FX2 : []), ...(i > 14 ? PZ_FX3 : [])].filter(x => !(x === 'caps' && L.puz === 'letters') && !(x === 'hue' && L.ink)));
+    if (i > 4 && a.a !== 'cyc' && pzWords(L.say) < 6 && !['teach', 'mem', 'drop'].includes(k) && r() < Math.min(.4, .08 + .02 * i)) {   // a writing trick, only on short orders
+      L.fx = pick([...PZ_FX1, ...(i > 7 ? PZ_FX2 : []), ...(i > 14 ? PZ_FX3 : [])].filter(x => !(x === 'hue' && L.ink)));
       if (L.fx === 'caps') { L.say = pzAlt(L.say); if (L.say0) L.say0 = pzAlt(L.say0); }
     }
-    L.pace = Math.max(1.15, pace * (1.06 - .02 * ((i - 1) % 7)) * (PZ_RUSH.test(L.say0 || L.say) ? .88 : 1));   // each stage winds up level by level, and an order that hurries you really does give less
+    L.pace = Math.max(1.3, pace * (1.06 - .02 * ((i - 1) % 7)) * (PZ_RUSH.test(L.say0 || L.say) ? .88 : 1));   // each stage winds up level by level, and an order that hurries you really does give less
     const rd = pzRead(L);   // nothing to react to comes before the order could be read
     L.ring = pzClock(L);
     if (a.a === 'red' || 'red' in v) { v.red = Math.round(rd + 300 + r() * 1700); L.ring = Math.max(L.ring, v.red + 900); if (a.a === 'red') { L.w = ease(900, 650); L.ring = v.red + L.w; if (i > 5 && r() < .5) v.btnRed = Math.round(v.red * (.3 + r() * .3)); } }   // the BUTTON flashes red first: a decoy, only the ring counts
@@ -5928,21 +5915,20 @@ function pzLevels(seed, upto) {   // every level up to `upto`, the same on both 
 }
 function pzMine(L, role) {   // Xed 23 Nov: name levels. Whoever plays sees the other one's name (his phone hers, her phone his), so the answer is worked out for that player
   if (L.k !== 'nm') return L;
-  const P = ((role === 'remote' ? her() : him()) || '').trim() || 'Jaan', male = role === 'host', x = L.nx, first = P.charAt(0).toUpperCase(), harf = [...P.replace(/\s/g, '')].length, wins = ludoWinsKept()[other(role)] || 0;
+  const P = ((role === 'remote' ? her() : him()) || '').trim() || 'Jaan', male = role === 'host', x = L.nx, first = P.charAt(0).toUpperCase(), harf = [...P.replace(/\s/g, '')].length;
   let k = L.nm, act = { a: 'tap', n: 1 }, say, pre = '';
   if (k === 'harf' && harf > 6) k = 'name3';
-  if (k === 'wins' && wins > 5) k = 'kiss';
-  if (k === 'kiss') say = `${P} ko ek kiss 😘… sirf ONE tap!`;
-  if (k === 'love') { act = { a: 'tap', n: 2 }; say = `${P} se kitna pyar? Bas do tap, zyada nahi 😏`; }
-  if (k === 'look') { act = { a: 'none' }; say = `${P} dekh ${male ? 'raha' : 'rahi'} hai 👀 Kuch mat karo`; }
-  if (k === 'harf') { act = { a: 'tap', n: harf }; say = `${P} ke naam ke letters count karo, utni dafa press karo`; pre = `${P} has ${harf} letter${harf === 1 ? '' : 's'}. `; }
-  if (k === 'first') { const X = x < .5 ? first : 'ABDFHKMNRSZ'.replace(first, '').charAt(Math.floor(x * 20) % 10); act = X === first ? act : { a: 'none' }; say = `Agar ${P} ka naam "${X}" se start hota hai, ek tap`; pre = `${P} starts with "${first}". `; }
-  if (k === 'cute') { act = { a: 'tap', n: 2 }; say = `Agar ${P} cute hai to do dafa press karo 🥰`; pre = `${P} is cute, obviously! `; }
-  if (k === 'wins') { act = wins ? { a: 'tap', n: wins } : { a: 'none' }; say = `${P} ne jitni dafa Ludo jeeta, utni dafa press karo`; pre = `${P} won Ludo ${wins ? pzTimes(wins) : 'zero times'}. `; }
-  if (k === 'miss') { act = { a: 'hold' }; say = `${P} ki yaad aa rahi hai? 2 second hold karo 🫶`; }
-  if (k === 'name3') { const n = 2 + Math.floor(x * 3); act = { a: 'tap', n }; say = `${Array(n).fill(P).join('… ')}! Naam jitni dafa likha, utni dafa press karo`; pre = `The name was written ${pzTimes(n)}. `; }
-  if (L.fx === 'caps') say = pzAlt(say);
-  const M = { ...L, nm: k, say, act, pre }; return { ...M, ring: pzClock(M) };
+  if (k === 'kiss') say = `${P} ko kiss 😘\nEK tap`;
+  if (k === 'love') { act = { a: 'tap', n: 2 }; say = `${P} se pyar?\nDO tap 😏`; }
+  if (k === 'look') { act = { a: 'none' }; say = `${P} dekh ${male ? 'raha' : 'rahi'} hai 👀\nKuch mat karo`; }
+  if (k === 'harf') { act = { a: 'tap', n: harf }; say = `${P}: kitne letters?\nUtne tap`; pre = `${P} has ${harf} letter${harf === 1 ? '' : 's'}. `; }
+  if (k === 'first') { const X = x < .5 ? first : 'ABDFHKMNRSZ'.replace(first, '').charAt(Math.floor(x * 20) % 10); act = X === first ? act : { a: 'none' }; say = `${P} ka naam "${X}" se?\nEK tap`; pre = `${P} starts with "${first}". `; }
+  if (k === 'cute') { act = { a: 'tap', n: 2 }; say = `${P} cute hai?\nDO tap 🥰`; pre = `${P} is cute, obviously! `; }
+  if (k === 'miss') { act = { a: 'hold' }; say = `${P} ki yaad?\n2 second hold 🫶`; }
+  if (k === 'name3') { const n = 2 + Math.floor(x * 3); act = { a: 'tap', n }; say = `${Array(n).fill(P).join(', ')}\nKitni dafa naam?\nUtne tap`; pre = `The name was written ${pzTimes(n)}. `; }
+  const fx = pzWords(say) < 6 ? L.fx : '';   // long ones are written plainly
+  if (fx === 'caps') say = pzAlt(say);
+  const M = { ...L, nm: k, say, act, pre, fx }; return { ...M, ring: pzClock(M) };
 }
 const pzCnt = n => n ? `pressed ${pzTimes(n)}` : `didn't press`, pzNeed = n => n ? `it wanted ${pzTimes(n)}` : 'it wanted no press';
 function pzWin(L) {   // the moment to press on a timing level: from, to, and what went wrong before or after it ({S} becomes "You" or her name)
@@ -6134,10 +6120,6 @@ function pzBurst(n) {   // every press: a ring bursting out of the button and th
   const ar = $('pzRing').parentNode;
   for (const [cls, txt] of [['pzRip', ''], ['pzCnt', String(n)]]) { const e = document.createElement('div'); e.className = cls; e.textContent = txt; e.setAttribute('aria-hidden', 'true'); ar.appendChild(e); setTimeout(() => e.remove(), 800); }
 }
-function pzScram(s, k) {   // the "scramble" writing trick: the letters inside each word jumble, a new jumble every 90 ms, until they settle
-  let x = k * 2654435761 >>> 0; const rnd = () => (x = (x * 1103515245 + 12345) >>> 0) / 4294967296;
-  return s.split(' ').map(w => { if (w.length < 4) return w; const m = [...w.slice(1, -1)]; for (let j = m.length - 1; j > 0; j--) { const q = Math.floor(rnd() * (j + 1)); [m[j], m[q]] = [m[q], m[j]]; } return w[0] + m.join('') + w.slice(-1); }).join(' ');
-}
 function pzFace(pic, say, big, tint, note, ink = '', fx = '', key = '', ring = 0) {   // only what changed is written, so 60 frames a second stay cheap
   for (const [id, x] of [['pzPic', pic], ['pzSay', say], ['pzBig', big], ['pzNote', note]]) if ($(id).textContent !== x) $(id).textContent = x;
   $('pzPic').classList.toggle('many', Array.from(pic).length > 3);
@@ -6159,7 +6141,6 @@ function pzDraw(o, t) {
   if (run && v.decoy != null && t >= v.decoy && t < v.decoy + 380) { tint = '#30d158'; big = 'NOW!'; }   // traps
   if (run && v.btnRed != null && t >= v.btnRed && t < v.btnRed + 420) tint = '#ff2d55';
   if (run && L.fx === 'type') say = say.slice(0, Math.max(1, Math.ceil(say.length * Math.min(1, t / (L.ring * .3)))));
-  if (run && L.fx === 'scramble' && t < L.ring * .25) say = pzScram(say, Math.floor(t / 90));
   pzFace(run ? L.pic : '', say, big, tint, !run ? '' : L.note || (L.tez ? '⚡ FAST!' : ''), run ? L.ink || '' : '', run ? L.fx || '' : '', `${o.seed}:${o.lv}:${wait ? 0 : j ? 3 : bait ? 1 : 2}`, L.ring);
   b.classList.toggle('blink', !wait && !j && !!v.blinks && v.blinks.some(x => t >= x && t < x + 170));
   b.classList.toggle('ok', !!j && j.ok); b.classList.toggle('bad', !!j && !j.ok);
@@ -7390,7 +7371,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261123-142933';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261123-152324';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
