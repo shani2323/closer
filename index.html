@@ -707,6 +707,33 @@
   .lphr button:active { transform: scale(.92); transition: transform 90ms ease-out; }
   #ludoRoll { flex: 0 0 auto; width: auto; min-width: 96px; height: 40px; padding: 0 14px; margin: 0; border-radius: 20px; font-size: 14px; }
   #ludoRoll:active:not(:disabled) { transform: scale(.97); transition: transform 100ms ease-out; }
+  /* Pressure (Xed 23 Nov): one big button inside a ring of neon pieces that go dark one by one */
+  .pzNote { min-height: 22px; margin: 2px 0 0; text-align: center; font-size: 15px; font-weight: 700; line-height: 1.3; color: #ffd75e; }
+  .pzArena { position: relative; width: min(280px, 76vw); width: clamp(190px, calc(100dvh - 540px), min(280px, 76vw)); aspect-ratio: 1; margin: 4px auto 2px; }   /* smaller on shorter phones: the reactions stay above the chat box, as in Ludo */
+  #pzRing { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .pzBtn { position: absolute; inset: 12%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px; border: 0; border-radius: 50%; background: radial-gradient(circle at 50% 32%, #2c2c36, #121217 72%); color: #fff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 12px 30px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .1); touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: box-shadow 120ms ease-out; will-change: transform; }
+  .pzBtn.down { transform: scale(.93); }   /* the instant a finger lands */
+  .pzBtn.blink { box-shadow: 0 0 0 4px #fff, 0 0 42px 12px rgba(255, 255, 255, .6); }
+  .pzBtn.ok { box-shadow: 0 0 0 3px #30d158, 0 0 36px rgba(48, 209, 88, .6); animation: pzPop 420ms cubic-bezier(.2, 1.5, .4, 1); }
+  .pzBtn.bad { box-shadow: 0 0 0 3px #ff453a, 0 0 36px rgba(255, 69, 58, .6); animation: pzShake 440ms ease-out; }
+  /* Xed 23 Nov: pressure you can feel: a heat glow behind the button that grows as the time runs out, a ring burst and a rising count on every press */
+  .pzArena::before { content: ''; position: absolute; inset: -16%; border-radius: 50%; background: radial-gradient(circle, rgba(255, 150, 40, .42) 0%, rgba(255, 60, 50, .2) 42%, transparent 68%); opacity: var(--pzp, 0); pointer-events: none; }
+  .pzRip { position: absolute; inset: 12%; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .85); pointer-events: none; animation: pzRip 520ms cubic-bezier(.2, .7, .3, 1) forwards; }
+  .pzCnt { position: absolute; left: 50%; top: 6%; font: 800 32px/1 system-ui, sans-serif; color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, .7); pointer-events: none; animation: pzCnt 700ms ease-out forwards; }
+  @keyframes pzRip { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.38); opacity: 0; } }
+  @keyframes pzCnt { from { opacity: 1; transform: translate(-50%, 12px) scale(.8); } to { opacity: 0; transform: translate(-50%, -30px) scale(1.3); } }
+  @keyframes pzPop { 0% { transform: scale(.9); } 55% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  @keyframes pzShake { 0%, 100% { transform: translateX(0); } 15% { transform: translateX(-12px); } 35% { transform: translateX(10px); } 55% { transform: translateX(-7px); } 75% { transform: translateX(4px); } }
+  #pzPic { max-width: 100%; font-size: 40px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; } #pzPic.many { font-size: 24px; letter-spacing: 1px; } #pzPic:empty, #pzBig:empty { display: none; }   /* a row of pictures to count stays inside the button */
+  #pzSay { font-size: 19px; font-weight: 700; line-height: 1.2; letter-spacing: -.02em; text-align: center; overflow-wrap: anywhere; }
+  #pzBig { font-size: 36px; font-weight: 800; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .pzRes { min-height: 20px; margin: 2px 0 6px; text-align: center; font-size: 14px; line-height: 1.35; color: var(--label2); }
+  #pzGo { flex: 0 0 auto; width: auto; min-width: 96px; height: 40px; padding: 0 14px; margin: 0; border-radius: 20px; font-size: 14px; }   /* sits in the reactions row, like Ludo's Roll */
+  .pzHow { margin: 10px 0 0; font-size: 14px; line-height: 1.45; color: var(--label2); }
+  .pzHow summary { cursor: pointer; font-weight: 600; color: var(--label); }
+  .pzHow p { margin: 8px 0 0; } .pzHow b { color: var(--label); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .pzBtn { transition: none; } .pzBtn.down { transform: none; filter: brightness(1.35); } .pzBtn.ok, .pzBtn.bad { animation: none; } .pzRip { animation: none; opacity: 0; } .pzCnt { animation-duration: 1ms; } }
   .towerDrop:active:not(:disabled) { transform: scale(.97); transition: transform 100ms ease-out; }
   .towerDrop:disabled { opacity: 1; background: var(--fill); color: var(--label2); }
   .hleft { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -1148,7 +1175,7 @@
       <button class="me glass" id="meBtn" aria-label="Change your name">You</button>
     </div>
   </header>
-  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="chat" aria-selected="false">Chat</button><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game" aria-label="Truth or Dare"><span class="tdl">Truth or </span>Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="ludo">Ludo</button><button role="tab" data-p="watch">Watch</button></nav></div>
+  <nav class="tabs" id="tabs" role="tablist"><button role="tab" data-p="chat" aria-selected="false">Chat</button><button role="tab" data-p="play" aria-selected="true">Play</button><button role="tab" data-p="draw">Draw</button><button role="tab" data-p="game" aria-label="Truth or Dare"><span class="tdl">Truth or </span>Dare</button><button role="tab" data-p="tower">Tower</button><button role="tab" data-p="ludo">Ludo</button><button role="tab" data-p="pressure">Pressure</button><button role="tab" data-p="watch">Watch</button></nav></div>
   <ul class="status" id="status" aria-label="Who and what is connected"></ul>
   <section class="hero glass" id="hero" hidden>
     <div class="heroFaces" aria-hidden="true"><span id="heroF1"></span><span id="heroF2"></span></div>
@@ -1216,6 +1243,24 @@
     <div class="ludoDock"><button class="primary" id="ludoRoll">Roll</button><div class="lreact" id="lreact" aria-label="Reactions"><button type="button" data-e="😈" aria-label="Send 😈">😈</button><button type="button" data-e="😂" aria-label="Send 😂">😂</button><button type="button" data-e="😘" aria-label="Send 😘">😘</button><button type="button" data-e="🙈" aria-label="Send 🙈">🙈</button><button type="button" data-e="🔥" aria-label="Send 🔥">🔥</button></div></div>
     <div class="lphr" id="lphr" aria-label="Fun phrases"><button type="button" data-e="Reti 😏">Reti 😏</button><button type="button" data-e="Main nahi khelna 😤">Main nahi khelna 😤</button><button type="button" data-e="Wah wah 👏">Wah wah 👏</button><button type="button" data-e="Cheating! 🫵">Cheating! 🫵</button><button type="button" data-e="Bas karo 🙏">Bas karo 🙏</button><button type="button" data-e="Lucky! 🍀">Lucky! 🍀</button><button type="button" data-e="Ab dekho 😎">Ab dekho 😎</button><button type="button" data-e="Hahaha 🤣">Hahaha 🤣</button><button type="button" data-e="Bachao 😱">Bachao 😱</button><button type="button" data-e="Ye lo 💅">Ye lo 💅</button></div>
     <button class="gameEnd" id="ludoNew" hidden>New game</button>
+  </section>
+  <section class="panelBox glass" id="pressurePanel" hidden>
+    <div class="panelHead"><b>Pressure</b><button class="done" data-close>Done</button></div>
+    <p class="turn" id="pzTurn" aria-live="polite"></p>
+    <p class="ludoWins" id="pzWins"></p>
+    <p class="pzNote" id="pzNote" aria-live="polite"></p>
+    <div class="pzArena"><canvas id="pzRing" aria-hidden="true"></canvas><button type="button" class="pzBtn" id="pzBtn"><span id="pzPic"></span><span id="pzSay"></span><span id="pzBig"></span></button><div class="tfloat" id="pfloat" aria-hidden="true"></div></div>
+    <p class="pzRes" id="pzRes" aria-live="polite"></p>
+    <div class="ludoDock"><button class="primary" id="pzGo">Shuru karo</button><div class="lreact" id="preact" aria-label="Reactions"></div></div>
+    <div class="lphr" id="pphr" aria-label="Fun phrases"></div>
+    <details class="pzHow"><summary>Kaise khelein?</summary>
+      <p>Bara button jo kahe, ring bujhne se pehle wohi karo. Ring ke tukre ek ek kar ke bujhte hain. Ek ghalti, aur tum bahar: koi doosra mauqa nahi.</p>
+      <p>Hukum: <b>Ek dafa dabao</b> · <b>Do dafa dabao</b> · <b>2 second dabaye rakho</b> (na jaldi chhorna, na der se) · <b>Kuch mat dabao</b> (ring khatam hone do) · <b>Jab ring laal ho tab dabao</b> · <b>Teesri blink pe dabao</b> · <b>Bilkul zero pe dabao</b>. Zyada dabaya, kam dabaya, jaldi ya der se: haar.</p>
+      <p>Rule: "jab bhi 🐀 dikhe, do dafa dabao" jaise rule tab tak chalte hain jab tak "🐀 wala rule khatam" na aaye. Tasveer dikhe to rule likhe hue hukum se upar hai. "Yaad rakho" wali cheez kuch levels baad poochi jayegi. <b>ULTA</b> likha ho to ulta karo. Button jhoot bhi bolta hai: upar wali line hamesha sach hai.</p>
+      <p>Paheliyan bhi aayengi: "Har 💀 pe ek dafa dabao" (tasveerein gino), "Button ke lafz gino", "2 + 1 dafa dabao", "KARACHI mein jitne A hain", likhai ka rang, "Teen dafa… nahi, ek dafa" (aakhri baat maano). Aur ghor se dekhte raho: kabhi kabhi ek 🐈 chupke se guzarti hai. Har level pe ⏱ waqt thoda kam hota jata hai.</p>
+      <p>Dono ek jaise levels khelte ho, baari baari: ek khelta hai, doosra live dekhta hai, phir doosra wohi level khelta hai. Ek paas aur doosra fail: paas wala jeet gaya, haarne wale ko dare. Dono fail: barabar, agla level. Har 7 levels ke baad chaalein zyada.</p>
+    </details>
+    <button class="gameEnd" id="pzNew">Naya game</button>
   </section>
 
   <section class="panelBox glass" id="watchPanel" hidden>
@@ -2175,7 +2220,7 @@ async function gotLobby(txt) {
     logLink('joined her room without a link');
     if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
       store.set('lastRemote', location.origin + location.pathname + '#' + part); store.set('hostPair:' + b.r, null);
-      for (const k of ['chat', 'chatCleared', 'delOut', 'delAll', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
+      for (const k of ['chat', 'chatCleared', 'delOut', 'delAll', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'press', 'pressWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
         const was = store.get(k + ':' + room), there = store.get(k + ':' + b.r);
         if (was == null) continue;
         if (k === 'chat' && Array.isArray(there) && there.length) { const all = new Map(); for (const c of [...there, ...was]) if (c && c.id) all.set(c.id, c); store.set('chat:' + b.r, [...all.values()].sort((a, c) => a.at - c.at).slice(-200)); }
@@ -3211,7 +3256,7 @@ function openStats() {
   const busiest = stats.hours.some(Boolean) ? stats.hours.indexOf(Math.max(...stats.hours)) : -1;
   const words = me.w + th.w, pages = Math.max(1, Math.round(words / 250));
   const since = stats.since ? new Date(stats.since).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: PK }) : '';
-  const lw = typeof ludoWinsKept === 'function' ? ludoWinsKept() : {}, myR = isRemote ? 'remote' : 'host', thR = isRemote ? 'host' : 'remote';
+  const lw = typeof ludoWinsKept === 'function' ? ludoWinsKept() : {}, pw = typeof pzWinsKept === 'function' ? pzWinsKept() : {}, myR = isRemote ? 'remote' : 'host', thR = isRemote ? 'host' : 'remote';
   const tile = (ic, title, body, note) => `<div class="stTile"><span class="stIc">${ic}</span><h3>${title}</h3><div class="stNums">${body}</div>${note ? `<p>${esc(note)}</p>` : ''}</div>`;
   $('statBody').innerHTML = !total ? '<p class="stEmpty">Start chatting. Your story in numbers fills up here.</p>' : `
     <div class="stHero"><div class="stHeart"><svg viewBox="0 0 32 29" aria-hidden="true"><defs><clipPath id="stClip"><path d="M16 28.5S1 19.6 1 9.4A7.9 7.9 0 0 1 16 5.6a7.9 7.9 0 0 1 15 3.8c0 10.2-15 19.1-15 19.1z"/></clipPath></defs><path class="stHeartBg" d="M16 28.5S1 19.6 1 9.4A7.9 7.9 0 0 1 16 5.6a7.9 7.9 0 0 1 15 3.8c0 10.2-15 19.1-15 19.1z"/><g clip-path="url(#stClip)"><rect class="stFill" x="0" y="${(29 * (1 - score / 100)).toFixed(2)}" width="32" height="29"/></g></svg><b class="stScore" data-n="${score}">${score}</b></div>
@@ -3232,6 +3277,7 @@ function openStats() {
       ${tile('🤗', 'Hugs', vs(me.hug, th.hug))}
       ${busiest >= 0 ? tile('🕰️', 'Your hour', `<span class="stBig">${esc(stHourName(busiest))}</span>`, 'When you two talk the most') : ''}
       ${lw[myR] || lw[thR] ? tile('🎲', 'Ludo wins', vs(lw[myR] || 0, lw[thR] || 0), `Champion: ${winner(lw[myR] || 0, lw[thR] || 0)}`) : ''}
+      ${pw[myR] || pw[thR] ? tile('🎯', 'Pressure wins', vs(pw[myR] || 0, pw[thR] || 0), `Champion: ${winner(pw[myR] || 0, pw[thR] || 0)}`) : ''}
       ${toyTiles()}
     </div>
     ${stFun(me, th, I, U, s)}
@@ -4338,9 +4384,10 @@ const inPlay = () => playP === panel && playN >= 2;
 let panelV = 0, gameV = 0, libSentAt = 0;
 const myTie = Math.random();   // two changes in the same moment still have one winner
 const nextV = v => Math.max(Date.now(), Math.floor(v) + 1) + myTie;
-function gotPanel(m) { if (!(m.v > panelV)) return; panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); }
+function gotPanel(m) { if (!(m.v > panelV)) return; if (panel === 'pressure' && m.p !== 'pressure' && pzRun && !pzRun.done) { pzHeld = m; return; }   // never pulled out in the middle of a Pressure level: it waits for the level to end
+  panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); }
 function openPanel(p, fromPartner, quiet) {
-  if (!['chat', 'play', 'draw', 'game', 'tower', 'watch', 'ludo'].includes(p)) return;
+  if (!['chat', 'play', 'draw', 'game', 'tower', 'watch', 'ludo', 'pressure'].includes(p)) return;
   const changed = p !== panel, was = panel;
   if (panel === 'watch' && p !== 'watch') leaveWatch();
   if (p !== panel && !$('touchSheet').hidden) closeTouch();
@@ -4351,11 +4398,12 @@ function openPanel(p, fromPartner, quiet) {
   if (changed) scrollTo({ top: 0 });   // a section always opens at its top, never half hidden under the title bar
   document.body.classList.toggle('panel', p !== 'play');
   document.body.classList.toggle('watching', p === 'watch');
-  $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('towerPanel').hidden = p !== 'tower'; $('watchPanel').hidden = p !== 'watch'; $('ludoPanel').hidden = p !== 'ludo';
+  $('drawPanel').hidden = p !== 'draw'; $('gamePanel').hidden = p !== 'game'; $('towerPanel').hidden = p !== 'tower'; $('watchPanel').hidden = p !== 'watch'; $('ludoPanel').hidden = p !== 'ludo'; $('pressurePanel').hidden = p !== 'pressure';
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === p));
   if (p === 'draw') sizeBoard();
   if (p === 'tower') towerOpen();
   if (p === 'ludo') ludoOpen();
+  if (p === 'pressure') pzOpen(); else if (was === 'pressure') pzLeave();
   if (p === 'watch') { renderVids(); renderPlayer(); }
   renderGame();
   if (chatTab) { openChat(); scrollTo({ top: 0 }); chatTabRoom(); requestAnimationFrame(chatTabRoom); $('msgs').scrollTop = $('msgs').scrollHeight; }   // the conversation fills everything under the title
@@ -4366,7 +4414,7 @@ function openPanel(p, fromPartner, quiet) {
     else if (game(was)) { tap(); notify(`${who()} left ${PANELS[was]}.${was === 'watch' ? ' The video paused.' : ''}`); }
   }
 }
-const PANELS = { __proto__: null, chat: 'Chat', play: 'Play', draw: 'Draw', game: 'Truth or Dare', tower: 'Tower', watch: 'Watch', ludo: 'Ludo' };
+const PANELS = { __proto__: null, chat: 'Chat', play: 'Play', draw: 'Draw', game: 'Truth or Dare', tower: 'Tower', watch: 'Watch', ludo: 'Ludo', pressure: 'Pressure' };
 const okToLeave = p => panel !== 'watch' || p === 'watch' || !wstate.playing || confirm('Leave Watch? The video pauses on both phones.');
 var chatTab = false;   // the Chat section is open
 function setChatTab() { openPanel('chat'); }
@@ -4574,6 +4622,7 @@ function gotFacts(m) {   // the other phone says how new its copy is: if it miss
   if (m.gv < gameV) send({ t: 'game', game, v: gameV });
   if (m.tv < towerV) send({ t: 'tower', tower, v: towerV });
   if (Number.isFinite(m.lv) && m.lv < ludoV) send({ t: 'ludo', l: ludo, v: ludoV });
+  if (Number.isFinite(m.zv) && m.zv < pressV) send({ t: 'press', s: press, v: pressV });
   const pu = m.pu || '', mine = (myPush || '').slice(-16) + (myPush && myKeys ? '+' : '');
   if (mine !== pu.replace(/\+b2?$/, '+')) pushSay();
   else if ((/\+b2$/.test(pu) ? 2 : /\+b$/.test(pu) ? 1 : 0) !== (myPush && myKeys ? myBox : 0) && Date.now() - boxSaidAt > 60000) { boxSaidAt = Date.now(); pushSay(); }   // only the "can keep messages" part differs (an older version): once a minute is plenty
@@ -5674,10 +5723,11 @@ function ludoReact(e, mine) {
 }
 // Tower gets the same reactions: built from the same list, floating up over the tower
 $('treact').innerHTML = LREACT.filter(e => !e.includes(' ')).map(e => `<button type="button" data-e="${e}" aria-label="Send ${e}">${e}</button>`).join('');
-$('tphr').innerHTML = $('lphr').innerHTML = LREACT.filter(e => e.includes(' ')).map(e => `<button type="button" data-e="${e}">${e}</button>`).join('');   // Ludo's row from the same list (17 Nov)
-function towerReact(e, mine) {
+$('preact').innerHTML = $('treact').innerHTML;
+$('pphr').innerHTML = $('tphr').innerHTML = $('lphr').innerHTML = LREACT.filter(e => e.includes(' ')).map(e => `<button type="button" data-e="${e}">${e}</button>`).join('');   // Ludo's row from the same list (17 Nov)
+function towerReact(e, mine, box = $('tfloat')) {   // Pressure floats them over its own button
   if (!LREACT.includes(e)) return;
-  const box = $('tfloat'), ph = e.includes(' '), em = ph ? e.slice(e.lastIndexOf(' ') + 1) : e;
+  const ph = e.includes(' '), em = ph ? e.slice(e.lastIndexOf(' ') + 1) : e;
   const add = (txt, cls, x, delay) => { const d = document.createElement('div'); d.className = cls; d.textContent = txt; d.style.left = x + '%'; d.style.animationDelay = delay + 's'; box.appendChild(d); setTimeout(() => d.remove(), 2300 + delay * 1000); };
   if (ph) add(e, 'tfb', mine ? 60 : 40, 0);
   for (let k = ph ? 1 : 0; k < 3; k++) add(em, 'tfe', (mine ? 70 : 30) + (Math.random() - .5) * 25, k * .12);
@@ -5685,6 +5735,322 @@ function towerReact(e, mine) {
 }
 document.querySelectorAll('#treact button, #tphr button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); towerReact(b.dataset.e, true); send({ t: 'towerReact', e: b.dataset.e }); });
 document.querySelectorAll('#lreact button, #lphr button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); ludoReact(b.dataset.e, true); send({ t: 'ludoReact', e: b.dataset.e }); });
+// ---- Pressure (Xed 23 Nov): a one-button reflex game, turn by turn. Both phones get the same levels from one shared number (g).
+// In each round one of you plays level N while the other phone watches it live, then the other plays the same level; who goes
+// first changes every round. One passes and the other fails: the one who passed wins and the loser gets a dare. Both fail: a draw
+// round, on to the next level. Hard from the start, like the game it follows: a short ring, tricks from level 2. Every word is Roman Urdu.
+const PZ_RULES = [['🐀', { a: 'tap', n: 2 }], ['🐍', { a: 'none' }], ['🔔', { a: 'tap', n: 1 }], ['🍌', { a: 'hold' }]];   // while its rule lasts, the picture overrides what the button says
+const PZ_NUM = ['', 'ek', 'do', 'teen', 'chaar', 'paanch', 'chhe'], PZ_COL = [['NEELA', '#2f7bff'], ['LAAL', '#ff3b5c'], ['HARA', '#22c55e'], ['PEELA', '#ffd60a']], PZ_SYM = ['⭐', '🌙', '❤️', '⚡'];
+const PZ_READY = 600, PZ_GRACE = 300, PZ_HOLD = [2000, 2600];   // "Tayyar…" before the ring; a tap counts once no second one follows within 0.3 s; a 2-second hold may end between 2.0 and 2.6 s
+const pzSay = a => a.a === 'tap' ? `${['', 'Ek', 'Do', 'Teen', 'Chaar', 'Paanch', 'Chhe'][a.n]} dafa dabao` : a.a === 'none' ? 'Kuch mat dabao' : a.a === 'hold' ? '2 second dabaye rakho' : a.a === 'red' ? 'Jab ring laal ho tab dabao' : a.a === 'blink' ? `${a.n === 3 ? 'Teesri' : 'Doosri'} blink pe dabao` : a.a === 'zero' ? 'Bilkul zero pe dabao' : '';
+const pzLow = s => s.charAt(0).toLowerCase() + s.slice(1);
+// Xed 23 Nov: levels are little puzzles to read under the clock, like the game it follows ("one press per skull", "count these words"),
+// not only plain orders. Each kind of puzzle: count the pictures, count the words, sums, letters, the colour of the writing, a number
+// test, "no… no… this one", a double "no", the level before, and the cats that slipped past earlier. The answer is always pressing N times or not at all.
+const PZ_PAIRS = [['💀', '👻'], ['🐟', '🐠'], ['🍎', '🍐'], ['⭐', '✨'], ['❤️', '🖤'], ['🌶️', '🥕']];
+const PZ_WORDY = ['Do dafa dabao', 'Teen dafa dabao', 'Ek dafa', 'Kuch mat dabao', 'Chaar', 'Jaldi karo', 'Paanch dafa dabana hai', 'Ring dekho, button nahi', 'Pyar se dabao', 'Ek'];   // the button's own words are counted, whatever they say
+const PZ_AWORD = ['LAHORE', 'KARACHI', 'SAMOSA', 'BANANA', 'PAPAYA', 'ANAAR', 'DHAMAKA', 'ISLAMABAD', 'PAKISTAN', 'MALAAI', 'BAADAL', 'QULFI'];
+const PZ_NEG = [['Na dabana mana hai', 1], ['Mat dabao… ya dabao? Mat dabao', 0], ['Kuch na karna mana hai: ek dafa', 1], ['Do dafa mat dabao, ek dafa dabao', 1]];
+const PZ_ALT = { tap1: ['Ek dafa dabao', 'Bas ek dafa', 'Ek baar, jaldi!', 'Sirf ek tap'], tap2: ['Do dafa dabao', 'Do baar, jaldi jaldi', 'Double tap!', 'Do dafa. Abhi!'], none: ['Kuch mat dabao', 'Haath door rakho ✋', 'Chhoona bhi mat', 'Ruko… bas ruko'], hold: ['2 second dabaye rakho', 'Dabaye rakho… 2 second', 'Ungli rakho, 2 second'] };   // Xed 23 Nov: the same order said different ways
+const PZ_READ = { nm: 1300, icons: 1400, words: 1600, math: 1500, letters: 1800, ink: 1300, num: 1300, last: 1500, neg: 1000, prev: 1000, seenq: 1000, quiz: 600, teach: 1600, trick: 500 };   // time to read it, on top of the ring; it shrinks too, to half by the top levels
+function pzLevels(seed, upto) {   // every level up to `upto`, the same on both phones: rules and things to remember carry over from level to level
+  const c = pzLevels.c; if (c && c.seed === seed && c.list.length >= upto) return c.list;
+  const r = fkRand(seed), list = [], rules = new Map(), pick = a => a[Math.floor(r() * a.length)], basics = [{ a: 'tap', n: 1 }, { a: 'tap', n: 2 }, { a: 'none' }, { a: 'hold' }];
+  const tapN = n => n ? { a: 'tap', n } : { a: 'none' }, mix = a => { for (let j = a.length - 1; j > 0; j--) { const q = Math.floor(r() * (j + 1)); [a[j], a[q]] = [a[q], a[j]]; } return a; };   // shuffled the same way on every phone (never sort with a random compare: Safari and Chrome differ)
+  let mem = null, taught = -9, cats = 0, catAt = 0;
+  for (let i = 1; i <= upto; i++) {
+    // Xed 23 Nov: the clock shrinks every single level, not once a stage: 2.4 s at level 1, 1.8 s at 10, 1.35 s at 20, 1 s at 30, 0.7 s from 41 on
+    const st = Math.floor((i - 1) / 7), f = Math.pow(.97, i - 1), sf = Math.max(.5, f), base = Math.max(700, Math.round(2400 * f)), w = Math.max(220, Math.round(460 * sf));
+    // Xed 23 Nov: the speed is random too: most levels 85-115% of the trend, now and then a sudden fast one (TEZ) or a breath; harder questions get more time to read
+    const wave = i > 3 && r() < .14 ? 'tez' : i > 2 && r() < .1 ? 'saans' : '', sp = Math.max(600, Math.round(base * (wave === 'tez' ? .62 : wave === 'saans' ? 1.3 : .85 + r() * .3)));
+    const old = [...rules].filter(([, x]) => i - x.at > 5), prev = list[i - 2], prevOk = prev && ['tap', 'none'].includes(prev.act.a) && prev.k !== 'teach' && prev.k !== 'nm';
+    let k = 'quiz';
+    if (!(mem && mem.due === i)) {
+      const opts = [['basic', Math.max(1, 3 - st)], ['time', 2], ['trick', i > 1 ? 2 + st : 0], ['puz', i > 1 ? 5 + st : 1], ['mem', !mem && i > 1 ? 2 : 0], ['teach', i > 2 && rules.size < Math.min(2, 1 + st) && i - taught > 3 ? 3 : 0],
+        ['rule', rules.size ? 3 : 0], ['drop', old.length ? 2 : 0], ['seenq', cats && i - catAt >= 2 ? 2 : 0], ['prev', prevOk && i > 3 ? 1 : 0], ['nm', i > 1 ? 3 : 0]];
+      let x = r() * opts.reduce((s, o) => s + o[1], 0); k = opts.find(o => (x -= o[1]) < 0)[0];
+    }
+    const L = { k, act: null, say: '', pic: '', note: '', pre: '', ink: '', vis: {}, base, tez: wave === 'tez' };
+    let read = 0;
+    if (k === 'basic') { L.act = pick(basics); L.say = pick(PZ_ALT[L.act.a === 'tap' ? 'tap' + L.act.n : L.act.a]); }
+    else if (k === 'nm') { L.nm = pick(['kiss', 'love', 'look', 'harf', 'first', 'cute', 'wins', 'miss', 'name3']); L.nx = r(); L.act = { a: 'tap', n: 1 }; read = PZ_READ.nm; }   // worked out for whoever plays it: pzMine
+    else if (k === 'time') L.act = pick([{ a: 'red' }, { a: 'blink', n: 3 }, { a: 'blink', n: 2 }, { a: 'zero' }]);
+    else if (k === 'teach') { const [pic, act] = pick(PZ_RULES.filter(([p]) => !rules.has(p))); rules.set(pic, { act, at: i }); taught = i; read = PZ_READ.teach; Object.assign(L, { act: { a: 'tap', n: 1 }, rule: act, pic, say: 'Tayyar ho to ek dafa dabao', note: `Naya rule: ${pic} matlab ${pzLow(pzSay(act))}. Hamesha!` }); }
+    else if (k === 'rule') { const [pic, x] = pick([...rules]); Object.assign(L, { act: x.act, pic, pre: `${pic} dikha tha: rule yaad karo! `, say: pzSay(pick(basics.filter(b => pzSay(b) !== pzSay(x.act)))) }); }
+    else if (k === 'drop') { const [pic] = pick(old); rules.delete(pic); Object.assign(L, { act: pick(basics), note: `${pic} wala rule khatam` }); }
+    else if (k === 'mem') { const t = pick(['num', 'col', 'sym']), v = t === 'num' ? 2 + Math.floor(r() * 3) : Math.floor(r() * 4); mem = { t, v, due: i + 2 + Math.floor(r() * 3) }; Object.assign(L, { act: pick(basics), note: `Yaad rakho: ${t === 'num' ? v : t === 'col' ? PZ_COL[v][0] : PZ_SYM[v]}` }); }
+    else if (k === 'seenq') { read = PZ_READ.seenq; Object.assign(L, { act: tapN(cats), say: 'Ab tak jitni 🐈 dikhi, utni dafa dabao', pre: `🐈 ${PZ_NUM[cats]} dafa dikhi thi. ` }); cats = 0; }
+    else if (k === 'prev') { const n = prev.act.a === 'tap' ? prev.act.n : 0; read = PZ_READ.prev; Object.assign(L, { act: tapN(n), say: 'Pichle level mein jitni dafa dabana tha, utni dafa dabao', pre: `Pichle level mein ${n ? PZ_NUM[n] + ' dafa' : 'kuch nahi'} tha. ` }); }
+    else if (k === 'quiz') {   // one button: press as many times as the number, or press while the colour or sign you were told comes round
+      const m = mem; mem = null; read = PZ_READ.quiz;
+      if (m.t === 'num') Object.assign(L, { act: { a: 'tap', n: m.v }, say: 'Jo number yaad karwaya tha, utni dafa dabao', pre: `Yaad karwaya tha: ${m.v}. ` });
+      else {
+        const items = mix([0, 1, 2, 3].filter(j => j !== m.v)), at = 1 + Math.floor(r() * 3);
+        items.splice(at, 0, m.v); read = 0;
+        Object.assign(L, { act: { a: 'cyc' }, say: m.t === 'col' ? 'Jo rang yaad karwaya tha, us pe dabao' : 'Jo nishaan yaad karwaya tha, us pe dabao', vis: { cyc: { t: m.t, items, at, per: Math.max(450, Math.round(800 * sf)) } } });
+      }
+    } else if (k === 'puz') {
+      const p = pick(['icons', 'icons', 'words', 'math', 'math', 'letters', 'ink', 'num', 'last', 'neg']); L.puz = p; read = PZ_READ[p];
+      if (p === 'icons') {   // "one press per skull", with look-alikes mixed in; sometimes there is none at all
+        const [t, d] = pick(PZ_PAIRS), most = Math.min(5, 3 + Math.floor(st / 2)), n = r() < .12 ? 0 : 1 + Math.floor(r() * most), row = mix([...Array(n).fill(t), ...Array(1 + Math.floor(r() * 3)).fill(d)]);
+        read += row.length * 90; Object.assign(L, { act: tapN(n), pic: row.join(''), say: st && r() < .5 ? `Sab gino, ${d} ko chhor ke` : `Har ${t} pe ek dafa dabao`, pre: `${t} ${n ? PZ_NUM[n] : 'ek bhi nahi'} thi. ` });
+      }
+      if (p === 'words') { const s = pick(PZ_WORDY), n = s.split(/\s+/).length; read += n * 120; Object.assign(L, { act: tapN(n), say: s, note: 'Button ke lafz gino, utni dafa dabao', pre: `Lafz ${PZ_NUM[n]} thay. ` }); }
+      if (p === 'math') {   // sums that come out between 0 and 5; times and three numbers from the second stage
+        let e, v;
+        do { const x = 1 + Math.floor(r() * 5), y = 1 + Math.floor(r() * 4), z = 1 + Math.floor(r() * 3), o = pick(st ? ['+', '−', '×', '3'] : ['+', '−']);
+          [e, v] = o === '+' ? [`${x} + ${y}`, x + y] : o === '−' ? [`${x} − ${y}`, x - y] : o === '×' ? [`${x} × ${y}`, x * y] : [`${x} + ${y} − ${z}`, x + y - z]; } while (v < 0 || v > 5);
+        if (e.split(' ').length > 3) read += 400; Object.assign(L, { act: tapN(v), say: `${e} dafa dabao`, pre: `${e} = ${v}. ` });
+      }
+      if (p === 'letters') { const s = pick(PZ_AWORD), n = (s.match(/A/g) || []).length; read += s.length * 60; Object.assign(L, { act: tapN(n), say: `${s} mein jitne A hain, utni dafa dabao`, pre: `${s} mein A ${n ? PZ_NUM[n] : 'ek bhi nahi'} ${n === 1 ? 'hai' : 'hain'}. ` }); }
+      if (p === 'ink') { const c = Math.floor(r() * 4), ink = r() < .5 ? c : Math.floor(r() * 4); Object.assign(L, { act: tapN(ink === c ? 1 : 0), say: `Agar likhai ka rang ${PZ_COL[c][0]} hai, ek dafa dabao`, ink: PZ_COL[ink][1], pre: `Likhai ${PZ_COL[ink][0]} thi. ` }); }
+      if (p === 'num') {
+        const x = 1 + Math.floor(r() * 9);
+        if (r() < .5) { const y = 3 + Math.floor(r() * 5); Object.assign(L, { act: tapN(x > y ? 1 : 0), pic: String(x), say: `Number ${y} se bara ho to ek dafa dabao`, pre: `${x} ${x > y ? '' : 'nahi '}bara tha. ` }); }
+        else Object.assign(L, { act: tapN(x % 2 ? 0 : 2), pic: String(x), say: 'Number juft (2, 4, 6, 8) ho to do dafa dabao', pre: `${x} ${x % 2 ? 'taaq' : 'juft'} tha. ` });
+      }
+      if (p === 'last') { const [a, b, c] = mix([1, 2, 3]); Object.assign(L, { act: tapN(c), say: `${pzSay(tapN(a)).replace(' dabao', '')}… nahi, ${PZ_NUM[b]}… nahi, ${PZ_NUM[c]} dafa dabao`, pre: 'Aakhri baat maanni thi. ' }); }
+      if (p === 'neg') { const [s, n] = pick(PZ_NEG); Object.assign(L, { act: tapN(n), say: s, pre: 'Ghor se parhna tha. ' }); }
+    } else {   // a trick, always readable on the screen
+      const tr = pick(['ulta0', 'ulta1', 'joke', 'less', 'more', 'lie', 'dred', 'dblink']), ulta = 'ULTA = jo likha hai uska ulta karo'; read = PZ_READ.trick;
+      if (tr === 'ulta0') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'ULTA: Kuch mat dabao', note: ulta, pre: 'ULTA tha! ' });
+      if (tr === 'ulta1') Object.assign(L, { act: { a: 'none' }, say: 'ULTA: Ek dafa dabao', note: ulta, pre: 'ULTA tha! ' });
+      if (tr === 'joke') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'Kuch mat dabao… mazaak tha! Ek dafa dabao' });
+      if (tr === 'less') Object.assign(L, { act: { a: 'tap', n: 1 }, say: 'Do dafa dabao, ek kam' });
+      if (tr === 'more') Object.assign(L, { act: { a: 'tap', n: 2 }, say: 'Ek dafa dabao, ek aur' });
+      if (tr === 'lie') { const act = pick(basics.slice(0, 3)); Object.assign(L, { act, say: pzSay(pick(basics.slice(0, 3).filter(b => pzSay(b) !== pzSay(act)))), note: `Button jhoot bolta hai: asal mein ${pzLow(pzSay(act))}`, pre: 'Button jhoota tha! ' }); }
+      if (tr === 'dred') Object.assign(L, { act: { a: 'none' }, say: 'Ring laal hogi, phir bhi kuch mat dabao', vis: { red: 0 } });
+      if (tr === 'dblink') Object.assign(L, { act: { a: 'none' }, say: 'Blinks gino, par kuch mat dabao', vis: { blinks: [] } });
+      L.trick = tr;
+    }
+    if (i > 2 && cats < 4 && !L.pic && ['basic', 'time', 'puz', 'trick'].includes(k) && r() < .22) { L.pic = '🐈'; cats++; catAt = i; }   // a cat slips past now and then; nobody says to count them
+    const a = L.act, v = L.vis;   // how long the ring lasts, and when it turns red, blinks or reaches zero
+    L.say = L.say || pzSay(a);
+    read = Math.round(read * sf);
+    L.ringBase = sp + read; L.ring = a.a === 'tap' ? sp + read + (a.n - 1) * 220 : a.a === 'hold' ? sp + 2400 : sp + read;
+    if (a.a === 'red' || 'red' in v) { v.red = Math.round(sp * (.35 + r() * .35)); if (a.a === 'red') { L.w = w; L.ring = v.red + w; } }
+    if (a.a === 'blink' || 'blinks' in v) { const gap = Math.max(280, Math.round(620 * sf)); v.blinks = [0, 1, 2, 3].map(j => 400 + j * gap); if (a.a === 'blink') { L.w = w; L.ring = v.blinks[3] + w; } else L.ring = Math.max(L.ring, v.blinks[3] + 400); }
+    if (a.a === 'zero') { L.tol = Math.max(140, Math.round(250 * sf)); L.ring = v.zero = sp + 600; }
+    if (a.a === 'cyc') L.ring = 4 * v.cyc.per;
+    list.push(L);
+  }
+  pzLevels.c = { seed, list }; return list;
+}
+function pzMine(L, role) {   // Xed 23 Nov: name levels. Whoever plays sees the other one's name (his phone hers, her phone his), so the answer is worked out for that player
+  if (L.k !== 'nm') return L;
+  const P = ((role === 'remote' ? her() : him()) || '').trim() || 'Jaan', male = role === 'host', x = L.nx, first = P.charAt(0).toUpperCase(), harf = [...P.replace(/\s/g, '')].length, wins = ludoWinsKept()[other(role)] || 0;
+  let k = L.nm, act = { a: 'tap', n: 1 }, say, pre = '';
+  if (k === 'harf' && harf > 6) k = 'name3';
+  if (k === 'wins' && wins > 5) k = 'kiss';
+  if (k === 'kiss') say = `${P} ko ek kiss 😘… sirf ek!`;
+  if (k === 'love') { act = { a: 'tap', n: 2 }; say = `${P} se kitna pyar? Bas do dafa, zyada nahi 😏`; }
+  if (k === 'look') { act = { a: 'none' }; say = `${P} dekh ${male ? 'raha' : 'rahi'} hai 👀 Kuch mat dabao`; }
+  if (k === 'harf') { act = { a: 'tap', n: harf }; say = `${P} ke naam ke harf gino, utni dafa dabao`; pre = `${P} mein ${PZ_NUM[harf]} harf hain. `; }
+  if (k === 'first') { const X = x < .5 ? first : 'ABDFHKMNRSZ'.replace(first, '').charAt(Math.floor(x * 20) % 10); act = X === first ? act : { a: 'none' }; say = `Agar ${P} ka naam "${X}" se shuru hota hai, ek dafa dabao`; pre = `${P} "${first}" se shuru hota hai. `; }
+  if (k === 'cute') { act = { a: 'tap', n: 2 }; say = `Agar ${P} cute hai to do dafa dabao 🥰`; pre = `${P} cute hai, pata hai na! `; }
+  if (k === 'wins') { act = wins ? { a: 'tap', n: wins } : { a: 'none' }; say = `${P} ne jitni dafa Ludo jeeta, utni dafa dabao`; pre = `${P} ne Ludo ${wins ? PZ_NUM[wins] + ' dafa' : 'ek dafa bhi nahi'} jeeta. `; }
+  if (k === 'miss') { act = { a: 'hold' }; say = `${P} ki yaad aa rahi hai? 2 second dabaye rakho 🫶`; }
+  if (k === 'name3') { const n = 2 + Math.floor(x * 3); act = { a: 'tap', n }; say = `${Array(n).fill(P).join('… ')}! Jitni dafa naam likha, utni dafa dabao`; pre = `Naam ${PZ_NUM[n]} dafa likha tha. `; }
+  return { ...L, nm: k, say, act, pre, ring: act.a === 'tap' ? L.ringBase + (act.n - 1) * 220 : act.a === 'hold' ? L.ringBase + 2400 : L.ringBase };
+}
+const pzCnt = n => n ? `${PZ_NUM[n] || n} dafa dabaya` : 'dabaya hi nahi', pzNeed = n => n ? `${PZ_NUM[n]} dafa kehna tha` : 'kuch nahi dabana tha';
+function pzWin(L) {   // the moment to press on a timing level: from, to, and what went wrong before or after it ({S} becomes "Tumne" or "Zee ne")
+  const a = L.act, v = L.vis, ord = a.n === 3 ? 'teesri' : 'doosri';
+  if (a.a === 'red') return [v.red, v.red + L.w, '{S} ring laal hone se pehle dabaya', '{S} der kar di: ring laal hui aur nikal gayi'];
+  if (a.a === 'blink') { const b = v.blinks[a.n - 1]; return [b, b + L.w, `{S} ${ord} blink se pehle dabaya`, `{S} der kar di: ${ord} blink nikal gayi`]; }
+  if (a.a === 'zero') return [v.zero - L.tol, v.zero + L.tol, '{S} zero se pehle dabaya', '{S} der kar di: zero nikal gaya'];
+  const c = v.cyc, name = c.t === 'col' ? PZ_COL[c.items[c.at]][0] : PZ_SYM[c.items[c.at]];
+  return [c.at * c.per, (c.at + 1) * c.per, `{S} ghalat waqt pe dabaya: ${name} pe dabana tha`, `{S} der kar di: ${name} nikal gaya`];
+}
+function pzJudge(L, ps, t) {   // ps: presses { d: down, u: up or null } in ms since the ring started; t: now. null while undecided, else { ok, why }
+  const a = L.act, n = ps.length, p = ps[0], no = why => ({ ok: false, why: L.pre + why });
+  if (a.a === 'tap' || a.a === 'none') {
+    const want = a.a === 'tap' ? a.n : 0;
+    if (n > want) return no(`{S} ${pzCnt(n)}, ${pzNeed(want)}`);
+    if (ps.some(x => (x.u == null ? t : x.u) - x.d > 1000)) return no(`{S} dabaye rakha, ${pzNeed(want)}`);   // a press held a second or more is a hold, not a press
+    if (want && n === want && t - ps[n - 1].d >= PZ_GRACE) return { ok: true };
+    if (t < L.ring) return null;
+    return !want ? { ok: true } : n === want ? null : no(`{S} ${pzCnt(n)}, ${pzNeed(want)}`);
+  }
+  if (a.a === 'hold') {
+    if (n > 1) return no(`{S} ${pzCnt(n)}: ek hi dafa 2 second dabaye rakhna tha`);
+    if (p && p.u != null) return p.u - p.d < PZ_HOLD[0] ? no('{S} jaldi chhor diya: 2 second dabaye rakhna tha') : p.u - p.d <= PZ_HOLD[1] ? { ok: true } : no('{S} zyada der dabaye rakha: 2 second pe chhorna tha');
+    if (p && t - p.d > PZ_HOLD[1]) return no('{S} zyada der dabaye rakha: 2 second pe chhorna tha');
+    return t >= L.ring ? no(p ? '{S} der kar di: ring khatam ho gayi' : '{S} dabaya hi nahi: 2 second dabaye rakhna tha') : null;
+  }
+  const [w0, w1, early, late] = pzWin(L);
+  if (p) return p.d < w0 ? no(early) : p.d <= w1 ? { ok: true } : no(late);
+  return t > w1 ? no(late) : null;
+}
+function pzWinsKept() { const w = store.get('pressWins:' + room) || {}, n = x => Number.isInteger(x) && x >= 0 ? x : 0; return { host: n(w.host), remote: n(w.remote) }; }   // every Pressure win ever, kept on this phone too
+function blankPress(first) { return { g: 1 + Math.floor(Math.random() * 2e9), lv: 1, first: first || 'host', res: { host: 0, remote: 0 }, why: { host: '', remote: '' }, last: null, win: null, wins: pzWinsKept(), best: 0, rs: +store.get('resetAt:' + room) || 0 }; }
+function cleanPress(s) {   // res: 0 not played this level yet, 1 passed, 2 failed; why: what went wrong; last: the round before; best: the highest level anyone passed
+  if (!s || typeof s !== 'object' || !Number.isInteger(s.g) || s.g < 1 || !Number.isInteger(s.lv) || s.lv < 1 || s.lv > 5000 || !['host', 'remote'].includes(s.first)) return null;
+  const res = o => ({ host: [1, 2].includes(o && o.host) ? o.host : 0, remote: [1, 2].includes(o && o.remote) ? o.remote : 0 });
+  const why = o => ({ host: o && typeof o.host === 'string' ? o.host.slice(0, 200) : '', remote: o && typeof o.remote === 'string' ? o.remote.slice(0, 200) : '' });
+  const won = r => s.wins && Number.isInteger(s.wins[r]) && s.wins[r] >= 0 && s.wins[r] < 1e6 ? s.wins[r] : pzWinsKept()[r];
+  return { g: s.g, lv: s.lv, first: s.first, res: res(s.res), why: why(s.why), last: s.last && Number.isInteger(s.last.lv) && s.last.lv >= 1 ? { lv: s.last.lv, res: res(s.last.res), why: why(s.last.why) } : null,
+    win: ['host', 'remote'].includes(s.win) ? s.win : null, wins: { host: won('host'), remote: won('remote') }, best: Number.isInteger(s.best) && s.best >= 0 && s.best <= 5000 ? s.best : 0, rs: Number.isFinite(s.rs) && s.rs > 0 ? s.rs : 0 };
+}
+const savedPress = store.get('press:' + room) || {};
+let press = cleanPress(savedPress.s) || blankPress(), pressV = Number.isFinite(savedPress.v) ? savedPress.v : 0, pzRun = null, pzWatch = null, pzRaf = 0, pzHeld = null;   // pzRun: my level being played; pzWatch: theirs, seen live; pzHeld: their section change, waiting until my level ends
+const pzTurn = s => s.win ? null : !s.res[s.first] ? s.first : !s.res[other(s.first)] ? other(s.first) : null;
+const pzLevel = lv => pzLevels(press.g, lv)[lv - 1];
+function pressCommit(s, act) { s = cleanPress(s); const v = nextV(pressV); applyPress(s, v, act); send({ t: 'press', s, v, act }); }
+function gotPress(m) {
+  if (!(m.v > pressV)) return;
+  const s = cleanPress(m.s); if (!s) return;
+  const rs0 = +store.get('resetAt:' + room) || 0;
+  if (s.rs < rs0) { pressV = Math.max(pressV, m.v); pressCommit({ ...press, rs: rs0, wins: pzWinsKept() }, null); return; }   // a game from before this phone's Reset: the Reset wins
+  const a = m.act || {};
+  applyPress(s, m.v, a.k === 'end' && ['host', 'remote'].includes(a.r) ? { k: 'end', r: a.r, ok: a.ok === true } : null);
+}
+function applyPress(s, v, act) {
+  const before = press; press = s; pressV = v; store.set('press:' + room, { s, v });
+  if (s.rs > (+store.get('resetAt:' + room) || 0)) { wipeScores(s.rs); notify(`${who()} reset all game scores. Every game starts fresh.`); }
+  const kept = pzWinsKept(); store.set('pressWins:' + room, { host: Math.max(kept.host, s.wins.host), remote: Math.max(kept.remote, s.wins.remote) });
+  if (s.g !== before.g) { pzRun = null; pzWatch = null; }
+  if (act && act.k === 'end') {
+    played('pressure');
+    if (act.r !== myRole && pzWatch && !pzWatch.done) { pzWatch.done = true; pzWatch.j = { ok: act.ok }; }
+    if (s.win && !before.win) {   // the round is decided: the lose and win screens on both phones, then the dare
+      const g = s.g, lose = other(s.win);
+      setTimeout(() => showResult(lose, 'Pressure'), 900);
+      if (act.r === myRole) setTimeout(() => { if (press.win && press.g === g) { NEWG.pressure.reset(); loserDare(lose); } }, 900 + TRESULT_MS + 500);   // only the phone that played last deals it, so it happens once
+    }
+  }
+  renderPress();
+}
+function gotPzLive(m) {   // the other phone's level, live: the same ring and the same presses here
+  if (m.g !== press.g || m.lv !== press.lv || pzTurn(press) !== other(myRole)) return;
+  if (m.k === 'go' && Number.isFinite(m.d)) pzWatch = { g: m.g, lv: m.lv, L: pzMine(pzLevel(m.lv), other(myRole)), t0: performance.now() + Math.max(0, Math.min(PZ_READY, m.d)), ps: [], done: false };
+  const w = pzWatch; if (!w || w.lv !== m.lv) return;
+  if (m.k === 'dn' && Number.isFinite(m.ms)) { w.ps.push({ d: m.ms, u: null }); if (panel === 'pressure') pzBurst(w.ps.length); }
+  if (m.k === 'up' && Number.isFinite(m.ms)) { const p = w.ps.find(x => x.u == null); if (p) p.u = m.ms; }
+  if (m.k === 'end') { w.done = true; w.j = { ok: m.ok === true }; }
+  renderPress(); pzKick();
+}
+function pzKick() { if (!pzRaf && panel === 'pressure') pzRaf = requestAnimationFrame(pzLoop); }
+function pzLoop() {
+  pzRaf = 0;
+  const o = pzRun && !pzRun.done ? pzRun : pzWatch && !pzWatch.done ? pzWatch : null;
+  if (!o || panel !== 'pressure') return;
+  const t = performance.now() - o.t0;
+  if (o === pzRun && t >= 0) { const j = pzJudge(o.L, o.ps, t); if (j) return pzEnd(j); }
+  if (o === pzWatch && t > o.L.ring + 3000) { o.done = true; return renderPress(); }   // their "end" never came: the result arrives with the game itself
+  pzDraw(o, t); pzKick();
+}
+function pzStart() {
+  if (pzTurn(press) !== myRole || (pzRun && !pzRun.done)) return;
+  if (!pressV) pressCommit(press, null);   // the very first game: both phones take these levels
+  pzRun = { g: press.g, lv: press.lv, L: pzMine(pzLevel(press.lv), myRole), t0: performance.now() + PZ_READY, ps: [], done: false }; pzWatch = null;
+  send({ t: 'pzLive', k: 'go', g: press.g, lv: press.lv, d: PZ_READY });
+  renderPress(); pzKick();
+}
+function pzPress(k, t) {   // a finger landing (d) or lifting (u), in ms since the ring started
+  const o = pzRun; if (!o || o.done || t < 0) return;
+  if (k === 'd') o.ps.push({ d: t, u: null }); else { const p = o.ps.find(x => x.u == null); if (!p) return; p.u = t; }
+  send({ t: 'pzLive', k: k === 'd' ? 'dn' : 'up', g: o.g, lv: o.lv, ms: Math.round(t) });
+  if (k === 'd') { pzBurst(o.ps.length); if (navigator.vibrate) navigator.vibrate(12); }
+  const j = pzJudge(o.L, o.ps, t); if (j) pzEnd(j); else pzDraw(o, t);   // drawn now, not at the next frame: the press shows the instant the finger lands
+}
+function pzEnd(j) {   // my level is over: tell the watching phone, then write the result into the game
+  const o = pzRun; if (!o || o.done) return;
+  o.done = true; o.j = j;
+  if (navigator.vibrate) navigator.vibrate(j.ok ? 30 : [90, 50, 160]);
+  send({ t: 'pzLive', k: 'end', g: o.g, lv: o.lv, ok: j.ok });
+  if (pzHeld) { const h = pzHeld; pzHeld = null; setTimeout(() => gotPanel(h), 700); }   // their section change waited for this level
+  if (o.g !== press.g || o.lv !== press.lv || pzTurn(press) !== myRole) return renderPress();   // the game changed under it
+  const s = JSON.parse(JSON.stringify(press)), me = myRole, them = other(me);
+  s.res[me] = j.ok ? 1 : 2; s.why[me] = j.ok ? '' : j.why;
+  if (j.ok) s.best = Math.max(s.best, s.lv);
+  if (s.res[them]) {   // both have played this level: the round is decided
+    if ((s.res[me] === 1) !== (s.res[them] === 1)) { s.win = s.res[me] === 1 ? me : them; s.wins[s.win]++; }
+    else { s.last = { lv: s.lv, res: s.res, why: s.why }; s.lv++; s.first = other(s.first); s.res = { host: 0, remote: 0 }; s.why = { host: '', remote: '' }; }   // both passed, or both failed (a draw round): on to the next level, the other one first
+  }
+  pressCommit(s, { k: 'end', r: me, ok: j.ok });
+}
+function pzLeave() { if (pzRun && !pzRun.done) pzEnd({ ok: false, why: '{S} beech mein game chhor di' }); }   // leaving the section or the app in the middle of a level loses it
+document.addEventListener('visibilitychange', () => { if (document.hidden) pzLeave(); });
+function pzOpen() { renderPress(); pzKick(); }
+function pzRing(frac, col, p = 0, fl = null) {   // 24 neon pieces round the button; they go dark one by one as the time runs out. p: the pressure, 0 to 1: the pieces grow thicker and glow harder; fl: the piece that just went out flashes white
+  const cv = $('pzRing'), s = cv.clientWidth; if (!s) return;
+  const d = Math.min(3, devicePixelRatio || 1); if (cv.width !== Math.round(s * d)) cv.width = cv.height = Math.round(s * d);
+  const c = cv.getContext('2d'), N = 24, R = s / 2 - 13, lit = Math.ceil(frac * N - 1e-6), now = performance.now();
+  c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, s, s); c.lineWidth = 7 + 6 * p; c.lineCap = 'round';
+  for (let j = 0; j < N; j++) {
+    const a0 = -Math.PI / 2 + j * 2 * Math.PI / N + .07, on = j < lit, fa = !on && fl && fl.j === j ? 1 - (now - fl.at) / 260 : 0;
+    c.beginPath(); c.arc(s / 2, s / 2, R, a0, a0 + 2 * Math.PI / N - .14);
+    if (fa > 0) { c.strokeStyle = `rgba(255, 255, 255, ${fa.toFixed(2)})`; c.shadowColor = '#fff'; c.shadowBlur = 12 * fa; }
+    else if (on) { c.strokeStyle = col; c.shadowColor = col; c.shadowBlur = 10 + 8 * p; if (j === lit - 1 && p > .5) c.globalAlpha = .55 + .45 * Math.abs(Math.sin(now / (110 - 60 * p))); }   // the next piece to go flickers
+    else { c.strokeStyle = 'rgba(255, 255, 255, .09)'; c.shadowBlur = 0; }
+    c.stroke(); c.globalAlpha = 1;
+  }
+}
+const pzMix = (a, b, k) => '#' + [0, 2, 4].map(i => Math.round(parseInt(a.substr(i + 1, 2), 16) * (1 - k) + parseInt(b.substr(i + 1, 2), 16) * k).toString(16).padStart(2, '0')).join('');
+const pzCalm = matchMedia('(prefers-reduced-motion: reduce)');
+function pzBurst(n) {   // every press: a ring bursting out of the button and the count rising above it, on both phones
+  const ar = $('pzRing').parentNode;
+  for (const [cls, txt] of [['pzRip', ''], ['pzCnt', String(n)]]) { const e = document.createElement('div'); e.className = cls; e.textContent = txt; e.setAttribute('aria-hidden', 'true'); ar.appendChild(e); setTimeout(() => e.remove(), 800); }
+}
+function pzFace(pic, say, big, tint, note, ink = '') {   // only what changed is written, so 60 frames a second stay cheap
+  for (const [id, x] of [['pzPic', pic], ['pzSay', say], ['pzBig', big], ['pzNote', note]]) if ($(id).textContent !== x) $(id).textContent = x;
+  $('pzPic').classList.toggle('many', Array.from(pic).length > 3);
+  const sy = $('pzSay'); if ((sy.dataset.ink || '') !== ink) { sy.dataset.ink = ink; sy.style.color = ink; }   // the colour-of-the-writing puzzle
+  const b = $('pzBtn'); if ((b.dataset.tint || '') !== tint) { b.dataset.tint = tint; b.style.background = tint; b.style.color = tint === '#ffd60a' ? '#111' : ''; }
+}
+function pzDraw(o, t) {
+  const L = o.L, v = L.vis, j = o.done ? o.j : null, wait = t < 0 && !j, b = $('pzBtn');
+  let big = '', tint = '';
+  if (j) big = j.ok ? '✓' : '✗';
+  else if (!wait && v.zero) big = String(Math.max(0, Math.ceil((v.zero - t) / 1000)));
+  else if (!wait && v.cyc) { const it = v.cyc.items[Math.min(3, Math.max(0, Math.floor(t / v.cyc.per)))]; if (v.cyc.t === 'col') [big, tint] = PZ_COL[it]; else big = PZ_SYM[it]; }
+  pzFace(wait ? '' : L.pic, wait ? 'Tayyar…' : L.say, big, tint, wait ? '' : L.note, wait || j ? '' : L.ink || '');
+  b.classList.toggle('blink', !wait && !j && !!v.blinks && v.blinks.some(x => t >= x && t < x + 170));
+  b.classList.toggle('ok', !!j && j.ok); b.classList.toggle('bad', !!j && !j.ok);
+  const down = !j && o.ps.some(x => x.u == null), run = !wait && !j, p = run ? Math.min(1, Math.max(0, t / L.ring)) : 0, frac = run ? 1 - p : 1, lit = Math.ceil(frac * 24 - 1e-6);
+  b.classList.toggle('down', down);
+  if (run && o.lit != null && lit < o.lit) { o.fl = { j: lit, at: performance.now() }; if (o === pzRun && p > .55 && navigator.vibrate) navigator.vibrate(p > .85 ? 14 : 7); }   // a tick: the piece flashes out; near the end the phone ticks too
+  o.lit = run ? lit : null;
+  // the heartbeat: the button pulses faster and harder as the time runs out, and trembles at the very end
+  if (run && !pzCalm.matches) { const hz = 1.2 + 4.5 * p * p, sc = (1 + (.012 + .04 * p) * Math.sin(2 * Math.PI * hz * t / 1000)) * (down ? .92 : 1), sh = p > .78 ? (p - .78) * 14 : 0;
+    b.style.transform = `translate(${((Math.random() - .5) * sh).toFixed(1)}px, ${((Math.random() - .5) * sh).toFixed(1)}px) scale(${sc.toFixed(4)})`; }
+  else b.style.transform = run && down && !pzCalm.matches ? 'scale(.93)' : '';
+  b.style.boxShadow = run && !b.classList.contains('blink') ? `0 0 0 1px rgba(255, 255, 255, .08), 0 0 ${Math.round(18 + 46 * p)}px ${Math.round(3 + 10 * p)}px rgba(255, ${Math.round(200 - 130 * p)}, 40, ${(.1 + .5 * p).toFixed(2)})` : '';
+  b.parentNode.style.setProperty('--pzp', p.toFixed(3));
+  const calm = v.red == null ? pzMix('#3ff3ff', '#ffb020', Math.min(1, Math.max(0, (p - .3) / .6))) : '#3ff3ff';   // cyan turning amber; never red: red means "press now" on the red levels
+  pzRing(frac, j ? (j.ok ? '#30d158' : '#ff453a') : !wait && v.red != null && t >= v.red ? '#ff2d55' : calm, p, o.fl);
+}
+function pzResult(s) {   // under the button: how this round is going, or how the last one ended
+  const why = r => s.why[r].replace('{S}', r === myRole ? 'Tumne' : `${who()} ne`);
+  if (s.win) return `✗ ${why(other(s.win))}`;
+  const done = ['host', 'remote'].filter(r => s.res[r]);
+  if (done.length) return done.map(r => s.res[r] === 1 ? `✓ ${r === myRole ? 'Tum' : who()}: paas` : `✗ ${why(r)}`).join(' · ');
+  if (s.last) return s.last.res.host === 1 ? `Level ${s.last.lv}: dono paas ✓✓` : `Level ${s.last.lv}: dono fail, barabar. Agla level!`;
+  return '';
+}
+function renderPress() {
+  const s = press, name = who(), turn = pzTurn(s), live = pzRun && !pzRun.done ? pzRun : null, watch = pzWatch && !pzWatch.done ? pzWatch : null;
+  $('pzTurn').textContent = s.win ? (s.win === myRole ? `Tum jeet gaye! ${name} ko dare milega 😈` : `${name} jeet gaye. Tumhe dare milega 😈`)
+    : (live ? `Level ${s.lv}: jo button kahe, woh karo!` : watch ? `${name} ka level ${s.lv}: live dekho 👀` : turn === myRole ? `Tumhari baari: level ${s.lv}` : `${name} ki baari: level ${s.lv}${partnerOnline() ? '' : `. ${name} abhi yahan nahi`}`) + (() => { const L = (live || watch || {}).L || pzMine(pzLevel(s.lv), turn || myRole); return ` · ${L.tez ? '⚡ TEZ ' : ''}⏱ ${(L.ring / 1000).toFixed(1)} s`; })();   // Xed 23 Nov: the clock gets shorter every level, shown so you can see it
+  $('pzWins').textContent = `🏆 Jeet: Tum ${s.wins[myRole]} · ${name} ${s.wins[other(myRole)]} · Sab se door: level ${s.best}`;
+  const go = $('pzGo'); go.hidden = !!(live || watch); go.disabled = turn !== myRole; go.textContent = s.win ? 'Khatam' : turn === myRole ? 'Shuru karo' : 'Ruko…';
+  $('pzRes').textContent = pzResult(s);
+  if (panel !== 'pressure') return;
+  const o = live || watch || [pzWatch, pzRun].find(x => x && x.g === s.g && x.lv === s.lv && x.done);
+  if (o) return pzDraw(o, performance.now() - o.t0);
+  pzFace('', s.win ? 'Game khatam' : `Level ${s.lv}`, '', '', ''); $('pzBtn').classList.remove('blink', 'ok', 'bad', 'down'); $('pzBtn').style.transform = $('pzBtn').style.boxShadow = ''; $('pzRing').parentNode.style.setProperty('--pzp', '0'); pzRing(1, 'rgba(63, 243, 255, .35)');
+}
+$('pzBtn').addEventListener('pointerdown', e => {   // Pointer Events with the event's own time stamp: a double press and a 2-second hold are measured exactly, with no tap delay
+  e.preventDefault(); const o = pzRun; if (!o || o.done) return;
+  try { $('pzBtn').setPointerCapture(e.pointerId); } catch {}
+  pzPress('d', e.timeStamp - o.t0);
+});
+for (const k of ['pointerup', 'pointercancel']) $('pzBtn').addEventListener(k, e => { const o = pzRun; if (o && !o.done) pzPress('u', e.timeStamp - o.t0); });
+$('pzBtn').addEventListener('contextmenu', e => e.preventDefault());
+$('pzGo').onclick = () => { tap(); pzStart(); };
+$('pzNew').onclick = () => { tap(); askNew('pressure'); };
+document.querySelectorAll('#preact button, #pphr button').forEach(b => b.onclick = () => { if (Date.now() - lreactAt < 500) return; lreactAt = Date.now(); tap(); towerReact(b.dataset.e, true, $('pfloat')); send({ t: 'pressReact', e: b.dataset.e }); });
 // the die lives on the board, in the open space inside the ring; pick it up anywhere there and throw it
 let lfar = null, lfarAt = 0;   // Xed 12 Nov: the other phone's die while they hold and shake it, seen live here
 let ldrag = null, lheld = null, dieRest = null, lgold = 0, lmotionAsked = false, lspikes = [];
@@ -6049,6 +6415,7 @@ $('towerNew').onclick = () => { tap(); askNew('tower'); };
 // A new game in the middle of one needs both of you: one asks, the other has 10 seconds to agree, otherwise the game goes on.
 const NEWG = {
   ludo: { what: 'This Ludo game ends on both phones.', done: () => !!ludo.win, reset: () => ludoCommit(blankLudo(other(ludo.win || myRole), true), null) },   // the loser, or the other one, starts
+  pressure: { what: 'Ye Pressure game dono phones pe khatam ho jayega.', done: () => !!press.win, reset: () => pressCommit(blankPress(press.win ? other(press.win) : other(press.first)), null) },   // the loser starts the next one
   tower: { what: 'This tower comes down on both phones. Your best height stays.', done: () => !tower.f, reset: () => { const t = blankTower(tower.best), v = nextV(towerV); t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v }); } }
 };
 window.lockAskHelp = () => partnerOnline() ? (send({ t: 'lockAsk' }), { asked: true, text: `Asked ${who()}. When ${who()} says yes, you can choose a new code.` }) : { asked: false, text: `${who()} must have Loveline open to say yes. Try again then.` };
@@ -6062,16 +6429,17 @@ $('fakeCodeBtn').onclick = () => {   // Xed 14 Nov: a second passcode that opens
 addEventListener('lockopen', fakeLabel); fakeLabel();
 $('lockChangeBtn').onclick = () => { tap(); $('nameSheet').hidden = true; if (window.lockChange) window.lockChange(); };
 function wipeScores(rs) {   // what only this phone keeps: every Ludo win and the tap streak best
-  store.set('resetAt:' + room, rs); store.set('ludoWins:' + room, { host: 0, remote: 0 });
+  store.set('resetAt:' + room, rs); store.set('ludoWins:' + room, { host: 0, remote: 0 }); store.set('pressWins:' + room, { host: 0, remote: 0 });
   tapBest = 0; store.set('tapBest', 0);
   for (const k in usedCards) delete usedCards[k];
   saveUsed();
 }
 $('resetAll').onclick = () => {
   tap();
-  if (!confirm('Reset all game scores? Tower, Ludo and Truth or Dare start fresh on both phones. The tower, best height, people, Ludo wins and points all go back to zero. This cannot be undone.')) return;
+  if (!confirm('Reset all game scores? Tower, Ludo, Pressure and Truth or Dare start fresh on both phones. The tower, best height, people, Ludo and Pressure wins and points all go back to zero. This cannot be undone.')) return;
   wipeScores(Date.now());
   ludoCommit(blankLudo(ludo.turn), null);   // carries the reset to the other phone, now or when it comes back
+  pressCommit(blankPress(press.first), null);
   const t = blankTower(0), v = nextV(towerV); t.turn = tower.turn; applyTower(t, v, null); send({ t: 'tower', tower: t, v });
   setGame({ turn: game.turn, k: null, i: -1, score: blankScore() });
   $('nameSheet').hidden = true; notify('All game scores reset on both phones. Every game starts fresh.');
@@ -6794,11 +7162,12 @@ let wstate = { id: null, playing: false, pos: 0, base: 0, v: 0, from: '' };
 let toyRanAt = 0;   // the 15 s auto-lock waits while a video plays in Watch; on her phone also while a toy runs, or ran in the last minute (pauses between patterns)
 window.lockHold = () => {
   if (vnBusy()) return true;   // a voice note being recorded or played (Xed 13 Nov)
+  if (panel === 'pressure' && [pzRun, pzWatch].some(o => o && !o.done)) return true;   // a Pressure level being played or watched lasts a few seconds: never locked halfway
   if (panel === 'watch' && wstate.playing && here() && !vid.paused && !vid.ended) return true;   // Xed 12 Nov: only a video really moving on this phone, not paused, ended or still loading
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
   if (playP && playP !== panel) { playP = null; playN = 0; }   // left the game: its turns no longer count
-  if (['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo'].includes(panel) && inPlay())) return 180000;   // Xed 12 Nov: only the section on screen counts: Play, Draw, or a game really in play (2+ turns) wait 3 minutes; Chat and Watch 15 s even with a toy connected
+  if (['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo', 'pressure'].includes(panel) && inPlay())) return 180000;   // Xed 12 Nov: only the section on screen counts: Play, Draw, or a game really in play (2+ turns) wait 3 minutes; Chat and Watch 15 s even with a toy connected
   return false;
 };
 let loadedId = null, vidUrl = null, applyQ = Promise.resolve(), beatAt = 0, scrubbing = false;
@@ -6854,7 +7223,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261122-024548';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261123-075815';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
@@ -7272,6 +7641,9 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'newAns') gotNewAns(m);
   if (m.t === 'ludoReact' && panel === 'ludo') ludoReact(m.e, false);
   if (m.t === 'towerReact' && panel === 'tower') towerReact(m.e, false);
+  if (m.t === 'press') gotPress(m);
+  if (m.t === 'pzLive') gotPzLive(m);
+  if (m.t === 'pressReact' && panel === 'pressure') towerReact(m.e, false, $('pfloat'));
   if (m.t === 'ldrag') gotLdrag(m);
   if (m.t === 'buzz') gotBuzz();
   if (m.t === 'buzzgot') notify(`${who()} got your 💗`);
@@ -8367,7 +8739,7 @@ function chatRoom() {   // how tall the chat may grow in Watch when no video is 
 new ResizeObserver(chatRoom).observe($('watchPanel')); addEventListener('resize', chatRoom); addEventListener('scroll', chatRoom, { passive: true });   // how much of the screen the pinned video takes
 
 render(); renderChat(); renderPins();
-{ const was = kept('panel'), at = kept('panelV') || 0, inGame = ['draw', 'game', 'tower', 'ludo', 'watch'].includes(was) && Date.now() - at < 10 * 60e3;   // Loveline opens on the chat; a refresh in the middle of a game goes back into it
+{ const was = kept('panel'), at = kept('panelV') || 0, inGame = ['draw', 'game', 'tower', 'ludo', 'pressure', 'watch'].includes(was) && Date.now() - at < 10 * 60e3;   // Loveline opens on the chat; a refresh in the middle of a game goes back into it
   openPanel(inGame ? was : window.__homePlay || longGone ? 'play' : 'chat', true, true); }
 let parked = false;
 const bc = 'BroadcastChannel' in window ? new BroadcastChannel('closer') : null;
@@ -8461,7 +8833,7 @@ steady(() => {   // once a second: presence, safety check, status ask
   lastBeat = Date.now();
   checkRelays();
   if (lanes) paceVideo();
-  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, pu: (partnerPush || '').slice(-16) + (partnerPush && partnerKeys ? '+' : '') + (partnerPush && partnerKeys && partnerBox ? partnerBox === 2 ? 'b2' : 'b' : ''), pk: pinLast(), cs: chatSig(), wv: wstate.v, lc: libSize() }); }
+  if (partnerOnline() && Date.now() - factsAt >= 2000) { factsAt = Date.now(); send({ t: 'facts', av: APP_V, nm: myName, pv: panelV, gv: gameV, tv: towerV, lv: ludoV, zv: pressV, pu: (partnerPush || '').slice(-16) + (partnerPush && partnerKeys ? '+' : '') + (partnerPush && partnerKeys && partnerBox ? partnerBox === 2 ? 'b2' : 'b' : ''), pk: pinLast(), cs: chatSig(), wv: wstate.v, lc: libSize() }); }
   if (isRemote) {
     if (!partnerOnline() && !takenOver && Date.now() - helloAt > 3000) hello();
     else send({ t: 'ping' });
