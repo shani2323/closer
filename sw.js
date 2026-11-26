@@ -58,14 +58,16 @@ self.addEventListener('message', e => {
 // Xed 26 Nov: a call. One "Incoming call" alert that buzzes again every second: the same alert is shown again in place (same tag, renotify),
 // so her screen only ever holds one. It stops after 40 s, when she taps or swipes it, when the caller gives up, or when Loveline comes on screen.
 let ringId = null;
+// Xed 26 Nov: office words. The app notes which phone this is; she sees Boss, he sees Madam.
+const role = async () => { try { const r = await (await caches.open(SHELL)).match(here('__side')); return r && (await r.text()) === 'his' ? 'Madam' : 'Boss'; } catch { return 'Boss'; } };
 const IPHONE = /iPhone|iPad/.test(navigator.userAgent), nap = ms => new Promise(r => setTimeout(r, ms));
 async function missedCall(id) {   // the alert says so, and the chat shows it when Loveline opens
   await boxPut({ mc: id }).catch(() => {});
   for (const c of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) c.postMessage({ t: 'box' });
-  await self.registration.showNotification('1+1=1', { body: '📞 Missed call', tag: 'call', silent: true, icon: 'icon-192.png' });
+  await self.registration.showNotification('1+1=1', { body: `📞 Missed call from ${await role()}`, tag: 'call', silent: true, icon: 'icon-192.png' });
 }
 async function ringCall(id) {
-  ringId = id; const end = Date.now() + 65000;   // the caller sends 'stopped' as soon as it gives up
+  ringId = id; const end = Date.now() + 65000, from = await role();   // the caller sends 'stopped' as soon as it gives up
   while (ringId === id && Date.now() < end) {
     const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (open.some(c => c.visibilityState === 'visible') && !IPHONE) {   // Loveline is on screen: it rings there itself
@@ -73,7 +75,7 @@ async function ringCall(id) {
       for (const n of await self.registration.getNotifications({ tag: 'call' })) n.close();
       return;
     }
-    await self.registration.showNotification('1+1=1', { body: '📞 Incoming call', tag: 'call', renotify: true, requireInteraction: true, vibrate: [600], data: { call: id }, icon: 'icon-192.png' });
+    await self.registration.showNotification('1+1=1', { body: `📞 ${from} is calling you`, tag: 'call', renotify: true, requireInteraction: true, vibrate: [600], data: { call: id }, icon: 'icon-192.png' });
     if (IPHONE) { ringId = null; open.forEach(c => c.postMessage({ t: 'callRing', id })); return; }   // an iPhone takes one alert, with its own sound
     await nap(1000);
   }
@@ -126,7 +128,7 @@ self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of y
     return;
   }
   if (Date.now() > testUntil && open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) { open.forEach(c => c.postMessage({ t: 'pushed' })); return; }   // the open page shows its own heart (and shows a test alert itself if this helper restarted and forgot the test); an iPhone must always be shown something
-  await self.registration.showNotification('1+1=1', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
+  await self.registration.showNotification('1+1=1', { body: `💼 ${await role()} is looking for you`, tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
 })()));
 self.addEventListener('notificationclose', e => { if (e.notification.tag === 'call') ringId = null; });   // swiped away: it stops buzzing
 self.addEventListener('notificationclick', e => {

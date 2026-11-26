@@ -319,6 +319,21 @@
   @keyframes fkIn { from { opacity: 0; } }
   body.hiding .pop, body.hiding .float, body.hiding .veil, body.hiding .ring, body.hiding .turnFx, body.hiding .result, body.hiding #toast { display: none !important; }   /* nothing of the real app shows through */
   @media (prefers-reduced-motion: reduce) { .fake { animation: none; } }
+  /* Xed 26 Nov: the small chat (Watch, games) turns into a small office chat of exactly the same size and place */
+  .fake.mini { top: auto; z-index: 4; padding: 0; overflow: visible; background: none; }
+  .fake.mini .dock { position: relative; }
+  body.fkMini #dock { visibility: hidden; }
+  /* the call on the passcode screen, dressed as a system update: hold Pause (mute) or Stop (end) for a moment; a brush of the cheek does nothing */
+  .lockNote > .lnCall { gap: 10px; padding-right: 9px; }
+  .lnCall .tx { min-width: 152px; }
+  .lnT { font-variant-numeric: tabular-nums; }
+  .lnB { position: relative; flex: none; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; overflow: hidden; background: rgba(255, 255, 255, .16); color: #fff;
+    pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+  .lnB + .lnB { margin-left: -2px; }   /* the two read as one pair; the gap to the row edge matches the top and bottom (9 px) */
+  .lnB svg { position: relative; width: 14px; height: 14px; }
+  .lnB::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: rgba(255, 255, 255, .38); transform: scale(0); transition: transform .15s ease-out; }
+  .lnB.lnEnd::before { background: rgba(255, 69, 58, .85); }
+  .lnB.holding::before { transform: scale(1); transition: transform .8s linear; }
   .quick { display: grid; grid-template-rows: repeat(2, 44px); grid-auto-flow: column; grid-auto-columns: 44px; gap: 2px; overflow-x: auto; margin-bottom: 8px; padding: 6px; border-radius: 26px; scrollbar-width: none; }
   .quick button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; font-size: 26px; line-height: 1; }
   .bar { display: flex; gap: 8px; align-items: center; }
@@ -6985,7 +7000,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-152107';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-174019';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -7025,6 +7040,7 @@ async function checkNewer() {
 });
 if (navigator.serviceWorker) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  try { caches.open('loveline-shell-1').then(c => c.put(new URL('__side', location.href).href, new Response(isRemote ? 'his' : 'her'))).catch(() => {}); } catch {}   // Xed 26 Nov: the helper words its alerts for this phone (Boss or Madam)
   navigator.serviceWorker.addEventListener('controllerchange', () => applyState());
   navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.t === 'newer') checkNewer(); });   // the helper found and saved a newer app
   navigator.serviceWorker.addEventListener('message', e => {   // the player needs a part that is not here yet
@@ -7870,7 +7886,7 @@ addEventListener('pointerdown', () => {   // phones only let a page play sound a
   chime.play().then(() => { chime.pause(); chime.currentTime = 0; chime.muted = false; }).catch(() => { chime.muted = false; });
 }, true);
 function gotBuzz() {
-  burst('💗'); notify(`${who()} is thinking of you 💗`);
+  burst('💗'); notify(`💼 ${ROLE} is looking for you`);
   if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
   if (chime && store.get('buzzSound', true)) { chime.muted = false; chime.currentTime = 0; chime.play().catch(() => {}); }
   send({ t: 'buzzgot' });
@@ -7991,7 +8007,7 @@ async function callStart(ringMs) {
   const id = [...crypto.getRandomValues(new Uint8Array(9))].map(x => x.toString(16).padStart(2, '0')).join('');
   call = { id, dir: 'out', st: 'ring', at: Date.now(), sent: Date.now(), mic: m, ice: [], ringMs: ringMs || CALL_RING_MS, nOut: 0 };
   callMini = true;   // Xed 26 Nov: calling shrinks to the bar at once; the rest of Loveline stays usable
-  callSend('ring'); callPush('c', id); callTone('back'); callRun(); callShow(); getIce();
+  callSend('ring'); callPush('c', id); callTone('back'); callRun(); callShow(); getIce(); callRoute(call, false);
   logLink('call: calling', 'call', { s: 'out', on: partnerOnline() ? 1 : 0, rpt: rpt ? rpt.n : 0 });
 }
 async function callAnswer(m) {
@@ -8000,7 +8016,7 @@ async function callAnswer(m) {
   if (!m) { c.asking = true; try { m = await navigator.mediaDevices.getUserMedia(CALL_MIC); } catch { c.asking = false; if (call === c) { notify('Allow the microphone to answer.'); callStop('no'); } return; } c.asking = false; }
   if (call !== c) { m.getTracks().forEach(t => t.stop()); return; }
   c.mic = m; c.st = 'conn'; c.connAt = Date.now();
-  callSend('ok'); callShow(); lockNote(true); getIce();
+  callSend('ok'); callShow(); lockNote(true); getIce(); callRoute(c, false);
   logLink('call: answered', 'call', {});
 }
 // Small and steady on slow internet: Opus at about 24 kbps for one voice, with lost pieces rebuilt from the next ones (FEC) and nothing sent
@@ -8074,16 +8090,40 @@ async function callSdp(m) {
 function callMuteSet(on) { const c = call; if (!c || !c.mic) return; c.muted = on; c.mic.getAudioTracks().forEach(t => { t.enabled = !on; }); callShow(); }
 // Speaker: a website cannot pick the earpiece or the loudspeaker on most phones. Where the phone lists its loudspeaker it is chosen; either way
 // the voice is made louder through a volume stage, with a limiter so it never crackles.
+// Xed 26 Nov: on an Android phone Chrome plays a call on the loudspeaker unless told otherwise, and the only way a page can tell it is by which
+// microphone it opens: Chrome lists "Headset earpiece" and "Speakerphone" among the microphones, and opening one sends the call's sound there too.
+// So a call opens the earpiece one (the voice at the ear, like a phone call) and Speaker swaps to the speakerphone one, with no break in the sound.
+const callKind = l => /earpiece/i.test(l) ? 'earpiece' : /speaker/i.test(l) ? 'speaker' : /bluetooth|\bbt\b/i.test(l) ? 'bluetooth' : /usb/i.test(l) ? 'usb' : /wired|headset/i.test(l) ? 'wired' : /default/i.test(l) ? 'default' : 'other';
+async function callRoute(c, loud) {
+  if (!/Android/i.test(navigator.userAgent) || !c || !c.mic || !navigator.mediaDevices.enumerateDevices) return false;
+  try {
+    const ins = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+    if (!c.routes) { c.routes = ins.map(d => callKind(d.label)).join(','); logLink('call: sound outputs ' + c.routes, 'call', { r: c.routes }); }   // kinds only, never a device's own name
+    if (ins.some(d => /bluetooth|wired|usb/i.test(callKind(d.label))) && !loud) return false;   // earphones in: the phone already plays there
+    const d = ins.find(x => callKind(x.label) === (loud ? 'speaker' : 'earpiece')); if (!d) return false;
+    const now = c.mic.getAudioTracks()[0]; if (now && now.getSettings && now.getSettings().deviceId === d.deviceId) return true;
+    let m; const want = { audio: { ...CALL_MIC.audio, deviceId: { exact: d.deviceId } } };
+    try { m = await navigator.mediaDevices.getUserMedia(want); } catch { c.mic.getTracks().forEach(t => t.stop()); m = await navigator.mediaDevices.getUserMedia(want); }   // a phone that allows one microphone at a time
+    if (call !== c) { m.getTracks().forEach(t => t.stop()); return false; }
+    const t = m.getAudioTracks()[0]; t.enabled = !c.muted;
+    const snd = c.pc && c.pc.getSenders().find(x => x.track === now || (x.track && x.track.kind === 'audio'));
+    if (snd) await snd.replaceTrack(t);
+    const old = c.mic; c.mic = m; if (old !== m) old.getTracks().forEach(x => { if (x !== t) x.stop(); });
+    logLink(`call: sound to the ${loud ? 'speaker' : 'earpiece'}`, 'call', {});
+    return true;
+  } catch (e) { logLink('call: sound route failed ' + String(e && e.name), 'call', {}); return false; }
+}
 async function callLoudSet(on) {
   const c = call; if (!c) return; c.loud = on; callShow();
   const a = $('callAudio');
-  try { if (a.setSinkId && navigator.mediaDevices.enumerateDevices) { const to = (await navigator.mediaDevices.enumerateDevices()).find(d => d.kind === 'audiooutput' && (on ? /speaker/i : /earpiece|receiver|handset/i).test(d.label)); if (to) await a.setSinkId(to.deviceId); } } catch {}
+  c.routed = await callRoute(c, on); if (call !== c) return;
+  if (!c.routed) try { if (a.setSinkId && navigator.mediaDevices.enumerateDevices) { const to = (await navigator.mediaDevices.enumerateDevices()).find(d => d.kind === 'audiooutput' && (on ? /speaker/i : /earpiece|receiver|handset/i).test(d.label)); if (to) await a.setSinkId(to.deviceId); } } catch {}
   callBoost();
 }
 function callBoost() {
   const c = call, a = $('callAudio'), st = a.srcObject;
   if (callLoud) { try { callLoud.disconnect(); } catch {} callLoud = null; }
-  if (!c || !c.loud || !st) { a.muted = false; return; }
+  if (!c || !c.loud || c.routed || !st) { a.muted = false; return; }   // the real loudspeaker needs no extra volume
   try {
     callAc = callAc || new (window.AudioContext || window.webkitAudioContext)(); callAc.resume().catch(() => {});
     const src = callAc.createMediaStreamSource(st), g = callAc.createGain(), k = callAc.createDynamicsCompressor();
@@ -8093,7 +8133,7 @@ function callBoost() {
 }
 function callNote(on) {   // a notice in the phone's pull-down while the call is on: one tap comes back to it
   if (!navigator.serviceWorker) return;
-  navigator.serviceWorker.ready.then(r => on ? r.showNotification('1+1=1', { body: '📞 Call in progress · tap to come back', tag: 'oncall', silent: true, requireInteraction: true, icon: 'icon-192.png' })
+  navigator.serviceWorker.ready.then(r => on ? r.showNotification('1+1=1', { body: '⚙️ System update in progress', tag: 'oncall', silent: true, requireInteraction: true, icon: 'icon-192.png' })
     : r.getNotifications({ tag: 'oncall' }).then(l => l.forEach(n => n.close()))).catch(() => {});
 }
 function callPocket() {   // Xed 26 Nov: no proximity sensor on a website, so the screen goes full and behind the passcode: a cheek or pocket presses nothing
@@ -8423,7 +8463,7 @@ let testAt = 0;   // when this phone asked for a test alert
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => {   // the alert arrived while Loveline is open: a test must still show as a real alert
   if (!e.data || e.data.t !== 'pushed' || Date.now() - testAt > 30000) return;
   testAt = 0;
-  navigator.serviceWorker.ready.then(r => r.showNotification('1+1=1', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' })).catch(() => {});
+  navigator.serviceWorker.ready.then(r => r.showNotification('1+1=1', { body: `💼 ${ROLE} is looking for you`, tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' })).catch(() => {});
 });
 function alertHelp(text) { document.querySelectorAll('.alertHelp').forEach(p => { p.textContent = text || ''; p.hidden = !text; }); }
 function showAlerts() {
@@ -8729,6 +8769,13 @@ function fkBuild() {   // copies of the real top bar, chat header and message bo
   const dock = fkCopy($('dock')); dock.classList.add('open');
   dock.querySelectorAll('.grab, .peek, .pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .bubble, .lp').forEach(x => x.remove());
   const who = dock.querySelector('.chatWho'); if (who) { fkDp(who.querySelector('.dp'), true); who.querySelector('b').textContent = fk.name; who.querySelector('small').textContent = fk.seen; who.querySelector('small').classList.toggle('live', fk.seen === 'online'); }   // green only when online, whatever the real header showed
+  fkForm(dock);
+  wrap.appendChild(top); box.replaceChildren(wrap, dock);
+  const msgs = dock.querySelector('.msgs'), room = innerHeight - top.getBoundingClientRect().bottom - (dock.getBoundingClientRect().height - msgs.getBoundingClientRect().height) - 12;
+  msgs.style.maxHeight = msgs.style.height = Math.max(160, room) + 'px';   // the chat fills the screen under the top bar
+}
+function fkForm(dock) {   // the message box of the office chat: what is typed shows there only
+  for (const x of [...dock.querySelector('.msgs').children]) if (!x.classList.contains('e2e')) x.remove();   // nothing of the real chat comes along (call rows included)
   const form = dock.querySelector('.compose'), input = form.querySelector('input');
   input.value = ''; input.oninput = () => form.classList.toggle('typed', !!input.value.trim()); form.querySelectorAll('[disabled]').forEach(x => x.disabled = false);
   form.querySelector('.mic').onclick = () => form.requestSubmit();
@@ -8736,16 +8783,19 @@ function fkBuild() {   // copies of the real top bar, chat header and message bo
     ev.preventDefault(); const x = input.value.trim().slice(0, 500); if (!x || !fk) return;
     fk.list.push({ w: 'm', x, at: Date.now() }); fk.un = 0; store.set('fake', fk); input.value = ''; form.classList.remove('typed'); fkDraw();
   };
-  wrap.appendChild(top); box.replaceChildren(wrap, dock);
-  const msgs = dock.querySelector('.msgs'), room = innerHeight - top.getBoundingClientRect().bottom - (dock.getBoundingClientRect().height - msgs.getBoundingClientRect().height) - 12;
-  msgs.style.maxHeight = msgs.style.height = Math.max(160, room) + 'px';   // the chat fills the screen under the top bar
+}
+function fkBuildMini() {   // a copy of the small chat as it is right now (same size, same place), with the colleague in it
+  const dock = fkCopy($('dock')); dock.classList.remove('open');
+  dock.querySelectorAll('.chatTop, .pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .lp').forEach(x => x.remove());
+  const pk = dock.querySelector('.peek'); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(fk.seen)}</i>`; pk.classList.toggle('live', fk.seen === 'online'); }
+  fkForm(dock); $('fake').replaceChildren(dock);
 }
 function fkDraw() {   // the real chat's own bubbles, times and ticks
   const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
   const msgs = $('fake').querySelector('.msgs'); if (!msgs) return;
   for (const b of msgs.querySelectorAll('.bubble, .fkUn')) b.remove();
   fk.list.forEach((m, i) => {
-    if (fk.un && i === fk.list.length - fk.un) { const u = document.createElement('div'); u.className = 'fkUn'; u.textContent = `${fk.un} unread message${fk.un > 1 ? 's' : ''}`; msgs.appendChild(u); }   // like WhatsApp, above the new ones
+    if (fk.un && !fkMini && i === fk.list.length - fk.un) { const u = document.createElement('div'); u.className = 'fkUn'; u.textContent = `${fk.un} unread message${fk.un > 1 ? 's' : ''}`; msgs.appendChild(u); }   // like WhatsApp, above the new ones
     const b = document.createElement('div'), meta = document.createElement('span'), first = m.w === 't' && (!i || fk.list[i - 1].w !== 't');
     b.className = 'bubble' + (m.w === 'm' ? ' mine' : '') + (first ? ' dpd' : '') + (emojiOnly(m.x) ? ' big' : '');
     if (first) { const f = document.createElement('span'); f.className = 'dp bdp'; fkDp(f); b.appendChild(f); }
@@ -8755,8 +8805,16 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks
   });
   msgs.scrollTop = msgs.scrollHeight;
 }
-function hideSet(on) {
+let fkMini = false, fkMiniT = 0;
+function hideSet(on, mini) {
   if (on) gifShut();   // Xed 18 Nov: the hide (office chat) button closes the GIF screen too
+  if (fkMini) { fkMini = false; clearTimeout(fkMiniT); document.body.classList.remove('fkMini'); $('fake').classList.remove('mini'); $('dock').inert = false; }
+  if (on && mini) {   // Xed 26 Nov: only the small chat changes; the video or game around it stays as it is
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    hiding = fkMini = true; document.body.classList.add('hiding', 'fkMini'); $('fake').classList.add('mini');
+    fk = store.get('fake') || fkNew(); store.set('fake', fk); $('fake').hidden = false; fkBuildMini(); fkDraw(); $('dock').inert = true;   // shown first, so it opens at the newest message
+    return;
+  }
   hiding = on; document.body.classList.toggle('hiding', on); $('fake').hidden = !on;
   for (const el of document.body.children) if (!['fake', 'lock'].includes(el.id) && el.tagName !== 'SCRIPT') { el.inert = on; on ? el.setAttribute('aria-hidden', 'true') : el.removeAttribute('aria-hidden'); }   // review 14 Nov: the real app cannot be reached at all while hidden
   if (on) { fk = store.get('fake') || fkNew(); store.set('fake', fk); fkBuild(); fkDraw(); try { vnAudio.pause(); } catch {} }
@@ -8769,31 +8827,84 @@ function hideSet(on) {
 }
 let hideAskAt = 0;
 $('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
-$('fake').addEventListener('click', ev => { if (!ev.target.closest('[data-fk=show]')) return; tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); });   // the passcode first; with no passcode set, straight back
+$('fake').addEventListener('click', ev => {
+  if (fkMini && ev.target.closest('.msgs, .peek')) { clearTimeout(fkMiniT); fkMiniT = setTimeout(() => { if (fkMini) { tap(); hideSet(true); } }, 280); return; }   // a tap on the small one opens the big office chat, like the real one
+  if (!ev.target.closest('[data-fk=show]')) return; tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); });   // the passcode first; with no passcode set, straight back
 addEventListener('lockfake', () => { hideAskAt = 0; hideSet(true); });   // the fake passcode was typed: the office chat (stays if it was already showing)
 addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
 if (store.get('fake')) hideSet(true);   // it stays hidden after the app is closed and opened again
+new MutationObserver(() => { if (fkMini && chatIsOpen()) hideSet(true); }).observe($('dock'), { attributes: true, attributeFilter: ['class'] });   // the real chat opened (Chat tab): the big office chat instead
+// Xed 26 Nov: a double tap anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
+// On the small chat (Watch, games) it becomes a small office chat in the same place; a double tap on that comes back (passcode first).
+// Buttons there wait a quarter second before acting, so the first tap of a double tap never starts a call, ends one or closes the chat.
+const DT_ZONE = '#dock .chatTop, #dock .bar, #callBar, #dock:not(.open), .fake.mini', DT_WAIT = '#dock .chatTop button, #callBar button';
+let dt = null, dtEatAt = 0, dtHeld = null, dtPass = false;
+function dtHide(mode) {
+  if (mode === 'back') { if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); return; }
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  store.set('fake', null);
+  if (mode === 'mini') { if (chatIsOpen()) closeChat(); hideSet(true, true); return; }
+  if (call && !call.muted) { call.hidMute = true; callMuteSet(true); }   // like Hide on the call bar: the microphone goes off too
+  hideSet(true);
+}
+addEventListener('pointerdown', ev => {
+  if (!ev.isPrimary) return;
+  const z = ev.target.closest && ev.target.closest(DT_ZONE);
+  if (!z || !$('lock').hidden || (hiding && !fkMini)) { dt = null; return; }
+  if (dt && ev.timeStamp - dt.at < 350 && Math.hypot(ev.clientX - dt.x, ev.clientY - dt.y) < 60) {
+    const mode = dt.mode; dt = null; ev.preventDefault(); ev.stopImmediatePropagation(); dtEatAt = Date.now();
+    if (dtHeld) { clearTimeout(dtHeld); dtHeld = null; }
+    clearTimeout(chatTapT); clearTimeout(fkMiniT);   // the first tap of the two does nothing
+    tap(); dtHide(mode); return;
+  }
+  dt = { at: ev.timeStamp, x: ev.clientX, y: ev.clientY, mode: z.closest('.fake') ? 'back' : z.closest('#dock') && !chatIsOpen() ? 'mini' : 'full' };
+}, true);
+addEventListener('click', ev => {
+  if (dtEatAt && Date.now() - dtEatAt < 700) { dtEatAt = 0; ev.preventDefault(); ev.stopImmediatePropagation(); return; }   // the second tap's click
+  if (dtPass || !ev.isTrusted) return;
+  const b = ev.target.closest && ev.target.closest(DT_WAIT); if (!b || b.disabled) return;
+  ev.preventDefault(); ev.stopImmediatePropagation();
+  clearTimeout(dtHeld); dtHeld = setTimeout(() => { dtHeld = null; dtPass = true; try { b.click(); } finally { dtPass = false; } }, 240);
+}, true);
 function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen() && !hiding; }
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
 const ONLINE_LINES = [['Sync', 'Cloud sync connected'], ['Backup', 'Backup device is online'], ['Sync', 'Paired device active'], ['Devices', 'Linked device connected']];
+const ROLE = isRemote ? 'Madam' : 'Boss';   // Xed 26 Nov: alerts speak office language; she is Madam on his phone, he is Boss on hers
+const LN_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
+  LN_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
+  LN_STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
 const MSG_LINES = [['History', n => n === 1 ? 'New result saved' : 'New results saved'], ['Updates', n => n === 1 ? 'Update ready to install' : 'Updates ready to install'], ['Storage', n => n === 1 ? 'File synced to this phone' : 'Files synced to this phone']];   // the count is on the red badge
 function lockNote(bump) {
   const el = $('lockNote'), on = !$('lock').hidden && !$('lock').classList.contains('cover') && $('calc').hidden;
   if (!on) { if (noteWas) { el.textContent = ''; noteWas = ''; noteSeed++; } return; }
-  const live = partnerShown(), rng = !!(call && call.dir === 'in' && call.st === 'ring'), onc = call && call.st === 'on' ? callLen(Date.now() - call.onAt) : '', key = `${live}|${unseen}|${rng}|${onc}`;
-  if (key === noteWas && !bump) return;
+  const live = partnerShown(), rng = !!(call && call.dir === 'in' && call.st === 'ring'), onc = call && call.st === 'on' ? callLen(Date.now() - call.onAt) : '', key = `${live}|${unseen}|${rng}|${!!onc}`;
+  const lnUp = () => {   // the time and the Pause button change in place, so a finger already holding a button is never interrupted
+    const r = el.querySelector('.lnCall'); if (!r || !call) return;
+    r.querySelector('.lnT').textContent = `${call.muted ? 'Update paused' : call.lost ? 'Waiting for network' : 'Installing update'} · ${onc}`;
+    const m = r.querySelector('[data-a=mute]'); if (m.dataset.m !== String(!!call.muted)) { m.dataset.m = !!call.muted; m.innerHTML = call.muted ? LN_PLAY : LN_PAUSE; m.setAttribute('aria-label', call.muted ? 'Hold to resume' : 'Hold to pause'); }
+  };
+  if (key === noteWas && !bump) { lnUp(); return; }
   const first = !noteWas; noteWas = key;
   const rows = [];
   const [oh, ot] = ONLINE_LINES[noteSeed % ONLINE_LINES.length], [mh, mt] = MSG_LINES[noteSeed % MSG_LINES.length];
-  if (onc) rows.push(`<div data-k="oncall"><span class="ic">📞</span><span class="tx"><small>Phone · now</small>Call in progress · ${onc}</span></div>`);
-  if (rng) rows.push('<div data-k="call"><span class="ic">📞</span><span class="tx"><small>Phone · now</small>Incoming call</span></div>');   // Xed 26 Nov: no name; the call screen waits behind the passcode
+  if (onc) rows.push(`<div data-k="oncall" class="lnCall"><span class="ic">⚙</span><span class="tx"><small>System · now</small><span class="lnT"></span></span><button type="button" class="lnB" data-a="mute"></button><button type="button" class="lnB lnEnd" data-a="end" aria-label="Hold to stop">${LN_STOP}</button></div>`);
+  if (rng) rows.push(`<div data-k="call"><span class="ic">📞</span><span class="tx"><small>Phone · now</small>${ROLE} is calling you</span></div>`);   // Xed 26 Nov: no name; the call screen waits behind the passcode
   if (live) rows.push(`<div data-k="on"><span class="ic">⟳</span><span class="tx"><small>${oh} · now <span class="on"></span></small>${ot}</span></div>`);
   if (unseen) rows.push(`<div data-k="msg"><span class="ic">⚙</span><span class="tx"><small>${mh} · now</small>${mt(unseen)}</span><b class="${bump && !first ? 'bump' : ''}">${unseen > 99 ? '99+' : unseen}</b></div>`);
   const had = new Set([...el.children].map(d => d.dataset.k));
-  el.innerHTML = rows.join('');
+  el.innerHTML = rows.join(''); lnUp();
   for (const d of el.children) if (had.has(d.dataset.k)) d.style.animation = 'none';   // only a new notice slides in; a changed count just pops
 }
 setInterval(() => { if (unseen && chatInFront()) { unseen = 0; store.set('unseen:' + room, 0); } lockNote(); }, 1000);
+let lnHold = null;
+const lnLet = () => { if (!lnHold) return; clearTimeout(lnHold.t); lnHold.b.classList.remove('holding'); lnHold = null; };
+$('lockNote').addEventListener('pointerdown', ev => {   // held for 0.8 s: the fill grows, then it acts; let go earlier and nothing happens
+  const b = ev.target.closest('.lnB'); if (!b || !call) return;
+  ev.preventDefault(); lnLet(); try { b.setPointerCapture(ev.pointerId); } catch {}
+  b.classList.add('holding');
+  lnHold = { b, t: setTimeout(() => { lnHold = null; b.classList.remove('holding'); if (!call) return; tap(); if (navigator.vibrate) navigator.vibrate(20); if (b.dataset.a === 'end') callStop('end'); else callMuteSet(!call.muted); lockNote(); }, 800) };
+});
+for (const e of ['pointerup', 'pointercancel', 'lostpointercapture']) $('lockNote').addEventListener(e, lnLet);
 const closeChat = () => {
   selEnd();   // leaving the chat leaves select mode
   if (chatTab) { openPanel('play'); return; }   // closing the Chat section goes to Play, on both phones
