@@ -7225,7 +7225,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-232441';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-011723';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -7319,7 +7319,7 @@ function keepTogether() {   // the video is still arriving, or comes from a site
 let linkFrame = null;
 let hlsPlayer = null, linkBad = false, lookedAgain = null;
 const CARRIER = 'https://loveline-carry.shani2323.workers.dev', viaCarrier = new Set();   // for a phone whose internet blocks the video site
-const carrierCan = u => /(^|\.)(xvideos-cdn\.com|xnxx-cdn\.com|xhcdn\.com)$/i.test(new URL(u).hostname) && /\.m3u8$/i.test(new URL(u).pathname) && window.Hls && Hls.isSupported();
+const carrierCan = u => { try { return /(^|\.)(xvideos-cdn\.com|xnxx-cdn\.com|xhcdn\.com|phncdn\.com)$/i.test(new URL(u).hostname); } catch { return false; } };   // Xed 27 Nov: Pakistan's internet blocks these sites, so their videos (whole files and streams) always come through the carrier, on both phones, from the first second
 const loadHls = () => new Promise((res, rej) => {
   if (window.Hls) return res();
   const s = document.createElement('script'); s.src = 'hls.light.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
@@ -7398,7 +7398,7 @@ function ytStandIn(code) {   // a YouTube player that answers to the same questi
 const YT_NO = "YouTube won't play this video inside other apps. Age-limited videos and some others are blocked. Open it on YouTube, or save it and press Add video.";
 async function startLink(id, [how, what]) {
   loadedId = id;
-  if (how === 'file' || how === 'stream') { if (how === 'file') realVid.src = what; else { await loadHls().catch(() => {}); if (store.get('blockedHere') && carrierCan(what)) viaCarrier.add(id); await startStream(id, viaCarrier.has(id) ? `${CARRIER}/?u=${encodeURIComponent(what)}` : what); } await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
+  if (how === 'file' || how === 'stream') { if (how === 'file') realVid.src = carrierCan(what) ? `${CARRIER}/?u=${encodeURIComponent(what)}` : what; else { await loadHls().catch(() => {}); if (carrierCan(what)) viaCarrier.add(id); await startStream(id, viaCarrier.has(id) ? `${CARRIER}/?u=${encodeURIComponent(what)}` : what); } await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
   realVid.style.display = 'none';
   if (how === 'yt') {
     try { await loadYt(); vid = ytStandIn(what); await vid.ready; }
