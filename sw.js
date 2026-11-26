@@ -55,9 +55,44 @@ self.addEventListener('message', e => {
   if (e.data && e.data.t === 'caps' && e.ports[0]) e.ports[0].postMessage({ box: 2 });   // the app asks whether this helper can keep messages (1) and send "delivered" back (2)
   if (e.data && e.data.t === 'shell' && e.ports[0]) e.waitUntil((async () => { const want = String(e.data.v || ''); e.ports[0].postMessage({ ok: (await keptV()) === want || (await shellPull(want)) === want }); })());   // the open app asks for a version before it reloads into it
 });
+// Xed 26 Nov: a call. One "Incoming call" alert that buzzes again every second: the same alert is shown again in place (same tag, renotify),
+// so her screen only ever holds one. It stops after 40 s, when she taps or swipes it, when the caller gives up, or when Loveline comes on screen.
+let ringId = null;
+const IPHONE = /iPhone|iPad/.test(navigator.userAgent), nap = ms => new Promise(r => setTimeout(r, ms));
+const missedCall = () => self.registration.showNotification('1+1=1', { body: '📞 Missed call', tag: 'call', silent: true, icon: 'icon-192.png' });
+async function ringCall(id) {
+  ringId = id; const end = Date.now() + 40000;
+  while (ringId === id && Date.now() < end) {
+    const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (open.some(c => c.visibilityState === 'visible') && !IPHONE) {   // Loveline is on screen: it rings there itself
+      ringId = null; open.forEach(c => c.postMessage({ t: 'callRing', id }));
+      for (const n of await self.registration.getNotifications({ tag: 'call' })) n.close();
+      return;
+    }
+    await self.registration.showNotification('1+1=1', { body: '📞 Incoming call', tag: 'call', renotify: true, requireInteraction: true, vibrate: [600], data: { call: id }, icon: 'icon-192.png' });
+    if (IPHONE) { ringId = null; open.forEach(c => c.postMessage({ t: 'callRing', id })); return; }   // an iPhone takes one alert, with its own sound
+    await nap(1000);
+  }
+  if (ringId !== id) return;   // tapped, swiped away or ended
+  ringId = null; await missedCall();
+}
+async function ringEnd(id) {
+  if (ringId === id) ringId = null;
+  await nap(1100);   // after the last buzz has gone out
+  const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  if (open.some(c => c.visibilityState === 'visible') && !IPHONE) { for (const n of await self.registration.getNotifications({ tag: 'call' })) n.close(); return; }
+  await missedCall();
+}
+async function callTap(id) {
+  const l = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const c = l.length ? await l[0].focus().catch(() => l[0]) : await self.clients.openWindow('./');
+  if (!c) return;
+  c.postMessage({ t: 'callTap', id }); await nap(1500); c.postMessage({ t: 'callTap', id });   // a second time for a Loveline that was still starting
+}
 self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of you, with the app closed. The message is fixed here, so no words travel through the helper.
   const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   let kind = ''; try { kind = e.data ? e.data.text() : ''; } catch {}   // q: an unread message, o: the other one is online, u: several unread messages; nothing: Thinking of you
+  if ((kind[0] === 'c' || kind[0] === 'x') && /^[\w-]{6,40}$/.test(kind.slice(1))) { await (kind[0] === 'c' ? ringCall(kind.slice(1)) : ringEnd(kind.slice(1))); return; }   // Xed 26 Nov: a call rings, or stopped ringing
   if (kind[0] === 'd') {   // Xed 15 Nov: messages of ours reached the other phone while its app slept: two ticks
     let ids = []; try { ids = JSON.parse(kind.slice(1)); } catch {}
     for (const d of Array.isArray(ids) ? ids.filter(s => typeof s === 'string').slice(0, 30) : []) await boxPut({ d }).catch(() => {});
@@ -89,8 +124,11 @@ self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of y
   if (Date.now() > testUntil && open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) { open.forEach(c => c.postMessage({ t: 'pushed' })); return; }   // the open page shows its own heart (and shows a test alert itself if this helper restarted and forgot the test); an iPhone must always be shown something
   await self.registration.showNotification('1+1=1', { body: '💗 Thinking of you', tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
 })()));
+self.addEventListener('notificationclose', e => { if (e.notification.tag === 'call') ringId = null; });   // swiped away: it stops buzzing
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const d = e.notification.data;
+  if (e.notification.tag === 'call' && d && typeof d.call === 'string') { ringId = null; e.waitUntil(callTap(d.call)); return; }   // the ringing call: open Loveline on the call screen
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => l.length ? l[0].focus() : self.clients.openWindow('./')));
 });
 self.addEventListener('fetch', e => {

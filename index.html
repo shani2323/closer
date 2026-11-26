@@ -988,6 +988,43 @@
   @media (prefers-reduced-transparency: reduce) { .msgMenu { background: #2c2c2e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
   @media (prefers-reduced-motion: reduce) { .orb, .toast, .switch::after { transition: none; } .float, .pop, .veil, .ring { display: none; } }
   @media (prefers-reduced-transparency: reduce) { .glass, .toast, .sheet form, .bubble { background: #1c1c1e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+  /* Xed 26 Nov: voice call. The green phone in the chat banner; the call screen is one dark material over everything except the lock. */
+  .callBtn { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-right: 6px; border: 0; border-radius: 50%; background: rgba(48, 209, 88, .16); color: var(--green); transition: transform .1s ease-out; }
+  .callBtn:active { transform: scale(.88); }
+  .callView { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: calc(max(24px, env(safe-area-inset-top)) + 56px) 24px calc(max(20px, env(safe-area-inset-bottom)) + 40px);
+    background: radial-gradient(120% 70% at 50% 0%, rgba(255, 55, 120, .32), transparent 62%), radial-gradient(120% 60% at 50% 100%, rgba(120, 60, 230, .3), transparent 66%), rgba(10, 8, 14, .88);
+    -webkit-backdrop-filter: blur(30px) saturate(160%); backdrop-filter: blur(30px) saturate(160%); color: #fff; animation: callIn .42s cubic-bezier(.32, .72, 0, 1) both; }
+  .callView.out { animation: callOut .3s cubic-bezier(.32, .72, 0, 1) both; pointer-events: none; }
+  @keyframes callIn { from { opacity: 0; transform: translateY(28px) scale(.98); } }
+  @keyframes callOut { to { opacity: 0; transform: translateY(28px) scale(.98); } }
+  .callWho { display: grid; justify-items: center; gap: 8px; text-align: center; }
+  .callDp { position: relative; display: grid; place-items: center; width: 116px; height: 116px; margin-bottom: 12px; border-radius: 50%; background: linear-gradient(135deg, #ff375f, #bf5af2); font-size: 46px; font-weight: 600; }
+  .callDp img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .callDp::before, .callDp::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55); opacity: 0; pointer-events: none; }
+  .callView:not([data-mode=on]) .callDp::before, .callView:not([data-mode=on]) .callDp::after { animation: callPulse 2s cubic-bezier(.2, .6, .3, 1) infinite; }
+  .callView:not([data-mode=on]) .callDp::after { animation-delay: 1s; }
+  @keyframes callPulse { 0% { opacity: .6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.6); } }
+  .callWho b { max-width: 82vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 30px; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; }
+  .callWho small { font-size: 16px; color: rgba(255, 255, 255, .74); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .callBtns { display: flex; justify-content: center; gap: 64px; width: 100%; }
+  .cb { display: grid; justify-items: center; gap: 8px; padding: 0; border: 0; background: none; color: #fff; font-size: 13px; font-weight: 500; letter-spacing: .01em; }
+  .cb i { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: rgba(255, 255, 255, .16); transition: transform .1s ease-out, background-color .15s, color .15s; }
+  .cb:active i { transform: scale(.9); }
+  .cb svg { width: 30px; height: 30px; }
+  .cb.end i { background: var(--red); }
+  .cb.ok i { background: var(--green); }
+  .cb.mute[aria-pressed=true] i { background: #fff; color: #000; }
+  .callView[data-mode=in] .cb.mute, .callView:not([data-mode=in]) .cb.ok { display: none; }
+  .callView[data-mode=in] .cb.ok i { animation: callNudge 1s ease-in-out infinite; }
+  @keyframes callNudge { 50% { transform: translateY(-6px); } }
+  @keyframes callFade { from { opacity: 0; } }
+  @keyframes callFadeOut { to { opacity: 0; } }
+  /* Xed 26 Nov: a message you sent that the other one has read shows their tiny photo instead of blue ticks, only on the newest one they read */
+  .seen { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-left: 4px; overflow: hidden; vertical-align: -2px; border-radius: 50%; background: linear-gradient(135deg, #ff375f, #bf5af2); color: #fff; font-size: 9px; font-weight: 700; line-height: 1; box-shadow: 0 0 0 1px rgba(255, 255, 255, .28); }
+  .seen img { width: 100%; height: 100%; object-fit: cover; }
+  .seen.new { animation: seenPop .34s cubic-bezier(.32, .72, 0, 1); }
+  @keyframes seenPop { from { opacity: 0; transform: scale(.4); } }
+  @media (prefers-reduced-motion: reduce) { .callView { animation-name: callFade; } .callView.out { animation-name: callFadeOut; } .callDp::before, .callDp::after, .callView[data-mode=in] .cb.ok i, .seen.new { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -1295,7 +1332,7 @@
 
 <div class="msgMenu" id="msgMenu" role="menu" hidden></div>
 <div class="dock" id="dock"><div class="dock-in">
-  <div class="chatTop"><button type="button" class="chatWho" id="chatWho" aria-label="Photos, GIFs and links you shared"><span class="dp" id="chatDp"></span><span class="chatWhoT"><b id="chatName"></b><small id="chatSeen"></small></span></button><button class="findBtn" id="findBtn" aria-label="Search messages"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button><button class="statBtn" id="statBtn" aria-label="Our stats">💞 Stats</button><button class="closeChat" id="closeChat">Close</button></div>
+  <div class="chatTop"><button type="button" class="chatWho" id="chatWho" aria-label="Photos, GIFs and links you shared"><span class="dp" id="chatDp"></span><span class="chatWhoT"><b id="chatName"></b><small id="chatSeen"></small></span></button><button type="button" class="callBtn" id="callBtn" aria-label="Voice call"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button><button class="findBtn" id="findBtn" aria-label="Search messages"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button><button class="statBtn" id="statBtn" aria-label="Our stats">💞 Stats</button><button class="closeChat" id="closeChat">Close</button></div>
   <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
   <div class="peek" id="chatPeek"></div>
   <div class="pinBar" id="pinBar" role="button" tabindex="0" hidden><span class="pinTicks" id="pinTicks"></span><div><b id="pinHead">Pinned message</b><span id="pinText"></span></div><svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg></div>
@@ -1328,6 +1365,7 @@
 </div></div>
 
 <div class="toast glass hide" id="toast" role="status"></div>
+<div class="callView" id="callView" hidden role="dialog" aria-label="Voice call"><div class="callWho"><span class="callDp" id="callDp"></span><b id="callName"></b><small id="callState" aria-live="polite"></small></div><div class="callBtns"><button type="button" class="cb mute" id="callMute" aria-pressed="false"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></i>Mute</button><button type="button" class="cb end" id="callEnd"><i><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="transform: rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i><span id="callEndT">End</span></button><button type="button" class="cb ok" id="callOk"><i><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i>Answer</button></div><audio id="callAudio" autoplay playsinline></audio></div>
 <div class="fake" id="fake" hidden></div>
 <input type="file" id="imFile" accept="image/*" hidden>
 <div class="statSheet" id="findSheet" hidden role="dialog" aria-label="Search messages"><div class="stTop findTop"><input id="findQ" type="search" placeholder="Search all messages" autocomplete="off" enterkeyhint="search" aria-label="Search all messages"><button type="button" id="findX" aria-label="Close search">✕</button></div><div class="statBody" id="findBody"></div></div>
@@ -1578,6 +1616,7 @@ let bt = navigator.bluetooth ? 'ok' : 'nochrome';   // ok, nochrome, off, blocke
 const tries = new Map();   // one record per egg she has picked; kept for the whole visit
 let mic = null, hearing = false;   // live sound: my microphone stream / partner's sound playing here
 let hiding = false;   // the fake office chat is on (Xed 14 Nov)
+let call = null, callT = 0; const callDone = new Set();   // the voice call going on now (Xed 26 Nov), and calls already over here
 // Xed 22 Nov, ghost mode (his side only): his phone keeps talking to hers as always, but every message carries the time he turned it on,
 // and her phone shows him away and "last seen" frozen at that time. Her messages arrive (two grey ticks) but never turn blue while it is on.
 let ghostAt = isRemote ? +store.get('ghostAt', 0) || 0 : 0;   // his phone: when ghost mode was turned on (0 = off)
@@ -3842,12 +3881,14 @@ function gotLp(m) {
   c.lp = lp; saveChat(); keepShow = true; renderChat();
 }
 const lpHtml = c => !c.lp || !c.lp.t ? '' : `<a class="lp" href="${esc(c.lp.u)}" target="_blank" rel="noopener noreferrer">${c.lp.th ? `<img src="${c.lp.th}" alt="">` : ''}<b>${esc(c.lp.t)}</b>${c.lp.d ? `<span>${esc(c.lp.d)}</span>` : ''}<small>${esc(c.lp.s)}</small></a>`;
+let seenWas;   // the message their photo sat on at the last drawing: it pops in only when it moves
 function renderChat() {
   const time = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });   // 10:15 PM, never 22:15 (Xed 12 Nov)
-  const ticks = st => `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
+  const ticks = (st, id) => st >= 3 ? (id === seenId ? `<span class="seen${seenId !== seenWas ? ' new' : ''}" aria-label="Seen">${partnerDp ? `<img src="${partnerDp}" alt="">` : esc(who().trim().charAt(0).toUpperCase() || '?')}</span>` : '')   // Xed 26 Nov: read = their tiny photo, on the newest one only
+    : `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${r.x ? esc(r.x) : 'Message'}</span></span>` : '';
   const rxs = c => { const l = [c.rx && c.rx.them, c.rx && c.rx.me].filter(Boolean); return !l.length ? '' : `<span class="rx" role="button" aria-label="Reactions">${l[1] && l[0] === l[1] ? esc(l[0]) + '<small>2</small>' : l.map(esc).join('')}</span>`; };
-  const view = chatView(), faces = new Set();
+  const view = chatView(), faces = new Set(), seenId = (view.findLast(x => x.who === 'me' && (x.st || 0) >= 3) || {}).id;
   for (let i = 0, last = { me: -9, them: -9 }; i < view.length; i++) {   // Xed 14 Nov: a face where a run of messages starts; in quick back-and-forth only every 6th bubble, so the chat never fills with faces
     const c = view[i], p = view[i - 1], quiet = !p || c.at - p.at > 300000; if (quiet) last = { me: -9, them: -9 };   // after 5 quiet minutes each of you gets a face again
     if ((quiet || p.who !== c.who) && (c.who === 'me' ? myDp : partnerDp) && (quiet || i - last[c.who] >= 6)) { faces.add(c.id); last[c.who] = i; }
@@ -3864,9 +3905,10 @@ function renderChat() {
   const keepV = gifKeep();
   for (const c of view) lpWant(c);
   const tpEl = $('typing'); tpEl.remove();   // the typing bubble lives right under the last message
-  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}</div>`; }).join('');
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0, c.id) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0, c.id) : ''}</span>`}${r}</div>`; }).join('');
   box.appendChild(tpEl);
   box.scrollTop = toEnd ? box.scrollHeight : keep;
+  seenWas = seenId;
   gifRestore(keepV); vnPaint(); imPaint(); for (const v of $('msgs').querySelectorAll('.gifBox video')) { gifInChat.observe(v); gifNear.observe(v); }
   toEndState();
   if (sel) selPaint();   // the ticks survive a redraw
@@ -6794,6 +6836,7 @@ let wstate = { id: null, playing: false, pos: 0, base: 0, v: 0, from: '' };
 let toyRanAt = 0;   // the 15 s auto-lock waits while a video plays in Watch; on her phone also while a toy runs, or ran in the last minute (pauses between patterns)
 window.lockHold = () => {
   if (vnBusy()) return true;   // a voice note being recorded or played (Xed 13 Nov)
+  if (call) return true;   // a call ringing or going on (Xed 26 Nov)
   if (panel === 'watch' && wstate.playing && here() && !vid.paused && !vid.ended) return true;   // Xed 12 Nov: only a video really moving on this phone, not paused, ended or still loading
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
@@ -6854,7 +6897,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261123-230339';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-134230';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -6863,7 +6906,7 @@ function shellHas(v) {   // asks the phone's helper to fetch and keep version v;
   return new Promise(res => { const ch = new MessageChannel(); const t = setTimeout(() => res(false), 20000); ch.port1.onmessage = e => { clearTimeout(t); res(!!(e.data && e.data.ok)); }; sw.postMessage({ t: 'shell', v }, [ch.port2]); });
 }
 async function checkNewer() {
-  if (document.hidden || $('text').value || document.activeElement === $('text') || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing (or about to) or watching
+  if (call || document.hidden || $('text').value || document.activeElement === $('text') || [...document.querySelectorAll('video')].some(v => !v.paused)) return;   // never while typing (or about to) or watching
   try {
     const t = (await (await fetch('v.txt?nc=' + Date.now(), { cache: 'no-store' })).text()).trim(), v = /^v-[\d-]+$/.test(t) ? t : '';   // 20 bytes, not the whole app
     if (isRemote ? mayRun || hearing || mic : Object.values(state).some(e => e.connected)) { if (v && v !== APP_V && checkNewer.held !== v) { checkNewer.held = v; logLink(`update ${v} waits: a toy is connected`, 'update_wait', { v }); } return; }   // never while a toy is connected (Xed 15 Nov: also at 0, a pause mid-session): a reload drops her toys' Bluetooth, and his sound
@@ -7275,6 +7318,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'towerReact' && panel === 'tower') towerReact(m.e, false);
   if (m.t === 'ldrag') gotLdrag(m);
   if (m.t === 'buzz') gotBuzz();
+  if (m.t === 'call') gotCall(m);
   if (m.t === 'buzzgot') notify(`${who()} got your 💗`);
   if (m.t === 'pushsub') gotPushSub(m);
   if (m.t === 'pin' && gotPin(m)) { pinAt = 0; savePins(); notify(m.on ? `${who()} pinned a message.` : `${who()} unpinned a message.`); }
@@ -7750,6 +7794,173 @@ function nudgeCheck(leaving) {   // leaving: this phone is going off screen and 
   }
   if (!leaving && !document.hidden && !ghostAt && partnerKeys && !partnerOnline() && now - frontSince >= 60000 && now - (nudge.oAt || 0) >= 1800000) wake('o', { ...nudge, oAt: now });
 }
+// ---- Voice call (Xed 26 Nov). The green phone in the chat banner rings the other phone. With Loveline closed or in the background, that phone
+// shows one "Incoming call" alert that buzzes again every second (the same alert each time, never a pile of them) for 40 s; with Loveline open
+// it rings on the screen. The sound goes straight between the two phones, like live sound. A website cannot ring like a real phone: no ringtone
+// while Loveline is closed, and a silent phone only buzzes.
+const CALL_RING_MS = 40000, CALL_IDLE_MS = 8000, CALL_CONN_MS = 20000, CALL_LOST_MS = 15000;
+const CALL_MIC = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
+const callOk = id => typeof id === 'string' && /^[\w-]{6,40}$/.test(id);
+const callLen = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+function callPush(kind, id) {   // c: ring her phone through its alert address; x: it stopped ringing. Only a random call id travels, sealed.
+  if (!partnerPush || !partnerKeys) return;
+  fetch(BUZZ, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: partnerPush, keys: partnerKeys, kind, id }) })
+    .then(r => r.json()).then(a => logLink(`call alert ${kind}: Google said ${a.status}`, 'alert_c', { kind, status: a.status })).catch(() => {});
+}
+const callSend = (k, x) => { if (call) send({ t: 'call', k, id: call.id, ...x }); };
+let callAc = null, callToneT = 0;
+function callTone(kind) {   // in: the ring on the phone being called (a little chime every 2 s, a buzz every second); back: the caller hears it ringing
+  clearInterval(callToneT); callToneT = 0; try { navigator.vibrate && navigator.vibrate(0); } catch {}
+  if (!kind) return;
+  try { callAc = callAc || new (window.AudioContext || window.webkitAudioContext)(); callAc.resume().catch(() => {}); } catch { callAc = null; }
+  const beep = (f, t0, d, v) => { if (!callAc) return; const o = callAc.createOscillator(), g = callAc.createGain(); o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(v, t0 + .02); g.gain.setValueAtTime(v, t0 + d - .05); g.gain.linearRampToValueAtTime(0, t0 + d); o.connect(g).connect(callAc.destination); o.start(t0); o.stop(t0 + d + .02); };
+  let n = 0;
+  const once = () => {
+    const t = callAc ? callAc.currentTime + .02 : 0;
+    if (kind === 'in') { if (n % 2 === 0) for (const [f, o] of [[784, 0], [988, .17], [1175, .34], [988, .62], [1175, .79]]) beep(f, t + o, .15, .16); try { navigator.vibrate && navigator.vibrate(600); } catch {} }
+    else if (n % 3 === 0) beep(425, t, 1, .06);
+    n++;
+  };
+  once(); callToneT = setInterval(once, 1000);
+}
+function callText() {
+  const c = call; if (!c) return '';
+  if (c.st === 'on') return c.lost ? 'Reconnecting…' : callLen(Date.now() - c.onAt);
+  if (c.st === 'conn') return 'Connecting…';
+  return c.dir === 'in' ? 'Incoming call…' : c.heard ? 'Ringing…' : 'Calling…';
+}
+function callShow() {
+  const v = $('callView'), c = call;
+  if (!c) { if (!v.hidden && !v.classList.contains('out')) { v.classList.add('out'); setTimeout(() => { if (!call) { v.hidden = true; v.classList.remove('out'); } }, 300); } return; }
+  if (v.hidden || v.classList.contains('out')) { v.classList.remove('out'); v.hidden = false; }
+  v.dataset.mode = c.dir === 'in' && c.st === 'ring' ? 'in' : c.st === 'on' ? 'on' : 'out';
+  const dp = $('callDp'), name = who();
+  if (partnerDp) { if (!dp.firstChild || dp.firstChild.src !== partnerDp) dp.innerHTML = `<img src="${partnerDp}" alt="">`; } else dp.textContent = name.trim().charAt(0).toUpperCase() || '?';
+  $('callName').textContent = name; $('callState').textContent = callText();
+  $('callEndT').textContent = v.dataset.mode === 'in' ? 'Decline' : 'End';
+  $('callMute').setAttribute('aria-pressed', !!c.muted);
+}
+function callTick() {
+  const c = call; if (!c) { clearInterval(callT); callT = 0; return; }
+  const now = Date.now();
+  if (c.dir === 'out' && c.st === 'ring') { if (now - c.at > CALL_RING_MS) { callStop('none'); return; } if (now - (c.sent || 0) >= 2000) { c.sent = now; callSend('ring'); } }   // said again every 2 s: a phone that opens Loveline now still hears it
+  if (c.dir === 'in' && c.st === 'ring' && now - c.last > CALL_IDLE_MS) { callStop('gone', true); return; }   // the caller went quiet: it was given up
+  if (c.st === 'conn' && now - c.connAt > CALL_CONN_MS) { callStop('fail'); return; }
+  if (c.st === 'on' && c.lost && now - c.lost > CALL_LOST_MS) { callStop('drop'); return; }
+  const t = callText(); if ($('callState').textContent !== t) $('callState').textContent = t;
+}
+const callRun = () => { if (!callT) callT = setInterval(callTick, 500); };
+function callIncoming(id) {
+  if (call || callDone.has(id) || hiding) return;   // the fake office chat is showing: no sign of a call
+  call = { id, dir: 'in', st: 'ring', at: Date.now(), last: Date.now(), ice: [] };
+  send({ t: 'call', k: 'rang', id }); callTone('in'); callRun(); callShow(); lockNote(true);
+  logLink('call: ringing here', 'call', { s: 'in' });
+}
+async function callStart() {
+  if (call) { callShow(); return; }
+  if (hiding) return;
+  if (!pairKey) { notify(`${who()} is not connected yet.`); return; }
+  let m; try { m = await navigator.mediaDevices.getUserMedia(CALL_MIC); } catch { notify('Allow the microphone to make a call.'); return; }
+  if (call && call.dir === 'in' && call.st === 'ring') { callAnswer(m); return; }   // the other one called at the same moment: this press answers it
+  if (call) { m.getTracks().forEach(t => t.stop()); callShow(); return; }
+  const id = [...crypto.getRandomValues(new Uint8Array(9))].map(x => x.toString(16).padStart(2, '0')).join('');
+  call = { id, dir: 'out', st: 'ring', at: Date.now(), sent: Date.now(), mic: m, ice: [] };
+  callSend('ring'); callPush('c', id); callTone('back'); callRun(); callShow(); getIce();
+  logLink('call: calling', 'call', { s: 'out', on: partnerOnline() ? 1 : 0 });
+}
+async function callAnswer(m) {
+  const c = call; if (!c || c.dir !== 'in' || c.st !== 'ring' || c.asking) return;
+  callTone('');
+  if (!m) { c.asking = true; try { m = await navigator.mediaDevices.getUserMedia(CALL_MIC); } catch { c.asking = false; if (call === c) { notify('Allow the microphone to answer.'); callStop('no'); } return; } c.asking = false; }
+  if (call !== c) { m.getTracks().forEach(t => t.stop()); return; }
+  c.mic = m; c.st = 'conn'; c.connAt = Date.now();
+  callSend('ok'); callShow(); lockNote(true); getIce();
+  logLink('call: answered', 'call', {});
+}
+function callPc(c) {
+  const pc = c.pc = new RTCPeerConnection({ iceServers: ICE });
+  c.mic.getTracks().forEach(t => pc.addTrack(t, c.mic));
+  pc.onicecandidate = e => { if (e.candidate && call === c) callSend('ice', { ice: e.candidate.toJSON() }); };
+  pc.ontrack = e => { const a = $('callAudio'); a.srcObject = e.streams[0]; a.play().catch(() => {}); };
+  pc.onconnectionstatechange = () => {
+    if (call !== c) return;
+    const s = pc.connectionState;
+    if (s === 'connected') { if (c.st !== 'on') { c.st = 'on'; c.onAt = Date.now(); tap(); logLink('call: connected', 'call', {}); } c.lost = 0; callShow(); }
+    if (s === 'disconnected') { c.lost = c.lost || Date.now(); callShow(); }
+    if (s === 'failed') callStop(c.st === 'on' ? 'drop' : 'fail');
+  };
+  return pc;
+}
+const callFlush = async c => { for (const x of c.ice.splice(0)) await c.pc.addIceCandidate(x).catch(() => {}); };
+async function callConnect() {   // the caller, once the other phone answered: it makes the offer
+  const c = call; c.st = 'conn'; c.connAt = Date.now(); callTone(''); callShow();
+  try {
+    await getIce(); if (call !== c || c.pc) return;
+    const pc = callPc(c);
+    await pc.setLocalDescription(await pc.createOffer());
+    if (call === c) callSend('sdp', { sdp: pc.localDescription.toJSON() });
+  } catch (e) { logLink('call: offer failed ' + String(e && e.name), 'call', {}); if (call === c) callStop('fail'); }
+}
+async function callSdp(sdp) {
+  const c = call; if (!c || !sdp || !c.mic) return;
+  try {
+    if (sdp.type === 'offer' && c.dir === 'in' && c.st === 'conn' && !c.offer) {
+      c.offer = true; await getIce(); if (call !== c || c.pc) return;   // a second copy of the offer is ignored
+      const pc = callPc(c); await pc.setRemoteDescription(sdp); await callFlush(c);
+      await pc.setLocalDescription(await pc.createAnswer());
+      if (call === c) callSend('sdp', { sdp: pc.localDescription.toJSON() });
+    } else if (sdp.type === 'answer' && c.pc && c.pc.signalingState === 'have-local-offer' && !c.answer) { c.answer = true; await c.pc.setRemoteDescription(sdp); await callFlush(c); }
+  } catch (e) { logLink('call: sdp failed ' + String(e && e.name), 'call', {}); if (call === c) callStop('fail'); }
+}
+function callStop(why, quiet) {   // why: end (this phone hung up), no (declined), none (no answer), over/no/busy (the other phone said so), gone, fail, drop
+  const c = call; if (!c) return;
+  call = null; callDone.add(c.id);
+  if (!quiet) send({ t: 'call', k: why === 'no' ? 'no' : 'end', id: c.id });
+  if (c.dir === 'out' && c.st === 'ring') callPush('x', c.id);   // her phone stops buzzing and shows a missed call
+  if (c.pc) try { c.pc.close(); } catch {}
+  if (c.mic) c.mic.getTracks().forEach(t => t.stop());
+  $('callAudio').srcObject = null; callTone('');
+  const len = c.onAt ? callLen(Date.now() - c.onAt) : '', name = who(), ring = c.st === 'ring';
+  const say = c.onAt ? `Call ended · ${len}`
+    : why === 'none' ? `${name} didn't answer.` : why === 'no' ? (c.dir === 'out' ? `${name} declined.` : 'Call declined.') : why === 'busy' ? `${name} is on another call.`
+    : why === 'fail' ? 'The call could not connect. Try Wi-Fi on both phones.' : why === 'drop' ? 'The call dropped.'
+    : c.dir === 'in' && ring ? `Missed call from ${name}.` : ring && why === 'end' ? 'Call cancelled.' : 'Call ended.';
+  notify(say, 5000);
+  logLink(`call ended: ${why}${len ? ' after ' + len : ''}`, 'call', { why, on: c.onAt ? 1 : 0 });
+  callShow(); lockNote(true);
+}
+function gotCall(m) {
+  if (!callOk(m.id)) return;
+  const c = call, mine = !!c && c.id === m.id;
+  if (m.k === 'ring') {
+    if (callDone.has(m.id)) { send({ t: 'call', k: 'end', id: m.id }); return; }   // a late copy of a call that is already over here
+    if (mine) { if (c.dir === 'in') { c.last = Date.now(); if (c.st === 'ring') send({ t: 'call', k: 'rang', id: m.id }); } return; }
+    if (c) {
+      if (c.dir === 'out' && c.st === 'ring') {   // both called at the same moment: the lower call id wins, and the other phone answers it
+        if (m.id < c.id) { send({ t: 'call', k: 'end', id: c.id }); callDone.add(c.id); const mic = c.mic; call = null; callTone(''); callIncoming(m.id); if (call) callAnswer(mic); else mic.getTracks().forEach(t => t.stop()); }
+        return;
+      }
+      send({ t: 'call', k: 'busy', id: m.id }); return;
+    }
+    callIncoming(m.id); return;
+  }
+  if (!mine) return;
+  if (m.k === 'rang' && c.dir === 'out' && !c.heard) { c.heard = true; callShow(); }
+  if (m.k === 'ok' && c.dir === 'out' && c.st === 'ring') callConnect();
+  if (m.k === 'sdp') callSdp(m.sdp);
+  if (m.k === 'ice' && m.ice) { if (c.pc && c.pc.remoteDescription) c.pc.addIceCandidate(m.ice).catch(() => {}); else c.ice.push(m.ice); }
+  if (m.k === 'end' || m.k === 'no' || m.k === 'busy') callStop(m.k === 'end' ? 'over' : m.k, true);
+}
+$('callBtn').onclick = ev => { ev.stopPropagation(); tap(); callStart(); };
+$('callOk').onclick = () => { tap(); callAnswer(); };
+$('callEnd').onclick = () => { if (!call) return; tap(); callStop(call.dir === 'in' && call.st === 'ring' ? 'no' : 'end'); };
+$('callMute').onclick = () => { const c = call; if (!c || !c.mic) return; tap(); c.muted = !c.muted; c.mic.getAudioTracks().forEach(t => { t.enabled = !c.muted; }); callShow(); };
+if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => {   // the alert: tapped, or it arrived while Loveline is on screen
+  const d = e.data || {};
+  if ((d.t === 'callTap' || d.t === 'callRing') && callOk(d.id)) callIncoming(d.id);
+});
+addEventListener('pagehide', () => { if (call) callStop(call.dir === 'in' && call.st === 'ring' ? 'no' : 'end'); });
 // Xed 14 Nov: she is often in WhatsApp, where Loveline sleeps and the relays keep nothing, so a message used to wait until both apps
 // were open together. Now a message that cannot reach her app also goes inside a phone alert, sealed with the two phones' own key
 // (the helper and Google see only sealed bytes). Google keeps it until her phone takes it, like WhatsApp; her phone shows "New message"
@@ -8307,11 +8518,12 @@ const MSG_LINES = [['History', n => n === 1 ? 'New result saved' : 'New results 
 function lockNote(bump) {
   const el = $('lockNote'), on = !$('lock').hidden && !$('lock').classList.contains('cover') && $('calc').hidden;
   if (!on) { if (noteWas) { el.textContent = ''; noteWas = ''; noteSeed++; } return; }
-  const live = partnerShown(), key = `${live}|${unseen}`;
+  const live = partnerShown(), rng = !!(call && call.dir === 'in' && call.st === 'ring'), key = `${live}|${unseen}|${rng}`;
   if (key === noteWas && !bump) return;
   const first = !noteWas; noteWas = key;
   const rows = [];
   const [oh, ot] = ONLINE_LINES[noteSeed % ONLINE_LINES.length], [mh, mt] = MSG_LINES[noteSeed % MSG_LINES.length];
+  if (rng) rows.push('<div data-k="call"><span class="ic">📞</span><span class="tx"><small>Phone · now</small>Incoming call</span></div>');   // Xed 26 Nov: no name; the call screen waits behind the passcode
   if (live) rows.push(`<div data-k="on"><span class="ic">⟳</span><span class="tx"><small>${oh} · now <span class="on"></span></small>${ot}</span></div>`);
   if (unseen) rows.push(`<div data-k="msg"><span class="ic">⚙</span><span class="tx"><small>${mh} · now</small>${mt(unseen)}</span><b class="${bump && !first ? 'bump' : ''}">${unseen > 99 ? '99+' : unseen}</b></div>`);
   const had = new Set([...el.children].map(d => d.dataset.k));
@@ -8325,7 +8537,7 @@ const closeChat = () => {
   $('dock').classList.remove('open'); fitDock();
 };
 $('closeChat').onclick = () => { tap(); closeChat(); };
-addEventListener('pointerdown', ev => { if (chatIsOpen() && !chatTab && !ev.target.closest('#dock, .sheet, #msgMenu, .imView, .statSheet')) closeChat(); });
+addEventListener('pointerdown', ev => { if (chatIsOpen() && !chatTab && !ev.target.closest('#dock, .sheet, #msgMenu, .imView, .statSheet, #callView')) closeChat(); });
 // The phone's Back button stays inside the app first: it closes the chat, then leaves the section, and only then leaves Loveline.
 // The extra history step is added after a finished tap, never during one and never while typing: changing the history in the
 // middle of a touch made Android drop the keyboard, so the message box needed a second tap (Xed 11 Nov).
