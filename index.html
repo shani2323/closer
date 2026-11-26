@@ -7225,7 +7225,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-231834';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-232441';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9226,6 +9226,7 @@ function fkReply(c) {   // answering a real message from the office chat: the ba
 swipeReply($('fake'), { sel: '.bubble[data-rid]', id: el => el.dataset.rid, skip: () => fkDuress(), start: () => { clearTimeout(fkHoldT); if (fkPeekId) { fkPeekId = null; fkPeekPaint(); } }, reply: c => fkReply(c) });
 let fkMini = false, fkMiniT = 0;
 function hideSet(on, mini) {
+  try { on ? sessionStorage.setItem('closer:fkOpen', '1') : sessionStorage.removeItem('closer:fkOpen'); } catch {}   // hidden in this open of the app: a refresh keeps it
   if (on && ['play', 'game'].includes(panel)) mini = false;   // Xed 26 Nov: Play and Truth or Dare are not part of the disguise: the big office chat covers them, and the other phone stays where it is
   if (on) gifShut();   // Xed 18 Nov: the hide (office chat) button closes the GIF screen too
   if (fkMini) { fkMini = false; clearTimeout(fkMiniT); document.body.classList.remove('fkMini'); $('fake').classList.remove('mini'); $('dock').inert = false; }
@@ -9249,6 +9250,7 @@ function hideSet(on, mini) {
   fkNames();
 }
 function fkNames() { $('topbar').querySelector('h1').textContent = hiding ? fkApp() : 'Loveline'; if (panel === 'draw') redraw(); render(); dpPaint(); if (call) callShow(); for (const f of [renderTower, renderLudo, renderGame]) try { f(); } catch {} }   // game scores and turns say the colleague's name
+const fkThisOpen = () => { try { return sessionStorage.getItem('closer:fkOpen') === '1'; } catch { return false; } };
 const fkDuress = on => { try { if (on === undefined) return sessionStorage.getItem('closer:fkDuress') === '1'; on ? sessionStorage.setItem('closer:fkDuress', '1') : sessionStorage.removeItem('closer:fkDuress'); } catch { return false; } };
 function fkGo(p) { if (fkDuress()) return; openPanel(p); if (chatIsOpen()) closeChat(); hideSet(true, true); }   // review 26 Nov: opened with the fake passcode, the tabs lead nowhere real   // a section from the office chat: its small chat stays the office chat
 fkDbl($('topbar').querySelector('h1'), () => { if (hiding) fkBuzz($('topbar').querySelector('h1')); }); fkHold($('topbar').querySelector('h1'));   // Xed 26 Nov: in disguise, a double tap on the app's name sends Thinking of you   // every name and picture on screen follows: the colleague while hidden, the real one after
@@ -9281,7 +9283,7 @@ addEventListener('lockfake', () => { hideAskAt = 0; fkDuress(true); hideSet(true
 addEventListener('lockopen', () => fkDuress(false));   // the real passcode: the tabs work again   // the fake passcode was typed: the office chat (stays if it was already showing)
 addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !hiding && store.get('fkStart', false)) { store.set('fake', null); hideSet(true, panel !== 'chat' && !chatIsOpen()); } });   // Xed 26 Nov: an accidental switch back never lands on the real chat
-if ((isRemote && store.get('fake')) || store.get('fkStart', false)) hideSet(true);   // it stays hidden after the app is closed and opened again; with Open in office chat on, every open starts hidden   // Xed 26 Nov: her phone always opens in the real chat (she does not know how to unhide yet), unless she turns Open in office chat on herself
+if ((store.get('fake') && (isRemote || fkDuress() || fkThisOpen())) || store.get('fkStart', false)) hideSet(true);   // it stays hidden after the app is closed and opened again; with Open in office chat on, every open starts hidden   // Xed 26 Nov: her phone opens in the real chat after the app is closed (she does not know how to unhide yet), unless she turns Open in office chat on herself; a refresh keeps the cover (review: the fake passcode must never refresh its way to the real chat)
 new MutationObserver(() => { if (fkMini && chatIsOpen()) hideSet(true); }).observe($('dock'), { attributes: true, attributeFilter: ['class'] });   // the real chat opened (Chat tab): the big office chat instead
 // Xed 26 Nov: a double tap anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
 // On the small chat (Watch, games) it becomes a small office chat in the same place; a double tap on that comes back (passcode first).
