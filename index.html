@@ -1284,15 +1284,13 @@
   else if (!(Date.now() - +(ss('lockSeen') || 0) < Math.min(10000, lockMs()))) show('enter');   // a reload a moment ago (an update) stays open
   setInterval(() => { if (!document.hidden && !mode) ss('lockSeen', String(Date.now())); }, 1000);
   const away = () => { if (!awayAt) awayAt = Date.now(); if (!mode && !document.hidden) ss('lockSeen', String(Date.now())); cover(true); };   // a page closed while already in the background is not "just used"; the cover goes up the same instant
-  const back = () => { const long = awayAt && Date.now() - awayAt >= lockMs() && Date.now() - pickAt >= 120000; awayAt = 0; if (long && !mode) show(saved() ? 'enter' : 'set1'); else cover(false); };   // under the cover the pad is already there: no peek
-  // Xed 12 Nov: the phone's screen locked, turned off, home, another app: Loveline locks at once, not after 10 s.
-  // Only choosing a video from the gallery (the phone's file picker hides the app) does not lock.
-  let pickAt = 0;
-  addEventListener('click', e => { if (e.target && e.target.type === 'file') pickAt = Date.now(); }, true);
+  const back = () => { const long = awayAt && Date.now() - awayAt >= lockMs(); awayAt = 0; if (long && !mode) show(saved() ? 'enter' : 'set1'); else cover(false); };   // under the cover the pad is already there: no peek
+  // Xed 26 Nov: the screen off, home, another app, the camera or the gallery: the cover goes up at once, the passcode after Lock after.
   window.lockPocket = () => { if (mode || !saved()) return false; ss('lockSeen', '0'); show('enter'); return true; };   // Xed 26 Nov: the pocket lock during a call
-  const lockNow = () => { if (mode || !saved() || Date.now() - pickAt < 120000) return; ss('lockSeen', '0'); show('enter'); };
+  const lockNow = () => { if (mode || !saved()) return;   // Xed 26 Nov: the camera and the gallery follow Lock after too
+    ss('lockSeen', '0'); show('enter'); };
   let awayT = 0;   // Xed 26 Nov: away (another app, home, screen off): the cover goes up at once; the passcode only after the chosen time
-  document.addEventListener('visibilitychange', () => { clearTimeout(awayT); if (document.hidden) { away(); awayT = setTimeout(lockNow, lockMs()); } else { back(); pickAt = 0; } });
+  document.addEventListener('visibilitychange', () => { clearTimeout(awayT); if (document.hidden) { away(); awayT = setTimeout(lockNow, lockMs()); } else back(); });
   addEventListener('pagehide', () => { away(); if (document.hidden) lockNow(); });   // the app closed in the background: locked on the next open
   addEventListener('pageshow', e => { if (e.persisted) back(); });
   addEventListener('blur', () => setTimeout(() => { const a = document.activeElement; if (!document.hasFocus() && !(a && a.tagName === 'IFRAME')) away(); }, 0));   // the app switcher opening: cover before its preview is taken (a tap into a video frame is not leaving)
@@ -1305,7 +1303,7 @@
   setInterval(() => {
     const h = window.lockHold ? window.lockHold() : false;   // true: never now; a number: wait that long instead of 15 s
     if (mode || document.hidden || h === true) { lastAct = lastOwn = Date.now(); return; }
-    if (Date.now() - lastAct >= (typeof h === 'number' ? Math.max(h, IDLE()) : IDLE())) show(saved() ? 'enter' : 'set1');
+    if (Date.now() - lastAct >= (typeof h === 'number' ? h : IDLE())) show(saved() ? 'enter' : 'set1');
   }, 1000);
   document.addEventListener('DOMContentLoaded', () => { if (mode) behind(true); });   // the app below is only built after this runs
 })();
@@ -1598,6 +1596,8 @@
     <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
     <button type="button" class="ghost" id="fakeCodeBtn">Set fake passcode</button>
     <label class="row"><span>Lock after<small>No touch, or away from the app, this long</small></span><select class="lockSel" id="lockMs" aria-label="Lock after"><option value="10000">10 seconds</option><option value="30000">30 seconds</option><option value="60000">1 minute</option><option value="120000">2 minutes</option><option value="300000">5 minutes</option></select></label>
+    <label class="row"><span>Games, Play and Draw lock after<small>While playing, drawing or using Play</small></span><select class="lockSel" id="playLockMs" aria-label="Games, Play and Draw lock after"><option value="30000">30 seconds</option><option value="60000">1 minute</option><option value="120000">2 minutes</option><option value="180000">3 minutes</option><option value="300000">5 minutes</option><option value="600000">10 minutes</option></select></label>
+    <label class="row"><span>Open in office chat<small>Every time the app opens, it starts in disguise. Show keeps the real app until it is closed or hidden again.</small></span><input type="checkbox" class="switch" id="fkStartOn"></label>
     <label class="row" id="ghostRow"><span>Ghost mode<small>She sees you offline, your last seen stops, and her messages stay unread</small></span><input type="checkbox" class="switch" id="ghostOn"></label>
     <label class="row"><span>Emoji suggestions while typing</span><input type="checkbox" class="switch" id="emoOn"></label>
     <label class="row"><span>Send technical logs to fix problems (times and events only, never messages or names)</span><input type="checkbox" class="switch" id="logsOn"></label>
@@ -3860,6 +3860,9 @@ for (const e of ['input', 'keyup', 'click', 'focus']) $('text').addEventListener
 $('emoOn').checked = store.get('emoHintOn', true);
 $('lockMs').value = String([10000, 30000, 60000, 120000, 300000].includes(store.get('lockMs')) ? store.get('lockMs') : 30000);   // Xed 26 Nov: read by the lock above
 $('lockMs').onchange = ev => { tap(); store.set('lockMs', +ev.target.value); };
+$('playLockMs').value = String([30000, 60000, 120000, 180000, 300000, 600000].includes(store.get('playLockMs')) ? store.get('playLockMs') : 180000);
+$('playLockMs').onchange = ev => { tap(); store.set('playLockMs', +ev.target.value); };
+$('fkStartOn').checked = !!store.get('fkStart', false); $('fkStartOn').onchange = ev => { tap(); store.set('fkStart', ev.target.checked); };   // Xed 26 Nov: off by default
 $('emoOn').onchange = ev => { store.set('emoHintOn', ev.target.checked); emoHintShow(); };
 $('logsOn').checked = store.get('logsOn', true);   // Xed 15 Nov: each phone can stop sending its technical log; what is kept on the phone for the copy-report is unchanged
 $('logsOn').onchange = ev => store.set('logsOn', ev.target.checked);
@@ -7144,7 +7147,7 @@ window.lockHold = () => {
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
   if (playP && playP !== panel) { playP = null; playN = 0; }   // left the game: its turns no longer count
-  if (['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo'].includes(panel) && inPlay())) return 180000;   // Xed 12 Nov: only the section on screen counts: Play, Draw, or a game really in play (2+ turns) wait 3 minutes; Chat and Watch 15 s even with a toy connected
+  if (['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo'].includes(panel) && inPlay())) return [30000, 60000, 120000, 180000, 300000, 600000].includes(store.get('playLockMs')) ? store.get('playLockMs') : 180000;   // Xed 12 Nov: only the section on screen counts: Play, Draw, or a game really in play (2+ turns) wait 3 minutes; Chat and Watch 15 s even with a toy connected
   return false;
 };
 let loadedId = null, vidUrl = null, applyQ = Promise.resolve(), beatAt = 0, scrubbing = false;
@@ -7200,7 +7203,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-200228';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-202311';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -9122,7 +9125,7 @@ $('fake').addEventListener('click', ev => {
 addEventListener('lockfake', () => { hideAskAt = 0; fkDuress(true); hideSet(true); });   // the full office chat, sealed: nothing real can be reached from it
 addEventListener('lockopen', () => fkDuress(false));   // the real passcode: the tabs work again   // the fake passcode was typed: the office chat (stays if it was already showing)
 addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
-if (store.get('fake')) hideSet(true);   // it stays hidden after the app is closed and opened again
+if (store.get('fake') || store.get('fkStart', false)) hideSet(true);   // it stays hidden after the app is closed and opened again; with Open in office chat on, every open starts hidden
 new MutationObserver(() => { if (fkMini && chatIsOpen()) hideSet(true); }).observe($('dock'), { attributes: true, attributeFilter: ['class'] });   // the real chat opened (Chat tab): the big office chat instead
 // Xed 26 Nov: a double tap anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
 // On the small chat (Watch, games) it becomes a small office chat in the same place; a double tap on that comes back (passcode first).
