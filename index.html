@@ -7225,7 +7225,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-231519';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-231834';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9281,7 +9281,7 @@ addEventListener('lockfake', () => { hideAskAt = 0; fkDuress(true); hideSet(true
 addEventListener('lockopen', () => fkDuress(false));   // the real passcode: the tabs work again   // the fake passcode was typed: the office chat (stays if it was already showing)
 addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !hiding && store.get('fkStart', false)) { store.set('fake', null); hideSet(true, panel !== 'chat' && !chatIsOpen()); } });   // Xed 26 Nov: an accidental switch back never lands on the real chat
-if (store.get('fake') || store.get('fkStart', false)) hideSet(true);   // it stays hidden after the app is closed and opened again; with Open in office chat on, every open starts hidden
+if ((isRemote && store.get('fake')) || store.get('fkStart', false)) hideSet(true);   // it stays hidden after the app is closed and opened again; with Open in office chat on, every open starts hidden   // Xed 26 Nov: her phone always opens in the real chat (she does not know how to unhide yet), unless she turns Open in office chat on herself
 new MutationObserver(() => { if (fkMini && chatIsOpen()) hideSet(true); }).observe($('dock'), { attributes: true, attributeFilter: ['class'] });   // the real chat opened (Chat tab): the big office chat instead
 // Xed 26 Nov: a double tap anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
 // On the small chat (Watch, games) it becomes a small office chat in the same place; a double tap on that comes back (passcode first).
