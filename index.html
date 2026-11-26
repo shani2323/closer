@@ -7210,7 +7210,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-215227';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-215932';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9119,13 +9119,12 @@ function fkForm(dock) {   // the message box of the office chat: what is typed g
   const form = dock.querySelector('.compose'), input = form.querySelector('input');
   input.value = ''; input.oninput = () => form.classList.toggle('typed', !!input.value.trim()); form.querySelectorAll('[disabled]').forEach(x => x.disabled = false);
   form.querySelector('.mic').onclick = () => form.requestSubmit();
-  form.addEventListener('pointerdown', ev => { if (ev.target.closest('.send')) fkKb = document.activeElement === input; }, true);
+  for (const b of form.querySelectorAll('.send')) b.addEventListener('pointerdown', ev => ev.preventDefault());   // Xed 26 Nov: Send never takes the focus, so the keyboard stays exactly as it is (no down-and-up)
   const rb = document.createElement('div'); rb.className = 'replyBar fkReBar'; rb.hidden = true;
   rb.innerHTML = '<div><b></b><span></span></div><button type="button" aria-label="Cancel the reply">✕</button>'; rb.querySelector('button').onclick = () => fkReply(null);
   dock.querySelector('.bar').before(rb);
   form.onsubmit = ev => {   // Xed 26 Nov: sent for real (as an answer when one was picked); here it shows in disguise like the rest
     ev.preventDefault(); const x = input.value.trim().slice(0, 500); if (!x || !fk) return;
-    const kb = fkKb; fkKb = false; setTimeout(() => { if (kb) input.focus(); }, 0);   // Xed 26 Nov: like the real chat, an open keyboard stays open after Send
     if (fkDuress()) { input.value = ''; form.classList.remove('typed'); fk.list.push({ w: 'm', x, at: Date.now() }); fkToEnd = true; fkDraw(); return; }   // fake passcode: it looks sent, but stays on this phone and goes nowhere
     if (fkRe) replyTo = { id: fkRe.id, x: fkRe.text.slice(0, 100), w: fkRe.who };
     input.value = ''; form.classList.remove('typed'); fkReply(null); fkToEnd = true; sendChat(x);
@@ -9138,7 +9137,7 @@ function fkBuildMini() {   // a copy of the small chat as it is right now (same 
   const pk = dock.querySelector('.peek'), sn = fkSeen(); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(sn)}</i>`; pk.classList.toggle('live', sn === 'online'); }
   fkForm(dock); $('fake').replaceChildren(dock);
 }
-let fkRe = null, fkPeekId = null, fkToEnd = false, fkSeenWas, fkKb = false;
+let fkRe = null, fkPeekId = null, fkToEnd = false, fkSeenWas;
 function fkDraw() {   // the real chat's own bubbles, times and ticks: the colleague's old talk and the real messages in disguise, in time order
   const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
   const msgs = $('fake').querySelector('.msgs'); if (!msgs || !fk) return;
@@ -9279,7 +9278,7 @@ addEventListener('click', ev => {
 function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen() && !hiding; }
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
 const ONLINE_LINES = [['Sync', 'Cloud sync connected'], ['Backup', 'Backup device is online'], ['Sync', 'Paired device active'], ['Devices', 'Linked device connected']];
-const ROLE = isRemote ? 'Madam' : 'Boss';   // Xed 26 Nov: alerts speak office language; she is Madam on his phone, he is Boss on hers
+const ROLE = 'Boss';   // Xed 26 Nov: alerts speak office language: the other one is the Boss on both phones (Madam gave away a woman)
 const LN_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
   LN_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
   LN_STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
