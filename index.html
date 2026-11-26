@@ -4360,51 +4360,57 @@ holdToOpen($('msgs'), ev => ev.target.closest('.bubble'), b => {   // Xed 22 Nov
 });
 // Xed 18 Nov: swipe a message to the right to reply to it, like WhatsApp. The message follows the finger; a reply arrow
 // grows in behind it; past the mark the phone ticks once, and letting go there starts the reply. Up and down still scrolls.
-{
+// Xed 26 Nov: her messages swipe to the right, mine to the left (each away from its own side), the arrow points the way
+// of the swipe; the same in the office chat, where it answers through the disguise.
+const swipeReply = (() => {
   const MARK = 64, icon = document.createElement('div');
   icon.className = 'swipeIcon'; icon.setAttribute('aria-hidden', 'true');
   icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5V20"/></svg>';
   document.body.appendChild(icon);
   const band = (x, d = 120, k = .55) => x * d * k / (d + k * x);   // past the mark it still moves, but slower and slower
-  let sw = null, quietUntil = 0;
-  const place = t => {
-    if (sw.el.isConnected) sw.el.style.transform = t ? `translateX(${t}px)` : '';
-    const p = Math.min(1, t / MARK);
-    icon.style.opacity = p; icon.style.transform = `translate(${sw.x0 + Math.min(t, MARK) / 2 - 16}px, ${sw.y0 - 16}px) scale(${sw.armed ? 1.12 : .55 + .45 * p})`;
+  return (box, o) => {   // o: sel (the bubbles), id (a bubble's message id), skip (no swipe now), start (it became a swipe), reply (the message)
+    let sw = null, quietUntil = 0;
+    const place = t => {
+      if (sw.el.isConnected) sw.el.style.transform = t ? `translateX(${t * sw.dir}px)` : '';
+      const p = Math.min(1, t / MARK), x = sw.dir > 0 ? sw.x0 + Math.min(t, MARK) / 2 - 16 : sw.x1 - Math.min(t, MARK) / 2 - 16;
+      icon.style.opacity = p; icon.style.transform = `translate(${x}px, ${sw.y0 - 16}px) scale(${(sw.armed ? 1.12 : .55 + .45 * p) * -sw.dir}, ${sw.armed ? 1.12 : .55 + .45 * p})`;
+    };
+    box.addEventListener('pointerdown', ev => {
+      if (sw || (o.skip && o.skip()) || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+      const el = ev.target.closest(o.sel); if (!el || !o.id(el) || ev.target.closest('.vnWave')) return;   // the voice wave is dragged to seek
+      const r = el.getBoundingClientRect();
+      sw = { el, id: o.id(el), dir: el.classList.contains('mine') ? -1 : 1, pid: ev.pointerId, sx: ev.clientX, sy: ev.clientY, on: false, armed: false, t: 0, x0: r.left, x1: r.right, y0: r.top + Math.min(r.height, 80) / 2 };
+    });
+    box.addEventListener('pointermove', ev => {
+      if (!sw || ev.pointerId !== sw.pid) return;
+      const dx = (ev.clientX - sw.sx) * sw.dir, dy = ev.clientY - sw.sy;
+      if (!sw.on) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { sw = null; return; }   // a scroll, not a swipe
+        if (dx < 10 || dx < Math.abs(dy) * 1.2) return;
+        sw.on = true; sw.el.classList.add('swiping'); icon.classList.remove('back'); try { sw.el.setPointerCapture(ev.pointerId); } catch {}
+        if (o.start) o.start();
+      }
+      const raw = Math.max(0, dx), t = raw <= MARK ? raw : MARK + band(raw - MARK);
+      const armed = raw >= MARK;
+      if (armed && !sw.armed) tap();   // the tick says "let go now to reply"
+      sw.armed = armed; sw.t = t; place(t);
+    });
+    const end = ev => {
+      if (!sw || (ev && ev.pointerId !== sw.pid)) return;
+      const s = sw; sw = null;
+      if (!s.on) return;
+      quietUntil = Date.now() + 400;   // the tap that ends a swipe opens nothing
+      s.el.classList.remove('swiping'); s.el.classList.add('swipeBack'); s.el.style.transform = '';
+      icon.classList.add('back'); icon.style.opacity = 0;
+      setTimeout(() => s.el.classList.remove('swipeBack'), 320);
+      const c = s.armed && ev && ev.type === 'pointerup' ? msgById(s.id) : null;
+      if (c) o.reply(c);
+    };
+    box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
+    box.addEventListener('click', ev => { if (Date.now() < quietUntil) { ev.stopPropagation(); ev.preventDefault(); } }, true);
   };
-  $('msgs').addEventListener('pointerdown', ev => {
-    if (sw || sel || (ev.pointerType === 'mouse' && ev.button !== 0)) return;   // select mode: no swipe to reply
-    const el = ev.target.closest('.bubble'); if (!el || !el.dataset.id || ev.target.closest('.vnWave')) return;   // the voice wave is dragged to seek
-    const r = el.getBoundingClientRect();
-    sw = { el, id: el.dataset.id, pid: ev.pointerId, sx: ev.clientX, sy: ev.clientY, on: false, armed: false, t: 0, x0: r.left, y0: r.top + Math.min(r.height, 80) / 2 };
-  });
-  $('msgs').addEventListener('pointermove', ev => {
-    if (!sw || ev.pointerId !== sw.pid) return;
-    const dx = ev.clientX - sw.sx, dy = ev.clientY - sw.sy;
-    if (!sw.on) {
-      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { sw = null; return; }   // a scroll, not a swipe
-      if (dx < 10 || dx < Math.abs(dy) * 1.2) return;
-      sw.on = true; sw.el.classList.add('swiping'); icon.classList.remove('back'); try { sw.el.setPointerCapture(ev.pointerId); } catch {}
-    }
-    const raw = Math.max(0, dx), t = raw <= MARK ? raw : MARK + band(raw - MARK);
-    const armed = raw >= MARK;
-    if (armed && !sw.armed) tap();   // the tick says "let go now to reply"
-    sw.armed = armed; sw.t = t; place(t);
-  });
-  const end = ev => {
-    if (!sw || (ev && ev.pointerId !== sw.pid)) return;
-    const s = sw; sw = null;
-    if (!s.on) return;
-    quietUntil = Date.now() + 400;   // the tap that ends a swipe opens nothing
-    s.el.classList.remove('swiping'); s.el.classList.add('swipeBack'); s.el.style.transform = '';
-    icon.classList.add('back'); icon.style.opacity = 0;
-    setTimeout(() => s.el.classList.remove('swipeBack'), 320);
-    const c = s.armed && ev && ev.type === 'pointerup' ? msgById(s.id) : null;
-    if (c) { openChat(); setReply(c); $('text').focus(); }
-  };
-  $('msgs').addEventListener('pointerup', end); $('msgs').addEventListener('pointercancel', end);
-  $('msgs').addEventListener('click', ev => { if (Date.now() < quietUntil) { ev.stopPropagation(); ev.preventDefault(); } }, true);
-}
+})();
+swipeReply($('msgs'), { sel: '.bubble', id: el => el.dataset.id, skip: () => sel, reply: c => { openChat(); setReply(c); $('text').focus(); } });
 holdToOpen($('pinBar'), () => $('pinBar'), bar => {
   const p = pinList()[pinAt]; if (!p) return;
   openMsgMenu(bar, [['Go to message', () => jumpTo(p.id)], ['Unpin', () => setPin(p, false)]]);
@@ -7210,7 +7216,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-220206';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-223442';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9176,6 +9182,8 @@ function fkPeekPaint() {   // held: that one bubble shows its real words; let go
   for (const b of $('fake').querySelectorAll('.bubble[data-rid]')) {
     const tx = b.querySelector('.fkTx'), c = b.dataset.rid === fkPeekId && chat.find(x => x.id === fkPeekId); if (!tx) continue;
     if (c) { tx.textContent = c.text; b.classList.add('fkPeek'); } else if (b.classList.contains('fkPeek')) { tx.textContent = tx.dataset.x; b.classList.remove('fkPeek'); }
+    const q = b.querySelector('.quote > span');   // Xed 26 Nov: an answer also shows the real message it answers
+    if (q && c && c.re) { if (q.dataset.x == null) q.dataset.x = q.textContent; q.textContent = c.re.x; } else if (q && !c && q.dataset.x != null) { q.textContent = q.dataset.x; delete q.dataset.x; }
   }
 }
 function fkReply(c) {   // answering a real message from the office chat: the bar shows its disguise
@@ -9185,6 +9193,7 @@ function fkReply(c) {   // answering a real message from the office chat: the ba
   const m = $('fake').querySelector('.msgs'); if (m && m.dataset.h) { const h = +m.dataset.h - (c ? bar.offsetHeight + 6 : 0); m.style.height = m.style.maxHeight = h + 'px'; }   // the chat gives the bar its room
   if (c) { fkToEnd = true; fkDraw(); $('fake').querySelector('.compose input').focus(); }
 }
+swipeReply($('fake'), { sel: '.bubble[data-rid]', id: el => el.dataset.rid, skip: () => fkDuress(), start: () => { clearTimeout(fkHoldT); if (fkPeekId) { fkPeekId = null; fkPeekPaint(); } }, reply: c => fkReply(c) });
 let fkMini = false, fkMiniT = 0;
 function hideSet(on, mini) {
   if (on && ['play', 'game'].includes(panel)) { openPanel('chat'); mini = false; }   // Xed 26 Nov: Play and Truth or Dare are not part of the disguise
@@ -9221,7 +9230,7 @@ $('hideBtn').onclick = () => {   // Xed 26 Nov: in Watch or a game, that screen 
 let fkHoldT = 0, fkHeldNow = false;
 $('fake').addEventListener('pointerdown', ev => {
   fkHeldNow = false; const b = ev.target.closest('.bubble[data-rid]'); if (!b || fkDuress()) return;
-  clearTimeout(fkHoldT); fkHoldT = setTimeout(() => { fkPeekId = b.dataset.rid; fkHeldNow = true; if (navigator.vibrate) navigator.vibrate(10); fkPeekPaint(); }, 220);
+  clearTimeout(fkHoldT); fkHoldT = setTimeout(() => { fkPeekId = b.dataset.rid; fkHeldNow = true; if (navigator.vibrate) navigator.vibrate(10); fkPeekPaint(); }, 300);
 });
 let fkLiftT = 0;
 const fkUnpeek = ev => {   // Xed 26 Nov: the finger covered the words: they stay 0.6 s after it lifts, then the disguise is back; scrolling hides them at once
@@ -9275,7 +9284,7 @@ addEventListener('click', ev => {
   ev.preventDefault(); ev.stopImmediatePropagation();
   clearTimeout(dtHeld); dtHeld = setTimeout(() => { dtHeld = null; dtPass = true; try { b.click(); } finally { dtPass = false; } }, 240);
 }, true);
-function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen() && !hiding; }
+function chatInFront() { return !document.hidden && $('lock').hidden && (hiding ? !fkMini && !fkDuress() : chatIsOpen()); }   // Xed 26 Nov: read in the big office chat counts as read
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
 const ONLINE_LINES = [['Sync', 'Cloud sync connected'], ['Backup', 'Backup device is online'], ['Sync', 'Paired device active'], ['Devices', 'Linked device connected']];
 const ROLE = isRemote ? 'Boss' : 'Madam';   // Xed 26 Nov: alerts speak office language: his phone says Boss, hers says Madam
