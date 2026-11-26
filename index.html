@@ -7225,7 +7225,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-011723';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-023539';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -7338,8 +7338,20 @@ async function startStream(id, url) {
     hlsPlayer.loadSource(url); hlsPlayer.attachMedia(realVid);
   } else realVid.src = url;   // iPhone plays these by itself
 }
+// Xed 27 Nov: three ways round the block, so one being blocked too never stops a video: Cloudflare, then his own Singapore and London servers.
+// The way that worked last is tried first next time.
+const VCARRY = [CARRIER + '/', 'https://13.215.146.59:8443/c', 'https://3.11.52.88:8443/c'], vcTried = new Map();
+let vcAt = Math.min(VCARRY.length - 1, Math.max(0, store.get('vcAt', 0) | 0));
+const viaWay = u => `${VCARRY[vcAt]}?u=${encodeURIComponent(u)}`;
+function vcNext(id) {   // this way did not work: the next one, at most once round all of them for this video
+  const n = vcTried.get(id) || 0;
+  if (!viaCarrier.has(id) || loadedId !== id || n >= VCARRY.length - 1) return false;
+  vcTried.set(id, n + 1); vcAt = (vcAt + 1) % VCARRY.length; store.set('vcAt', vcAt); logLink(`video: way ${vcAt + 1} of ${VCARRY.length}`);
+  unload(); applyState(); return true;
+}
 async function linkFailed(id, noAnswer) {   // a found address runs out after a while: look it up again, once; then the site's own small player, if it has one
   const v = vidMap[id];
+  if (noAnswer && vcNext(id)) return;   // no answer at all: the way round is blocked here too
   if (v && v.page && loadedId === id) {
     if (lookedAgain !== id && !noAnswer) {
       lookedAgain = id;
@@ -7347,6 +7359,7 @@ async function linkFailed(id, noAnswer) {   // a found address runs out after a 
       if (got && playsHere(got.url) && vidMap[id] && loadedId === id) { v.link = got.url; await saveMeta(v); unload(); applyState(); return; }
     }
     if (!viaCarrier.has(id) && carrierCan(v.link)) { viaCarrier.add(id); store.set('blockedHere', true); logLink('video goes through the carrier'); unload(); applyState(); return; }
+    if (vcNext(id)) return;
     store.set('blockedHere', false);
     send({ t: 'vidfail', id });
     for (let i = 0; partnerOnline() && !carryAnswer.has(id) && i < 16; i++) await wait(500);
@@ -7355,7 +7368,7 @@ async function linkFailed(id, noAnswer) {   // a found address runs out after a 
     sayNoPlay();
     const small = readLink(v.page);
     if (small && small[0] === 'frame') { v.link = v.page; await saveMeta(v); unload(); applyState(); return; }
-  } else sayNoPlay();
+  } else { if (vcNext(id)) return; sayNoPlay(); }
   linkBad = true; renderPlayer();
 }
 function sayNoPlay() {   // both phones must know, or one keeps watching while the other sees nothing
@@ -7398,7 +7411,7 @@ function ytStandIn(code) {   // a YouTube player that answers to the same questi
 const YT_NO = "YouTube won't play this video inside other apps. Age-limited videos and some others are blocked. Open it on YouTube, or save it and press Add video.";
 async function startLink(id, [how, what]) {
   loadedId = id;
-  if (how === 'file' || how === 'stream') { if (how === 'file') realVid.src = carrierCan(what) ? `${CARRIER}/?u=${encodeURIComponent(what)}` : what; else { await loadHls().catch(() => {}); if (carrierCan(what)) viaCarrier.add(id); await startStream(id, viaCarrier.has(id) ? `${CARRIER}/?u=${encodeURIComponent(what)}` : what); } await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
+  if (how === 'file' || how === 'stream') { if (how === 'file') { if (carrierCan(what)) viaCarrier.add(id); realVid.src = viaCarrier.has(id) ? viaWay(what) : what; } else { await loadHls().catch(() => {}); if (carrierCan(what)) viaCarrier.add(id); await startStream(id, viaCarrier.has(id) ? viaWay(what) : what); } await new Promise(r => { vid.addEventListener('loadedmetadata', r, { once: true }); vid.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }); return; }
   realVid.style.display = 'none';
   if (how === 'yt') {
     try { await loadYt(); vid = ytStandIn(what); await vid.ready; }
