@@ -548,6 +548,9 @@
   body.hiding #toast.fkOk { z-index: 61; }   /* Xed 26 Nov: an office-worded note shows over the office chat */
   body.hiding #theirDot { display: none !important; }
   .fake [data-fk=show], body.hiding #hideBtn { display: none !important; }
+  .fkPv { position: fixed; z-index: 3; border-radius: 16px; overflow: hidden; background: #000; box-shadow: 0 12px 40px rgba(0, 0, 0, .45); pointer-events: none; animation: fkPvIn 160ms cubic-bezier(.2, .8, .2, 1); }   /* Xed 26 Nov: held photo or GIF in the office chat: a small square preview */
+  .fkPv img, .fkPv video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  @keyframes fkPvIn { from { opacity: 0; transform: scale(.92); } }
   .closeChat, body.hiding .tabs [data-p=play], body.hiding .tabs [data-p=game] { display: none !important; }   /* Xed 26 Nov: no close button (a double tap makes the chat small); in disguise (fake passcode too) no Play, no Truth or Dare */   /* Xed 26 Nov: no Show button in disguise; a long press on the app name asks for the passcode */
   .lockSel { flex: none; appearance: none; -webkit-appearance: none; padding: 8px 30px 8px 12px; border: 0; border-radius: 10px; color: var(--label); font: inherit; font-size: 15px;
     background: var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E") no-repeat right 8px center / 16px; }
@@ -7216,7 +7219,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-223442';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-223922';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9181,11 +9184,31 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks: the colle
 function fkPeekPaint() {   // held: that one bubble shows its real words; let go: the office line again
   for (const b of $('fake').querySelectorAll('.bubble[data-rid]')) {
     const tx = b.querySelector('.fkTx'), c = b.dataset.rid === fkPeekId && chat.find(x => x.id === fkPeekId); if (!tx) continue;
-    if (c) { tx.textContent = c.text; b.classList.add('fkPeek'); } else if (b.classList.contains('fkPeek')) { tx.textContent = tx.dataset.x; b.classList.remove('fkPeek'); }
+    if (c) { if (c.text) tx.textContent = c.text; b.classList.add('fkPeek'); } else if (b.classList.contains('fkPeek')) { tx.textContent = tx.dataset.x; b.classList.remove('fkPeek'); }
     const q = b.querySelector('.quote > span');   // Xed 26 Nov: an answer also shows the real message it answers
     if (q && c && c.re) { if (q.dataset.x == null) q.dataset.x = q.textContent; q.textContent = c.re.x; } else if (q && !c && q.dataset.x != null) { q.textContent = q.dataset.x; delete q.dataset.x; }
   }
+  const pc = fkPeekId && chat.find(x => x.id === fkPeekId);
+  if (pc && (pc.im || pc.gif)) fkPvOpen(pc); else fkPvClose();
 }
+let fkPv = null;
+function fkPvOpen(c) {   // Xed 26 Nov: the real photo or GIF in a small square over its disguised message; 18+ shows as it is; a photo counts as seen
+  if (fkPv && fkPv.id === c.id) return; fkPvClose();
+  if (c.im && ((c.im.vo && c.who === 'me') || imSpentNow(c))) return;   // the same rules as opening it in the real chat
+  const b = $('fake').querySelector(`.bubble[data-rid="${CSS.escape(c.id)}"]`); if (!b) return;
+  const r = b.getBoundingClientRect(), z = Math.round(Math.min(200, innerWidth * .52)), box = document.createElement('div');
+  box.className = 'fkPv'; box.style.cssText = `width: ${z}px; height: ${z}px; left: ${Math.max(8, Math.min(innerWidth - z - 8, r.left + r.width / 2 - z / 2))}px; top: ${r.top - z - 8 >= 8 ? r.top - z - 8 : Math.min(innerHeight - z - 8, r.bottom + 8)}px`;
+  fkPv = { id: c.id, el: box, url: null, vo: !!(c.im && c.im.vo) };
+  if (c.gif) { const v = document.createElement('video'); v.muted = v.loop = v.autoplay = v.playsInline = true; if (c.gif.p) v.poster = c.gif.p; v.src = c.gif.v; box.appendChild(v); v.play().catch(() => {}); }
+  else vnLoad(c.id).then(v => {
+    if (!fkPv || fkPv.id !== c.id) return;
+    if (!v || !v.b) { vnWant(c.id); return; }
+    fkPv.url = URL.createObjectURL(v.b); const im = new Image(); im.src = fkPv.url; box.appendChild(im);
+    if (c.who === 'them' && !c.pl) { c.pl = true; keepMsg(c); send({ t: 'ack', id: c.id, vn: true, pl: true }); }   // seen, as when opened in the real chat
+  });
+  $('fake').appendChild(box);
+}
+function fkPvClose() { if (!fkPv) return; const p = fkPv; fkPv = null; p.el.remove(); if (p.url) { URL.revokeObjectURL(p.url); if (p.vo) imSpent(p.id); } }
 function fkReply(c) {   // answering a real message from the office chat: the bar shows its disguise
   fkRe = c || null; const bar = $('fake').querySelector('.fkReBar'); if (!bar) return;
   bar.hidden = !c;
