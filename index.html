@@ -545,6 +545,13 @@
   .onceBtn.on { border-style: solid; border-color: var(--blue); background: var(--blue); }
   #imOnceTxt { flex: 1; font-size: 15px; }
   #imGo { width: 52px; height: 52px; }
+  .lockSel { flex: none; appearance: none; -webkit-appearance: none; padding: 8px 30px 8px 12px; border: 0; border-radius: 10px; color: var(--label); font: inherit; font-size: 15px;
+    background: var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E") no-repeat right 8px center / 16px; }
+  .compose:has(#text:not(:placeholder-shown)) #galBtn { display: none; }   /* typing: the gallery steps aside for the words, like WhatsApp */
+  /* Xed 26 Nov: a long press anywhere (the GIF button, labels, names) never selects words or opens the browser's menu; typing boxes still can */
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, [contenteditable=true] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+  body.hiding #buzzBtn { visibility: hidden; }   /* no heart while the office chat is up, in any section */
   html { touch-action: manipulation; }   /* Xed 26 Nov: a quick double tap never zooms the app */
   /* Xed 26 Nov: many photos at once (up to 50). The send screen shows them as a grid; in the chat 5 or more in a row become one album */
   #imPrev .imStage { position: relative; }
@@ -1170,7 +1177,9 @@
 // calculator; typing the code and then = on it opens Loveline. The app keeps running underneath, so toys and calls carry on.
 (() => {
   if (window.__noLock) return;
-  const $l = id => document.getElementById(id), KEY = 'closer:lock', AWAY = 10000, title = document.title;
+  const $l = id => document.getElementById(id), KEY = 'closer:lock', title = document.title;
+  const LOCK_OPTS = [10000, 30000, 60000, 120000, 300000];   // Xed 26 Nov: chosen in the name screen
+  const lockMs = () => { try { const v = JSON.parse(localStorage.getItem('closer:lockMs')); return LOCK_OPTS.includes(v) ? v : 30000; } catch { return 30000; } };
   const saved = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); return v && v.h && v.s ? v : null; } catch { return null; } };
   const ss = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); v === null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} };
   const hash = async (code, salt) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + code)))].map(x => x.toString(16).padStart(2, '0')).join('');
@@ -1201,7 +1210,7 @@
   }
   function behind(off) { if (!$l('lock')) return; for (const el of document.body.children) if (el.id !== 'lock' && el.tagName !== 'SCRIPT') el.inert = off; }   // nothing behind the lock can be tapped or reached
   function cover(on) { if (mode) return; $l('lock').classList.toggle('cover', on); $l('lock').hidden = !on; }
-  function unlock(fake) { $l('lock').classList.remove('cover'); behind(false); mode = null; first = ''; changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); dispatchEvent(new Event(fake === true ? 'lockfake' : 'lockopen')); }
+  function unlock(fake) { $l('lock').classList.remove('cover'); behind(false); mode = null; first = ''; awayAt = 0; try { lastAct = lastOwn = Date.now(); } catch {}   /* Xed 26 Nov: unlocked = just used: neither an old 'left at' time nor the idle clock locks again at once */ changing = false; $l('lock').hidden = true; document.title = title; ss('lockDecoy', null); ss('lockSeen', String(Date.now())); dispatchEvent(new Event(fake === true ? 'lockfake' : 'lockopen')); }
   window.lockSetFake = () => { if (!saved()) return false; changing = true; show('fake1'); return true; };
   window.lockFakeOn = () => !!savedFake();
   window.lockFakeOff = () => { try { localStorage.removeItem(FKEY); } catch {} };
@@ -1272,30 +1281,31 @@
   // when to lock: every fresh open, and after 10 seconds away (another app, the home screen, the screen off)
   if (!saved()) show('set1');
   else if (ss('lockDecoy')) show('calc');
-  else if (!(Date.now() - +(ss('lockSeen') || 0) < AWAY)) show('enter');   // a reload a moment ago (an update) stays open
+  else if (!(Date.now() - +(ss('lockSeen') || 0) < Math.min(10000, lockMs()))) show('enter');   // a reload a moment ago (an update) stays open
   setInterval(() => { if (!document.hidden && !mode) ss('lockSeen', String(Date.now())); }, 1000);
   const away = () => { if (!awayAt) awayAt = Date.now(); if (!mode && !document.hidden) ss('lockSeen', String(Date.now())); cover(true); };   // a page closed while already in the background is not "just used"; the cover goes up the same instant
-  const back = () => { const long = awayAt && Date.now() - awayAt >= AWAY; awayAt = 0; if (long && !mode) show(saved() ? 'enter' : 'set1'); else cover(false); };   // under the cover the pad is already there: no peek
+  const back = () => { const long = awayAt && Date.now() - awayAt >= lockMs() && Date.now() - pickAt >= 120000; awayAt = 0; if (long && !mode) show(saved() ? 'enter' : 'set1'); else cover(false); };   // under the cover the pad is already there: no peek
   // Xed 12 Nov: the phone's screen locked, turned off, home, another app: Loveline locks at once, not after 10 s.
   // Only choosing a video from the gallery (the phone's file picker hides the app) does not lock.
   let pickAt = 0;
   addEventListener('click', e => { if (e.target && e.target.type === 'file') pickAt = Date.now(); }, true);
   window.lockPocket = () => { if (mode || !saved()) return false; ss('lockSeen', '0'); show('enter'); return true; };   // Xed 26 Nov: the pocket lock during a call
   const lockNow = () => { if (mode || !saved() || Date.now() - pickAt < 120000) return; ss('lockSeen', '0'); show('enter'); };
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { away(); lockNow(); } else { back(); pickAt = 0; } });
-  addEventListener('pagehide', () => { away(); if (document.hidden) lockNow(); });   // a reload on screen (an update) stays open
+  let awayT = 0;   // Xed 26 Nov: away (another app, home, screen off): the cover goes up at once; the passcode only after the chosen time
+  document.addEventListener('visibilitychange', () => { clearTimeout(awayT); if (document.hidden) { away(); awayT = setTimeout(lockNow, lockMs()); } else { back(); pickAt = 0; } });
+  addEventListener('pagehide', () => { away(); if (document.hidden) lockNow(); });   // the app closed in the background: locked on the next open
   addEventListener('pageshow', e => { if (e.persisted) back(); });
   addEventListener('blur', () => setTimeout(() => { const a = document.activeElement; if (!document.hasFocus() && !(a && a.tagName === 'IFRAME')) away(); }, 0));   // the app switcher opening: cover before its preview is taken (a tap into a video frame is not leaving)
   addEventListener('focus', () => { if (!document.hidden) back(); });
   // Xed 12 Nov: lock after 15 s with no touch or typing. Held off while a video plays in Watch, and on her phone while a toy is in use (lockHold, set by the app below)
-  const IDLE = 30000;   // Xed 12 Nov: 30 s by default (was 15 s); games, Play, Draw and Watch keep their own rules
+  const IDLE = () => lockMs();   // Xed 26 Nov: the chosen time (30 s by default); Play, Draw and games in play wait at least 3 min
   let lastAct = Date.now(), lastOwn = Date.now();
   for (const ev of ['pointerdown', 'touchmove', 'keydown', 'input', 'beforeinput', 'compositionupdate', 'wheel']) addEventListener(ev, () => { lastAct = lastOwn = Date.now(); }, { capture: true, passive: true });   // every key, also from phone keyboards that only report whole words
-  window.lockPoke = () => { lastAct = Math.max(lastAct, Math.min(Date.now(), lastOwn + 120000 - IDLE)); };   // review 14 Nov: the other phone keeps this one open at most 2 minutes after its own last touch   // Xed 14 Nov: the other one typing or writing to you also counts: 30 s from their last key
+  window.lockPoke = () => { lastAct = Math.max(lastAct, Math.min(Date.now(), lastOwn + Math.max(120000, IDLE()) - IDLE())); };   // review 14 Nov: the other phone keeps this one open at most 2 minutes after its own last touch   // Xed 14 Nov: the other one typing or writing to you also counts: 30 s from their last key
   setInterval(() => {
     const h = window.lockHold ? window.lockHold() : false;   // true: never now; a number: wait that long instead of 15 s
     if (mode || document.hidden || h === true) { lastAct = lastOwn = Date.now(); return; }
-    if (Date.now() - lastAct >= (typeof h === 'number' ? h : IDLE)) show(saved() ? 'enter' : 'set1');
+    if (Date.now() - lastAct >= (typeof h === 'number' ? Math.max(h, IDLE()) : IDLE())) show(saved() ? 'enter' : 'set1');
   }, 1000);
   document.addEventListener('DOMContentLoaded', () => { if (mode) behind(true); });   // the app below is only built after this runs
 })();
@@ -1473,7 +1483,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></svg></button>
       <button type="button" class="icon gifBtn" id="gifBtn" aria-label="GIFs"><span>GIF</span></button>
       <input id="text" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message" enterkeyhint="send"><button type="button" class="emoHint" id="emoHint" tabindex="-1" aria-label="Add this emoji" hidden></button>
-      <button type="button" class="icon" id="imBtn" aria-label="Send a photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></button>
+      <button type="button" class="icon" id="galBtn" aria-label="Photos from the gallery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="m20.5 16-5-5-9 8.5"/></svg></button><button type="button" class="icon" id="imBtn" aria-label="Take a photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></button>
       <button class="icon send" id="sendBtn" aria-label="Send" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
       <button type="button" class="icon send mic" id="micBtn" aria-label="Hold to record a voice message">
@@ -1504,7 +1514,7 @@
   <button type="button" class="ghost" id="rptNo">Cancel</button>
 </form></div>
 <div class="fake" id="fake" hidden></div>
-<input type="file" id="imFile" accept="image/*" multiple hidden>
+<input type="file" id="imFile" accept="image/*" multiple hidden><input type="file" id="camFile" accept="image/*" capture="environment" hidden>
 <div class="statSheet" id="findSheet" hidden role="dialog" aria-label="Search messages"><div class="stTop findTop"><input id="findQ" type="search" placeholder="Search all messages" autocomplete="off" enterkeyhint="search" aria-label="Search all messages"><button type="button" id="findX" aria-label="Close search">✕</button></div><div class="statBody" id="findBody"></div></div>
 <div class="statSheet" id="statSheet" hidden role="dialog" aria-label="Our stats"><div class="stTop"><b>Us, in numbers</b><button type="button" id="statX" aria-label="Close the stats">✕</button></div><div class="statBody" id="statBody"></div></div>
 <div class="infoSheet" id="infoSheet" hidden role="dialog" aria-modal="true" aria-label="Shared photos, GIFs and links"><div class="infoScrim" id="infoScrim"></div><div class="infoCard" id="infoCard">
@@ -1587,6 +1597,7 @@
     <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
     <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
     <button type="button" class="ghost" id="fakeCodeBtn">Set fake passcode</button>
+    <label class="row"><span>Lock after<small>No touch, or away from the app, this long</small></span><select class="lockSel" id="lockMs" aria-label="Lock after"><option value="10000">10 seconds</option><option value="30000">30 seconds</option><option value="60000">1 minute</option><option value="120000">2 minutes</option><option value="300000">5 minutes</option></select></label>
     <label class="row" id="ghostRow"><span>Ghost mode<small>She sees you offline, your last seen stops, and her messages stay unread</small></span><input type="checkbox" class="switch" id="ghostOn"></label>
     <label class="row"><span>Emoji suggestions while typing</span><input type="checkbox" class="switch" id="emoOn"></label>
     <label class="row"><span>Send technical logs to fix problems (times and events only, never messages or names)</span><input type="checkbox" class="switch" id="logsOn"></label>
@@ -3381,15 +3392,19 @@ for (const id of ['imView', 'imPrev']) $(id).addEventListener('contextmenu', ev 
 $('imX').onclick = () => { tap(); imCloseView(); };
 document.addEventListener('gesturestart', ev => ev.preventDefault());   // iPhone: no pinch-zoom of the whole app (the photo viewer has its own)
 // sending: pick from the gallery or take one with the camera, see it, choose view once, send
-$('imBtn').onclick = () => { tap(); $('imFile').value = ''; $('imFile').click(); };
-$('imFile').onchange = async () => {
-  const fs = [...($('imFile').files || [])]; $('imFile').value = '';
+// Xed 26 Nov: the camera icon opens the phone's own camera; the photo it takes comes straight into the editor. The gallery icon picks (up to 50).
+$('imBtn').onclick = () => { tap(); $('camFile').value = ''; $('camFile').click(); };
+$('galBtn').onclick = () => { tap(); $('imFile').value = ''; $('imFile').click(); };
+$('camFile').onchange = () => imFilesIn($('camFile'));
+$('imFile').onchange = () => imFilesIn($('imFile'));
+async function imFilesIn(inp) {
+  const fs = [...(inp.files || [])]; inp.value = '';
   if (fs.length > 1) { imMulti(fs.slice(0, 50)); if (fs.length > 50) notify('Up to 50 photos at a time: the first 50 are ready.'); return; }
   const f = fs[0]; if (!f) return;
   const bmp = await imPick(f); if (!bmp) return;
   try { imEdOpen(bmp); } finally { bmp.close && bmp.close(); }
   imPrep = imEd; imOnceShow(); imEdTools(); $('imPrev').hidden = false; imEdPaint();
-};
+}
 function imOnceShow() { $('imOnceBtn').classList.toggle('on', imOnce); $('imOnceBtn').setAttribute('aria-pressed', imOnce); $('imOnceTxt').textContent = imOnce ? 'View once: on' : 'View once: off'; }
 $('imOnceBtn').onclick = () => { tap(); imOnce = !imOnce; store.set('imOnce', imOnce); imOnceShow(); };
 function imCancel() { if (!imPrep) return false; imPrep = imEd = imDrag = imMany = null; $('imPrev').hidden = true; $('imPrev').classList.remove('multi'); $('imGrid').hidden = true; $('imGrid').replaceChildren(); imEdTools(); return true; }
@@ -3680,7 +3695,7 @@ $('infoBody').addEventListener('pointerdown', ev => {   // hold a photo, GIF or 
   for (const e of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(e, off);
 });
 // Chrome's own long-press menu (Download video, Open in Chrome...) must never open over the app's menu: on the lifted copy, the grid, the GIF picker or the photo screens
-document.addEventListener('contextmenu', ev => { if (ev.target.closest && ev.target.closest('#infoSheet, #gifPanel, #imView, #dpCrop, #statSheet, video, canvas')) ev.preventDefault(); }, true);
+document.addEventListener('contextmenu', ev => { if (ev.target.closest && !ev.target.closest('input, textarea, [contenteditable=true]')) ev.preventDefault(); }, true);   // Xed 26 Nov: no browser menu on a long press, anywhere
 $('infoBody').addEventListener('click', ev => {
   if (Date.now() - infoHeldAt < 700) { ev.preventDefault(); return; }
   const el = ev.target.closest('.infoCell'); if (!el) return;
@@ -3843,6 +3858,8 @@ $('emoHint').onclick = ev => {
 };
 for (const e of ['input', 'keyup', 'click', 'focus']) $('text').addEventListener(e, emoHintShow);
 $('emoOn').checked = store.get('emoHintOn', true);
+$('lockMs').value = String([10000, 30000, 60000, 120000, 300000].includes(store.get('lockMs')) ? store.get('lockMs') : 30000);   // Xed 26 Nov: read by the lock above
+$('lockMs').onchange = ev => { tap(); store.set('lockMs', +ev.target.value); };
 $('emoOn').onchange = ev => { store.set('emoHintOn', ev.target.checked); emoHintShow(); };
 $('logsOn').checked = store.get('logsOn', true);   // Xed 15 Nov: each phone can stop sending its technical log; what is kept on the phone for the copy-report is unchanged
 $('logsOn').onchange = ev => store.set('logsOn', ev.target.checked);
@@ -7183,7 +7200,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-184114';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-195421';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -7489,7 +7506,7 @@ steady(() => {   // once a second: keep the library in step, fetch missing video
 
 // ---- remote side
 let helloAt = 0, takenOver = false;   // Xed 18 Nov, two phones on his side: the one opened last is the one connected; the other waits quietly
-function hello() { if (!keys) return; helloAt = Date.now(); send({ t: 'hello', pub: keys.pub, name: myName }, true); }
+function hello() { if (!keys) return; helloAt = Date.now(); send({ t: 'hello', pub: keys.pub }, true); }   // Xed 26 Nov: no name here: anyone with the link can open this one; names go only with the pair key
 function stopReached() { if (stopWarned) notify('Stop reached her phone.'); stopPending = 0; stopWarned = false; keep('stopAt', 0); }
 function dropMoves() { for (const k in moving) { delete moving[k]; state[k].editUntil = 0; } leadWant = null; }
 function retryMoves() {   // her phone did not confirm: send it again for a moment, then say so
@@ -7522,7 +7539,7 @@ function takeHost(m) {   // this phone now talks to that page; its clock is the 
   const other = !hostPair || hostPair.id !== m.from;
   hostPair = { id: m.from, pub: pubOnly(m.pub) }; store.set('hostPair:' + room, hostPair);
   if (other) { for (const k in lastTs) delete lastTs[k]; lastSeenTs = 0; logLink(`now with her page, ${eggCount(m)} eggs on it`); }
-  return derive(hostPair.pub).then(k => { pairKey = k; blocked = false; resendChat(); render(); if (window.lockJoined) window.lockJoined(); });
+  return derive(hostPair.pub).then(k => { pairKey = k; blocked = false; send({ t: 'name', name: myName }); resendChat(); render(); if (window.lockJoined) window.lockJoined(); });   // his name, locked with the pair key
 }
 function newHost(m) {   // her page has a key this phone has not seen: only he can say yes, so nobody else with the link can pull him away
   if (refused.has(m.from) || (asking && asking.from === m.from)) return;
@@ -7625,7 +7642,7 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'ldrag') gotLdrag(m);
   if (m.t === 'buzz') gotBuzz();
   if (m.t === 'call') gotCall(m);
-  if (m.t === 'buzzgot') notify(`${who()} got your 💗`);
+  if (m.t === 'buzzgot') notify(hiding ? `✓ ${who()} saw your reminder` : `${who()} got your 💗`);
   if (m.t === 'pushsub') gotPushSub(m);
   if (m.t === 'pin' && gotPin(m)) { pinAt = 0; savePins(); notify(m.on ? `${who()} pinned a message.` : `${who()} unpinned a message.`); }
   if (m.t === 'pins' && m.all && typeof m.all === 'object') { let got = false; for (const [id, p] of Object.entries(m.all).slice(0, 2000)) got = gotPin({ ...p, id }) || got; if (got) savePins(); }
@@ -7733,7 +7750,7 @@ async function letIn(m) {
     logLink('phone paired');
     notify('Paired with your partner\'s phone.');
   }
-  await send({ t: 'welcome', to: m.from, pub: keys.pub, name: myName, eggs: Object.values(state).filter(e => e.connected).length }, true);
+  await send({ t: 'welcome', to: m.from, pub: keys.pub, eggs: Object.values(state).filter(e => e.connected).length }, true);   // her name follows at once in the locked state message
   publishState(); resendChat(); render();
 }
 // A wiped or new phone gets back in with no tap, only when it uses the same passcode as this phone (Xed 11 Nov). The two phones
@@ -8070,7 +8087,7 @@ addEventListener('pointerdown', () => {   // phones only let a page play sound a
   chime.play().then(() => { chime.pause(); chime.currentTime = 0; chime.muted = false; }).catch(() => { chime.muted = false; });
 }, true);
 function gotBuzz() {
-  burst('💗'); notify(`💼 ${ROLE} is looking for you`);
+  if (!hiding) burst('💗'); notify(`💼 ${ROLE} is looking for you`);
   if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
   if (chime && store.get('buzzSound', true)) { chime.muted = false; chime.currentTime = 0; chime.play().catch(() => {}); }
   send({ t: 'buzzgot' });
@@ -8623,7 +8640,7 @@ async function sendBuzz() {
       else if (!woke) why = 'refused';
     } catch {}
   }
-  notify(on || woke ? 'Sent 💗' : {
+  notify(on || woke ? (hiding ? '✓ Reminder sent' : 'Sent 💗') : {
     off: `${who()} is away and alerts are off on ${who()}'s phone, so this did not reach them. Ask ${who()} to open Loveline and turn alerts on.`,
     dead: `${who()}'s phone stopped taking alerts (Chrome blocked them or they ran out), so this did not reach them. It mends itself the next time ${who()} opens Loveline.`,
     net: 'Could not reach the alert service. Check your internet and try again.',
@@ -8961,21 +8978,29 @@ function fkNew() {   // today's colleague and conversation: drawn from the date,
   return { name, dp, hue, seen, un, list };
 }
 let fk = null;
+const FK_APP = isRemote ? 'Corelink' : 'Campus';   // Xed 26 Nov: his an office app, hers a college one
+function fkSeen() {   // Xed 26 Nov: the real online and last seen, worded like WhatsApp; the made-up one only before she was ever seen
+  if (partnerShown()) return 'online';
+  const t = seenShown(); if (!t) return fk.seen;
+  const day = x => Math.floor((x + 5 * 3600e3) / 864e5), dd = day(Date.now()) - day(t), o = { timeZone: PK };
+  return `last seen ${dd < 1 ? 'today' : dd === 1 ? 'yesterday' : new Date(t).toLocaleDateString('en-GB', { ...o, day: 'numeric', month: 'short' })} at ${new Date(t).toLocaleTimeString('en-US', { ...o, hour: 'numeric', minute: '2-digit', hour12: true })}`;
+}
+const fkDbl = (el, fn) => { let at = 0; el.addEventListener('pointerdown', ev => { if (ev.timeStamp - at < 350) { at = 0; fn(); } else at = ev.timeStamp; }); };
 const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.4 12c1-3.6 4.6-7.6 9.6-7.6s8.6 4 9.6 7.6c-1 3.6-4.6 7.6-9.6 7.6S3.4 15.6 2.4 12z"/><circle cx="12" cy="12" r="3.4"/></svg>';
 const fkCopy = el => { const c = el.cloneNode(true); for (const x of [c, ...c.querySelectorAll('[id]')]) x.removeAttribute('id'); for (const x of c.querySelectorAll('[hidden]')) x.remove(); c.inert = false; c.removeAttribute('aria-hidden'); return c; };   // the real part's exact look, with nothing that acts on the real app
 const fkDp = (el, big) => { el.replaceChildren(); el.textContent = fk.dp; el.style.cssText = `display: grid; place-items: center; font-size: ${big ? 21 : 15}px; background: linear-gradient(135deg, hsl(${fk.hue} 45% 62%), hsl(${(fk.hue + 40) % 360} 50% 42%))`; };
 function fkBuild() {   // copies of the real top bar, chat header and message box, filled with the colleague
   const box = $('fake'), wrap = document.createElement('div'); wrap.className = 'fkIn';
   const top = fkCopy($('topbar')); top.querySelectorAll('.status').forEach(x => x.remove());
-  top.querySelectorAll('[role=tab]').forEach(t => { t.setAttribute('aria-selected', t.dataset.p === 'chat'); t.onclick = () => top.querySelectorAll('[role=tab]').forEach(x => x.setAttribute('aria-selected', x === t)); });
-  const h1 = top.querySelector('h1'); if (h1) h1.textContent = isRemote ? 'Corelink' : 'Campus';   // Xed 26 Nov: his an office app, hers a college one
+  top.querySelectorAll('[role=tab]').forEach(t => { t.setAttribute('aria-selected', t.dataset.p === 'chat'); t.onclick = () => { if (t.dataset.p !== 'chat') { tap(); fkGo(t.dataset.p); } }; });   // Xed 26 Nov: the other sections open, the office chat goes small with them
+  const h1 = top.querySelector('h1'); if (h1) { h1.textContent = FK_APP; fkDbl(h1, sendBuzz); }
   top.querySelectorAll('.hleft .me').forEach(x => x.remove());   // no heart
   const eye = top.querySelector('.hideBtn'); eye.innerHTML = EYE_ON; eye.setAttribute('aria-label', 'Show'); eye.dataset.fk = 'show';
   const dock = fkCopy($('dock')); dock.classList.add('open');
   dock.querySelectorAll('.grab, .peek, .pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .bubble, .lp').forEach(x => x.remove());
   const sb = dock.querySelector('[aria-label="Our stats"]'); if (sb) sb.textContent = '📊 Stats';
   for (const b of dock.querySelectorAll('.chatTop button')) b.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); });   // call, repeat call, search, stats, close: look real, do nothing
-  const who = dock.querySelector('.chatWho'); if (who) { fkDp(who.querySelector('.dp'), true); who.querySelector('b').textContent = fk.name; who.querySelector('small').textContent = fk.seen; who.querySelector('small').classList.toggle('live', fk.seen === 'online'); }   // green only when online, whatever the real header showed
+  const who = dock.querySelector('.chatWho'); if (who) { fkDp(who.querySelector('.dp'), true); who.querySelector('b').textContent = fk.name; const sn = fkSeen(); who.querySelector('small').textContent = sn; who.querySelector('small').classList.toggle('live', sn === 'online'); }   // green only when online, whatever the real header showed
   fkForm(dock);
   wrap.appendChild(top); box.replaceChildren(wrap, dock);
   const msgs = dock.querySelector('.msgs'), room = innerHeight - top.getBoundingClientRect().bottom - (dock.getBoundingClientRect().height - msgs.getBoundingClientRect().height) - 12;
@@ -8996,9 +9021,10 @@ function fkForm(dock) {   // the message box of the office chat: what is typed g
   };
 }
 function fkBuildMini() {   // a copy of the small chat as it is right now (same size, same place), with the colleague in it
-  const dock = fkCopy($('dock')); dock.classList.remove('open');
+  const dock = fkCopy($('dock')), t0 = Date.now(); dock.classList.remove('open');
+  const ms = dock.querySelector('.msgs'); new ResizeObserver(() => { if (Date.now() - t0 < 1500) ms.scrollTop = ms.scrollHeight; }).observe(ms);   // its size settles a moment later (coming from the big one): it still opens at the newest message
   dock.querySelectorAll('.chatTop, .pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .lp').forEach(x => x.remove());
-  const pk = dock.querySelector('.peek'); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(fk.seen)}</i>`; pk.classList.toggle('live', fk.seen === 'online'); }
+  const pk = dock.querySelector('.peek'), sn = fkSeen(); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(sn)}</i>`; pk.classList.toggle('live', sn === 'online'); }
   fkForm(dock); $('fake').replaceChildren(dock);
 }
 let fkRe = null, fkPeekId = null, fkToEnd = false, fkSeenWas;
@@ -9029,7 +9055,7 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks: the colle
     if (m === seenM) { const sn = document.createElement('span'), id = m.c ? m.c.id : 'f' + m.at; fkDp(sn); sn.className = 'seen' + (id !== fkSeenWas ? ' new' : ''); sn.style.fontSize = '10px'; sn.setAttribute('aria-label', 'Seen by ' + fk.name); b.appendChild(sn); fkSeenWas = id; }   // the colleague's face, not hers
     msgs.appendChild(b);
   });
-  const live = partnerShown(), seen = live ? 'online' : fk.seen; fkDraw.live = live;   // the colleague is online exactly when the real one is
+  const live = partnerShown(), seen = fkSeen(); fkDraw.live = live;   // the colleague is online, or was last seen, exactly when the real one
   const sm = $('fake').querySelector('.chatWho small'); if (sm) { sm.textContent = seen; sm.classList.toggle('live', seen === 'online'); }
   const pk = $('fake').querySelector('.peek'); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(seen)}</i>`; pk.classList.toggle('live', seen === 'online'); }
   msgs.scrollTop = near ? msgs.scrollHeight : keep;
@@ -9053,8 +9079,10 @@ function hideSet(on, mini) {
   if (fkMini) { fkMini = false; clearTimeout(fkMiniT); document.body.classList.remove('fkMini'); $('fake').classList.remove('mini'); $('dock').inert = false; }
   if (on && mini) {   // Xed 26 Nov: only the small chat changes; the video or game around it stays as it is
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    for (const el of document.body.children) if (!['fake', 'lock'].includes(el.id) && el.tagName !== 'SCRIPT') { el.inert = false; el.removeAttribute('aria-hidden'); }   // from the big office chat: the section can be used again
+    for (const el of document.querySelectorAll('video, audio')) if (el.dataset.hideMuted) { el.muted = false; delete el.dataset.hideMuted; }
     hiding = fkMini = true; document.body.classList.add('hiding', 'fkMini'); $('fake').classList.add('mini');
-    fk = store.get('fake') || fkNew(); store.set('fake', fk); $('fake').hidden = false; fkBuildMini(); fkDraw(); $('dock').inert = true;   // shown first, so it opens at the newest message
+    fk = store.get('fake') || fkNew(); store.set('fake', fk); $('fake').hidden = false; fkBuildMini(); fkToEnd = true; fkDraw(); $('dock').inert = true;   // shown first, so it opens at the newest message
     fkNames(); return;
   }
   hiding = on; document.body.classList.toggle('hiding', on); $('fake').hidden = !on;
@@ -9068,7 +9096,9 @@ function hideSet(on, mini) {
   if (!on) { renderChat(); render(); if (call && call.hidMute) { call.hidMute = false; callMuteSet(false); } }   // back from the office chat: the microphone comes back on
   fkNames();
 }
-function fkNames() { render(); dpPaint(); if (call) callShow(); }   // every name and picture on screen follows: the colleague while hidden, the real one after
+function fkNames() { $('topbar').querySelector('h1').textContent = hiding ? FK_APP : 'Loveline'; render(); dpPaint(); if (call) callShow(); }
+function fkGo(p) { openPanel(p); if (chatIsOpen()) closeChat(); hideSet(true, true); }   // a section from the office chat: its small chat stays the office chat
+fkDbl($('topbar').querySelector('h1'), () => { if (hiding) sendBuzz(); });   // Xed 26 Nov: in disguise, a double tap on the app's name sends Thinking of you   // every name and picture on screen follows: the colleague while hidden, the real one after
 let hideAskAt = 0;
 $('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
 let fkHoldT = 0, fkHeldNow = false;
@@ -9196,7 +9226,7 @@ $('nameForm').onsubmit = ev => {
   ev.preventDefault();
   myName = $('nameInput').value.trim().slice(0, 24); store.set('name', myName);
   $('nameSheet').hidden = true;
-  isRemote ? hello() : publishState();
+  isRemote ? send({ t: 'name', name: myName }) : publishState();
   render();
 };
 if (!myName) $('nameSheet').hidden = false;
