@@ -7210,7 +7210,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-215932';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-220206';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9278,7 +9278,7 @@ addEventListener('click', ev => {
 function chatInFront() { return !document.hidden && $('lock').hidden && chatIsOpen() && !hiding; }
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
 const ONLINE_LINES = [['Sync', 'Cloud sync connected'], ['Backup', 'Backup device is online'], ['Sync', 'Paired device active'], ['Devices', 'Linked device connected']];
-const ROLE = 'Boss';   // Xed 26 Nov: alerts speak office language: the other one is the Boss on both phones (Madam gave away a woman)
+const ROLE = isRemote ? 'Boss' : 'Madam';   // Xed 26 Nov: alerts speak office language: his phone says Boss, hers says Madam
 const LN_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
   LN_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
   LN_STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
