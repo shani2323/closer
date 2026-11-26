@@ -315,6 +315,11 @@
   .fake .dock { position: absolute; }
   .fake .compose .send:not(.mic) { display: none; } .fake .compose.typed .send:not(.mic) { display: grid; } .fake .compose.typed .mic { display: none; }
   .fake[hidden] { display: none; }
+  .fake .bubble[data-rid] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: transform .18s cubic-bezier(.32, .72, 0, 1); }
+  .fake .bubble.fkPeek { transform: scale(1.02); }   /* held: the real words, lifted a touch */
+  .fake .bubble.fkPeek .fkTx { animation: fkPeek .16s ease-out; }
+  @keyframes fkPeek { from { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .fake .bubble[data-rid] { transition: none; } .fake .bubble.fkPeek { transform: none; } }
   .fake .fkUn { align-self: center; margin: 6px 0; padding: 4px 12px; border-radius: 8px; background: var(--fill); color: var(--label2); font-size: 12.5px; font-weight: 500; letter-spacing: 0; }
   @keyframes fkIn { from { opacity: 0; } }
   body.hiding .pop, body.hiding .float, body.hiding .veil, body.hiding .ring, body.hiding .turnFx, body.hiding .result, body.hiding #toast { display: none !important; }   /* nothing of the real app shows through */
@@ -4017,6 +4022,7 @@ function renderChat() {
   if (sel) selPaint();   // the ticks survive a redraw
   $('chatGrab').hidden = !chat.length;
   fitDock();
+  if (hiding && fk) fkDraw();   // Xed 26 Nov: the office chat is the same chat in disguise, kept up to date
 }
 const EMO_RE = /\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/gu;
 function miniBurst(text, from) {   // emoji inside a message: a few small ones float up from the bubble, nothing more
@@ -7000,7 +7006,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-174019';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-180053';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -8701,7 +8707,8 @@ const chatIsOpen = () => $('dock').classList.contains('open');
 let unseen = +store.get('unseen:' + room) || 0, noteSeed = 0, noteWas = '';
 // ---- hide (Xed 14 Nov): like "hide balance" in a bank app. One tap swaps the whole app, every section, for an ordinary chat with an
 // office colleague or friend. Xed 22 Nov: the same one all day (Pakistan date), a different name, picture, length, times and unread count the next day.
-// What is typed there stays on this phone. Coming back asks for the passcode.
+// Xed 26 Nov: it is also the real chat in disguise. Every real message shows as an office line; holding one shows the real words until the
+// finger lifts. What is typed there is sent for real (a tap on a message answers it) and shows in disguise too. Coming back asks for the passcode.
 const FK_NAMES = isRemote ? ['Usman Ali', 'Bilal Ahmed', 'Hamza Sheikh', 'Faisal Khan', 'Saad Qureshi', 'Ahmed Raza', 'Zeeshan Malik', 'Imran Shah', 'Kamran Javed', 'Adeel Hussain', 'Waqas Iqbal', 'Omer Farooq',
   'Asad Mehmood', 'Junaid Akhtar', 'Danish Butt', 'Haris Siddiqui', 'Shahzad Anwar', 'Nabeel Aslam', 'Rizwan Haider', 'Talha Mirza', 'Arslan Chaudhry', 'Fahad Rehman', 'Salman Abbasi', 'Tariq Nawaz']
   : ['Sana Tariq', 'Ayesha Khan', 'Hira Malik', 'Mehwish Ali', 'Amna Sheikh', 'Fatima Raza', 'Maryam Javed', 'Zainab Ahmed', 'Rabia Qureshi', 'Nida Hussain', 'Saba Iqbal', 'Iqra Farooq'];
@@ -8738,6 +8745,17 @@ const FK_BITS = [   // short everyday talks; a fake chat is 1 to 4 of them, hour
   [['t', 'Woh file mil gayi?'], ['t', 'Jo kal di thi'], ['m', 'Haan desk pe rakhi hai 📁']],
   [['m', 'Mechanic ka number bhejna'], ['t', 'Purana wala ya naya?'], ['m', 'Naya wala'], ['t', 'Abhi bhejta hun']],
 ];
+const FK_ME = ['Ji, ho jayega 👍', 'Bhej diya hai, check kar lein', 'Done ✅', 'Abhi update kar diya', 'Thora time lagega', 'Ok noted', 'Report email kar di hai 📧', 'Kal tak complete ho jayega',
+  'Meeting ka link share kar diya', 'Figures sheet mein daal diye', 'Ji bilkul', 'Client ko reply kar diya', 'Sir ko inform kar diya', 'Invoice attach kar di', 'Thanks 🙏', 'Ok, 5 minute', 'Draft ready hai',
+  'Approval ka wait hai', 'Theek hai 👌', 'Haan, room 3 mein', 'Order confirm ho gaya', 'Slides update ho gayi hain', 'Payment ka follow up kiya', 'Files shared drive pe hain', 'Kal subah discuss karte hain',
+  'Schedule dekh liya', 'Courier receive ho gaya 📦', 'List bana di hai', 'Signature ho gaye', 'Noted, Friday tak', 'Ok 👍', 'Sure, abhi dekhte hain'];
+const FK_THEM = ['Report ka kya bana?', 'Meeting 3 baje hai, yaad hai na?', 'File share kar do please', 'Client ka email dekha?', 'Invoice approve ho gayi?', 'Kal ki presentation ready hai?', 'Data update ho gaya?',
+  'Ek minute call pe aa sakte hain?', 'Is mahine ka target kitna hai?', 'Manager ne figures maange hain 📊', 'Sheet mein total check kar lein', 'Lunch ke baad meeting room 2', 'Woh quotation bhej dein', 'Leave approve ho gayi?',
+  'Slides mein logo update karna hai', 'Payment kab tak release hogi?', 'Order confirm hua?', 'Training ka schedule aa gaya 📅', 'Printer phir kharab hai 😅', 'Audit wale kal aa rahe hain', 'Task ka kya status hai?',
+  'Draft dekh ke batayein', 'Minutes of meeting bhej dena', 'Courier aa gaya?', 'Stock ki list chahiye', 'Branch se call aayi thi', 'Agenda final ho gaya?', 'Is pe signature chahiye', 'Reminder: deadline Friday hai', 'Thanks for the update 👍'];
+const FK_EMO = ['👍', '👌', '✅', '🙂', '🙏'];
+const fkHash = id => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return h >>> 0; };
+const fkMask = (id, w, text) => { const h = fkHash(String(id)); if (emojiOnly(text || '')) return FK_EMO[h % FK_EMO.length]; const l = w === 'me' ? FK_ME : FK_THEM; return l[h % l.length]; };   // the same message always wears the same line
 const FK_MORE = ['Free ho to call karna 📞', 'Reply kar dena jab time mile', 'Acha suno', 'Ek kaam tha', 'Kal baat karte hain', 'Kahan ho?', '👍', 'Theek hai phir'];
 const fkRand = s => () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };   // the same numbers for the same day
 function fkNew() {   // today's colleague and conversation: drawn from the date, so it stays put all day
@@ -8772,16 +8790,20 @@ function fkBuild() {   // copies of the real top bar, chat header and message bo
   fkForm(dock);
   wrap.appendChild(top); box.replaceChildren(wrap, dock);
   const msgs = dock.querySelector('.msgs'), room = innerHeight - top.getBoundingClientRect().bottom - (dock.getBoundingClientRect().height - msgs.getBoundingClientRect().height) - 12;
-  msgs.style.maxHeight = msgs.style.height = Math.max(160, room) + 'px';   // the chat fills the screen under the top bar
+  msgs.style.maxHeight = msgs.style.height = Math.max(160, room) + 'px'; msgs.dataset.h = Math.max(160, room);   // the chat fills the screen under the top bar
 }
-function fkForm(dock) {   // the message box of the office chat: what is typed shows there only
+function fkForm(dock) {   // the message box of the office chat: what is typed goes to the real chat
   for (const x of [...dock.querySelector('.msgs').children]) if (!x.classList.contains('e2e')) x.remove();   // nothing of the real chat comes along (call rows included)
   const form = dock.querySelector('.compose'), input = form.querySelector('input');
   input.value = ''; input.oninput = () => form.classList.toggle('typed', !!input.value.trim()); form.querySelectorAll('[disabled]').forEach(x => x.disabled = false);
   form.querySelector('.mic').onclick = () => form.requestSubmit();
-  form.onsubmit = ev => {   // typed here: shown here only, never sent
+  const rb = document.createElement('div'); rb.className = 'replyBar fkReBar'; rb.hidden = true;
+  rb.innerHTML = '<div><b></b><span></span></div><button type="button" aria-label="Cancel the reply">✕</button>'; rb.querySelector('button').onclick = () => fkReply(null);
+  dock.querySelector('.bar').before(rb);
+  form.onsubmit = ev => {   // Xed 26 Nov: sent for real (as an answer when one was picked); here it shows in disguise like the rest
     ev.preventDefault(); const x = input.value.trim().slice(0, 500); if (!x || !fk) return;
-    fk.list.push({ w: 'm', x, at: Date.now() }); fk.un = 0; store.set('fake', fk); input.value = ''; form.classList.remove('typed'); fkDraw();
+    if (fkRe) replyTo = { id: fkRe.id, x: fkRe.text.slice(0, 100), w: fkRe.who };
+    input.value = ''; form.classList.remove('typed'); fkReply(null); fkToEnd = true; sendChat(x);
   };
 }
 function fkBuildMini() {   // a copy of the small chat as it is right now (same size, same place), with the colleague in it
@@ -8790,20 +8812,45 @@ function fkBuildMini() {   // a copy of the small chat as it is right now (same 
   const pk = dock.querySelector('.peek'); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(fk.seen)}</i>`; pk.classList.toggle('live', fk.seen === 'online'); }
   fkForm(dock); $('fake').replaceChildren(dock);
 }
-function fkDraw() {   // the real chat's own bubbles, times and ticks
+let fkRe = null, fkPeekId = null, fkToEnd = false;
+function fkDraw() {   // the real chat's own bubbles, times and ticks: the colleague's old talk and the real messages in disguise, in time order
   const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
-  const msgs = $('fake').querySelector('.msgs'); if (!msgs) return;
+  const msgs = $('fake').querySelector('.msgs'); if (!msgs || !fk) return;
+  const near = fkToEnd || msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80, keep = msgs.scrollTop; fkToEnd = false;
   for (const b of msgs.querySelectorAll('.bubble, .fkUn')) b.remove();
-  fk.list.forEach((m, i) => {
-    if (fk.un && !fkMini && i === fk.list.length - fk.un) { const u = document.createElement('div'); u.className = 'fkUn'; u.textContent = `${fk.un} unread message${fk.un > 1 ? 's' : ''}`; msgs.appendChild(u); }   // like WhatsApp, above the new ones
-    const b = document.createElement('div'), meta = document.createElement('span'), first = m.w === 't' && (!i || fk.list[i - 1].w !== 't');
-    b.className = 'bubble' + (m.w === 'm' ? ' mine' : '') + (first ? ' dpd' : '') + (emojiOnly(m.x) ? ' big' : '');
+  const real = chat.slice(-80).map(c => ({ w: c.who === 'me' ? 'm' : 't', x: fkMask(c.id, c.who, c.text), at: +c.at, c }));
+  const list = [...fk.list, ...real].sort((a, b) => a.at - b.at), unAt = fk.un && list.slice(-fk.un).every(m => !m.c && m.w === 't') ? list.length - fk.un : -1;
+  list.forEach((m, i) => {
+    if (i === unAt && !fkMini) { const u = document.createElement('div'); u.className = 'fkUn'; u.textContent = `${fk.un} unread message${fk.un > 1 ? 's' : ''}`; msgs.appendChild(u); }   // like WhatsApp, above the new ones
+    const b = document.createElement('div'), meta = document.createElement('span'), tx = document.createElement('span'), first = m.w === 't' && (!i || list[i - 1].w !== 't'), peek = m.c && m.c.id === fkPeekId;
+    b.className = 'bubble' + (m.w === 'm' ? ' mine' : '') + (first ? ' dpd' : '') + (emojiOnly(m.x) && !(m.c && m.c.re) ? ' big' : '') + (peek ? ' fkPeek' : '');
     if (first) { const f = document.createElement('span'); f.className = 'dp bdp'; fkDp(f); b.appendChild(f); }
-    b.appendChild(document.createTextNode(m.x)); meta.className = 'meta'; meta.textContent = t(m.at);
-    if (m.w === 'm') { const k = document.createElement('span'); k.className = 'tick st3'; k.textContent = '✓✓'; meta.appendChild(k); }
+    if (m.c) {
+      b.dataset.rid = m.c.id;
+      if (m.c.re) { const q = document.createElement('span'), qb = document.createElement('b'), qx = document.createElement('span'); q.className = 'quote'; qb.textContent = m.c.re.w === 'me' ? 'You' : fk.name; qx.textContent = fkMask(m.c.re.id, m.c.re.w, m.c.re.x); q.append(qb, qx); b.appendChild(q); }   // an answer quotes the disguise too
+    }
+    tx.className = 'fkTx'; tx.dataset.x = m.x; tx.textContent = peek ? m.c.text : m.x; b.appendChild(tx);
+    meta.className = 'meta'; meta.textContent = t(m.at);
+    if (m.w === 'm') { const st = m.c ? m.c.st || 0 : 3, k = document.createElement('span'); k.className = 'tick st' + st; k.textContent = st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'; meta.appendChild(k); }   // the real ticks, the WhatsApp way
     b.appendChild(meta); msgs.appendChild(b);
   });
-  msgs.scrollTop = msgs.scrollHeight;
+  const live = partnerShown(), seen = live ? 'online' : fk.seen; fkDraw.live = live;   // the colleague is online exactly when the real one is
+  const sm = $('fake').querySelector('.chatWho small'); if (sm) { sm.textContent = seen; sm.classList.toggle('live', seen === 'online'); }
+  const pk = $('fake').querySelector('.peek'); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(seen)}</i>`; pk.classList.toggle('live', seen === 'online'); }
+  msgs.scrollTop = near ? msgs.scrollHeight : keep;
+}
+function fkPeekPaint() {   // held: that one bubble shows its real words; let go: the office line again
+  for (const b of $('fake').querySelectorAll('.bubble[data-rid]')) {
+    const tx = b.querySelector('.fkTx'), c = b.dataset.rid === fkPeekId && chat.find(x => x.id === fkPeekId); if (!tx) continue;
+    if (c) { tx.textContent = c.text; b.classList.add('fkPeek'); } else if (b.classList.contains('fkPeek')) { tx.textContent = tx.dataset.x; b.classList.remove('fkPeek'); }
+  }
+}
+function fkReply(c) {   // answering a real message from the office chat: the bar shows its disguise
+  fkRe = c || null; const bar = $('fake').querySelector('.fkReBar'); if (!bar) return;
+  bar.hidden = !c;
+  if (c) { bar.querySelector('b').textContent = c.who === 'me' ? 'You' : fk.name; bar.querySelector('span').textContent = fkMask(c.id, c.who, c.text); }
+  const m = $('fake').querySelector('.msgs'); if (m && m.dataset.h) { const h = +m.dataset.h - (c ? bar.offsetHeight + 6 : 0); m.style.height = m.style.maxHeight = h + 'px'; }   // the chat gives the bar its room
+  if (c) { fkToEnd = true; fkDraw(); $('fake').querySelector('.compose input').focus(); }
 }
 let fkMini = false, fkMiniT = 0;
 function hideSet(on, mini) {
@@ -8818,7 +8865,7 @@ function hideSet(on, mini) {
   hiding = on; document.body.classList.toggle('hiding', on); $('fake').hidden = !on;
   for (const el of document.body.children) if (!['fake', 'lock'].includes(el.id) && el.tagName !== 'SCRIPT') { el.inert = on; on ? el.setAttribute('aria-hidden', 'true') : el.removeAttribute('aria-hidden'); }   // review 14 Nov: the real app cannot be reached at all while hidden
   if (on) { fk = store.get('fake') || fkNew(); store.set('fake', fk); fkBuild(); fkDraw(); try { vnAudio.pause(); } catch {} }
-  else { fk = null; store.set('fake', null); $('fake').replaceChildren(); }
+  else { fk = null; fkRe = null; fkPeekId = null; store.set('fake', null); $('fake').replaceChildren(); }
   for (const el of document.querySelectorAll('video, audio')) {   // no sound from the real app while it is hidden
     if (on && !el.muted) { el.muted = true; el.dataset.hideMuted = '1'; }
     else if (!on && el.dataset.hideMuted) { el.muted = false; delete el.dataset.hideMuted; }
@@ -8827,8 +8874,19 @@ function hideSet(on, mini) {
 }
 let hideAskAt = 0;
 $('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
+let fkHoldT = 0, fkHeldNow = false;
+$('fake').addEventListener('pointerdown', ev => {
+  fkHeldNow = false; const b = ev.target.closest('.bubble[data-rid]'); if (!b) return;
+  clearTimeout(fkHoldT); fkHoldT = setTimeout(() => { fkPeekId = b.dataset.rid; fkHeldNow = true; if (navigator.vibrate) navigator.vibrate(10); fkPeekPaint(); }, 350);
+});
+const fkUnpeek = () => { clearTimeout(fkHoldT); if (fkPeekId) { fkPeekId = null; fkPeekPaint(); } };
+for (const e of ['pointerup', 'pointercancel']) addEventListener(e, fkUnpeek, true);   // the finger lifts (or starts scrolling): the disguise is back
+$('fake').addEventListener('contextmenu', ev => { if (ev.target.closest('.bubble')) ev.preventDefault(); });
 $('fake').addEventListener('click', ev => {
+  if (fkHeldNow) { fkHeldNow = false; return; }   // that was a hold, not a tap
   if (fkMini && ev.target.closest('.msgs, .peek')) { clearTimeout(fkMiniT); fkMiniT = setTimeout(() => { if (fkMini) { tap(); hideSet(true); } }, 280); return; }   // a tap on the small one opens the big office chat, like the real one
+  const rb = !fkMini && ev.target.closest('.bubble[data-rid]');
+  if (rb) { const c = chat.find(x => x.id === rb.dataset.rid); if (c) { tap(); fkReply(c); } return; }   // a tap on a real message answers it
   if (!ev.target.closest('[data-fk=show]')) return; tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); });   // the passcode first; with no passcode set, straight back
 addEventListener('lockfake', () => { hideAskAt = 0; hideSet(true); });   // the fake passcode was typed: the office chat (stays if it was already showing)
 addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
@@ -8895,7 +8953,7 @@ function lockNote(bump) {
   el.innerHTML = rows.join(''); lnUp();
   for (const d of el.children) if (had.has(d.dataset.k)) d.style.animation = 'none';   // only a new notice slides in; a changed count just pops
 }
-setInterval(() => { if (unseen && chatInFront()) { unseen = 0; store.set('unseen:' + room, 0); } lockNote(); }, 1000);
+setInterval(() => { if (unseen && chatInFront()) { unseen = 0; store.set('unseen:' + room, 0); } lockNote(); if (hiding && fk && fkDraw.live !== partnerShown()) fkDraw(); }, 1000);
 let lnHold = null;
 const lnLet = () => { if (!lnHold) return; clearTimeout(lnHold.t); lnHold.b.classList.remove('holding'); lnHold = null; };
 $('lockNote').addEventListener('pointerdown', ev => {   // held for 0.8 s: the fill grows, then it acts; let go earlier and nothing happens
