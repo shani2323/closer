@@ -7200,7 +7200,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-195857';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-200228';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -8980,6 +8980,7 @@ function fkNew() {   // today's colleague and conversation: drawn from the date,
 let fk = null;
 const FK_APP = isRemote ? 'Corelink' : 'Campus';   // Xed 26 Nov: his an office app, hers a college one
 function fkSeen() {   // Xed 26 Nov: the real online and last seen, worded like WhatsApp; the made-up one only before she was ever seen
+  if (fkDuress()) return fk.seen;   // fake passcode: nothing real, not even when she was online
   if (partnerShown()) return 'online';
   const t = seenShown(); if (!t) return fk.seen;
   const day = x => Math.floor((x + 5 * 3600e3) / 864e5), dd = day(Date.now()) - day(t), o = { timeZone: PK };
@@ -9016,6 +9017,7 @@ function fkForm(dock) {   // the message box of the office chat: what is typed g
   dock.querySelector('.bar').before(rb);
   form.onsubmit = ev => {   // Xed 26 Nov: sent for real (as an answer when one was picked); here it shows in disguise like the rest
     ev.preventDefault(); const x = input.value.trim().slice(0, 500); if (!x || !fk) return;
+    if (fkDuress()) { input.value = ''; form.classList.remove('typed'); fk.list.push({ w: 'm', x, at: Date.now() }); fkToEnd = true; fkDraw(); return; }   // fake passcode: it looks sent, but stays on this phone and goes nowhere
     if (fkRe) replyTo = { id: fkRe.id, x: fkRe.text.slice(0, 100), w: fkRe.who };
     input.value = ''; form.classList.remove('typed'); fkReply(null); fkToEnd = true; sendChat(x);
   };
@@ -9033,8 +9035,9 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks: the colle
   const msgs = $('fake').querySelector('.msgs'); if (!msgs || !fk) return;
   const near = fkToEnd || msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80, keep = msgs.scrollTop; fkToEnd = false;
   for (const b of msgs.querySelectorAll('.bubble, .fkUn, .callRow')) b.remove();
-  const real = chat.slice(-80).map(c => ({ w: c.who === 'me' ? 'm' : 't', x: fkLine(c), at: +c.at, c })), from = real.length ? real[0].at : Infinity;
-  const calls = callLog.filter(r => r.at >= from).map(r => ({ at: r.at, call: r }));   // calls stay calls: with the colleague, which is ordinary
+  const sealed = fkDuress();   // review 26 Nov: opened with the fake passcode: only the made-up talk, nothing real behind it
+  const real = sealed ? [] : chat.slice(-80).map(c => ({ w: c.who === 'me' ? 'm' : 't', x: fkLine(c), at: +c.at, c })), from = real.length ? real[0].at : Infinity;
+  const calls = sealed ? [] : callLog.filter(r => r.at >= from).map(r => ({ at: r.at, call: r }));   // calls stay calls: with the colleague, which is ordinary
   const list = [...fk.list, ...real, ...calls].sort((a, b) => a.at - b.at), unAt = fk.un && list.slice(-fk.un).every(m => !m.c && !m.call && m.w === 't') ? list.length - fk.un : -1;
   const seenM = list.findLast(m => m.w === 'm' && !m.call && (m.c ? (m.c.st || 0) >= 3 : true));   // the newest one of ours that was read (the colleague's old talk counts as read)
   list.forEach((m, i) => {
@@ -9055,7 +9058,7 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks: the colle
     if (m === seenM) { const sn = document.createElement('span'), id = m.c ? m.c.id : 'f' + m.at; fkDp(sn); sn.className = 'seen' + (id !== fkSeenWas ? ' new' : ''); sn.style.fontSize = '10px'; sn.setAttribute('aria-label', 'Seen by ' + fk.name); b.appendChild(sn); fkSeenWas = id; }   // the colleague's face, not hers
     msgs.appendChild(b);
   });
-  const live = partnerShown(), seen = fkSeen(); fkDraw.live = live;   // the colleague is online, or was last seen, exactly when the real one
+  const live = !sealed && partnerShown(), seen = fkSeen(); fkDraw.live = live;   // the colleague is online, or was last seen, exactly when the real one
   const sm = $('fake').querySelector('.chatWho small'); if (sm) { sm.textContent = seen; sm.classList.toggle('live', seen === 'online'); }
   const pk = $('fake').querySelector('.peek'); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(seen)}</i>`; pk.classList.toggle('live', seen === 'online'); }
   msgs.scrollTop = near ? msgs.scrollHeight : keep;
@@ -9104,7 +9107,7 @@ let hideAskAt = 0;
 $('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
 let fkHoldT = 0, fkHeldNow = false;
 $('fake').addEventListener('pointerdown', ev => {
-  fkHeldNow = false; const b = ev.target.closest('.bubble[data-rid]'); if (!b) return;
+  fkHeldNow = false; const b = ev.target.closest('.bubble[data-rid]'); if (!b || fkDuress()) return;
   clearTimeout(fkHoldT); fkHoldT = setTimeout(() => { fkPeekId = b.dataset.rid; fkHeldNow = true; if (navigator.vibrate) navigator.vibrate(10); fkPeekPaint(); }, 350);
 });
 const fkUnpeek = () => { clearTimeout(fkHoldT); if (fkPeekId) { fkPeekId = null; fkPeekPaint(); } };
@@ -9113,7 +9116,7 @@ $('fake').addEventListener('contextmenu', ev => { if (ev.target.closest('.bubble
 $('fake').addEventListener('click', ev => {
   if (fkHeldNow) { fkHeldNow = false; return; }   // that was a hold, not a tap
   if (fkMini && ev.target.closest('.msgs, .peek')) { clearTimeout(fkMiniT); fkMiniT = setTimeout(() => { if (fkMini) { tap(); hideSet(true); } }, 280); return; }   // a tap on the small one opens the big office chat, like the real one
-  const rb = !fkMini && ev.target.closest('.bubble[data-rid]');
+  const rb = !fkMini && !fkDuress() && ev.target.closest('.bubble[data-rid]');
   if (rb) { const c = chat.find(x => x.id === rb.dataset.rid); if (c) { tap(); fkReply(c); } return; }   // a tap on a real message answers it
   if (!ev.target.closest('[data-fk=show]')) return; tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); });   // the passcode first; with no passcode set, straight back
 addEventListener('lockfake', () => { hideAskAt = 0; fkDuress(true); hideSet(true); });   // the full office chat, sealed: nothing real can be reached from it
