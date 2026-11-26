@@ -7210,7 +7210,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-214529';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-215227';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9248,10 +9248,9 @@ new MutationObserver(() => { if (fkMini && chatIsOpen()) hideSet(true); }).obser
 // Xed 26 Nov: a double tap anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
 // On the small chat (Watch, games) it becomes a small office chat in the same place; a double tap on that comes back (passcode first).
 // Buttons there wait a quarter second before acting, so the first tap of a double tap never starts a call, ends one or closes the chat.
-const DT_ZONE = '#dock .chatTop, #dock .bar, #callBar, #dock:not(.open), .fake.mini, .fake .chatTop, .fake .bar', DT_WAIT = '#dock .chatTop button, #callBar button';
+const DT_ZONE = '#dock .chatTop, #dock .bar, #callBar, #dock:not(.open)', DT_WAIT = '#dock .chatTop button, #callBar button';
 let dt = null, dtEatAt = 0, dtHeld = null, dtPass = false;
 function dtHide(mode) {
-  if (mode === 'back') { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); return; }
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   store.set('fake', null);
   if (mode === 'mini') { if (chatIsOpen()) closeChat(); hideSet(true, true); return; }
@@ -9261,14 +9260,14 @@ function dtHide(mode) {
 addEventListener('pointerdown', ev => {
   if (!ev.isPrimary) return;
   const z = ev.target.closest && ev.target.closest(DT_ZONE);
-  if (!z || !$('lock').hidden || (hiding && !fkMini && !z.closest('.fake'))) { dt = null; return; }   // Xed 26 Nov: the big office chat's banner and message box take a double tap too
+  if (!z || !$('lock').hidden || hiding) { dt = null; return; }   // Xed 26 Nov: a double tap does nothing in the office chat (big or small); holding the app name is the way back
   if (dt && ev.timeStamp - dt.at < 350 && Math.hypot(ev.clientX - dt.x, ev.clientY - dt.y) < 60) {
     const mode = dt.mode; dt = null; ev.preventDefault(); ev.stopImmediatePropagation(); dtEatAt = Date.now();
     if (dtHeld) { clearTimeout(dtHeld); dtHeld = null; }
     clearTimeout(chatTapT); clearTimeout(fkMiniT);   // the first tap of the two does nothing
     tap(); dtHide(mode); return;
   }
-  dt = { at: ev.timeStamp, x: ev.clientX, y: ev.clientY, mode: z.closest('.fake') ? 'back' : z.closest('#dock') && !chatIsOpen() ? 'mini' : 'full' };
+  dt = { at: ev.timeStamp, x: ev.clientX, y: ev.clientY, mode: z.closest('#dock') && !chatIsOpen() ? 'mini' : 'full' };
 }, true);
 addEventListener('click', ev => {
   if (dtEatAt && Date.now() - dtEatAt < 700) { dtEatAt = 0; ev.preventDefault(); ev.stopImmediatePropagation(); return; }   // the second tap's click
