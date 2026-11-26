@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#000000">
 <title>1+1=1</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -545,6 +545,37 @@
   .onceBtn.on { border-style: solid; border-color: var(--blue); background: var(--blue); }
   #imOnceTxt { flex: 1; font-size: 15px; }
   #imGo { width: 52px; height: 52px; }
+  html { touch-action: manipulation; }   /* Xed 26 Nov: a quick double tap never zooms the app */
+  /* Xed 26 Nov: many photos at once (up to 50). The send screen shows them as a grid; in the chat 5 or more in a row become one album */
+  #imPrev .imStage { position: relative; }
+  .imGrid { position: absolute; inset: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; align-content: start; }
+  .imGrid[hidden] { display: none; }
+  .imGT { position: relative; }
+  .imGrid canvas { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; background: #1c1c1e; }
+  .imGO { position: absolute; right: 6px; bottom: 6px; width: 28px; height: 28px; padding: 0; border: 2px dashed rgba(255, 255, 255, .85); border-radius: 50%; background: rgba(0, 0, 0, .4); color: #fff; font-size: 13px; font-weight: 700; transition: transform .1s ease-out, background-color .15s; }
+  .imGO:active { transform: scale(.88); }
+  .imGO[aria-pressed=true] { border-style: solid; border-color: var(--blue); background: var(--blue); }   /* this one photo is view once; the rest stay normal */
+  #imPrev.multi #imCv, #imPrev.multi .imTool, #imPrev.multi #imOnceBtn, #imPrev.multi .imPens { display: none; }
+  .imAlb { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; width: min(64vw, 260px); border-radius: 8px; overflow: hidden; }
+  .imAlb .imT { position: relative; aspect-ratio: 1; overflow: hidden; background: rgba(255, 255, 255, .06); cursor: pointer; }
+  .imAlb .imT img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .imAlb .imT:active img { opacity: .8; }
+  .imAlb b { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .5); color: #fff; font-size: 26px; font-weight: 600; letter-spacing: -.01em; pointer-events: none; }
+  /* Xed 26 Nov: crop and draw before sending, like WhatsApp. Tools are the same 42 px circles as the close button; the one in use turns white. */
+  .imTop span { flex: 1; }
+  .imTop .imTool { display: grid; place-items: center; padding: 0; transition: background-color .15s, color .15s, transform .1s ease-out; }
+  .imTop .imTool[hidden] { display: none; }
+  .imTop .imTool:active { transform: scale(.9); }
+  .imTool svg { width: 20px; height: 20px; }
+  .imTool[aria-pressed=true] { background: #fff; color: #000; }
+  .imPens { position: absolute; left: 0; right: 0; top: calc(58px + env(safe-area-inset-top)); z-index: 1; display: flex; justify-content: center; gap: 14px; padding: 2px 0 10px;   /* floats over the photo: it never moves the photo */
+    animation: imPensIn .3s cubic-bezier(.32, .72, 0, 1); }
+  .imPens[hidden] { display: none; }
+  @keyframes imPensIn { from { opacity: 0; transform: translateY(-6px); } }
+  .imPens button { width: 28px; height: 28px; padding: 0; border: 2px solid rgba(255, 255, 255, .85); border-radius: 50%; transition: transform .15s cubic-bezier(.32, .72, 0, 1); }
+  .imPens button[aria-pressed=true] { transform: scale(1.25); box-shadow: 0 0 0 2px #000, 0 0 0 4px #fff; }
+  #imCv { width: 100%; height: 100%; touch-action: none; }
+  @media (prefers-reduced-motion: reduce) { .imPens { animation: none; } }
   .stop { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px 0 12px; border: 0; border-radius: 18px;
           background: rgba(255, 69, 58, .16); color: #ff6961; font-size: 15px; font-weight: 600; }
   .stop::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: currentColor; }
@@ -1473,7 +1504,7 @@
   <button type="button" class="ghost" id="rptNo">Cancel</button>
 </form></div>
 <div class="fake" id="fake" hidden></div>
-<input type="file" id="imFile" accept="image/*" hidden>
+<input type="file" id="imFile" accept="image/*" multiple hidden>
 <div class="statSheet" id="findSheet" hidden role="dialog" aria-label="Search messages"><div class="stTop findTop"><input id="findQ" type="search" placeholder="Search all messages" autocomplete="off" enterkeyhint="search" aria-label="Search all messages"><button type="button" id="findX" aria-label="Close search">✕</button></div><div class="statBody" id="findBody"></div></div>
 <div class="statSheet" id="statSheet" hidden role="dialog" aria-label="Our stats"><div class="stTop"><b>Us, in numbers</b><button type="button" id="statX" aria-label="Close the stats">✕</button></div><div class="statBody" id="statBody"></div></div>
 <div class="infoSheet" id="infoSheet" hidden role="dialog" aria-modal="true" aria-label="Shared photos, GIFs and links"><div class="infoScrim" id="infoScrim"></div><div class="infoCard" id="infoCard">
@@ -1487,7 +1518,7 @@
 </div>
 <div class="dpCrop" id="dpCrop" hidden role="dialog" aria-modal="true" aria-label="Move and scale your photo"><div class="dpCropStage" id="dpCropStage"><img id="dpCropImg" alt="" draggable="false"><div class="dpCropRing" id="dpCropRing"></div></div><div class="dpCropTop"><b>Move and Scale</b></div><div class="dpCropBar"><button type="button" id="dpCropNo">Cancel</button><button type="button" id="dpCropYes">Choose</button></div></div>
 <div class="imView" id="imView" hidden><div class="imTop"><button type="button" id="imX" aria-label="Close the photo">✕</button><span id="imWho"></span></div><div class="imStage" id="imStage"><img id="imBig" alt="Photo" draggable="false"></div></div>
-<div class="imView" id="imPrev" hidden><div class="imTop"><button type="button" id="imPrevX" aria-label="Do not send">✕</button><span>Send a photo</span></div><div class="imStage"><img id="imPrevImg" alt="The photo to send" draggable="false"></div>
+<div class="imView" id="imPrev" hidden><div class="imTop"><button type="button" id="imPrevX" aria-label="Do not send">✕</button><span>Send a photo</span><button type="button" class="imTool" id="imUndo" aria-label="Undo" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button><button type="button" class="imTool" id="imCrop" aria-pressed="false" aria-label="Crop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg></button><button type="button" class="imTool" id="imPen" aria-pressed="false" aria-label="Draw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button></div><div class="imPens" id="imPens" hidden role="group" aria-label="Pen colour"></div><div class="imStage"><canvas id="imCv" aria-label="The photo to send"></canvas><div class="imGrid" id="imGrid" hidden></div></div>
   <div class="imSend"><button type="button" class="onceBtn" id="imOnceBtn" aria-label="View once">1</button><span id="imOnceTxt"></span><button type="button" class="icon send" id="imGo" aria-label="Send the photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></div></div>
 <div class="splash" id="splash" aria-hidden="true"><b>1+1=1</b><span id="splashSide"></span></div>
 
@@ -3113,23 +3144,103 @@ function imSpent(id) {   // delete an opened view-once photo from this phone
   if (imUrls.has(id)) { URL.revokeObjectURL(imUrls.get(id)); imUrls.delete(id); }
   renderChat();
 }
-async function imPrepare(file) {
+async function imPick(file) {   // the photo as picked, upright
   if (!file || !/^image\//.test(file.type || 'image/')) { notify('That file is not a photo.'); return null; }
-  let bmp;
-  try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch { notify('This photo could not be opened.'); return null; }
-  try {
-    for (const [max, q] of [[1600, .82], [1280, .75], [1024, .68]]) {
-      const k = Math.min(1, max / Math.max(bmp.width, bmp.height)), w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
-      const cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
-      const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', q));
-      if (!blob || (blob.size > 450000 && max !== 1024)) continue;
-      if (blob.size > 2e6) break;
-      const tk = 24 / Math.max(w, h), tc = document.createElement('canvas'); tc.width = Math.max(1, Math.round(w * tk)); tc.height = Math.max(1, Math.round(h * tk));
-      tc.getContext('2d').drawImage(cv, 0, 0, tc.width, tc.height);
-      return { blob, w, h, t: tc.toDataURL('image/jpeg', .5).split(',')[1] || '' };
-    }
-  } finally { bmp.close && bmp.close(); }
+  try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch { notify('This photo could not be opened.'); return null; }
+}
+// Xed 26 Nov: smaller photos, so they arrive fast on slow internet: 1280 px on the long side (sharp on any phone screen), usually 100-220 KB
+async function imSquash(img) {
+  for (const [max, q] of [[1280, .72], [1080, .66], [960, .6]]) {
+    const k = Math.min(1, max / Math.max(img.width, img.height)), w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', q));
+    if (!blob || (blob.size > 220000 && max !== 960)) continue;
+    if (blob.size > 2e6) break;
+    const tk = 24 / Math.max(w, h), tc = document.createElement('canvas'); tc.width = Math.max(1, Math.round(w * tk)); tc.height = Math.max(1, Math.round(h * tk));
+    tc.getContext('2d').drawImage(cv, 0, 0, tc.width, tc.height);
+    return { blob, w, h, t: tc.toDataURL('image/jpeg', .5).split(',')[1] || '' };
+  }
   notify('This photo is too big to send.'); return null;
+}
+// Xed 26 Nov: crop and draw before sending. The photo is edited at up to 2400 px; only the finished one is made small.
+// Crop: drag a corner to resize, drag inside to move. Draw: the finger draws in the chosen colour. Undo steps back one change.
+const IM_PENS = ['#ff3b30', '#ffcc00', '#34c759', '#0a84ff', '#ffffff'];
+let imEd = null, imDrag = null;
+function imEdOpen(bmp) {
+  const k = Math.min(1, 2400 / Math.max(bmp.width, bmp.height)), src = document.createElement('canvas');
+  src.width = Math.max(1, Math.round(bmp.width * k)); src.height = Math.max(1, Math.round(bmp.height * k)); src.getContext('2d').drawImage(bmp, 0, 0, src.width, src.height);
+  imEd = { src, crop: { x: 0, y: 0, w: src.width, h: src.height }, strokes: [], hist: [], mode: '', pen: IM_PENS[0] };
+}
+function imEdView() {   // where the photo sits on the screen: the cropped part, or the whole photo while cropping (with room for the handles)
+  const r = $('imCv').getBoundingClientRect(), a = imEd.mode === 'crop' ? { x: 0, y: 0, w: imEd.src.width, h: imEd.src.height } : imEd.crop, pad = imEd.mode === 'crop' ? 22 : 0;
+  const sc = Math.min((r.width - pad * 2) / a.w, (r.height - pad * 2) / a.h);
+  return { r, a, sc, ox: (r.width - a.w * sc) / 2, oy: (r.height - a.h * sc) / 2 };
+}
+function imStrokes(g, list) {
+  for (const st of list) { g.strokeStyle = st.c; g.lineWidth = st.w; g.lineCap = g.lineJoin = 'round'; g.beginPath(); st.p.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); if (st.p.length === 1) g.lineTo(st.p[0][0] + .01, st.p[0][1]); g.stroke(); }
+}
+function imEdPaint() {
+  if (!imEd) return;
+  const cv = $('imCv'), dpr = devicePixelRatio || 1, v = imEdView(), W = Math.round(v.r.width * dpr), H = Math.round(v.r.height * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, v.r.width, v.r.height);
+  g.save(); g.translate(v.ox, v.oy); g.scale(v.sc, v.sc); g.translate(-v.a.x, -v.a.y);
+  g.beginPath(); g.rect(v.a.x, v.a.y, v.a.w, v.a.h); g.clip(); g.drawImage(imEd.src, 0, 0); imStrokes(g, imEd.strokes); g.restore();
+  if (imEd.mode !== 'crop') return;
+  const c = imEd.crop, x = v.ox + c.x * v.sc, y = v.oy + c.y * v.sc, w = c.w * v.sc, h = c.h * v.sc, X = v.ox, Y = v.oy, AW = v.a.w * v.sc, AH = v.a.h * v.sc;
+  g.fillStyle = 'rgba(0, 0, 0, .55)'; g.fillRect(X, Y, AW, y - Y); g.fillRect(X, y + h, AW, Y + AH - y - h); g.fillRect(X, y, x - X, h); g.fillRect(x + w, y, X + AW - x - w, h);   // outside the crop goes dim
+  g.strokeStyle = 'rgba(255, 255, 255, .9)'; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, w - 1, h - 1);
+  g.strokeStyle = 'rgba(255, 255, 255, .28)'; g.beginPath(); for (const f of [1 / 3, 2 / 3]) { g.moveTo(x + w * f, y); g.lineTo(x + w * f, y + h); g.moveTo(x, y + h * f); g.lineTo(x + w, y + h * f); } g.stroke();   // thirds, as in the Photos app
+  g.strokeStyle = '#fff'; g.lineWidth = 3; g.lineCap = 'round'; const L = Math.min(20, w / 3, h / 3);
+  for (const [cx, cy, dx, dy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) { g.beginPath(); g.moveTo(cx + dx * L, cy); g.lineTo(cx, cy); g.lineTo(cx, cy + dy * L); g.stroke(); }
+}
+function imEdTools() {
+  for (const [id, m] of [['imCrop', 'crop'], ['imPen', 'pen']]) $(id).setAttribute('aria-pressed', imEd && imEd.mode === m);
+  $('imPens').hidden = !imEd || imEd.mode !== 'pen'; $('imUndo').hidden = !imEd || !imEd.hist.length;
+  $('imPens').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', !!imEd && b.dataset.c === imEd.pen));
+}
+$('imPens').innerHTML = IM_PENS.map(c => `<button type="button" data-c="${c}" style="background:${c}" aria-label="Colour"></button>`).join('');
+$('imPens').onclick = ev => { const b = ev.target.closest('[data-c]'); if (!b || !imEd) return; tap(); imEd.pen = b.dataset.c; imEdTools(); };
+const imEdMode = m => { if (!imEd) return; tap(); imEd.mode = imEd.mode === m ? '' : m; imEdTools(); imEdPaint(); };
+$('imCrop').onclick = () => imEdMode('crop');
+$('imPen').onclick = () => imEdMode('pen');
+$('imUndo').onclick = () => { if (!imEd || !imEd.hist.length) return; tap(); const h = imEd.hist.pop(); imEd.crop = h.crop; imEd.strokes.length = h.n; imEdTools(); imEdPaint(); };
+const imAt = (ev, v) => [(ev.clientX - v.r.left - v.ox) / v.sc + v.a.x, (ev.clientY - v.r.top - v.oy) / v.sc + v.a.y];
+$('imCv').addEventListener('pointerdown', ev => {
+  if (!imEd || !imEd.mode || imDrag) return;
+  const v = imEdView(), [bx, by] = imAt(ev, v); $('imCv').setPointerCapture(ev.pointerId);
+  imEd.hist.push({ crop: { ...imEd.crop }, n: imEd.strokes.length });
+  if (imEd.mode === 'pen') { const st = { c: imEd.pen, w: 5 / v.sc, p: [[bx, by]] }; imEd.strokes.push(st); imDrag = { id: ev.pointerId, st, v }; imEdPaint(); return; }
+  const c = imEd.crop, near = 30 / v.sc, l = Math.abs(bx - c.x) < near, r = Math.abs(bx - c.x - c.w) < near, t = Math.abs(by - c.y) < near, b = Math.abs(by - c.y - c.h) < near;
+  const kind = (t || b) && (l || r) ? (t ? 'n' : 's') + (l ? 'w' : 'e') : bx > c.x && bx < c.x + c.w && by > c.y && by < c.y + c.h ? 'move' : '';
+  if (!kind) { imEd.hist.pop(); return; }
+  imDrag = { id: ev.pointerId, kind, c0: { ...c }, bx, by, v };
+});
+$('imCv').addEventListener('pointermove', ev => {
+  if (!imDrag || ev.pointerId !== imDrag.id) return;
+  const v = imDrag.v, [bx, by] = imAt(ev, v);
+  if (imDrag.st) { const p = imDrag.st.p, q = p[p.length - 1]; if (Math.hypot(bx - q[0], by - q[1]) * v.sc >= 1.5) { p.push([bx, by]); imEdPaint(); } return; }
+  const W = imEd.src.width, H = imEd.src.height, c0 = imDrag.c0, dx = bx - imDrag.bx, dy = by - imDrag.by, min = Math.max(24, 60 / v.sc), k = imDrag.kind, c = { ...c0 };
+  if (k === 'move') { c.x = Math.min(Math.max(0, c0.x + dx), W - c0.w); c.y = Math.min(Math.max(0, c0.y + dy), H - c0.h); }
+  else {
+    if (k.includes('w')) { c.x = Math.min(Math.max(0, c0.x + dx), c0.x + c0.w - min); c.w = c0.x + c0.w - c.x; }
+    if (k.includes('e')) c.w = Math.min(Math.max(min, c0.w + dx), W - c0.x);
+    if (k.includes('n')) { c.y = Math.min(Math.max(0, c0.y + dy), c0.y + c0.h - min); c.h = c0.y + c0.h - c.y; }
+    if (k.includes('s')) c.h = Math.min(Math.max(min, c0.h + dy), H - c0.y);
+  }
+  imEd.crop = c; imEdPaint();
+});
+const imDragEnd = ev => {
+  if (!imDrag || (ev && ev.pointerId !== imDrag.id)) return;
+  const c = imEd.crop; imEd.crop = { x: Math.round(c.x), y: Math.round(c.y), w: Math.round(c.w), h: Math.round(c.h) };
+  const h = imEd.hist[imEd.hist.length - 1]; if (!imDrag.st && h && JSON.stringify(h.crop) === JSON.stringify(imEd.crop)) imEd.hist.pop();   // a touch that changed nothing is no step to undo
+  imDrag = null; imEdTools(); imEdPaint();
+};
+$('imCv').addEventListener('pointerup', imDragEnd); $('imCv').addEventListener('pointercancel', imDragEnd);
+addEventListener('resize', () => { if (imEd && !$('imPrev').hidden) imEdPaint(); });
+function imEdOut() {   // the finished photo: the cropped part with the drawing, at full editing size
+  const c = imEd.crop, cv = document.createElement('canvas'); cv.width = Math.max(1, c.w); cv.height = Math.max(1, c.h);
+  const g = cv.getContext('2d'); g.translate(-c.x, -c.y); g.drawImage(imEd.src, 0, 0); imStrokes(g, imEd.strokes); return cv;
 }
 async function sendPhoto(p, vo) {
   const id = b64url(rand(8)), im = { s: p.blob.size, w: p.w, h: p.h, m: 'image/jpeg', t: vo ? '' : p.t, vo };
@@ -3148,9 +3259,25 @@ function imHtml(c, meta) {
     const label = c.who === 'me' ? (c.st >= 3 ? 'Opened' : 'Photo') : c.pl ? 'Opened' : has ? 'Photo' : 'Photo arriving…';
     return `<div class="imOnce${imSpentNow(c) ? ' spent' : ''}">${ONCE_IC}<span>${label}</span></div><div class="vnFoot">${meta}</div>`;
   }
+  const al = imAlb.first.get(c.id); if (al) return imAlbHtml(al, meta);
   const gone = vnReady && !has && vnGone.has(c.id), ratio = Math.max(.5, Math.min(2, c.im.w / c.im.h));
   const pic = c.im.t ? `data:image/jpeg;base64,${c.im.t}` : '';
   return `<div class="imBox" style="aspect-ratio:${ratio.toFixed(3)}"><img class="imPic${has ? '' : ' blur'}" data-im="${esc(c.id)}" alt="Photo"${pic ? ` src="${pic}"` : ''} draggable="false">${has ? '' : gone ? '<span class="imGone">Waiting for the other phone</span>' : `<span class="imWait">${VN_WAIT}</span>`}${meta}</div>`;
+}
+let imAlb = { first: new Map(), skip: new Set() }, imList = [], imIdx = 0;
+function imAlbums(view) {   // 5 or more photos in a row from one side, each within 2 minutes of the one before: one album, like WhatsApp
+  const first = new Map(), skip = new Set(); let run = [];
+  const end = () => { if (run.length >= 5) { first.set(run[0].id, run.map(c => c.id)); run.slice(1).forEach(c => skip.add(c.id)); } run = []; };
+  for (const c of view) {
+    const ok = c.im && !c.im.vo && !c.re;
+    if (ok && run.length && run[0].who === c.who && c.at - run[run.length - 1].at < 120000) run.push(c); else { end(); if (ok) run = [c]; }
+  }
+  end(); return { first, skip };
+}
+function imAlbHtml(ids, meta) {   // four tiles; the fourth says how many more
+  const tiles = ids.slice(0, 4).map((id, i) => { const x = msgById(id), has = vnHave.has(id), pic = x && x.im.t ? `data:image/jpeg;base64,${x.im.t}` : '';
+    return `<span class="imT"><img class="imPic${has ? '' : ' blur'}" data-im="${esc(id)}" alt="Photo"${pic ? ` src="${pic}"` : ''} draggable="false">${i === 3 && ids.length > 4 ? `<b>+${ids.length - 3}</b>` : ''}</span>`; }).join('');
+  return `<div class="imAlb" aria-label="${ids.length} photos">${tiles}</div><div class="vnFoot">${meta}</div>`;
 }
 function imPaint() {   // the real photo replaces the small blurred preview once it is on this phone
   for (const img of $('msgs').querySelectorAll('img.imPic')) {
@@ -3163,13 +3290,20 @@ async function imOpen(id) {
   const c = msgById(id); if (!c || !c.im) return;
   if (c.im.vo && c.who === 'me') { notify('A view-once photo cannot be opened by the one who sent it.'); return; }
   if (imSpentNow(c)) { notify('This view-once photo was already opened.'); return; }
-  const v = await vnLoad(id);
-  if (!v || !v.b) { vnWant(id); notify('This photo is still on its way.'); return; }
-  imShown = { id, vo: c.im.vo, url: URL.createObjectURL(v.b) };
-  imZoom(1, 0, 0); $('imBig').src = imShown.url;
-  $('imWho').textContent = (c.who === 'me' ? 'You' : who()) + (c.im.vo ? ' · view once' : '');
+  imList = c.im.vo ? [id] : chat.filter(x => x.im && !x.im.vo).map(x => x.id);   // Xed 26 Nov: swipe through every photo in the chat
+  if (!(await imShowAt(Math.max(0, imList.indexOf(id))))) return;
   $('imView').hidden = false; tap();
+}
+async function imShowAt(i) {
+  const id = imList[i], c = id && msgById(id); if (!c) return false;
+  const v = await vnLoad(id);
+  if (!v || !v.b) { vnWant(id); notify('This photo is still on its way.'); return false; }
+  if (imShown) URL.revokeObjectURL(imShown.url);
+  imIdx = i; imShown = { id, vo: c.im.vo, url: URL.createObjectURL(v.b) };
+  imZoom(1, 0, 0); $('imBig').src = imShown.url;
+  $('imWho').textContent = (c.who === 'me' ? 'You' : who()) + (c.im.vo ? ' · view once' : imList.length > 1 ? ` · ${i + 1} of ${imList.length}` : '');
   if (c.who === 'them' && !c.pl) { c.pl = true; keepMsg(c); renderChat(); send({ t: 'ack', id, vn: true, pl: true }); }   // opened: his ticks turn blue; a view-once photo can never open again
+  return true;
 }
 function imCloseView() {
   if (!imShown) return false;
@@ -3179,6 +3313,7 @@ function imCloseView() {
   return true;
 }
 function imClick(ev) {
+  const t = ev.target.closest('.imAlb .imT'); if (t) { imOpen(t.querySelector('img').dataset.im); return true; }   // a tile of an album opens that photo
   const el = ev.target.closest('.imBox, .imOnce'), b = el && el.closest('.bubble');
   if (!b) return false;
   imOpen(b.dataset.id); return true;
@@ -3201,8 +3336,13 @@ imStageEl.addEventListener('pointermove', ev => {
   if (p.length === 2 && imG.d) { const s = Math.max(1, Math.min(5, imG.s * Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) / imG.d)); imZoom(s, imG.x + (p[0].x + p[1].x) / 2 - imG.cx, imG.y + (p[0].y + p[1].y) / 2 - imG.cy); }
   else if (p.length === 1 && imZ.s > 1 && imG.px != null) imZoom(imZ.s, imG.x + ev.clientX - imG.px, imG.y + ev.clientY - imG.py);
   else if (p.length === 1 && imG.px != null) {   // Xed 14 Nov: not zoomed in, one finger going down: the photo follows the finger and the black fades; let go far or fast enough and it closes
-    const dy = ev.clientY - imG.py;
-    if (!imG.pull && dy > 10 && dy > Math.abs(ev.clientX - imG.px) * 1.2) imG.pull = true;
+    const dy = ev.clientY - imG.py, dx = ev.clientX - imG.px;
+    if (!imG.pull && !imG.sw) { if (dy > 10 && dy > Math.abs(dx) * 1.2) imG.pull = true; else if (imList.length > 1 && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) imG.sw = true; }
+    if (imG.sw) {   // Xed 26 Nov: sideways: the next or the previous photo; past the first or last it only gives a little
+      const edge = (dx > 0 && imIdx === 0) || (dx < 0 && imIdx === imList.length - 1), img = $('imBig');
+      imG.vx = (ev.clientX - (imG.lx == null ? ev.clientX : imG.lx)) / Math.max(1, ev.timeStamp - (imG.lt || ev.timeStamp)); imG.lx = ev.clientX; imG.lt = ev.timeStamp; imG.x1 = dx; imG.edge = edge;
+      img.style.transition = 'none'; img.style.transform = `translateX(${edge ? dx * .25 : dx}px)`; return;
+    }
     if (!imG.pull) return;
     const y = Math.max(0, dy), img = $('imBig');
     imG.vy = (ev.clientY - (imG.ly == null ? ev.clientY : imG.ly)) / Math.max(1, ev.timeStamp - (imG.lt || ev.timeStamp)); imG.ly = ev.clientY; imG.lt = ev.timeStamp; imG.y1 = y;
@@ -3212,6 +3352,19 @@ imStageEl.addEventListener('pointermove', ev => {
 });
 for (const e of ['pointerup', 'pointercancel']) imStageEl.addEventListener(e, ev => {
   imPtr.delete(ev.pointerId);
+  if (imG && imG.sw && !imPtr.size) {
+    const dx = imG.x1 || 0, dir = dx < 0 ? 1 : -1, img = $('imBig'), calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const go = e === 'pointerup' && !imG.edge && (Math.abs(dx) > innerWidth * .2 || Math.abs(imG.vx || 0) > .5); imG = null; imTapAt = 0;
+    if (!go) { img.style.transition = 'transform 280ms cubic-bezier(.32, .72, 0, 1)'; img.style.transform = 'translate(0px, 0px) scale(1)'; setTimeout(imPullEnd, 280); return; }
+    img.style.transition = calm ? 'opacity 120ms' : 'transform 170ms cubic-bezier(.4, 0, 1, 1)'; if (calm) img.style.opacity = '0'; else img.style.transform = `translateX(${-dir * innerWidth}px)`;   // it leaves the way the finger went
+    setTimeout(async () => {
+      img.style.transition = 'none'; const ok = await imShowAt(imIdx + dir);
+      img.style.transform = ok && !calm ? `translateX(${dir * innerWidth * .3}px)` : 'translate(0px, 0px) scale(1)'; img.getBoundingClientRect();   // the next one comes in from the other side
+      img.style.transition = calm ? 'opacity 160ms' : 'transform 300ms cubic-bezier(.32, .72, 0, 1)'; img.style.transform = 'translate(0px, 0px) scale(1)'; img.style.opacity = '';
+      setTimeout(imPullEnd, 300);
+    }, calm ? 120 : 170);
+    return;
+  }
   if (imG && imG.pull && !imPtr.size) {
     const go = e === 'pointerup' && (imG.y1 > 110 || imG.vy > .55), img = $('imBig'), calm = matchMedia('(prefers-reduced-motion: reduce)').matches, shown = imShown; imG = null; imTapAt = 0;
     if (go && calm) { imPullEnd(); imCloseView(); return; }
@@ -3226,21 +3379,42 @@ for (const e of ['pointerup', 'pointercancel']) imStageEl.addEventListener(e, ev
 });
 for (const id of ['imView', 'imPrev']) $(id).addEventListener('contextmenu', ev => ev.preventDefault());   // no "save image" on a long press
 $('imX').onclick = () => { tap(); imCloseView(); };
+document.addEventListener('gesturestart', ev => ev.preventDefault());   // iPhone: no pinch-zoom of the whole app (the photo viewer has its own)
 // sending: pick from the gallery or take one with the camera, see it, choose view once, send
 $('imBtn').onclick = () => { tap(); $('imFile').value = ''; $('imFile').click(); };
 $('imFile').onchange = async () => {
-  const f = $('imFile').files && $('imFile').files[0]; $('imFile').value = '';
-  if (!f) return;
-  const p = await imPrepare(f); if (!p) return;
-  imPrep = { ...p, url: URL.createObjectURL(p.blob) };
-  $('imPrevImg').src = imPrep.url; imOnceShow(); $('imPrev').hidden = false;
+  const fs = [...($('imFile').files || [])]; $('imFile').value = '';
+  if (fs.length > 1) { imMulti(fs.slice(0, 50)); if (fs.length > 50) notify('Up to 50 photos at a time: the first 50 are ready.'); return; }
+  const f = fs[0]; if (!f) return;
+  const bmp = await imPick(f); if (!bmp) return;
+  try { imEdOpen(bmp); } finally { bmp.close && bmp.close(); }
+  imPrep = imEd; imOnceShow(); imEdTools(); $('imPrev').hidden = false; imEdPaint();
 };
 function imOnceShow() { $('imOnceBtn').classList.toggle('on', imOnce); $('imOnceBtn').setAttribute('aria-pressed', imOnce); $('imOnceTxt').textContent = imOnce ? 'View once: on' : 'View once: off'; }
 $('imOnceBtn').onclick = () => { tap(); imOnce = !imOnce; store.set('imOnce', imOnce); imOnceShow(); };
-function imCancel() { if (!imPrep) return false; URL.revokeObjectURL(imPrep.url); imPrep = null; $('imPrev').hidden = true; $('imPrevImg').removeAttribute('src'); return true; }
+function imCancel() { if (!imPrep) return false; imPrep = imEd = imDrag = imMany = null; $('imPrev').hidden = true; $('imPrev').classList.remove('multi'); $('imGrid').hidden = true; $('imGrid').replaceChildren(); imEdTools(); return true; }
+let imMany = null, imManyVo = new Set();
+async function imMulti(files) {   // Xed 26 Nov: up to 50 at once: a grid to look at, one tap sends them all (in order, made small one by one)
+  imPrep = imMany = files; imManyVo = new Set(); imEd = null; imEdTools();
+  $('imPrev').classList.add('multi'); $('imGrid').hidden = false; $('imGrid').replaceChildren(); $('imOnceTxt').textContent = `${files.length} photos`; $('imPrev').hidden = false;
+  $('imGrid').innerHTML = files.map((f, i) => `<div class="imGT"><canvas></canvas><button type="button" class="imGO" data-i="${i}" aria-pressed="false" aria-label="View once">1</button></div>`).join('');
+  const tiles = $('imGrid').querySelectorAll('canvas');
+  for (const [i, f] of files.entries()) {   // small previews, one at a time, so 50 big photos never fill the phone's memory
+    if (imMany !== files) return;
+    let bm; try { bm = await createImageBitmap(f, { imageOrientation: 'from-image', resizeWidth: 240, resizeQuality: 'medium' }); } catch { continue; }
+    const c = tiles[i]; c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0); bm.close && bm.close();
+  }
+}
+const imManyTxt = () => { $('imOnceTxt').textContent = `${imMany.length} photos` + (imManyVo.size ? ` · ${imManyVo.size} view once` : ''); };
+$('imGrid').onclick = ev => {   // Xed 26 Nov: the "1" on a photo makes only that one view once
+  const b = ev.target.closest('.imGO'); if (!b || !imMany) return;
+  tap(); const i = +b.dataset.i, on = !imManyVo.has(i); on ? imManyVo.add(i) : imManyVo.delete(i); b.setAttribute('aria-pressed', on); imManyTxt();
+};
 $('imPrevX').onclick = () => { tap(); imCancel(); };
 steady(() => { if (imPrep && !$('imPrev').hidden && Date.now() - typingSent > 2000) { typingSent = Date.now(); send({ t: 'typing', ph: true }); } }, 1000);   // choosing a photo to send: the other phone sees "sending a photo"
-$('imGo').onclick = () => { if (!imPrep) return; const p = imPrep; imCancel(); sendPhoto(p, imOnce); };
+$('imGo').onclick = async () => {
+  if (imMany) { const fs = imMany, vo = imManyVo; imCancel(); for (const [i, f] of fs.entries()) { const b = await imPick(f); if (!b) continue; let p; try { p = await imSquash(b); } finally { b.close && b.close(); } if (p) await sendPhoto(p, vo.has(i)); } return; }   // only the ones marked are view once
+  if (!imEd || $('imGo').disabled) return; $('imGo').disabled = true; try { const p = await imSquash(imEdOut()); imCancel(); if (p) sendPhoto(p, imOnce); } finally { $('imGo').disabled = false; } };
 const imBack = () => imCloseView() || imCancel();   // the phone's Back button closes the photo first
 document.addEventListener('visibilitychange', () => { if (document.hidden) imBack(); });   // leaving the screen closes the photo (a view-once photo counts as seen)
 // ---- our stats (Xed 13 Nov): fun romantic numbers about the two of you, counted from the chat on this phone only. Every
@@ -4015,7 +4189,8 @@ function renderChat() {
   const keepV = gifKeep();
   for (const c of view) lpWant(c);
   const tpEl = $('typing'); tpEl.remove();   // the typing bubble lives right under the last message
-  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + callMix(view, c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''} ${c.id === seenId ? 'seenOn' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}${c.id === seenId ? seenEl() : ''}</div>`; });
+  imAlb = imAlbums(view);   // Xed 26 Nov: photo albums
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + callMix(view, c => { if (imAlb.skip.has(c.id)) return ''; const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''} ${c.id === seenId ? 'seenOn' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}${c.id === seenId ? seenEl() : ''}</div>`; });
   box.appendChild(tpEl);
   box.scrollTop = toEnd ? box.scrollHeight : keep;
   seenWas = seenId;
@@ -7008,7 +7183,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-182034';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-184114';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -8793,9 +8968,13 @@ function fkBuild() {   // copies of the real top bar, chat header and message bo
   const box = $('fake'), wrap = document.createElement('div'); wrap.className = 'fkIn';
   const top = fkCopy($('topbar')); top.querySelectorAll('.status').forEach(x => x.remove());
   top.querySelectorAll('[role=tab]').forEach(t => { t.setAttribute('aria-selected', t.dataset.p === 'chat'); t.onclick = () => top.querySelectorAll('[role=tab]').forEach(x => x.setAttribute('aria-selected', x === t)); });
+  const h1 = top.querySelector('h1'); if (h1) h1.textContent = isRemote ? 'Corelink' : 'Campus';   // Xed 26 Nov: his an office app, hers a college one
+  top.querySelectorAll('.hleft .me').forEach(x => x.remove());   // no heart
   const eye = top.querySelector('.hideBtn'); eye.innerHTML = EYE_ON; eye.setAttribute('aria-label', 'Show'); eye.dataset.fk = 'show';
   const dock = fkCopy($('dock')); dock.classList.add('open');
   dock.querySelectorAll('.grab, .peek, .pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .bubble, .lp').forEach(x => x.remove());
+  const sb = dock.querySelector('[aria-label="Our stats"]'); if (sb) sb.textContent = '📊 Stats';
+  for (const b of dock.querySelectorAll('.chatTop button')) b.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); });   // call, repeat call, search, stats, close: look real, do nothing
   const who = dock.querySelector('.chatWho'); if (who) { fkDp(who.querySelector('.dp'), true); who.querySelector('b').textContent = fk.name; who.querySelector('small').textContent = fk.seen; who.querySelector('small').classList.toggle('live', fk.seen === 'online'); }   // green only when online, whatever the real header showed
   fkForm(dock);
   wrap.appendChild(top); box.replaceChildren(wrap, dock);
