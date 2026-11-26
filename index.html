@@ -7208,7 +7208,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-203844';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-204447';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -8949,28 +8949,62 @@ const FK_BITS = [   // short everyday talks; a fake chat is 1 to 4 of them, hour
   [['t', 'Woh file mil gayi?'], ['t', 'Jo kal di thi'], ['m', 'Haan desk pe rakhi hai 📁']],
   [['m', 'Mechanic ka number bhejna'], ['t', 'Purana wala ya naya?'], ['m', 'Naya wala'], ['t', 'Abhi bhejta hun']],
 ];
-const FK_ME = ['Ji, ho jayega 👍', 'Bhej diya hai, check kar lein', 'Done ✅', 'Abhi update kar diya', 'Thora time lagega', 'Ok noted', 'Report email kar di hai 📧', 'Kal tak complete ho jayega',
-  'Meeting ka link share kar diya', 'Figures sheet mein daal diye', 'Ji bilkul', 'Client ko reply kar diya', 'Sir ko inform kar diya', 'Invoice attach kar di', 'Thanks 🙏', 'Ok, 5 minute', 'Draft ready hai',
-  'Approval ka wait hai', 'Theek hai 👌', 'Haan, room 3 mein', 'Order confirm ho gaya', 'Slides update ho gayi hain', 'Payment ka follow up kiya', 'Files shared drive pe hain', 'Kal subah discuss karte hain',
-  'Schedule dekh liya', 'Courier receive ho gaya 📦', 'List bana di hai', 'Signature ho gaye', 'Noted, Friday tak', 'Ok 👍', 'Sure, abhi dekhte hain'];
-const FK_THEM = ['Report ka kya bana?', 'Meeting 3 baje hai, yaad hai na?', 'File share kar do please', 'Client ka email dekha?', 'Invoice approve ho gayi?', 'Kal ki presentation ready hai?', 'Data update ho gaya?',
-  'Ek minute call pe aa sakte hain?', 'Is mahine ka target kitna hai?', 'Manager ne figures maange hain 📊', 'Sheet mein total check kar lein', 'Lunch ke baad meeting room 2', 'Woh quotation bhej dein', 'Leave approve ho gayi?',
-  'Slides mein logo update karna hai', 'Payment kab tak release hogi?', 'Order confirm hua?', 'Training ka schedule aa gaya 📅', 'Printer phir kharab hai 😅', 'Audit wale kal aa rahe hain', 'Task ka kya status hai?',
-  'Draft dekh ke batayein', 'Minutes of meeting bhej dena', 'Courier aa gaya?', 'Stock ki list chahiye', 'Branch se call aayi thi', 'Agenda final ho gaya?', 'Is pe signature chahiye', 'Reminder: deadline Friday hai', 'Thanks for the update 👍'];
+// Xed 26 Nov: the real messages read as one talk that makes sense: each conversation (a 3 h gap starts a new one) follows one topic,
+// his messages take its next line for "me", hers the next line for "them". Lines are written to read well in any order of turns.
+// Each talk: [their 8 lines, my 8 lines]. His: an office colleague. Hers: a college friend.
+const FK_TALKS = isRemote ? [
+  [['Monthly report ka kya scene hai?', 'Last month se comparison bhi daal dena', 'Region wise breakdown bhi chahiye', 'Manager ne aaj shaam tak maangi hai', 'Theek, main bhi ek nazar dekh leta hun', 'Charts zabardast lag rahe hain 👌', 'Bas summary thori chhoti kar do', 'Perfect, aage bhej deta hun 👍'],
+   ['Report pe kaam chal raha hai', 'Figures sheet mein daal diye hain', 'Region wise bhi bana raha hun', 'Shaam tak pakka ho jayegi', 'Draft email kar diya hai, check kar lein', 'Charts bhi add kar diye 📊', 'Summary chhoti kar di', 'Shukriya 🙏']],
+  [['Kal client ke saath meeting hai, yaad hai na?', 'Presentation kaun banayega?', 'Pricing wali slide zaroor daalna', 'Unhon ne discount ka bhi poocha tha', 'Meeting room book kar liya?', 'Time 11 baje ka hai', 'Slides mujhe bhi bhej dena', 'Great, kal milte hain 👍'],
+   ['Ji yaad hai, tayyari chal rahi hai', 'Main bana raha hun presentation', 'Pricing slide add kar di', 'Discount pe sir se baat kar leta hun', 'Room 3 book kar liya hai', 'Ok, 10:45 tak aa jaunga', 'Slides email kar di hain 📧', 'Ji, kal milte hain']],
+  [['Supplier ki payment ka kya hua?', 'Invoice number kya tha?', 'Accounts wale details maang rahe hain', 'Approval sir se le li?', 'Kab tak release ho jayegi?', 'Unhon ne phir call kiya tha', 'Theek hai, main bata deta hun unhein', 'Shukriya 👍'],
+   ['Invoice accounts ko bhej di hai', 'Number sheet mein likha hai, bhejta hun', 'Details email kar di hain', 'Approval aa gayi ✅', 'Kal tak release ho jayegi', 'Main khud baat kar leta hun', 'Ji, unhein bata dein kal tak', 'Koi baat nahi']],
+  [['Training ka schedule aa gaya?', 'Kitne din ki hai?', 'Hum dono ka naam hai list mein?', 'Online hai ya office mein?', 'Laptop saath lana hoga?', 'Lunch bhi wahin hoga shayad', 'Acha, Monday ko milte hain', 'Ok 👍'],
+   ['Haan, email aayi hai abhi', 'Teen din ki hai, Monday se', 'Ji, dono ke naam hain', 'Office mein, training room mein', 'Haan laptop lana hai', 'Haan, unhon ne likha hai', 'Ji, InshaAllah', 'Theek hai 👍']],
+  [['Stock ki list update hui?', 'Kuch items kam lag rahe hain', 'Order kab dena hai?', 'Supplier se rate confirm kar lena', 'Delivery kitne din mein?', 'Warehouse ko bhi bata dena', 'Theek hai, mujhe copy bhej dena', 'Zabardast 👌'],
+   ['Ji, abhi update kar raha hun', 'Haan teen items low hain', 'Aaj shaam tak order de deta hun', 'Rate wahi hai jo pichli dafa tha', 'Kehte hain 3 din', 'Bata diya hai', 'Copy bhej di 📎', 'Shukriya']],
+  [['Kal chhutti pe ho?', 'Tumhara kaam kaun dekhega?', 'Woh pending emails ka kya?', 'Client ki call aayi to?', 'Theek, number de dena', 'Wapis kab aa rahe ho?', 'Acha, koi masla ho to call karunga', 'Enjoy karo 🙂'],
+   ['Ji, ek din ki leave li hai', 'Zeeshan dekh lega, bata diya hai', 'Aaj raat tak sab reply kar dunga', 'Unhein Zeeshan ka number de dena', 'Abhi bhejta hun', 'Parson subah', 'Ji zaroor', 'Shukriya 🙏']],
+] : [
+  [['Assignment ka kya bana?', 'Kitne pages ka hai?', 'References bhi dene hain na?', 'Deadline Friday hai, yaad hai?', 'Mera intro abhi bhi adhoora hai 😅', 'Format bhej sakti ho?', 'Tum bohat helpful ho 🙏', 'Ok kal class mein milte hain'],
+   ['Aadha ho gaya hai', 'Das pages ka hai', 'Haan, kam se kam paanch', 'Haan, Thursday tak khatam kar lungi', 'Main help kar deti hun', 'Haan, abhi bhejti hun 📎', 'Koi baat nahi 🙂', 'Ok, kal milte hain']],
+  [['Midterm ki date aa gayi?', 'Syllabus kitna hai?', 'Notes tumhare paas hain?', 'Library mein parhein kal?', 'Past papers bhi mil jayein to acha', 'Kaun sa chapter sab se mushkil hai?', 'Acha, mil ke kar lenge', 'Best of luck 🤞'],
+   ['Haan, agle Monday se', 'Pehle chaar chapters', 'Haan, photo bhej deti hun', 'Theek hai, 2 baje?', 'Senior se maang leti hun', 'Mujhe to chapter 3 lag raha hai', 'Haan, asaan ho jayega', 'Tumhein bhi 🤞']],
+  [['Project ka group bana?', 'Topic kya choose kiya?', 'Presentation kaun karega?', 'Slides ka design main kar dungi', 'Sir ko proposal kab dena hai?', 'Kal group ki meeting rakh lein?', 'Group pe message kar deti hun', 'Done 👍'],
+   ['Haan, hum chaar hain', 'Social media survey wala', 'Sab baari baari bolenge', 'Perfect, tumhara design acha hota hai', 'Wednesday tak', 'Haan, break mein', 'Ok, main bhi add kar deti hun', 'Theek hai 👍']],
+  [['Kal ki class cancel ho gayi?', 'Kisne bataya?', 'Makeup class kab hogi?', 'Attendance ka kya?', 'Ok, phir subah late aaungi', 'Canteen pe milna phir', 'Acha theek hai', 'Chalo 🙂'],
+   ['Haan, notice board pe laga hai', 'CR ne group pe dala tha', 'Saturday ko 10 baje', 'Lag jayegi, sir ne kaha hai', 'Haan, 11 baje tak aa jana', 'Pakka, 12 baje', 'Ok', 'Chalo phir']],
+  [['Woh book wapis kar dena jab ho jaye', 'Notes ki photocopy karwa li?', 'Kitne paise lage?', 'Mujhe bhi ek copy chahiye', 'Ok, kal le lungi', 'Highlight bhi kiya hai?', 'Shukriya 💐', 'Kal milte hain'],
+   ['Haan, kal le aaungi', 'Haan, aaj karwa li', '200 rupay', 'Tumhari bhi karwa leti hun', 'Theek hai', 'Haan, important wale', 'Koi baat nahi', 'Ok 👍']],
+  [['Fee challan mil gaya?', 'Last date kya hai?', 'Bank jaogi ya online?', 'Mera bhi ek kaam kar dogi?', 'Mera challan bhi jama karwa dena', 'Paise kal de dungi', 'Thank you so much 🙏', 'Kal milte hain'],
+   ['Haan, portal se download kar liya', '15 tareekh', 'Online kar dungi', 'Haan bolo', 'Theek hai, number bhej do', 'Koi baat nahi', 'Welcome 🙂', 'Ok']],
+];
 const FK_EMO = ['👍', '👌', '✅', '🙂', '🙏'], FK_DOC = ['Invoice', 'Quotation', 'Report', 'Statement', 'Receipt', 'Agenda', 'Schedule', 'Proposal'];
 const fkHash = id => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return h >>> 0; };
-const fkMask = (id, w, text) => { const h = fkHash(String(id)); if (emojiOnly(text || '')) return FK_EMO[h % FK_EMO.length]; const l = w === 'me' ? FK_ME : FK_THEM; return l[h % l.length]; };   // the same message always wears the same line
+let fkLines = new Map();
+function fkTalk() {   // the line each real text wears: the talk is picked at random each time the disguise goes on, then stays put while it is on
+  const map = new Map(), seed = (fk && fk.seed) || 0; let t = 0, k = { m: 0, t: 0 }, last = 0;
+  for (const c of chat) {
+    if (+c.at - last > 3 * 3600e3) { t = fkHash(seed + ':' + c.id) % FK_TALKS.length; k = { m: 0, t: 0 }; } last = +c.at;
+    if (c.im || c.gif || c.vn) continue;
+    if (emojiOnly(c.text || '')) { map.set(c.id, FK_EMO[fkHash(seed + c.id) % FK_EMO.length]); continue; }
+    const w = c.who === 'me' ? 'm' : 't', n = k[w]++, talk = FK_TALKS[(t + Math.floor(n / 8)) % FK_TALKS.length];   // a long talk moves on to the next topic
+    map.set(c.id, talk[w === 'm' ? 1 : 0][n % 8]);
+  }
+  fkLines = map;
+}
+const fkMask = (id, w, text) => fkLines.get(id) || (emojiOnly(text || '') ? FK_EMO[0] : w === 'me' ? 'Ok 👍' : 'Theek hai');   // an old message beyond the talk: a plain line
 const fkLine = c => {   // a photo is a PDF, a GIF a spreadsheet, a voice message a meeting recording; text gets an office line
-  const h = fkHash(String(c.id)), n = 1000 + h % 9000;
+  const h = fkHash(((fk && fk.seed) || 0) + String(c.id)), n = 1000 + h % 9000;
   if (c.im) return `📄 ${FK_DOC[h % FK_DOC.length]}_${n}.pdf`;
   if (c.gif) return `📊 Sheet_${n}.xlsx`;
   if (c.vn) return `🎧 Meeting_recording_${n}.m4a`;
   return fkMask(c.id, c.who, c.text);
 };
 const FK_MORE = ['Free ho to call karna 📞', 'Reply kar dena jab time mile', 'Acha suno', 'Ek kaam tha', 'Kal baat karte hain', 'Kahan ho?', '👍', 'Theek hai phir'];
-const fkRand = s => () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };   // the same numbers for the same day
-function fkNew() {   // today's colleague and conversation: drawn from the date, so it stays put all day
-  const day = Math.floor((Date.now() + 5 * 3600e3) / 864e5), r = fkRand(day * 2 + (isRemote ? 1 : 0)), pick = a => a[Math.floor(r() * a.length)];   // Pakistan is 5 hours ahead, all year
+const fkRand = s => () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };   // the same numbers for the same seed
+function fkNew() {   // Xed 26 Nov: a new colleague and talk every time the disguise goes on; it stays put until it comes off
+  const seed = crypto.getRandomValues(new Uint32Array(1))[0], day = Math.floor((Date.now() + 5 * 3600e3) / 864e5), r = fkRand(seed), pick = a => a[Math.floor(r() * a.length)];   // Pakistan is 5 hours ahead, all year
   const name = pick(FK_NAMES), dp = pick(FK_DP), hue = Math.floor(r() * 360);
   const bits = FK_BITS.map(b => [r(), b]).sort((x, y) => x[0] - y[0]).slice(0, 1 + Math.floor(r() * 4)).map(x => x[1]);
   const un = r() < .45 ? 0 : 1 + Math.floor(r() * 3), flat = bits.flat(), tail = flat.length - 1 - flat.findLastIndex(m => m[0] !== 't');   // unread: none, or 1 to 3 of their last messages
@@ -8984,7 +9018,7 @@ function fkNew() {   // today's colleague and conversation: drawn from the date,
   }
   const sAt = Math.min(end + (1 + Math.floor(r() * 25)) * 60000, Date.now() - 60000), live = Date.now() - end < 15 * 60000 && r() < .5;
   const seen = live ? 'online' : `last seen ${Math.floor((sAt + 5 * 3600e3) / 864e5) === day ? 'today' : 'yesterday'} at ` + new Date(sAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
-  return { name, dp, hue, seen, un, list };
+  return { name, dp, hue, seen, un, list, seed };
 }
 let fk = null;
 const FK_APP = isRemote ? 'Corelink' : 'Campus';   // Xed 26 Nov: his an office app, hers a college one
@@ -9045,6 +9079,7 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks: the colle
   const msgs = $('fake').querySelector('.msgs'); if (!msgs || !fk) return;
   const near = fkToEnd || msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80, keep = msgs.scrollTop; fkToEnd = false;
   for (const b of msgs.querySelectorAll('.bubble, .fkUn, .callRow')) b.remove();
+  fkTalk();
   const sealed = fkDuress();   // review 26 Nov: opened with the fake passcode: only the made-up talk, nothing real behind it
   const real = sealed ? [] : chat.slice(-80).map(c => ({ w: c.who === 'me' ? 'm' : 't', x: fkLine(c), at: +c.at, c })), from = real.length ? real[0].at : Infinity;
   const calls = sealed ? [] : callLog.filter(r => r.at >= from).map(r => ({ at: r.at, call: r }));   // calls stay calls: with the colleague, which is ordinary
