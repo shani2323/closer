@@ -4703,7 +4703,11 @@ const inPlay = () => playP === panel && playN >= 2;
 let panelV = 0, gameV = 0, libSentAt = 0;
 const myTie = Math.random();   // two changes in the same moment still have one winner
 const nextV = v => Math.max(Date.now(), Math.floor(v) + 1) + myTie;
-function gotPanel(m) { if (!(m.v > panelV)) return; panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); }
+function gotPanel(m) { if (!(m.v > panelV)) return; panelV = m.v; keep('panelV', panelV); openPanel(m.p, true); if (hiding && !fkDuress()) fkFollow(); }
+function fkFollow() {   // Xed 26 Nov: the other phone moved section: in disguise this one moves too (a section with the small office chat, Chat the big one); Play and Truth or Dare wait behind the big office chat
+  if (['play', 'game'].includes(panel)) { if (fkMini) hideSet(true); }
+  else if (panel !== 'chat' && !fkMini) hideSet(true, true);
+}
 function openPanel(p, fromPartner, quiet) {
   if (!['chat', 'play', 'draw', 'game', 'tower', 'watch', 'ludo'].includes(p)) return;
   const changed = p !== panel, was = panel;
@@ -7165,7 +7169,7 @@ window.lockHold = () => {
   const toy = Object.values(state).some(e => e.connected);
   if (!isRemote) { if (Object.values(state).some(e => e.connected && e.level)) toyRanAt = Date.now(); if (toy && Date.now() - toyRanAt < 60000) return true; }
   if (playP && playP !== panel) { playP = null; playN = 0; }   // left the game: its turns no longer count
-  if (['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo'].includes(panel) && inPlay())) return [30000, 60000, 120000, 180000, 300000, 600000].includes(store.get('playLockMs')) ? store.get('playLockMs') : 180000;   // Xed 12 Nov: only the section on screen counts: Play, Draw, or a game really in play (2+ turns) wait 3 minutes; Chat and Watch 15 s even with a toy connected
+  if (!(hiding && !fkMini) && (['play', 'draw'].includes(panel) || (['game', 'tower', 'ludo'].includes(panel) && inPlay()))) return [30000, 60000, 120000, 180000, 300000, 600000].includes(store.get('playLockMs')) ? store.get('playLockMs') : 180000;   // Xed 12 Nov: only the section on screen counts: Play, Draw, or a game really in play (2+ turns) wait 3 minutes; Chat and Watch 15 s even with a toy connected
   return false;
 };
 let loadedId = null, vidUrl = null, applyQ = Promise.resolve(), beatAt = 0, scrubbing = false;
@@ -7221,7 +7225,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-225203';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-231519';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9222,7 +9226,7 @@ function fkReply(c) {   // answering a real message from the office chat: the ba
 swipeReply($('fake'), { sel: '.bubble[data-rid]', id: el => el.dataset.rid, skip: () => fkDuress(), start: () => { clearTimeout(fkHoldT); if (fkPeekId) { fkPeekId = null; fkPeekPaint(); } }, reply: c => fkReply(c) });
 let fkMini = false, fkMiniT = 0;
 function hideSet(on, mini) {
-  if (on && ['play', 'game'].includes(panel)) { openPanel('chat'); mini = false; }   // Xed 26 Nov: Play and Truth or Dare are not part of the disguise
+  if (on && ['play', 'game'].includes(panel)) mini = false;   // Xed 26 Nov: Play and Truth or Dare are not part of the disguise: the big office chat covers them, and the other phone stays where it is
   if (on) gifShut();   // Xed 18 Nov: the hide (office chat) button closes the GIF screen too
   if (fkMini) { fkMini = false; clearTimeout(fkMiniT); document.body.classList.remove('fkMini'); $('fake').classList.remove('mini'); $('dock').inert = false; }
   if (on && mini) {   // Xed 26 Nov: only the small chat changes; the video or game around it stays as it is
