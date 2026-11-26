@@ -548,7 +548,7 @@
   body.hiding #toast.fkOk { z-index: 61; }   /* Xed 26 Nov: an office-worded note shows over the office chat */
   body.hiding #theirDot { display: none !important; }
   .fake [data-fk=show], body.hiding #hideBtn { display: none !important; }
-  .fake .closeChat, body.hiding .tabs [data-p=play], body.hiding .tabs [data-p=game] { display: none !important; }   /* Xed 26 Nov: in disguise (fake passcode too) no close button, no Play, no Truth or Dare */   /* Xed 26 Nov: no Show button in disguise; a long press on the app name asks for the passcode */
+  .closeChat, body.hiding .tabs [data-p=play], body.hiding .tabs [data-p=game] { display: none !important; }   /* Xed 26 Nov: no close button (a double tap makes the chat small); in disguise (fake passcode too) no Play, no Truth or Dare */   /* Xed 26 Nov: no Show button in disguise; a long press on the app name asks for the passcode */
   .lockSel { flex: none; appearance: none; -webkit-appearance: none; padding: 8px 30px 8px 12px; border: 0; border-radius: 10px; color: var(--label); font: inherit; font-size: 15px;
     background: var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E") no-repeat right 8px center / 16px; }
   .compose:has(#text:not(:placeholder-shown)) #galBtn { display: none; }   /* typing: the gallery steps aside for the words, like WhatsApp */
@@ -7210,9 +7210,17 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-212941';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-214529';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
-let avAt = 0;
+let avAt = 0, avOffAt = 0, avWarnAt = 0;
+function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
+  if (av === APP_V) { avOffAt = 0; return; }
+  const now = Date.now(); if (!avOffAt) { avOffAt = now; return; }
+  if (now - avOffAt < 30000 || now - avWarnAt < 120000) return; avWarnAt = now;
+  const old = av > APP_V ? 'This phone' : `${who()}'s phone`;
+  if (hiding) notify('⚠️ Update pending. Close the app from Recent apps and open it again.', 9000, true);
+  else notify(`⚠️ ${old} has an older version. ${av > APP_V ? 'Close' : isRemote ? 'Ask her to close' : 'Ask him to close'} the app from Recent apps and open it again, so both phones run the latest one.`, 9000);
+}
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
 function shellHas(v) {   // asks the phone's helper to fetch and keep version v; true when it has it (or when there is no helper: the server answers directly)
   const sw = navigator.serviceWorker && navigator.serviceWorker.controller; if (!sw) return Promise.resolve(true);
@@ -7638,7 +7646,8 @@ function common(m) {   // messages both phones handle the same way
   if (m.t === 'pdare') gotPadDare(m);
   if (m.t === 'combo' && Number.isInteger(m.n) && m.n > 0) { notify(`${who()} tapped ${Math.min(m.n, 999)} in a row 🔥`); m.n >= 20 ? burst('🔥') : tap(); }
   if (m.t === 'draw') { gotDraw(m); theirFinger(m); }
-  if (m.t === 'facts' && typeof m.av === 'string' && m.av !== APP_V && Date.now() - avAt > 20000) { avAt = Date.now(); checkNewer(); }   // the other phone runs a different version: get the newest now, so both play the same game
+  if (m.t === 'facts' && typeof m.av === 'string' && m.av !== APP_V && Date.now() - avAt > 20000) { avAt = Date.now(); checkNewer(); }
+  if (m.t === 'facts' && typeof m.av === 'string') avWarn(m.av);   // the other phone runs a different version: get the newest now, so both play the same game
   if (m.t === 'game') gotGame(m);
   if (m.t === 'cardBan') banCard(m.s, m.k, m.i);
   if (m.t === 'lockAsk') newShow(`${who()} forgot their passcode`, `Let ${who()} choose a new one? Say yes only if ${who()} really asked you.`, 'Yes, let them', 'No', () => { newClose(); send({ t: 'lockOk' }); }, () => newClose());
@@ -9110,12 +9119,13 @@ function fkForm(dock) {   // the message box of the office chat: what is typed g
   const form = dock.querySelector('.compose'), input = form.querySelector('input');
   input.value = ''; input.oninput = () => form.classList.toggle('typed', !!input.value.trim()); form.querySelectorAll('[disabled]').forEach(x => x.disabled = false);
   form.querySelector('.mic').onclick = () => form.requestSubmit();
+  form.addEventListener('pointerdown', ev => { if (ev.target.closest('.send')) fkKb = document.activeElement === input; }, true);
   const rb = document.createElement('div'); rb.className = 'replyBar fkReBar'; rb.hidden = true;
   rb.innerHTML = '<div><b></b><span></span></div><button type="button" aria-label="Cancel the reply">✕</button>'; rb.querySelector('button').onclick = () => fkReply(null);
   dock.querySelector('.bar').before(rb);
   form.onsubmit = ev => {   // Xed 26 Nov: sent for real (as an answer when one was picked); here it shows in disguise like the rest
     ev.preventDefault(); const x = input.value.trim().slice(0, 500); if (!x || !fk) return;
-    input.blur();   // Xed 26 Nov: the keyboard goes down once it is sent
+    const kb = fkKb; fkKb = false; setTimeout(() => { if (kb) input.focus(); }, 0);   // Xed 26 Nov: like the real chat, an open keyboard stays open after Send
     if (fkDuress()) { input.value = ''; form.classList.remove('typed'); fk.list.push({ w: 'm', x, at: Date.now() }); fkToEnd = true; fkDraw(); return; }   // fake passcode: it looks sent, but stays on this phone and goes nowhere
     if (fkRe) replyTo = { id: fkRe.id, x: fkRe.text.slice(0, 100), w: fkRe.who };
     input.value = ''; form.classList.remove('typed'); fkReply(null); fkToEnd = true; sendChat(x);
@@ -9128,7 +9138,7 @@ function fkBuildMini() {   // a copy of the small chat as it is right now (same 
   const pk = dock.querySelector('.peek'), sn = fkSeen(); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(sn)}</i>`; pk.classList.toggle('live', sn === 'online'); }
   fkForm(dock); $('fake').replaceChildren(dock);
 }
-let fkRe = null, fkPeekId = null, fkToEnd = false, fkSeenWas;
+let fkRe = null, fkPeekId = null, fkToEnd = false, fkSeenWas, fkKb = false;
 function fkDraw() {   // the real chat's own bubbles, times and ticks: the colleague's old talk and the real messages in disguise, in time order
   const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
   const msgs = $('fake').querySelector('.msgs'); if (!msgs || !fk) return;
@@ -9238,10 +9248,10 @@ new MutationObserver(() => { if (fkMini && chatIsOpen()) hideSet(true); }).obser
 // Xed 26 Nov: a double tap anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
 // On the small chat (Watch, games) it becomes a small office chat in the same place; a double tap on that comes back (passcode first).
 // Buttons there wait a quarter second before acting, so the first tap of a double tap never starts a call, ends one or closes the chat.
-const DT_ZONE = '#dock .chatTop, #dock .bar, #callBar, #dock:not(.open), .fake.mini', DT_WAIT = '#dock .chatTop button, #callBar button';
+const DT_ZONE = '#dock .chatTop, #dock .bar, #callBar, #dock:not(.open), .fake.mini, .fake .chatTop, .fake .bar', DT_WAIT = '#dock .chatTop button, #callBar button';
 let dt = null, dtEatAt = 0, dtHeld = null, dtPass = false;
 function dtHide(mode) {
-  if (mode === 'back') { if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); return; }
+  if (mode === 'back') { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); return; }
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   store.set('fake', null);
   if (mode === 'mini') { if (chatIsOpen()) closeChat(); hideSet(true, true); return; }
@@ -9251,7 +9261,7 @@ function dtHide(mode) {
 addEventListener('pointerdown', ev => {
   if (!ev.isPrimary) return;
   const z = ev.target.closest && ev.target.closest(DT_ZONE);
-  if (!z || !$('lock').hidden || (hiding && !fkMini)) { dt = null; return; }
+  if (!z || !$('lock').hidden || (hiding && !fkMini && !z.closest('.fake'))) { dt = null; return; }   // Xed 26 Nov: the big office chat's banner and message box take a double tap too
   if (dt && ev.timeStamp - dt.at < 350 && Math.hypot(ev.clientX - dt.x, ev.clientY - dt.y) < 60) {
     const mode = dt.mode; dt = null; ev.preventDefault(); ev.stopImmediatePropagation(); dtEatAt = Date.now();
     if (dtHeld) { clearTimeout(dtHeld); dtHeld = null; }
