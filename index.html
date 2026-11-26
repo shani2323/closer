@@ -988,17 +988,55 @@
   @media (prefers-reduced-transparency: reduce) { .msgMenu { background: #2c2c2e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
   @media (prefers-reduced-motion: reduce) { .orb, .toast, .switch::after { transition: none; } .float, .pop, .veil, .ring { display: none; } }
   @media (prefers-reduced-transparency: reduce) { .glass, .toast, .sheet form, .bubble { background: #1c1c1e; -webkit-backdrop-filter: none; backdrop-filter: none; } }
-  /* Xed 26 Nov: voice call. The green phone in the chat banner; the call screen is one dark material over everything except the lock. */
-  .callBtn { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-right: 6px; border: 0; border-radius: 50%; background: rgba(48, 209, 88, .16); color: var(--green); transition: transform .1s ease-out; }
+  /* Xed 26 Nov: voice call. The green phone in the chat banner; a call lives in a bar at the top (Loveline stays usable under it) or on its own
+     full screen. Everything sits on one centre line: the face, the name, the time, and the buttons in rows of equal circles. */
+  .callBtn { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-right: 6px; padding: 0; border: 0; border-radius: 50%; background: rgba(48, 209, 88, .16); color: var(--green); transition: transform .1s ease-out; }
   .callBtn:active { transform: scale(.88); }
-  .callView { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: calc(max(24px, env(safe-area-inset-top)) + 56px) 24px calc(max(20px, env(safe-area-inset-bottom)) + 40px);
-    background: radial-gradient(120% 70% at 50% 0%, rgba(255, 55, 120, .32), transparent 62%), radial-gradient(120% 60% at 50% 100%, rgba(120, 60, 230, .3), transparent 66%), rgba(10, 8, 14, .88);
+  .callBtn svg { width: 16px; height: 16px; }
+  .callBtn.rpt svg { width: 18px; height: 18px; }
+  .callBar { position: fixed; top: 0; left: 0; right: 0; z-index: 55; padding: max(6px, env(safe-area-inset-top)) 12px 6px; background: var(--bg); }
+  .callBar > div { display: flex; align-items: center; gap: 8px; max-width: 456px; height: 48px; margin: 0 auto; padding: 0 6px; border-radius: 24px; background: rgba(48, 209, 88, .15); box-shadow: inset 0 0 0 1px rgba(48, 209, 88, .32); animation: cbIn .42s cubic-bezier(.32, .72, 0, 1) both; }
+  @keyframes cbIn { from { opacity: 0; transform: translateY(-10px) scale(.96); } }
+  .cbBody { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 100%; padding: 0 4px 0 10px; border: 0; background: none; color: inherit; text-align: left; }
+  .cbBody:active { opacity: .6; }
+  .cbDot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(48, 209, 88, .22); }
+  .callBar:not([data-st=on]) .cbDot { animation: cbPulse 1s ease-in-out infinite; }
+  @keyframes cbPulse { 50% { opacity: .3; } }
+  .callBar[data-st=gap] > div { background: rgba(255, 159, 10, .15); box-shadow: inset 0 0 0 1px rgba(255, 159, 10, .34); }
+  .callBar[data-st=gap] .cbDot { background: #ff9f0a; box-shadow: 0 0 0 4px rgba(255, 159, 10, .22); }
+  .cbTx { min-width: 0; display: grid; line-height: 1.18; }
+  .cbTx b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .cbTx small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--green); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .callBar[data-st=gap] .cbTx small { color: #ff9f0a; }
+  .cbI { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); color: #fff; transition: transform .1s ease-out, background-color .15s, color .15s; }
+  .cbI:active { transform: scale(.88); }
+  .cbI svg { width: 18px; height: 18px; }
+  .cbI[aria-pressed=true] { background: #fff; color: #000; }
+  .cbI.end { background: var(--red); }
+  .cbI.end svg { width: 20px; height: 20px; }
+  body.callMini { padding-top: calc(max(6px, env(safe-area-inset-top)) + 66px); }
+  body.callMini .topbar { top: calc(max(6px, env(safe-area-inset-top)) + 54px); padding-top: 6px; }
+  .callPocket { position: fixed; top: calc(max(6px, env(safe-area-inset-top)) + 62px); left: 12px; right: 12px; z-index: 56; display: flex; align-items: center; gap: 8px; max-width: 456px; margin: 0 auto; padding: 8px 8px 8px 14px; border-radius: 20px;
+    background: rgba(44, 44, 46, .86); -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%); box-shadow: 0 12px 32px rgba(0, 0, 0, .5); animation: cbIn .42s cubic-bezier(.32, .72, 0, 1) both; }
+  .callPocket span { flex: 1; font-size: 14px; line-height: 1.25; letter-spacing: -.01em; }
+  .callPocket button { flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: var(--fill); color: #fff; font-size: 14px; font-weight: 600; }
+  .callPocket button.go { background: var(--green); color: #000; }
+  .callPocket button:active { opacity: .7; }
+  .callView { position: fixed; inset: 0; z-index: 70; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; padding: max(12px, env(safe-area-inset-top)) 20px calc(max(20px, env(safe-area-inset-bottom)) + 28px);
+    background: radial-gradient(120% 70% at 50% 0%, rgba(255, 55, 120, .32), transparent 62%), radial-gradient(120% 60% at 50% 100%, rgba(120, 60, 230, .3), transparent 66%), rgba(10, 8, 14, .9);
     -webkit-backdrop-filter: blur(30px) saturate(160%); backdrop-filter: blur(30px) saturate(160%); color: #fff; animation: callIn .42s cubic-bezier(.32, .72, 0, 1) both; }
   .callView.out { animation: callOut .3s cubic-bezier(.32, .72, 0, 1) both; pointer-events: none; }
   @keyframes callIn { from { opacity: 0; transform: translateY(28px) scale(.98); } }
   @keyframes callOut { to { opacity: 0; transform: translateY(28px) scale(.98); } }
-  .callWho { display: grid; justify-items: center; gap: 8px; text-align: center; }
-  .callDp { position: relative; display: grid; place-items: center; width: 116px; height: 116px; margin-bottom: 12px; border-radius: 50%; background: linear-gradient(135deg, #ff375f, #bf5af2); font-size: 46px; font-weight: 600; }
+  .callTop { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; width: 100%; max-width: 420px; }
+  .callTop button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; }
+  .callTop button:active { transform: scale(.9); }
+  .callTop button svg { width: 22px; height: 22px; }
+  .callTop span { display: flex; justify-content: center; align-items: center; gap: 5px; font-size: 12.5px; color: rgba(255, 255, 255, .6); letter-spacing: 0; }
+  .callTop span svg { width: 12px; height: 12px; }
+  .callView[data-mode=in] .callTop button { visibility: hidden; }
+  .callWho { align-self: center; display: grid; justify-items: center; gap: 8px; margin-top: -40px; text-align: center; }
+  .callDp { position: relative; display: grid; place-items: center; width: 120px; height: 120px; margin-bottom: 12px; border-radius: 50%; background: linear-gradient(135deg, #ff375f, #bf5af2); font-size: 48px; font-weight: 600; }
   .callDp img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
   .callDp::before, .callDp::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55); opacity: 0; pointer-events: none; }
   .callView:not([data-mode=on]) .callDp::before, .callView:not([data-mode=on]) .callDp::after { animation: callPulse 2s cubic-bezier(.2, .6, .3, 1) infinite; }
@@ -1006,26 +1044,59 @@
   @keyframes callPulse { 0% { opacity: .6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.6); } }
   .callWho b { max-width: 82vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 30px; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; }
   .callWho small { font-size: 16px; color: rgba(255, 255, 255, .74); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
-  .callBtns { display: flex; justify-content: center; gap: 64px; width: 100%; }
-  .cb { display: grid; justify-items: center; gap: 8px; padding: 0; border: 0; background: none; color: #fff; font-size: 13px; font-weight: 500; letter-spacing: .01em; }
+  .callGrid { display: grid; grid-template-columns: repeat(3, 76px); justify-content: center; gap: 26px 32px; }
+  .cb { display: grid; justify-items: center; gap: 8px; width: 76px; padding: 0; border: 0; background: none; color: #fff; font-size: 12.5px; font-weight: 500; letter-spacing: .01em; white-space: nowrap; }
   .cb i { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: rgba(255, 255, 255, .16); transition: transform .1s ease-out, background-color .15s, color .15s; }
   .cb:active i { transform: scale(.9); }
+  .cb:disabled { opacity: .35; }
   .cb svg { width: 30px; height: 30px; }
+  .cb[aria-pressed=true] i { background: #fff; color: #000; }
+  .cb.end { grid-column: 2; }
   .cb.end i { background: var(--red); }
   .cb.ok i { background: var(--green); }
-  .cb.mute[aria-pressed=true] i { background: #fff; color: #000; }
-  .callView[data-mode=in] .cb.mute, .callView:not([data-mode=in]) .cb.ok { display: none; }
+  .callView:not([data-mode=in]) .cb.ok { display: none; }
+  .callView[data-mode=in] .callGrid { grid-template-columns: repeat(2, 76px); column-gap: 96px; }
+  .callView[data-mode=in] .cb:not(.end):not(.ok) { display: none; }
+  .callView[data-mode=in] .cb.end { grid-column: 1; }
   .callView[data-mode=in] .cb.ok i { animation: callNudge 1s ease-in-out infinite; }
   @keyframes callNudge { 50% { transform: translateY(-6px); } }
   @keyframes callFade { from { opacity: 0; } }
   @keyframes callFadeOut { to { opacity: 0; } }
+  /* calls in the chat: shaped like a message, on the side of whoever called */
+  .callRow { align-self: flex-start; display: flex; align-items: center; gap: 10px; min-width: 200px; max-width: 80%; padding: 8px 16px 8px 8px; border: 0; border-radius: 10px 10px 10px 3px; background: #202c33; color: #e9edef; text-align: left; -webkit-touch-callout: none; user-select: none; }
+  .callRow.mine { align-self: flex-end; border-radius: 10px 10px 3px 10px; background: #005c4b; }
+  .callRow:active { opacity: .7; }
+  .crIc { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: rgba(48, 209, 88, .18); color: var(--green); }
+  .callRow.mine .crIc { background: rgba(255, 255, 255, .14); color: #fff; }
+  .callRow.miss .crIc { background: rgba(255, 69, 58, .2); color: #ff6961; }
+  .crIc svg { width: 16px; height: 16px; }
+  .crTx { display: grid; gap: 1px; line-height: 1.2; }
+  .crTx b { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .callRow.miss .crTx b { color: #ff6961; }
+  .crTx small { font-size: 12px; color: rgba(233, 237, 239, .6); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  /* repeat calls */
+  .rptHead { display: grid; justify-items: center; gap: 6px; margin: 0 0 18px; text-align: center; }
+  .rptIc { display: grid; place-items: center; width: 58px; height: 58px; margin-bottom: 4px; border-radius: 50%; background: linear-gradient(135deg, #30d158, #0a84ff); color: #fff; box-shadow: 0 8px 22px rgba(10, 132, 255, .35); }
+  .rptIc svg { width: 30px; height: 30px; }
+  .rptHead h2 { margin: 0; }
+  .rptHead p { margin: 0; font-size: 15px; color: var(--label2); }
+  .rptLbl { display: block; margin: 0 0 8px 4px; font-size: 13px; color: var(--label2); letter-spacing: 0; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin-bottom: 14px; padding: 2px; border-radius: 10px; background: var(--fill); }
+  .seg button { height: 34px; border: 0; border-radius: 8px; background: none; color: inherit; font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .seg button[aria-pressed=true] { background: #636366; font-weight: 600; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); }
+  .rptLine { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; padding: 0 4px; font-size: 16px; }
+  .step { display: grid; grid-template-columns: 44px 36px 44px; align-items: center; justify-items: center; height: 36px; border-radius: 10px; background: var(--fill); }
+  .step button { width: 44px; height: 36px; padding: 0; border: 0; background: none; color: inherit; font-size: 22px; line-height: 1; }
+  .step button:disabled { opacity: .3; }
+  .step b { font-size: 17px; font-variant-numeric: tabular-nums; }
+  .rptSum { margin: 8px 4px 16px; font-size: 13px; line-height: 1.35; color: var(--label2); text-align: center; }
   /* Xed 26 Nov: a message you sent that the other one has read shows their tiny photo instead of blue ticks, only on the newest one they read */
   .bubble.seenOn { position: relative; margin-bottom: 18px; }
   .seen { position: absolute; right: 1px; bottom: -19px; display: grid; place-items: center; width: 16px; height: 16px; overflow: hidden; border-radius: 50%; background: linear-gradient(135deg, #ff375f, #bf5af2); color: #fff; font-size: 9.5px; font-weight: 600; line-height: 1; letter-spacing: 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .45); pointer-events: none; }
   .seen img { width: 100%; height: 100%; object-fit: cover; }
   .seen.new { animation: seenPop .42s cubic-bezier(.32, .72, 0, 1) both; }
   @keyframes seenPop { from { opacity: 0; transform: translateY(-7px) scale(.5); } }   /* it drops down from the bubble it now belongs to */
-  @media (prefers-reduced-motion: reduce) { .callView { animation-name: callFade; } .callView.out { animation-name: callFadeOut; } .callDp::before, .callDp::after, .callView[data-mode=in] .cb.ok i, .seen.new { animation: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .callView { animation-name: callFade; } .callView.out { animation-name: callFadeOut; } .callDp::before, .callDp::after, .callView[data-mode=in] .cb.ok i, .seen.new, .callBar > div, .callBar .cbDot, .callPocket { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -1158,6 +1229,7 @@
   // Only choosing a video from the gallery (the phone's file picker hides the app) does not lock.
   let pickAt = 0;
   addEventListener('click', e => { if (e.target && e.target.type === 'file') pickAt = Date.now(); }, true);
+  window.lockPocket = () => { if (mode || !saved()) return false; ss('lockSeen', '0'); show('enter'); return true; };   // Xed 26 Nov: the pocket lock during a call
   const lockNow = () => { if (mode || !saved() || Date.now() - pickAt < 120000) return; ss('lockSeen', '0'); show('enter'); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) { away(); lockNow(); } else { back(); pickAt = 0; } });
   addEventListener('pagehide', () => { away(); if (document.hidden) lockNow(); });   // a reload on screen (an update) stays open
@@ -1333,7 +1405,7 @@
 
 <div class="msgMenu" id="msgMenu" role="menu" hidden></div>
 <div class="dock" id="dock"><div class="dock-in">
-  <div class="chatTop"><button type="button" class="chatWho" id="chatWho" aria-label="Photos, GIFs and links you shared"><span class="dp" id="chatDp"></span><span class="chatWhoT"><b id="chatName"></b><small id="chatSeen"></small></span></button><button type="button" class="callBtn" id="callBtn" aria-label="Voice call"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button><button class="findBtn" id="findBtn" aria-label="Search messages"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button><button class="statBtn" id="statBtn" aria-label="Our stats">💞 Stats</button><button class="closeChat" id="closeChat">Close</button></div>
+  <div class="chatTop"><button type="button" class="chatWho" id="chatWho" aria-label="Photos, GIFs and links you shared"><span class="dp" id="chatDp"></span><span class="chatWhoT"><b id="chatName"></b><small id="chatSeen"></small></span></button><button type="button" class="callBtn" id="callBtn" aria-label="Voice call"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button><button type="button" class="callBtn rpt" id="rptBtn" aria-label="Repeat call"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 3.5V8H16"/><g transform="translate(7.6 7.6) scale(.37)" fill="currentColor" stroke="none"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></g></svg></button><button class="findBtn" id="findBtn" aria-label="Search messages"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button><button class="statBtn" id="statBtn" aria-label="Our stats">💞 Stats</button><button class="closeChat" id="closeChat">Close</button></div>
   <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
   <div class="peek" id="chatPeek"></div>
   <div class="pinBar" id="pinBar" role="button" tabindex="0" hidden><span class="pinTicks" id="pinTicks"></span><div><b id="pinHead">Pinned message</b><span id="pinText"></span></div><svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg></div>
@@ -1366,7 +1438,20 @@
 </div></div>
 
 <div class="toast glass hide" id="toast" role="status"></div>
-<div class="callView" id="callView" hidden role="dialog" aria-label="Voice call"><div class="callWho"><span class="callDp" id="callDp"></span><b id="callName"></b><small id="callState" aria-live="polite"></small></div><div class="callBtns"><button type="button" class="cb mute" id="callMute" aria-pressed="false"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></i>Mute</button><button type="button" class="cb end" id="callEnd"><i><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="transform: rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i><span id="callEndT">End</span></button><button type="button" class="cb ok" id="callOk"><i><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i>Answer</button></div><audio id="callAudio" autoplay playsinline></audio></div>
+<div class="callBar" id="callBar" hidden><div><button type="button" class="cbBody" id="cbOpen" aria-label="Open the call"><span class="cbDot"></span><span class="cbTx"><b id="cbName"></b><small id="cbState" aria-live="polite"></small></span></button><button type="button" class="cbI" id="cbHide" aria-label="Hide: office chat"></button><button type="button" class="cbI" id="cbMute" aria-pressed="false" aria-label="Mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button type="button" class="cbI end" id="cbEnd" aria-label="End call"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="transform: rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button></div></div>
+<div class="callPocket" id="callPocket" hidden role="alertdialog" aria-label="Pocket lock"><span>Lock the screen so stray touches do nothing?</span><button type="button" id="pkNo">Not now</button><button type="button" class="go" id="pkYes">Lock</button></div>
+<div class="callView" id="callView" hidden role="dialog" aria-label="Voice call"><div class="callTop"><button type="button" id="callMin" aria-label="Make the call small"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="11" width="15" height="10" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>End-to-end encrypted</span><i aria-hidden="true"></i></div><div class="callWho"><span class="callDp" id="callDp"></span><b id="callName"></b><small id="callState" aria-live="polite"></small></div><div class="callGrid"><button type="button" class="cb" id="callLoud" aria-pressed="false"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></i>Speaker</button><button type="button" class="cb" id="callMute" aria-pressed="false"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></i>Mute</button><button type="button" class="cb" id="callLock"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="11" width="15" height="10" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg></i>Pocket lock</button><button type="button" class="cb end" id="callEnd"><i><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="transform: rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i><span id="callEndT">End</span></button><button type="button" class="cb ok" id="callOk"><i><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i>Answer</button></div><audio id="callAudio" autoplay playsinline></audio></div>
+<div class="sheet" id="rptSheet" hidden><form class="glass" onsubmit="return false">
+  <div class="grabber"></div>
+  <div class="rptHead"><span class="rptIc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 3.5V8H16"/><g transform="translate(7.6 7.6) scale(.37)" fill="currentColor" stroke="none"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></g></svg></span><h2>Repeat call</h2><p id="rptWho"></p></div>
+  <span class="rptLbl">Each call rings for</span>
+  <div class="seg" id="rptRing" role="group" aria-label="Each call rings for"><button type="button" data-v="20">20 s</button><button type="button" data-v="30">30 s</button><button type="button" data-v="45">45 s</button><button type="button" data-v="60">60 s</button></div>
+  <div class="rptLine"><span>Number of calls</span><div class="step"><button type="button" id="rptMinus" aria-label="Fewer">−</button><b id="rptN"></b><button type="button" id="rptPlus" aria-label="More">+</button></div></div>
+  <label class="rptLine"><span>Stop when answered</span><input type="checkbox" class="switch" id="rptStop"></label>
+  <p class="rptSum" id="rptSum"></p>
+  <button type="button" class="primary" id="rptGo">Start calling</button>
+  <button type="button" class="ghost" id="rptNo">Cancel</button>
+</form></div>
 <div class="fake" id="fake" hidden></div>
 <input type="file" id="imFile" accept="image/*" hidden>
 <div class="statSheet" id="findSheet" hidden role="dialog" aria-label="Search messages"><div class="stTop findTop"><input id="findQ" type="search" placeholder="Search all messages" autocomplete="off" enterkeyhint="search" aria-label="Search all messages"><button type="button" id="findX" aria-label="Close search">✕</button></div><div class="statBody" id="findBody"></div></div>
@@ -1617,7 +1702,7 @@ let bt = navigator.bluetooth ? 'ok' : 'nochrome';   // ok, nochrome, off, blocke
 const tries = new Map();   // one record per egg she has picked; kept for the whole visit
 let mic = null, hearing = false;   // live sound: my microphone stream / partner's sound playing here
 let hiding = false;   // the fake office chat is on (Xed 14 Nov)
-let call = null, callT = 0; const callDone = new Set();   // the voice call going on now (Xed 26 Nov), and calls already over here
+let call = null, callT = 0; const callDone = new Set(); let callLog = store.get('calls:' + room) || [];   // every call, for the chat (Xed 26 Nov)   // the voice call going on now (Xed 26 Nov), and calls already over here
 // Xed 22 Nov, ghost mode (his side only): his phone keeps talking to hers as always, but every message carries the time he turned it on,
 // and her phone shows him away and "last seen" frozen at that time. Her messages arrive (two grey ticks) but never turn blue while it is on.
 let ghostAt = isRemote ? +store.get('ghostAt', 0) || 0 : 0;   // his phone: when ghost mode was turned on (0 = off)
@@ -2215,7 +2300,7 @@ async function gotLobby(txt) {
     logLink('joined her room without a link');
     if (isRemote) {   // an old pairing kept for her room would stop this phone from answering her passcode check
       store.set('lastRemote', location.origin + location.pathname + '#' + part); store.set('hostPair:' + b.r, null);
-      for (const k of ['chat', 'chatCleared', 'delOut', 'delAll', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
+      for (const k of ['chat', 'chatCleared', 'delOut', 'delAll', 'stats', 'statIds', 'toyst', 'pins', 'gameScore', 'ludo', 'ludoWins', 'tower', 'calls', 'resetAt', 'cardBan', 'lastClear', 'partnerName', 'seenAt', 'heard', 'vidGone']) {   // what this phone holds moves with it into her room
         const was = store.get(k + ':' + room), there = store.get(k + ':' + b.r);
         if (was == null) continue;
         if (k === 'chat' && Array.isArray(there) && there.length) { const all = new Map(); for (const c of [...there, ...was]) if (c && c.id) all.set(c.id, c); store.set('chat:' + b.r, [...all.values()].sort((a, c) => a.at - c.at).slice(-200)); }
@@ -2492,6 +2577,7 @@ function forgetIds(ids) { for (const i of ids) cleared.add(i); store.set('chatCl
 function clearChat() {
   emoLearn = {}; store.set('emoLearn:' + room, {}); store.set('emoLearnHist:' + room, 1);
   const ids = chat.map(c => c.id);
+  callLog = []; store.set('calls:' + room, []);   // the calls in the chat go too
   forgetIds(ids); chat = []; older = []; olderDone = false; chatShow = 80; viewTop = null; findAll = null; archSeen.clear(); archMedia.clear(); archIds.clear();
   archTx('readwrite', st => { st.clear(); }).catch(() => {});
   saveChat(); vnGc();
@@ -3907,7 +3993,7 @@ function renderChat() {
   const keepV = gifKeep();
   for (const c of view) lpWant(c);
   const tpEl = $('typing'); tpEl.remove();   // the typing bubble lives right under the last message
-  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''} ${c.id === seenId ? 'seenOn' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}${c.id === seenId ? seenEl() : ''}</div>`; }).join('');
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + callMix(view, c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''} ${c.id === seenId ? 'seenOn' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}${c.id === seenId ? seenEl() : ''}</div>`; });
   box.appendChild(tpEl);
   box.scrollTop = toEnd ? box.scrollHeight : keep;
   seenWas = seenId;
@@ -6899,7 +6985,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-142903';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-152107';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -7816,20 +7902,22 @@ function nudgeCheck(leaving) {   // leaving: this phone is going off screen and 
   if (!leaving && !document.hidden && !ghostAt && partnerKeys && !partnerOnline() && now - frontSince >= 60000 && now - (nudge.oAt || 0) >= 1800000) wake('o', { ...nudge, oAt: now });
 }
 // ---- Voice call (Xed 26 Nov). The green phone in the chat banner rings the other phone. With Loveline closed or in the background, that phone
-// shows one "Incoming call" alert that buzzes again every second (the same alert each time, never a pile of them) for 40 s; with Loveline open
-// it rings on the screen. The sound goes straight between the two phones, like live sound. A website cannot ring like a real phone: no ringtone
-// while Loveline is closed, and a silent phone only buzzes.
-const CALL_RING_MS = 40000, CALL_IDLE_MS = 8000, CALL_CONN_MS = 20000, CALL_LOST_MS = 15000;
-const CALL_MIC = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
+// shows one "Incoming call" alert that buzzes again every second (the same alert each time, never a pile of them); with Loveline open it rings
+// on the screen. The sound goes straight between the two phones, both ways at once, kept small for slow internet. A website cannot ring like a
+// real phone: no ringtone while Loveline is closed, and a silent phone only buzzes.
+// Xed 26 Nov (2): a call shrinks to a bar at the top so the rest of Loveline stays usable (tap it for the full call screen); a notice while it
+// is on; every call is written into the chat (tap one to call again); repeat calls; a pocket lock that hides the screen behind the passcode.
+const CALL_RING_MS = 40000, CALL_IDLE_MS = 8000, CALL_CONN_MS = 20000, CALL_LOST_MS = 20000, RPT_GAP_MS = 3000;
+const CALL_MIC = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } };
 const callOk = id => typeof id === 'string' && /^[\w-]{6,40}$/.test(id);
 const callLen = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+let callAc = null, callToneT = 0, callMini = false, callPocketOn = false, rpt = null, rptT = 0, callLoud = null;
 function callPush(kind, id) {   // c: ring her phone through its alert address; x: it stopped ringing. Only a random call id travels, sealed.
   if (!partnerPush || !partnerKeys) return;
   fetch(BUZZ, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: partnerPush, keys: partnerKeys, kind, id }) })
     .then(r => r.json()).then(a => logLink(`call alert ${kind}: Google said ${a.status}`, 'alert_c', { kind, status: a.status })).catch(() => {});
 }
 const callSend = (k, x) => { if (call) send({ t: 'call', k, id: call.id, ...x }); };
-let callAc = null, callToneT = 0;
 function callTone(kind) {   // in: the ring on the phone being called (a little chime every 2 s, a buzz every second); back: the caller hears it ringing
   clearInterval(callToneT); callToneT = 0; try { navigator.vibrate && navigator.vibrate(0); } catch {}
   if (!kind) return;
@@ -7846,49 +7934,65 @@ function callTone(kind) {   // in: the ring on the phone being called (a little 
   once(); callToneT = setInterval(once, 1000);
 }
 function callText() {
-  const c = call; if (!c) return '';
+  const c = call; if (!c) return rpt && rpt.next ? `Next call in ${Math.max(1, Math.ceil((rpt.next - Date.now()) / 1000))} s · ${rpt.n} of ${rpt.total}` : '';
   if (c.st === 'on') return c.lost ? 'Reconnecting…' : callLen(Date.now() - c.onAt);
   if (c.st === 'conn') return 'Connecting…';
-  return c.dir === 'in' ? 'Incoming call…' : c.heard ? 'Ringing…' : 'Calling…';
+  if (c.dir === 'in') return 'Incoming call…';
+  return (rpt ? `Call ${rpt.n} of ${rpt.total} · ` : '') + (c.heard ? 'Ringing…' : 'Calling…');
 }
+function callPaintText() { const t = callText(); for (const id of ['callState', 'cbState']) if ($(id).textContent !== t) $(id).textContent = t; }
 function callShow() {
-  const v = $('callView'), c = call;
-  if (!c) { if (!v.hidden && !v.classList.contains('out')) { v.classList.add('out'); setTimeout(() => { if (!call) { v.hidden = true; v.classList.remove('out'); } }, 300); } return; }
-  if (v.hidden || v.classList.contains('out')) { v.classList.remove('out'); v.hidden = false; }
-  v.dataset.mode = c.dir === 'in' && c.st === 'ring' ? 'in' : c.st === 'on' ? 'on' : 'out';
-  const dp = $('callDp'), name = who();
-  if (partnerDp) { if (!dp.firstChild || dp.firstChild.src !== partnerDp) dp.innerHTML = `<img src="${partnerDp}" alt="">`; } else dp.textContent = name.trim().charAt(0).toUpperCase() || '?';
-  $('callName').textContent = name; $('callState').textContent = callText();
-  $('callEndT').textContent = v.dataset.mode === 'in' ? 'Decline' : 'End';
-  $('callMute').setAttribute('aria-pressed', !!c.muted);
+  const v = $('callView'), bar = $('callBar'), c = call, gap = !c && !!(rpt && rpt.next), full = !!c && !callMini;
+  if (!full) { if (!v.hidden && !v.classList.contains('out')) { v.classList.add('out'); setTimeout(() => { if (!(call && !callMini)) { v.hidden = true; v.classList.remove('out'); } }, 300); } }
+  else if (v.hidden || v.classList.contains('out')) { v.classList.remove('out'); v.hidden = false; }
+  const showBar = (!!c && callMini) || gap;
+  if (bar.hidden === showBar) { bar.hidden = !showBar; document.body.classList.toggle('callMini', showBar); fitDock(); dispatchEvent(new Event('resize')); }
+  if (c) {
+    v.dataset.mode = c.dir === 'in' && c.st === 'ring' ? 'in' : c.st === 'on' ? 'on' : 'out';
+    const dp = $('callDp'), name = who();
+    if (partnerDp) { if (!dp.firstChild || dp.firstChild.src !== partnerDp) dp.innerHTML = `<img src="${partnerDp}" alt="">`; } else dp.textContent = name.trim().charAt(0).toUpperCase() || '?';
+    $('callName').textContent = name; $('cbName').textContent = name;
+    $('callEndT').textContent = v.dataset.mode === 'in' ? 'Decline' : 'End';
+    for (const id of ['callMute', 'cbMute']) $(id).setAttribute('aria-pressed', !!c.muted);
+    $('callLoud').setAttribute('aria-pressed', !!c.loud);
+    $('callLock').disabled = !window.lockPocket;
+  } else if (gap) $('cbName').textContent = who();
+  bar.dataset.st = c ? c.st : 'gap'; $('cbMute').hidden = !c;
+  $('callPocket').hidden = !(c && c.st === 'on' && c.askPocket && callMini && window.lockPocket);
+  callPaintText();
 }
+function callMin(on) { callMini = on; if (call && on) call.askPocket = call.askPocket && call.st === 'on'; callShow(); }
 function callTick() {
-  const c = call; if (!c) { clearInterval(callT); callT = 0; return; }
+  const c = call;
+  if (!c && !(rpt && rpt.next)) { clearInterval(callT); callT = 0; return; }
   const now = Date.now();
-  if (c.dir === 'out' && c.st === 'ring') { if (now - c.at > CALL_RING_MS) { callStop('none'); return; } if (now - (c.sent || 0) >= 2000) { c.sent = now; callSend('ring'); } }   // said again every 2 s: a phone that opens Loveline now still hears it
-  if (c.dir === 'in' && c.st === 'ring' && now - c.last > CALL_IDLE_MS) { callStop('gone', true); return; }   // the caller went quiet: it was given up
-  if (c.st === 'conn' && now - c.connAt > CALL_CONN_MS) { callStop('fail'); return; }
-  if (c.st === 'on' && c.lost && now - c.lost > CALL_LOST_MS) { callStop('drop'); return; }
-  const t = callText(); if ($('callState').textContent !== t) $('callState').textContent = t;
+  if (c && c.dir === 'out' && c.st === 'ring') { if (now - c.at > (c.ringMs || CALL_RING_MS)) { callStop('none'); return; } if (now - (c.sent || 0) >= 2000) { c.sent = now; callSend('ring'); } }   // said again every 2 s: a phone that opens Loveline now still hears it
+  if (c && c.dir === 'in' && c.st === 'ring' && now - c.last > CALL_IDLE_MS) { callStop('gone', true); return; }   // the caller went quiet: it was given up
+  if (c && c.st === 'conn' && now - c.connAt > CALL_CONN_MS) { callStop('fail'); return; }
+  if (c && c.st === 'on' && c.lost) { if (now - c.lost > CALL_LOST_MS) { callStop('drop'); return; } if (c.dir === 'out') callRestart(c); }
+  callPaintText();
 }
 const callRun = () => { if (!callT) callT = setInterval(callTick, 500); };
 function callIncoming(id) {
   if (call || callDone.has(id) || hiding) return;   // the fake office chat is showing: no sign of a call
-  call = { id, dir: 'in', st: 'ring', at: Date.now(), last: Date.now(), ice: [] };
+  if (rpt) { rpt = null; clearTimeout(rptT); }   // the other one calls in the middle of repeat calls: that call is the answer
+  call = { id, dir: 'in', st: 'ring', at: Date.now(), last: Date.now(), ice: [], nIn: 0 };
+  callMini = false;
   send({ t: 'call', k: 'rang', id }); callTone('in'); callRun(); callShow(); lockNote(true);
   logLink('call: ringing here', 'call', { s: 'in' });
 }
-async function callStart() {
-  if (call) { callShow(); return; }
+async function callStart(ringMs) {
+  if (call) { callMin(false); return; }
   if (hiding) return;
-  if (!pairKey) { notify(`${who()} is not connected yet.`); return; }
-  let m; try { m = await navigator.mediaDevices.getUserMedia(CALL_MIC); } catch { notify('Allow the microphone to make a call.'); return; }
+  if (!pairKey) { notify(`${who()} is not connected yet.`); rpt = null; callShow(); return; }
+  let m; try { m = await navigator.mediaDevices.getUserMedia(CALL_MIC); } catch { notify('Allow the microphone to make a call.'); rpt = null; callShow(); return; }
   if (call && call.dir === 'in' && call.st === 'ring') { callAnswer(m); return; }   // the other one called at the same moment: this press answers it
   if (call) { m.getTracks().forEach(t => t.stop()); callShow(); return; }
   const id = [...crypto.getRandomValues(new Uint8Array(9))].map(x => x.toString(16).padStart(2, '0')).join('');
-  call = { id, dir: 'out', st: 'ring', at: Date.now(), sent: Date.now(), mic: m, ice: [] };
+  call = { id, dir: 'out', st: 'ring', at: Date.now(), sent: Date.now(), mic: m, ice: [], ringMs: ringMs || CALL_RING_MS, nOut: 0 };
+  callMini = true;   // Xed 26 Nov: calling shrinks to the bar at once; the rest of Loveline stays usable
   callSend('ring'); callPush('c', id); callTone('back'); callRun(); callShow(); getIce();
-  logLink('call: calling', 'call', { s: 'out', on: partnerOnline() ? 1 : 0 });
+  logLink('call: calling', 'call', { s: 'out', on: partnerOnline() ? 1 : 0, rpt: rpt ? rpt.n : 0 });
 }
 async function callAnswer(m) {
   const c = call; if (!c || c.dir !== 'in' || c.st !== 'ring' || c.asking) return;
@@ -7899,40 +8003,112 @@ async function callAnswer(m) {
   callSend('ok'); callShow(); lockNote(true); getIce();
   logLink('call: answered', 'call', {});
 }
+// Small and steady on slow internet: Opus at about 24 kbps for one voice, with lost pieces rebuilt from the next ones (FEC) and nothing sent
+// in silences (DTX). The voice keeps priority on the line.
+function callOpus(sdp) {
+  const m = sdp.match(/a=rtpmap:(\d+) opus\/48000/i); if (!m) return sdp;
+  const pt = m[1], want = 'minptime=10;useinbandfec=1;usedtx=1;stereo=0;sprop-stereo=0;maxplaybackrate=24000;maxaveragebitrate=24000', re = new RegExp(`a=fmtp:${pt} [^\\r\\n]*`);
+  return re.test(sdp) ? sdp.replace(re, `a=fmtp:${pt} ${want}`) : sdp.replace(m[0], `${m[0]}\r\na=fmtp:${pt} ${want}`);
+}
+function callTune(pc) {
+  for (const s of pc.getSenders()) {
+    if (!s.track || s.track.kind !== 'audio' || !s.getParameters) continue;
+    const p = s.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+    Object.assign(p.encodings[0], { maxBitrate: 32000, priority: 'high', networkPriority: 'high' });
+    s.setParameters(p).catch(() => {});
+  }
+}
 function callPc(c) {
   const pc = c.pc = new RTCPeerConnection({ iceServers: ICE });
   c.mic.getTracks().forEach(t => pc.addTrack(t, c.mic));
   pc.onicecandidate = e => { if (e.candidate && call === c) callSend('ice', { ice: e.candidate.toJSON() }); };
-  pc.ontrack = e => { const a = $('callAudio'); a.srcObject = e.streams[0]; a.play().catch(() => {}); };
+  pc.ontrack = e => { const a = $('callAudio'); a.srcObject = e.streams[0]; a.play().catch(() => {}); callBoost(); };
   pc.onconnectionstatechange = () => {
     if (call !== c) return;
     const s = pc.connectionState;
-    if (s === 'connected') { if (c.st !== 'on') { c.st = 'on'; c.onAt = Date.now(); tap(); logLink('call: connected', 'call', {}); } c.lost = 0; callShow(); }
-    if (s === 'disconnected') { c.lost = c.lost || Date.now(); callShow(); }
-    if (s === 'failed') callStop(c.st === 'on' ? 'drop' : 'fail');
+    if (s === 'connected') {
+      if (c.st !== 'on') {
+        c.st = 'on'; c.onAt = Date.now(); c.askPocket = true; callMini = true; tap(); callTune(pc); callNote(true);
+        setTimeout(() => { if (call === c && c.askPocket) { c.askPocket = false; callShow(); } }, 12000);   // the pocket-lock question goes by itself
+        logLink('call: connected', 'call', {});
+      }
+      c.lost = 0; callShow();
+    }
+    if (s === 'disconnected' || s === 'failed') {
+      if (c.st !== 'on') { if (s === 'failed') callStop('fail'); return; }
+      c.lost = c.lost || Date.now(); callShow(); if (c.dir === 'out') callRestart(c);   // the network changed (Wi-Fi to mobile data): the caller finds a new way through
+    }
   };
   return pc;
 }
 const callFlush = async c => { for (const x of c.ice.splice(0)) await c.pc.addIceCandidate(x).catch(() => {}); };
+async function callOffer(c, restart) {
+  const pc = c.pc, n = c.nOut = (c.nOut || 0) + 1;
+  const o = await pc.createOffer(restart ? { iceRestart: true } : undefined);
+  await pc.setLocalDescription({ type: 'offer', sdp: callOpus(o.sdp) });
+  if (call === c) callSend('sdp', { sdp: pc.localDescription.toJSON(), n });
+}
+function callRestart(c) {
+  if (Date.now() - (c.rstAt || 0) < 4000) return; c.rstAt = Date.now();
+  setTimeout(() => { if (call === c && c.lost && c.pc && c.pc.signalingState === 'stable') { logLink('call: finding a new way through', 'call', {}); callOffer(c, true).catch(() => {}); } }, 1500);
+}
 async function callConnect() {   // the caller, once the other phone answered: it makes the offer
   const c = call; c.st = 'conn'; c.connAt = Date.now(); callTone(''); callShow();
-  try {
-    await getIce(); if (call !== c || c.pc) return;
-    const pc = callPc(c);
-    await pc.setLocalDescription(await pc.createOffer());
-    if (call === c) callSend('sdp', { sdp: pc.localDescription.toJSON() });
-  } catch (e) { logLink('call: offer failed ' + String(e && e.name), 'call', {}); if (call === c) callStop('fail'); }
+  try { await getIce(); if (call !== c || c.pc) return; callPc(c); await callOffer(c); }
+  catch (e) { logLink('call: offer failed ' + String(e && e.name), 'call', {}); if (call === c) callStop('fail'); }
 }
-async function callSdp(sdp) {
-  const c = call; if (!c || !sdp || !c.mic) return;
+async function callSdp(m) {
+  const c = call, sdp = m.sdp, n = Number.isInteger(m.n) ? m.n : 1; if (!c || !sdp || !c.mic) return;
   try {
-    if (sdp.type === 'offer' && c.dir === 'in' && c.st === 'conn' && !c.offer) {
-      c.offer = true; await getIce(); if (call !== c || c.pc) return;   // a second copy of the offer is ignored
-      const pc = callPc(c); await pc.setRemoteDescription(sdp); await callFlush(c);
-      await pc.setLocalDescription(await pc.createAnswer());
-      if (call === c) callSend('sdp', { sdp: pc.localDescription.toJSON() });
-    } else if (sdp.type === 'answer' && c.pc && c.pc.signalingState === 'have-local-offer' && !c.answer) { c.answer = true; await c.pc.setRemoteDescription(sdp); await callFlush(c); }
-  } catch (e) { logLink('call: sdp failed ' + String(e && e.name), 'call', {}); if (call === c) callStop('fail'); }
+    if (sdp.type === 'offer' && c.dir === 'in' && (c.st === 'conn' || c.st === 'on') && n > (c.nIn || 0)) {   // a second copy of an offer is ignored
+      c.nIn = n;
+      if (!c.pc) { await getIce(); if (call !== c || c.pc) return; callPc(c); }
+      const pc = c.pc; await pc.setRemoteDescription(sdp); await callFlush(c);
+      const a = await pc.createAnswer(); await pc.setLocalDescription({ type: 'answer', sdp: callOpus(a.sdp) });
+      if (call === c) callSend('sdp', { sdp: pc.localDescription.toJSON(), n });
+    } else if (sdp.type === 'answer' && c.dir === 'out' && c.pc && n === c.nOut && c.ansN !== n && c.pc.signalingState === 'have-local-offer') {
+      c.ansN = n; await c.pc.setRemoteDescription(sdp); await callFlush(c);
+    }
+  } catch (e) { logLink('call: sdp failed ' + String(e && e.name), 'call', {}); if (call === c && c.st !== 'on') callStop('fail'); }
+}
+function callMuteSet(on) { const c = call; if (!c || !c.mic) return; c.muted = on; c.mic.getAudioTracks().forEach(t => { t.enabled = !on; }); callShow(); }
+// Speaker: a website cannot pick the earpiece or the loudspeaker on most phones. Where the phone lists its loudspeaker it is chosen; either way
+// the voice is made louder through a volume stage, with a limiter so it never crackles.
+async function callLoudSet(on) {
+  const c = call; if (!c) return; c.loud = on; callShow();
+  const a = $('callAudio');
+  try { if (a.setSinkId && navigator.mediaDevices.enumerateDevices) { const to = (await navigator.mediaDevices.enumerateDevices()).find(d => d.kind === 'audiooutput' && (on ? /speaker/i : /earpiece|receiver|handset/i).test(d.label)); if (to) await a.setSinkId(to.deviceId); } } catch {}
+  callBoost();
+}
+function callBoost() {
+  const c = call, a = $('callAudio'), st = a.srcObject;
+  if (callLoud) { try { callLoud.disconnect(); } catch {} callLoud = null; }
+  if (!c || !c.loud || !st) { a.muted = false; return; }
+  try {
+    callAc = callAc || new (window.AudioContext || window.webkitAudioContext)(); callAc.resume().catch(() => {});
+    const src = callAc.createMediaStreamSource(st), g = callAc.createGain(), k = callAc.createDynamicsCompressor();
+    g.gain.value = 2.6; k.threshold.value = -14; k.ratio.value = 6;
+    src.connect(g).connect(k).connect(callAc.destination); callLoud = src; a.muted = true;   // the element keeps playing (muted) so the phone feeds the stream on
+  } catch { a.muted = false; }
+}
+function callNote(on) {   // a notice in the phone's pull-down while the call is on: one tap comes back to it
+  if (!navigator.serviceWorker) return;
+  navigator.serviceWorker.ready.then(r => on ? r.showNotification('1+1=1', { body: '📞 Call in progress · tap to come back', tag: 'oncall', silent: true, requireInteraction: true, icon: 'icon-192.png' })
+    : r.getNotifications({ tag: 'oncall' }).then(l => l.forEach(n => n.close()))).catch(() => {});
+}
+function callPocket() {   // Xed 26 Nov: no proximity sensor on a website, so the screen goes full and behind the passcode: a cheek or pocket presses nothing
+  const c = call; if (!c || !window.lockPocket) return;
+  c.askPocket = false;
+  try { const el = document.documentElement; if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {}); } catch {}
+  callMini = true; callShow();
+  if (window.lockPocket()) { callPocketOn = true; logLink('call: pocket lock on', 'call', {}); }
+}
+function callPocketOff() { if (!callPocketOn) return; callPocketOn = false; try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch {} if (call) { callMini = true; callShow(); } }
+addEventListener('lockopen', callPocketOff); addEventListener('lockfake', callPocketOff);
+function callRec(c, r, s) {   // every call goes into the chat on this phone: who called, how it ended, how long
+  if (callLog.some(x => x.id === c.id)) return;
+  callLog.push({ id: c.id, at: c.at || Date.now(), d: c.dir, r, s: s || 0 }); if (callLog.length > 300) callLog.splice(0, callLog.length - 300);
+  store.set('calls:' + room, callLog); renderChat();
 }
 function callStop(why, quiet) {   // why: end (this phone hung up), no (declined), none (no answer), over/no/busy (the other phone said so), gone, fail, drop
   const c = call; if (!c) return;
@@ -7941,14 +8117,19 @@ function callStop(why, quiet) {   // why: end (this phone hung up), no (declined
   if (c.dir === 'out' && c.st === 'ring') callPush('x', c.id);   // her phone stops buzzing and shows a missed call
   if (c.pc) try { c.pc.close(); } catch {}
   if (c.mic) c.mic.getTracks().forEach(t => t.stop());
-  $('callAudio').srcObject = null; callTone('');
+  $('callAudio').srcObject = null; callBoost(); callTone(''); callNote(false);
   const len = c.onAt ? callLen(Date.now() - c.onAt) : '', name = who(), ring = c.st === 'ring';
   const say = c.onAt ? `Call ended · ${len}`
     : why === 'none' ? `${name} didn't answer.` : why === 'no' ? (c.dir === 'out' ? `${name} declined.` : 'Call declined.') : why === 'busy' ? `${name} is on another call.`
     : why === 'fail' ? 'The call could not connect. Try Wi-Fi on both phones.' : why === 'drop' ? 'The call dropped.'
     : c.dir === 'in' && ring ? `Missed call from ${name}.` : ring && why === 'end' ? 'Call cancelled.' : 'Call ended.';
   notify(say, 5000);
+  callRec(c, c.onAt ? 'ok' : c.dir === 'in' ? (why === 'no' ? 'no' : 'miss') : why === 'no' ? 'no' : why === 'busy' ? 'busy' : why === 'fail' || why === 'drop' ? 'fail' : why === 'end' ? 'cancel' : 'none', c.onAt ? Math.round((Date.now() - c.onAt) / 1000) : 0);
   logLink(`call ended: ${why}${len ? ' after ' + len : ''}`, 'call', { why, on: c.onAt ? 1 : 0 });
+  if (rpt && c.dir === 'out') {   // repeat calls: the next one after a short gap, unless it was answered (when set so), stopped here, or the last
+    if ((why === 'end' && !c.onAt) || (c.onAt && rpt.stop) || rpt.n >= rpt.total) { if (rpt.n >= rpt.total && !c.onAt && why !== 'end') notify(`${name} didn't answer ${rpt.total} calls.`, 5000); rpt = null; }
+    else { rpt.next = Date.now() + RPT_GAP_MS; clearTimeout(rptT); rptT = setTimeout(rptNext, RPT_GAP_MS); callRun(); }
+  }
   callShow(); lockNote(true);
 }
 function gotCall(m) {
@@ -7969,14 +8150,72 @@ function gotCall(m) {
   if (!mine) return;
   if (m.k === 'rang' && c.dir === 'out' && !c.heard) { c.heard = true; callShow(); }
   if (m.k === 'ok' && c.dir === 'out' && c.st === 'ring') callConnect();
-  if (m.k === 'sdp') callSdp(m.sdp);
+  if (m.k === 'sdp') callSdp(m);
   if (m.k === 'ice' && m.ice) { if (c.pc && c.pc.remoteDescription) c.pc.addIceCandidate(m.ice).catch(() => {}); else c.ice.push(m.ice); }
   if (m.k === 'end' || m.k === 'no' || m.k === 'busy') callStop(m.k === 'end' ? 'over' : m.k, true);
 }
+// ---- the calls in the chat, among the messages by time; a run of the same unanswered call shows once with a count
+const CALL_ARROW = { out: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11l6-6M6 5h5v5"/></svg>',
+  in: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5l-6 6M10 11H5V6"/></svg>' };
+function callRow(g) {
+  const mine = g.d === 'out', miss = g.r === 'miss', n = g.n > 1 ? ` (${g.n})` : '';
+  const title = g.r === 'ok' ? 'Voice call' : miss ? 'Missed voice call' : g.r === 'no' ? (mine ? 'Declined' : 'You declined') : g.r === 'busy' ? 'Busy' : g.r === 'fail' ? 'Call failed' : g.r === 'cancel' ? 'Cancelled call' : 'No answer';
+  const at = new Date(g.last).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
+  return `<button type="button" class="callRow${mine ? ' mine' : ''}${miss ? ' miss' : ''}" data-call="${esc(g.id)}" aria-label="${esc(title + n)}, ${at}. Tap to call."><span class="crIc">${CALL_ARROW[mine ? 'out' : 'in']}</span><span class="crTx"><b>${title}${n}</b><small>${g.r === 'ok' ? callLen(g.s * 1000) + ' · ' : ''}${at}</small></span></button>`;
+}
+function callMix(view, f) {
+  const first = view[0], from = !first || chat.indexOf(first) <= 0 ? -Infinity : first.at;   // reading from the very first message: every older call shows too
+  const recs = callLog.filter(r => r.at >= from).sort((a, b) => a.at - b.at);
+  let out = '', i = 0;
+  const flush = upto => {
+    let g = null;
+    while (i < recs.length && recs[i].at <= upto) {
+      const r = recs[i++];
+      if (g && g.d === r.d && g.r === r.r && r.r !== 'ok' && r.at - g.last < 900000) { g.n++; g.last = r.at; continue; }
+      if (g) out += callRow(g); g = { ...r, n: 1, last: r.at };
+    }
+    if (g) out += callRow(g);
+  };
+  for (const c of view) { flush(c.at); out += f(c); }
+  flush(Infinity);
+  return out;
+}
+$('msgs').addEventListener('click', ev => {
+  const b = ev.target.closest('.callRow'); if (!b) return;
+  tap(); newShow(`Call ${who()}?`, b.classList.contains('miss') ? `You missed a call from ${who()}. Call back now?` : 'A voice call starts at once.', 'Call', 'Cancel', () => { newClose(); callStart(); }, () => newClose());
+});
+// ---- repeat calls: ring again and again; how long each one rings, how many, and whether an answered call ends them, are set here
+let rptCfg = Object.assign({ ring: 30, n: 3, stop: true }, store.get('rpt') || {});
+function rptPaint() {
+  $('rptRing').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === rptCfg.ring));
+  $('rptN').textContent = rptCfg.n; $('rptMinus').disabled = rptCfg.n <= 2; $('rptPlus').disabled = rptCfg.n >= 10;
+  $('rptStop').checked = rptCfg.stop;
+  $('rptSum').textContent = `${rptCfg.n} calls, each ringing ${rptCfg.ring} s, ${RPT_GAP_MS / 1000} s apart.${rptCfg.stop ? ' Stops as soon as one is answered.' : ' Keeps going after an answered call ends.'}`;
+}
+function rptNext() { if (!rpt) return; rpt.next = 0; if (rpt.n >= rpt.total) { rpt = null; callShow(); return; } rpt.n++; callStart(rpt.ring * 1000); }
+$('rptBtn').onclick = ev => { ev.stopPropagation(); tap(); if (call || rpt) { callMin(false); return; } $('rptWho').textContent = `Calls ${who()} again and again until answered.`; rptPaint(); $('rptSheet').hidden = false; };
+$('rptRing').onclick = ev => { const b = ev.target.closest('button'); if (!b) return; tap(); rptCfg.ring = +b.dataset.v; rptPaint(); };
+$('rptMinus').onclick = () => { tap(); rptCfg.n = Math.max(2, rptCfg.n - 1); rptPaint(); };
+$('rptPlus').onclick = () => { tap(); rptCfg.n = Math.min(10, rptCfg.n + 1); rptPaint(); };
+$('rptStop').onchange = () => { rptCfg.stop = $('rptStop').checked; rptPaint(); };
+$('rptNo').onclick = () => { tap(); $('rptSheet').hidden = true; };
+$('rptSheet').onclick = ev => { if (ev.target === $('rptSheet')) $('rptSheet').hidden = true; };
+$('rptGo').onclick = () => { tap(); store.set('rpt', rptCfg); $('rptSheet').hidden = true; if (call) return; rpt = { total: rptCfg.n, n: 0, ring: rptCfg.ring, stop: rptCfg.stop, next: 0 }; logLink('call: repeat calls', 'call', { n: rpt.total, ring: rpt.ring, stop: rpt.stop ? 1 : 0 }); rptNext(); };
+// ---- buttons
+const callEndTap = () => { tap(); if (call) callStop(call.dir === 'in' && call.st === 'ring' ? 'no' : 'end'); else if (rpt) { rpt = null; clearTimeout(rptT); notify('Repeat calls stopped.'); callShow(); } };
 $('callBtn').onclick = ev => { ev.stopPropagation(); tap(); callStart(); };
 $('callOk').onclick = () => { tap(); callAnswer(); };
-$('callEnd').onclick = () => { if (!call) return; tap(); callStop(call.dir === 'in' && call.st === 'ring' ? 'no' : 'end'); };
-$('callMute').onclick = () => { const c = call; if (!c || !c.mic) return; tap(); c.muted = !c.muted; c.mic.getAudioTracks().forEach(t => { t.enabled = !c.muted; }); callShow(); };
+$('callEnd').onclick = callEndTap; $('cbEnd').onclick = ev => { ev.stopPropagation(); callEndTap(); };
+$('callMute').onclick = () => { if (!call) return; tap(); callMuteSet(!call.muted); };
+$('cbMute').onclick = ev => { ev.stopPropagation(); if (!call) return; tap(); callMuteSet(!call.muted); };
+$('callLoud').onclick = () => { if (!call) return; tap(); callLoudSet(!call.loud); };
+$('callLock').onclick = () => { tap(); callPocket(); };
+$('callMin').onclick = () => { tap(); callMin(true); };
+$('cbOpen').onclick = () => { tap(); if (call) callMin(false); };
+$('cbHide').innerHTML = $('hideBtn').innerHTML;
+$('cbHide').onclick = ev => { ev.stopPropagation(); tap(); if (call && !call.muted) { call.hidMute = true; callMuteSet(true); } store.set('fake', null); hideSet(true); };   // someone came: the office chat, and the microphone off
+$('pkYes').onclick = () => { tap(); callPocket(); };
+$('pkNo').onclick = () => { tap(); if (call) call.askPocket = false; callShow(); };
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => {   // the alert: tapped, or it arrived while Loveline is on screen
   const d = e.data || {};
   if ((d.t === 'callTap' || d.t === 'callRing') && callOk(d.id)) callIncoming(d.id);
@@ -8020,8 +8259,10 @@ async function drainBox() {   // messages that came inside alerts while this app
     got = all.filter(o => o.mine);
     const tick = list.map((o, i) => ({ k: keys[i], d: o && o.d })).filter(o => typeof o.d === 'string' && chat.some(c => c.id === o.d && c.who === 'me'));   // Xed 15 Nov: her sleeping phone said these arrived
     tick.forEach(o => gotAck({ id: o.d, rcp: 1 }));
+    const mcs = list.map((o, i) => ({ k: keys[i], mc: o && o.mc, at: o && +o.at })).filter(o => callOk(o.mc));   // calls missed while Loveline slept
+    mcs.forEach(o => callRec({ id: o.mc, at: o.at || Date.now(), dir: 'in' }, 'miss', 0));
     if (got.length || tick.length) logLink(`background helper had ${got.length} messages and ${tick.length} delivered receipts waiting`, 'inbox', { msgs: got.length, receipts: tick.length, oldestAgeS: got.length ? Math.round((Date.now() - Math.min(...got.map(o => o.at || Date.now()))) / 1000) : null, reachedS: got.map(o => o.at && o.inAt ? Math.round((o.inAt - o.at) / 1000) : null) });   // Xed 16 Nov: how long after sending each one reached this phone while the app was closed
-    const drop = all.filter(o => o.mine || o.old).map(o => o.k).concat(tick.map(o => o.k));   // what this app cannot unlock stays for the app that can (a second tab, another pairing), up to a week
+    const drop = all.filter(o => o.mine || o.old).map(o => o.k).concat(tick.map(o => o.k), mcs.map(o => o.k));   // what this app cannot unlock stays for the app that can (a second tab, another pairing), up to a week
     if (drop.length) await new Promise(res => { const x = db.transaction('m', 'readwrite'); for (const k of drop) x.objectStore('m').delete(k); x.oncomplete = x.onerror = x.onabort = res; });
     db.close();
   } catch { return; }
@@ -8524,7 +8765,7 @@ function hideSet(on) {
     if (on && !el.muted) { el.muted = true; el.dataset.hideMuted = '1'; }
     else if (!on && el.dataset.hideMuted) { el.muted = false; delete el.dataset.hideMuted; }
   }
-  if (!on) { renderChat(); render(); }
+  if (!on) { renderChat(); render(); if (call && call.hidMute) { call.hidMute = false; callMuteSet(false); } }   // back from the office chat: the microphone comes back on
 }
 let hideAskAt = 0;
 $('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
@@ -8539,11 +8780,12 @@ const MSG_LINES = [['History', n => n === 1 ? 'New result saved' : 'New results 
 function lockNote(bump) {
   const el = $('lockNote'), on = !$('lock').hidden && !$('lock').classList.contains('cover') && $('calc').hidden;
   if (!on) { if (noteWas) { el.textContent = ''; noteWas = ''; noteSeed++; } return; }
-  const live = partnerShown(), rng = !!(call && call.dir === 'in' && call.st === 'ring'), key = `${live}|${unseen}|${rng}`;
+  const live = partnerShown(), rng = !!(call && call.dir === 'in' && call.st === 'ring'), onc = call && call.st === 'on' ? callLen(Date.now() - call.onAt) : '', key = `${live}|${unseen}|${rng}|${onc}`;
   if (key === noteWas && !bump) return;
   const first = !noteWas; noteWas = key;
   const rows = [];
   const [oh, ot] = ONLINE_LINES[noteSeed % ONLINE_LINES.length], [mh, mt] = MSG_LINES[noteSeed % MSG_LINES.length];
+  if (onc) rows.push(`<div data-k="oncall"><span class="ic">📞</span><span class="tx"><small>Phone · now</small>Call in progress · ${onc}</span></div>`);
   if (rng) rows.push('<div data-k="call"><span class="ic">📞</span><span class="tx"><small>Phone · now</small>Incoming call</span></div>');   // Xed 26 Nov: no name; the call screen waits behind the passcode
   if (live) rows.push(`<div data-k="on"><span class="ic">⟳</span><span class="tx"><small>${oh} · now <span class="on"></span></small>${ot}</span></div>`);
   if (unseen) rows.push(`<div data-k="msg"><span class="ic">⚙</span><span class="tx"><small>${mh} · now</small>${mt(unseen)}</span><b class="${bump && !first ? 'bump' : ''}">${unseen > 99 ? '99+' : unseen}</b></div>`);

@@ -59,9 +59,13 @@ self.addEventListener('message', e => {
 // so her screen only ever holds one. It stops after 40 s, when she taps or swipes it, when the caller gives up, or when Loveline comes on screen.
 let ringId = null;
 const IPHONE = /iPhone|iPad/.test(navigator.userAgent), nap = ms => new Promise(r => setTimeout(r, ms));
-const missedCall = () => self.registration.showNotification('1+1=1', { body: '📞 Missed call', tag: 'call', silent: true, icon: 'icon-192.png' });
+async function missedCall(id) {   // the alert says so, and the chat shows it when Loveline opens
+  await boxPut({ mc: id }).catch(() => {});
+  for (const c of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) c.postMessage({ t: 'box' });
+  await self.registration.showNotification('1+1=1', { body: '📞 Missed call', tag: 'call', silent: true, icon: 'icon-192.png' });
+}
 async function ringCall(id) {
-  ringId = id; const end = Date.now() + 40000;
+  ringId = id; const end = Date.now() + 65000;   // the caller sends 'stopped' as soon as it gives up
   while (ringId === id && Date.now() < end) {
     const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (open.some(c => c.visibilityState === 'visible') && !IPHONE) {   // Loveline is on screen: it rings there itself
@@ -74,14 +78,14 @@ async function ringCall(id) {
     await nap(1000);
   }
   if (ringId !== id) return;   // tapped, swiped away or ended
-  ringId = null; await missedCall();
+  ringId = null; await missedCall(id);
 }
 async function ringEnd(id) {
   if (ringId === id) ringId = null;
   await nap(1100);   // after the last buzz has gone out
   const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   if (open.some(c => c.visibilityState === 'visible') && !IPHONE) { for (const n of await self.registration.getNotifications({ tag: 'call' })) n.close(); return; }
-  await missedCall();
+  await missedCall(id);
 }
 async function callTap(id) {
   const l = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
