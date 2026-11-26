@@ -7209,7 +7209,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-210037';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-210724';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -8915,8 +8915,10 @@ let unseen = +store.get('unseen:' + room) || 0, noteSeed = 0, noteWas = '';
 // Xed 26 Nov: it is also the real chat in disguise. Every real message shows as an office line; holding one shows the real words until the
 // finger lifts. What is typed there is sent for real (a tap on a message answers it) and shows in disguise too. Coming back asks for the passcode.
 const FK_NAMES = isRemote ? ['Usman Ali', 'Bilal Ahmed', 'Hamza Sheikh', 'Faisal Khan', 'Saad Qureshi', 'Ahmed Raza', 'Zeeshan Malik', 'Imran Shah', 'Kamran Javed', 'Adeel Hussain', 'Waqas Iqbal', 'Omer Farooq',
-  'Asad Mehmood', 'Junaid Akhtar', 'Danish Butt', 'Haris Siddiqui', 'Shahzad Anwar', 'Nabeel Aslam', 'Rizwan Haider', 'Talha Mirza', 'Arslan Chaudhry', 'Fahad Rehman', 'Salman Abbasi', 'Tariq Nawaz']
-  : ['Sana Tariq', 'Ayesha Khan', 'Hira Malik', 'Mehwish Ali', 'Amna Sheikh', 'Fatima Raza', 'Maryam Javed', 'Zainab Ahmed', 'Rabia Qureshi', 'Nida Hussain', 'Saba Iqbal', 'Iqra Farooq'];
+  'Asad Mehmood', 'Junaid Akhtar', 'Danish Butt', 'Haris Siddiqui', 'Shahzad Anwar', 'Nabeel Aslam', 'Rizwan Haider', 'Talha Mirza', 'Arslan Chaudhry', 'Fahad Rehman', 'Salman Abbasi', 'Tariq Nawaz',
+  'Usama Tariq', 'Hassan Raza', 'Umair Aslam', 'Ali Hamza', 'Moiz Ahmed', 'Zain Abbas', 'Bilal Saeed', 'Hammad Khan', 'Rehan Iqbal', 'Sohaib Malik', 'Waleed Asif', 'Furqan Ali']
+  : ['Sana Tariq', 'Ayesha Khan', 'Hira Malik', 'Mehwish Ali', 'Amna Sheikh', 'Fatima Raza', 'Maryam Javed', 'Zainab Ahmed', 'Rabia Qureshi', 'Nida Hussain', 'Saba Iqbal', 'Iqra Farooq',
+    'Laiba Shah', 'Areeba Khan', 'Hafsa Malik', 'Komal Aziz', 'Sidra Naveed', 'Anum Riaz', 'Kiran Akram', 'Mahnoor Butt', 'Esha Imran', 'Alina Saeed', 'Sadia Rehman', 'Javeria Noor'];
 const FK_DP = ['🌸', '🌻', '🏔️', '🌅', '🌊', '🌙', '🚗', '🏏', '🦋', '🌴', '☕', '📚', '🌷', '🐈', '🌿', '⛰️'];
 const FK_BITS = [   // short everyday talks; a fake chat is 1 to 4 of them, hours apart. t: them, m: me
   [['t', 'Kal match dekha? 🏏'], ['m', 'Haan last over bohat tense tha 😅'], ['t', 'Woh catch kamaal tha']],
@@ -8966,6 +8968,26 @@ const FK_TALKS = isRemote ? [
    ['Ji, abhi update kar raha hun', 'Haan teen items low hain', 'Aaj shaam tak order de deta hun', 'Rate wahi hai jo pichli dafa tha', 'Kehte hain 3 din', 'Bata diya hai', 'Copy bhej di 📎', 'Shukriya']],
   [['Kal chhutti pe ho?', 'Tumhara kaam kaun dekhega?', 'Woh pending emails ka kya?', 'Client ki call aayi to?', 'Theek, number de dena', 'Wapis kab aa rahe ho?', 'Acha, koi masla ho to call karunga', 'Enjoy karo 🙂'],
    ['Ji, ek din ki leave li hai', 'Zeeshan dekh lega, bata diya hai', 'Aaj raat tak sab reply kar dunga', 'Unhein Zeeshan ka number de dena', 'Abhi bhejta hun', 'Parson subah', 'Ji zaroor', 'Shukriya 🙏']],
+  [['Laptop ka masla hal hua?', 'IT wale kya keh rahe hain?', 'Backup le liya tha na?', 'Shared drive pe file daal dena', 'Tab tak mera wala use kar lo', 'Password reset karna para?', 'Chalo acha hua', 'Ab theek chal raha hai? 💻'],
+   ['Abhi tak nahi, bohat slow hai', 'Kehte hain update ki wajah se', 'Haan, kal hi le liya tha', 'Daal di hai', 'Shukriya, zaroorat hui to bataunga', 'Haan, naya bana diya', 'Ji, aadhe ghante mein theek ho gaya', 'Haan bilkul fit 👍']],
+  [['Friday ko team dinner hai, pata hai?', 'Kahan rakha hai?', 'Tum aa rahe ho na?', 'Contribution kitna hai?', 'Main list mein naam likh deta hun', 'Gaari mein jagah hai?', 'Theek, 7 baje nikalte hain', 'Mazay karenge 😄'],
+   ['Haan, email aayi thi', 'Wohi purani jagah, BBQ wali', 'InshaAllah, pakka', '1500 per head', 'Shukriya', 'Haan, do log aa sakte hain', 'Done', 'Bilkul 😄']],
+  [['Is mahine ka target kitna poora hua?', 'Pichle hafte se behtar hai?', 'Kaun si branch peeche hai?', 'Unse baat ki?', 'Manager review mein poochenge', 'Ek summary bana lo', 'Theek, kal subah dekhte hain', 'Shabash 👍'],
+   ['Abhi 70 percent hua hai', 'Haan, kaafi behtar', 'North wali thori peeche hai', 'Haan, kal tak cover kar lenge', 'Ji, main tayyar hun', 'Bana raha hun abhi', 'Ji theek hai', 'Shukriya']],
+  [['Courier aa gaya?', 'Kis ke naam pe tha?', 'Documents check kar lena', 'Signature kahan karne hain?', 'Wapis kab bhejna hai?', 'Tracking number bhej dena', 'Acha, main receive kar lunga', 'Thanks 👍'],
+   ['Haan, reception pe para hai', 'Accounts ke naam pe', 'Check kar liye, sab theek hai', 'Last page pe, do jagah', 'Kal subah tak', 'Abhi bhejta hun', 'Theek hai', 'Welcome']],
+  [['Aaj der tak rukna parega?', 'Deadline kal subah ki hai', 'Kitna kaam reh gaya?', 'Main ek part le leta hun', 'Chai mangwa lein? ☕', 'Bas thora sa aur', 'Ho gaya! Bhej do', 'Zabardast teamwork 👏'],
+   ['Haan lag to raha hai', 'Haan, yaad hai', 'Do sections baqi hain', 'Haan, tum data wala le lo', 'Haan please', 'Aakhri check kar raha hun', 'Bhej diya ✅', 'Haan yaar, shukriya']],
+  [['Naya banda join kar raha hai Monday ko', 'Usko desk kahan denge?', 'Laptop ka request daal diya?', 'Pehle din tum guide kar dena', 'Orientation ka schedule bhej dena', 'Lunch pe le jana usko', 'Acha banda lag raha hai', 'Chalo dekhte hain 🙂'],
+   ['Acha, kis team mein?', 'Mere saath wali khali hai', 'Haan, kal daal diya', 'Ji zaroor', 'Abhi bhejta hun', 'Haan theek hai', 'Interview mein acha tha', 'InshaAllah']],
+  [['Aaj parking mili?', 'Main gate pe bohat rush tha', 'Kal se jaldi nikalna parega', 'Carpool kar lein?', 'Main 8 baje tumhare ghar ke paas hunga', 'Petrol share kar lenge', 'Theek, kal se shuru', 'Ok 👍'],
+   ['Bari mushkil se, peeche wali', 'Haan, main bhi phansa raha', 'Sahi baat hai', 'Acha idea hai', 'Perfect, main tayyar rahunga', 'Haan bilkul', 'Done', 'Ok']],
+  [['Quarterly review ki date aa gayi', 'Apna self assessment bhar diya?', 'Kya likha achievements mein?', 'Numbers zaroor daalna', 'Manager kal one on one karenge', 'Tension mat lo, acha raha hai', 'Best of luck', 'Batana kaisa raha'],
+   ['Haan, 15 tareekh hai na', 'Aadha bhara hai', 'Project wali delivery aur client feedback', 'Haan, daal diye hain', 'Kis time pe?', 'InshaAllah', 'Shukriya 🙏', 'Zaroor']],
+  [['Teen vendors se quotation aayi?', 'Kaun sa sasta hai?', 'Quality ka kya?', 'Delivery time bhi compare karna', 'Table bana ke bhej do', 'Sir se approve karwa lete hain', 'Order wala email draft kar lo', 'Great 👍'],
+   ['Do aa gayi, ek ka wait hai', 'Doosra wala thora sasta hai', 'Pehla wala behtar hai', 'Haan, likh liya hai', 'Bana raha hun', 'Theek hai', 'Draft ready hai', 'Shukriya']],
+  [['Weekend kaisa raha?', 'Kahin gaye the?', 'Mausam acha tha?', 'Hum bhi jayenge kisi din', 'Wapis aake thakawat to hogi', 'Chalo ab kaam pe dhyan', 'Meeting 10 baje hai, yaad rakhna', 'Ok 👍'],
+   ['Acha tha, aram kiya', 'Haan, Murree gaye the', 'Bohat thanda tha 🥶', 'Zaroor jao, maza aayega', 'Thori si', 'Ji bilkul 😄', 'Ji, yaad hai', 'Ok']],
 ] : [
   [['Assignment ka kya bana?', 'Kitne pages ka hai?', 'References bhi dene hain na?', 'Deadline Friday hai, yaad hai?', 'Mera intro abhi bhi adhoora hai 😅', 'Format bhej sakti ho?', 'Tum bohat helpful ho 🙏', 'Ok kal class mein milte hain'],
    ['Aadha ho gaya hai', 'Das pages ka hai', 'Haan, kam se kam paanch', 'Haan, Thursday tak khatam kar lungi', 'Main help kar deti hun', 'Haan, abhi bhejti hun 📎', 'Koi baat nahi 🙂', 'Ok, kal milte hain']],
@@ -8979,18 +9001,42 @@ const FK_TALKS = isRemote ? [
    ['Haan, kal le aaungi', 'Haan, aaj karwa li', '200 rupay', 'Tumhari bhi karwa leti hun', 'Theek hai', 'Haan, important wale', 'Koi baat nahi', 'Ok 👍']],
   [['Fee challan mil gaya?', 'Last date kya hai?', 'Bank jaogi ya online?', 'Mera bhi ek kaam kar dogi?', 'Mera challan bhi jama karwa dena', 'Paise kal de dungi', 'Thank you so much 🙏', 'Kal milte hain'],
    ['Haan, portal se download kar liya', '15 tareekh', 'Online kar dungi', 'Haan bolo', 'Theek hai, number bhej do', 'Koi baat nahi', 'Welcome 🙂', 'Ok']],
+  [['Canteen chal rahi ho?', 'Aaj kya mil raha hai?', 'Mera bhi order kar dena', 'Paise baad mein de dungi', 'Jagah rakh lena', 'Raste mein hun, 2 min', 'Acha tha khana', 'Kal phir chalenge 😄'],
+   ['Haan, 10 min mein', 'Samosay aur chai', 'Theek hai, kya lena hai?', 'Koi baat nahi', 'Haan, kone wali table', 'Ok aa jao', 'Haan maza aaya', 'Pakka']],
+  [['Presentation kal hai, practice karein?', 'Meri slides dekh lo please', 'Bohat lambi to nahi?', 'Main bohat nervous hun 😅', 'Tum pehle bologi ya main?', 'Time 10 minute hai na?', 'Shukriya, ab confidence aa gaya', 'Kal milte hain 🤞'],
+   ['Haan, aaj shaam', 'Bhejo, dekhti hun', 'Thori lambi hai, 2 slides kam kar do', 'Kuch nahi hoga, acha bologi', 'Main pehle bol leti hun', 'Haan, 10 minute', 'Bas yehi chahiye tha 🙂', 'InshaAllah']],
+  [['Lab report ka format kya hai?', 'Readings tumhare paas hain?', 'Graph banana hai ya table?', 'Conclusion kitna lamba?', 'Madam ne kab tak kaha?', 'Mujhe bhi apni bhej dena check ke liye', 'Acha hai, shukriya', 'Ok 👍'],
+   ['Wohi purana, sir ne group pe dala tha', 'Haan, photo bhejti hun', 'Dono banane hain', 'Ek paragraph kaafi hai', 'Monday tak', 'Haan, raat ko bhej dungi', 'Welcome', 'Theek hai']],
+  [['Scholarship ka form aa gaya', 'Apply kar rahi ho?', 'Documents kaun se chahiye?', 'Attested karwane honge?', 'Last date kya hai?', 'Saath chalein office?', 'Acha, kal 11 baje', 'Dua karna 🤲'],
+   ['Haan, dekha maine', 'Haan, zaroor', 'CNIC, result card aur photos', 'Haan, principal se', 'Is mahine ki 20', 'Haan, chalte hain', 'Theek hai', 'Zaroor, tum bhi']],
+  [['Department trip ja rahi ho?', 'Kahan ja rahe hain?', 'Kitne din ka hai?', 'Ghar se ijazat mil gayi?', 'Kya kya lekar jaana hai?', 'Room share kar lein?', 'Bohat maza aayega', 'Packing shuru karo 😄'],
+   ['Soch rahi hun', 'Naran Kaghan', 'Teen din ka', 'Ammi se pooch rahi hun', 'Garam kapre zaroor', 'Haan, pakka', 'Haan, InshaAllah', 'Haha theek hai']],
+  [['Aaj sir ne kya parhaya?', 'Main late pohanchi thi', 'Quiz announce hua?', 'Kis chapter se?', 'Notes bhej dena please', 'Sir ka mood kaisa tha?', 'Shukriya, tum na hoti to 😅', 'Kal time pe aaungi'],
+   ['Chapter 5 shuru kiya', 'Haan dekha tha', 'Haan, Wednesday ko', 'Chapter 4 aur 5', 'Bhej diye 📎', 'Theek hi tha', 'Koi baat nahi', 'Haan please 😄']],
+  [['Sana ki birthday parson hai', 'Kya gift dein?', 'Sab mil ke kuch le lete hain', 'Cake bhi mangwayein?', 'Kitne paise per head?', 'Main surprise plan karti hun', 'Usko bilkul pata na chale', 'Mazay karenge 🎂'],
+   ['Haan, yaad hai', 'Bag ya perfume?', 'Haan, acha idea hai', 'Haan, chocolate wala', '500 kaafi hai', 'Perfect', 'Main kuch nahi bataungi 🤐', 'Haan 🎉']],
+  [['Internship ke liye apply kiya?', 'Kahan kahan?', 'CV update kar liya?', 'Mera bhi dekh lena', 'Interview ki call aayi?', 'Kya poocha unhon ne?', 'Tumhein mil jayegi, pakka', 'Batana result 🤞'],
+   ['Haan, do jagah', 'Ek bank aur ek software house', 'Haan, kal kiya', 'Bhejo, dekhti hun', 'Haan, Thursday ko hai', 'Abhi hua nahi, bataungi', 'InshaAllah', 'Zaroor']],
+  [['Point aaj late tha', 'Kal kitne baje niklogi?', 'Bus stop pe milna', 'Baarish ho rahi hai idhar 🌧️', 'Chhatri le aana', 'Main pohanch gayi', 'Tum kahan ho?', 'Acha jaldi aao'],
+   ['Haan, 20 minute late', '7:30 pe', 'Theek hai', 'Yahan bhi', 'Haan le li', 'Main 5 minute mein', 'Raste mein hun', 'Bas pohanchi']],
+  [['Result aa gaya!', 'Tumhare kitne marks aaye?', 'Mubarak ho! 🎉', 'Mera ek subject mein kam aaya 😕', 'Recheck karwaun?', 'Theek hai, next time behtar', 'Treat kab de rahi ho?', 'Pakka? 😄'],
+   ['Haan dekh liya', 'Acha aaya, A grade', 'Shukriya, tumhein bhi', 'Koi baat nahi, agli baar', 'Pehle sir se baat kar lo', 'Bilkul', 'Friday ko canteen mein', 'Pakka 😄']],
 ];
 const FK_EMO = ['👍', '👌', '✅', '🙂', '🙏'], FK_DOC = ['Invoice', 'Quotation', 'Report', 'Statement', 'Receipt', 'Agenda', 'Schedule', 'Proposal'];
 const fkHash = id => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return h >>> 0; };
 let fkLines = new Map();
 function fkTalk() {   // the line each real text wears: the talk is picked at random each time the disguise goes on, then stays put while it is on
-  const map = new Map(), seed = (fk && fk.seed) || 0; let t = 0, k = { m: 0, t: 0 }, last = 0;
+  const map = new Map(), seed = (fk && fk.seed) || 0; let t = 0, k = { m: 0, t: 0 }, last = 0, len = 8, order = FK_TALKS.map((x, i) => i);
   for (const c of chat) {
-    if (+c.at - last > 3 * 3600e3) { t = fkHash(seed + ':' + c.id) % FK_TALKS.length; k = { m: 0, t: 0 }; } last = +c.at;
+    if (+c.at - last > 3 * 3600e3) {   // a new conversation: topics in a fresh random order
+      const r = fkRand(fkHash(seed + ':' + c.id)); order = FK_TALKS.map((x, i) => [r(), i]).sort((a, b) => a[0] - b[0]).map(x => x[1]); t = 0; len = 5 + Math.floor(r() * 4); k = { m: 0, t: 0 };
+    }
+    last = +c.at;
     if (c.im || c.gif || c.vn) continue;
     if (emojiOnly(c.text || '')) { map.set(c.id, FK_EMO[fkHash(seed + c.id) % FK_EMO.length]); continue; }
-    const w = c.who === 'me' ? 'm' : 't', n = k[w]++, talk = FK_TALKS[(t + Math.floor(n / 8)) % FK_TALKS.length];   // a long talk moves on to the next topic
-    map.set(c.id, talk[w === 'm' ? 1 : 0][n % 8]);
+    const w = c.who === 'me' ? 'm' : 't';
+    if (k[w] >= len) { t++; len = 5 + fkHash(seed + ':' + t + c.id) % 4; k = { m: 0, t: 0 }; }   // Xed 26 Nov: the talk moves on to another topic at a random point; 16 topics, so hours of chat keep going
+    map.set(c.id, FK_TALKS[order[t % order.length]][w === 'm' ? 1 : 0][k[w]++]);
   }
   fkLines = map;
 }
@@ -9006,8 +9052,8 @@ const FK_MORE = ['Free ho to call karna 📞', 'Reply kar dena jab time mile', '
 const fkRand = s => () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };   // the same numbers for the same seed
 function fkNew() {   // Xed 26 Nov: a new colleague and talk every time the disguise goes on; it stays put until it comes off
   const seed = crypto.getRandomValues(new Uint32Array(1))[0], day = Math.floor((Date.now() + 5 * 3600e3) / 864e5), r = fkRand(seed), pick = a => a[Math.floor(r() * a.length)];   // Pakistan is 5 hours ahead, all year
-  const name = pick(FK_NAMES), dp = pick(FK_DP), hue = Math.floor(r() * 360);
-  const bits = FK_BITS.map(b => [r(), b]).sort((x, y) => x[0] - y[0]).slice(0, 1 + Math.floor(r() * 4)).map(x => x[1]);
+  const name = pick(FK_NAMES), dp = pick(FK_DP), hue = Math.floor(r() * 360), app = pick(FK_APPS);
+  const bits = FK_BITS.map(b => [r(), b]).sort((x, y) => x[0] - y[0]).slice(0, 3 + Math.floor(r() * 5)).map(x => x[1]);
   const un = r() < .45 ? 0 : 1 + Math.floor(r() * 3), flat = bits.flat(), tail = flat.length - 1 - flat.findLastIndex(m => m[0] !== 't');   // unread: none, or 1 to 3 of their last messages
   if (un > tail) bits.push(Array.from({ length: un - tail }, () => ['t', pick(FK_MORE)]));   // not enough of theirs at the end: they wrote again later
   let end = day * 864e5 - 5 * 3600e3 + (480 + Math.floor(r() * 930)) * 60000;   // the last message: between 8 AM and 11:30 PM
@@ -9019,10 +9065,11 @@ function fkNew() {   // Xed 26 Nov: a new colleague and talk every time the disg
   }
   const sAt = Math.min(end + (1 + Math.floor(r() * 25)) * 60000, Date.now() - 60000), live = Date.now() - end < 15 * 60000 && r() < .5;
   const seen = live ? 'online' : `last seen ${Math.floor((sAt + 5 * 3600e3) / 864e5) === day ? 'today' : 'yesterday'} at ` + new Date(sAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
-  return { name, dp, hue, seen, un, list, seed };
+  return { name, dp, hue, seen, un, list, seed, app };
 }
 let fk = null;
-const FK_APP = isRemote ? 'Corelink' : 'Campus';   // Xed 26 Nov: his an office app, hers a college one
+const FK_APPS = isRemote ? ['Corelink', 'Teamdesk', 'Workhub', 'Officely', 'Deskmate', 'Taskline', 'Bizchat', 'Workroom'] : ['Campus', 'StudyHub', 'UniChat', 'Notebook', 'Coursely', 'ClassHub', 'Lecturo', 'Campusly'];   // Xed 26 Nov: his office apps, hers college ones; a new one each time
+const fkApp = () => (fk && fk.app) || FK_APPS[0];
 function fkSeen() {   // Xed 26 Nov: the real online and last seen, worded like WhatsApp; the made-up one only before she was ever seen
   if (fkDuress()) return fk.seen;   // fake passcode: nothing real, not even when she was online
   if (partnerShown()) return 'online';
@@ -9044,7 +9091,7 @@ function fkBuild() {   // copies of the real top bar, chat header and message bo
   const box = $('fake'), wrap = document.createElement('div'); wrap.className = 'fkIn';
   const top = fkCopy($('topbar')); top.querySelectorAll('.status').forEach(x => x.remove());
   top.querySelectorAll('[role=tab]').forEach(t => { t.setAttribute('aria-selected', t.dataset.p === 'chat'); t.onclick = () => { if (t.dataset.p !== 'chat') { tap(); fkGo(t.dataset.p); } }; });   // Xed 26 Nov: the other sections open, the office chat goes small with them
-  const h1 = top.querySelector('h1'); if (h1) { h1.textContent = FK_APP; fkDbl(h1, () => fkBuzz(h1)); fkHold(h1); }
+  const h1 = top.querySelector('h1'); if (h1) { h1.textContent = fkApp(); fkDbl(h1, () => fkBuzz(h1)); fkHold(h1); }
   top.querySelectorAll('.hleft .me').forEach(x => x.remove());   // no heart
   const eye = top.querySelector('.hideBtn'); eye.innerHTML = EYE_ON; eye.setAttribute('aria-label', 'Show'); eye.dataset.fk = 'show';
   const dock = fkCopy($('dock')); dock.classList.add('open');
@@ -9150,7 +9197,7 @@ function hideSet(on, mini) {
   if (!on) { renderChat(); render(); if (call && call.hidMute) { call.hidMute = false; callMuteSet(false); } }   // back from the office chat: the microphone comes back on
   fkNames();
 }
-function fkNames() { $('topbar').querySelector('h1').textContent = hiding ? FK_APP : 'Loveline'; if (panel === 'draw') redraw(); render(); dpPaint(); if (call) callShow(); }
+function fkNames() { $('topbar').querySelector('h1').textContent = hiding ? fkApp() : 'Loveline'; if (panel === 'draw') redraw(); render(); dpPaint(); if (call) callShow(); }
 const fkDuress = on => { try { if (on === undefined) return sessionStorage.getItem('closer:fkDuress') === '1'; on ? sessionStorage.setItem('closer:fkDuress', '1') : sessionStorage.removeItem('closer:fkDuress'); } catch { return false; } };
 function fkGo(p) { if (fkDuress()) return; openPanel(p); if (chatIsOpen()) closeChat(); hideSet(true, true); }   // review 26 Nov: opened with the fake passcode, the tabs lead nowhere real   // a section from the office chat: its small chat stays the office chat
 fkDbl($('topbar').querySelector('h1'), () => { if (hiding) fkBuzz($('topbar').querySelector('h1')); }); fkHold($('topbar').querySelector('h1'));   // Xed 26 Nov: in disguise, a double tap on the app's name sends Thinking of you   // every name and picture on screen follows: the colleague while hidden, the real one after
@@ -9162,10 +9209,16 @@ $('hideBtn').onclick = () => {   // Xed 26 Nov: in Watch or a game, that screen 
 let fkHoldT = 0, fkHeldNow = false;
 $('fake').addEventListener('pointerdown', ev => {
   fkHeldNow = false; const b = ev.target.closest('.bubble[data-rid]'); if (!b || fkDuress()) return;
-  clearTimeout(fkHoldT); fkHoldT = setTimeout(() => { fkPeekId = b.dataset.rid; fkHeldNow = true; if (navigator.vibrate) navigator.vibrate(10); fkPeekPaint(); }, 350);
+  clearTimeout(fkHoldT); fkHoldT = setTimeout(() => { fkPeekId = b.dataset.rid; fkHeldNow = true; if (navigator.vibrate) navigator.vibrate(10); fkPeekPaint(); }, 220);
 });
-const fkUnpeek = () => { clearTimeout(fkHoldT); if (fkPeekId) { fkPeekId = null; fkPeekPaint(); } };
-for (const e of ['pointerup', 'pointercancel']) addEventListener(e, fkUnpeek, true);   // the finger lifts (or starts scrolling): the disguise is back
+let fkLiftT = 0;
+const fkUnpeek = ev => {   // Xed 26 Nov: the finger covered the words: they stay 1.2 s after it lifts, then the disguise is back; scrolling hides them at once
+  clearTimeout(fkHoldT); clearTimeout(fkLiftT); if (!fkPeekId) return;
+  const go = () => { fkPeekId = null; fkPeekPaint(); };
+  if (ev && ev.type === 'pointerup') fkLiftT = setTimeout(go, 1200); else go();
+};
+for (const e of ['pointerup', 'pointercancel']) addEventListener(e, fkUnpeek, true);
+addEventListener('pointerdown', () => { if (fkPeekId && fkLiftT) { clearTimeout(fkLiftT); fkLiftT = 0; fkPeekId = null; fkPeekPaint(); } }, true);   // any new touch hides it at once
 $('fake').addEventListener('contextmenu', ev => { if (ev.target.closest('.bubble')) ev.preventDefault(); });
 $('fake').addEventListener('click', ev => {
   if (fkHeldNow) { fkHeldNow = false; return; }   // that was a hold, not a tap
