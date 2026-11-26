@@ -1020,10 +1020,11 @@
   @keyframes callFade { from { opacity: 0; } }
   @keyframes callFadeOut { to { opacity: 0; } }
   /* Xed 26 Nov: a message you sent that the other one has read shows their tiny photo instead of blue ticks, only on the newest one they read */
-  .seen { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-left: 4px; overflow: hidden; vertical-align: -2px; border-radius: 50%; background: linear-gradient(135deg, #ff375f, #bf5af2); color: #fff; font-size: 9px; font-weight: 700; line-height: 1; box-shadow: 0 0 0 1px rgba(255, 255, 255, .28); }
+  .bubble.seenOn { position: relative; margin-bottom: 18px; }
+  .seen { position: absolute; right: 1px; bottom: -19px; display: grid; place-items: center; width: 16px; height: 16px; overflow: hidden; border-radius: 50%; background: linear-gradient(135deg, #ff375f, #bf5af2); color: #fff; font-size: 9.5px; font-weight: 600; line-height: 1; letter-spacing: 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .45); pointer-events: none; }
   .seen img { width: 100%; height: 100%; object-fit: cover; }
-  .seen.new { animation: seenPop .34s cubic-bezier(.32, .72, 0, 1); }
-  @keyframes seenPop { from { opacity: 0; transform: scale(.4); } }
+  .seen.new { animation: seenPop .42s cubic-bezier(.32, .72, 0, 1) both; }
+  @keyframes seenPop { from { opacity: 0; transform: translateY(-7px) scale(.5); } }   /* it drops down from the bubble it now belongs to */
   @media (prefers-reduced-motion: reduce) { .callView { animation-name: callFade; } .callView.out { animation-name: callFadeOut; } .callDp::before, .callDp::after, .callView[data-mode=in] .cb.ok i, .seen.new { animation: none !important; } }
 </style>
 </head>
@@ -3884,7 +3885,7 @@ const lpHtml = c => !c.lp || !c.lp.t ? '' : `<a class="lp" href="${esc(c.lp.u)}"
 let seenWas;   // the message their photo sat on at the last drawing: it pops in only when it moves
 function renderChat() {
   const time = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });   // 10:15 PM, never 22:15 (Xed 12 Nov)
-  const ticks = (st, id) => st >= 3 ? (id === seenId ? `<span class="seen${seenId !== seenWas ? ' new' : ''}" aria-label="Seen">${partnerDp ? `<img src="${partnerDp}" alt="">` : esc(who().trim().charAt(0).toUpperCase() || '?')}</span>` : '')   // Xed 26 Nov: read = their tiny photo, on the newest one only
+  const ticks = st => st >= 3 ? ''   // Xed 26 Nov: read = no ticks; their tiny photo sits under the newest one they read
     : `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${r.x ? esc(r.x) : 'Message'}</span></span>` : '';
   const rxs = c => { const l = [c.rx && c.rx.them, c.rx && c.rx.me].filter(Boolean); return !l.length ? '' : `<span class="rx" role="button" aria-label="Reactions">${l[1] && l[0] === l[1] ? esc(l[0]) + '<small>2</small>' : l.map(esc).join('')}</span>`; };
@@ -3893,6 +3894,7 @@ function renderChat() {
     const c = view[i], p = view[i - 1], quiet = !p || c.at - p.at > 300000; if (quiet) last = { me: -9, them: -9 };   // after 5 quiet minutes each of you gets a face again
     if ((quiet || p.who !== c.who) && (c.who === 'me' ? myDp : partnerDp) && (quiet || i - last[c.who] >= 6)) { faces.add(c.id); last[c.who] = i; }
   }
+  const seenEl = () => `<span class="seen${seenId !== seenWas ? ' new' : ''}" aria-label="Seen by ${esc(who())}">${partnerDp ? `<img src="${partnerDp}" alt="">` : esc(who().trim().charAt(0).toUpperCase() || '?')}</span>`;
   const face = c => faces.has(c.id) ? `<span class="dp bdp"><img src="${c.who === 'me' ? myDp : partnerDp}" alt=""></span>` : '';
   const box = $('msgs'), keep = box.scrollTop, toEnd = toEndNext || !$('dock').classList.contains('open') || box.scrollHeight - box.scrollTop - box.clientHeight < 80;   // reading older messages: stay where you are
   toEndNext = false;
@@ -3905,7 +3907,7 @@ function renderChat() {
   const keepV = gifKeep();
   for (const c of view) lpWant(c);
   const tpEl = $('typing'); tpEl.remove();   // the typing bubble lives right under the last message
-  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0, c.id) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0, c.id) : ''}</span>`}${r}</div>`; }).join('');
+  box.innerHTML = '<button type="button" class="e2e" id="e2eNote">🔒 Messages are end-to-end encrypted. Only you two can read them. Tap to see your security code.</button>' + view.map(c => { const r = rxs(c); return `<div class="bubble ${c.who === 'me' ? 'mine' : ''} ${!c.vn && !c.im && !c.gif && emojiOnly(c.text) && !c.re ? 'big' : ''} ${c.vn ? 'voice' : c.im ? 'photo' : c.gif ? 'gifb' : ''} ${r ? 'rxd' : ''} ${faces.has(c.id) ? 'dpd' : ''} ${c.id === seenId ? 'seenOn' : ''}" data-id="${esc(c.id)}">${face(c)}${quote(c.re)}${c.vn || c.im || c.gif ? (c.vn ? vnHtml : c.im ? imHtml : gifHtml)(c, `<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`) : `${lpHtml(c)}${linky(c.text)}<span class="meta">${pins[c.id] && pins[c.id].on ? PIN_SVG : ''}${c.ed ? '<i class="ed">Edited</i>' : ''}${time(c.at)}${c.who === 'me' ? ticks(c.st || 0) : ''}</span>`}${r}${c.id === seenId ? seenEl() : ''}</div>`; }).join('');
   box.appendChild(tpEl);
   box.scrollTop = toEnd ? box.scrollHeight : keep;
   seenWas = seenId;
@@ -6897,7 +6899,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-134230';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-141001';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
