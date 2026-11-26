@@ -1936,18 +1936,19 @@ let readUpTo = +store.get('readTo:' + room, 0) || 0;
 // Xed 16 Nov: read = the message itself was on screen, in the big chat or the small one under a game, Play or Watch.
 // Not covered by anything, app unlocked, not the fake office chat. Messages that never showed (above the newest 3 in the small chat) stay unread.
 const readIds = new Set();
-function bubbleShown(el) {
-  const r = el.getBoundingClientRect(), b = $('msgs').getBoundingClientRect();
+function bubbleShown(el, box = $('msgs')) {
+  const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
   const top = Math.max(r.top, b.top, 0), bot = Math.min(r.bottom, b.bottom, innerHeight);
   if (r.width < 4 || bot - top < 8) return false;   // hidden, or scrolled out of sight
   const hit = document.elementFromPoint(Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1), (top + bot) / 2);
   return !!hit && (hit === el || el.contains(hit));   // nothing laid over it
 }
 function noteRead() {
-  if (document.hidden || hiding || !$('lock').hidden || ghostAt) return;   // ghost mode: nothing counts as read
-  for (const id of ghostHeld) { const el = $('msgs').querySelector(`.bubble[data-id="${CSS.escape(id)}"]`); if (el && bubbleShown(el)) { ghostHeld.delete(id); store.set('ghostHeld:' + room, [...ghostHeld]); send({ t: 'ack', id, vn: true, pl: true }); } }   // played in ghost mode, on screen now: blue
+  if (document.hidden || !$('lock').hidden || ghostAt) return;   // ghost mode: nothing counts as read
+  const box = hiding ? $('fake').querySelector('.msgs') : $('msgs'), key = hiding ? 'rid' : 'id'; if (!box) return;   // Xed 26 Nov: a message read in the office chat (in disguise) is read too
+  for (const id of ghostHeld) { const el = box.querySelector(`.bubble[data-${key}="${CSS.escape(id)}"]`); if (el && bubbleShown(el, box)) { ghostHeld.delete(id); store.set('ghostHeld:' + room, [...ghostHeld]); send({ t: 'ack', id, vn: true, pl: true }); } }   // played in ghost mode, on screen now: blue
   const fresh = [];
-  for (const el of $('msgs').querySelectorAll('.bubble:not(.mine)')) { const id = el.dataset.id; if (id && !readIds.has(id) && bubbleShown(el)) { readIds.add(id); fresh.push(id); } }
+  for (const el of box.querySelectorAll('.bubble:not(.mine)')) { const id = el.dataset[key]; if (id && !readIds.has(id) && bubbleShown(el, box)) { readIds.add(id); fresh.push(id); } }
   const them = chat.filter(c => c.who === 'them' && +c.at > readUpTo && !c.vn && !c.im).sort((a, b) => a.at - b.at);   // voice notes and photos keep their own rule: played or opened
   let t = readUpTo;
   for (const c of them) { if (!readIds.has(c.id)) break; t = +c.at; }   // read up to the first one not yet seen
@@ -7007,7 +7008,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-181010';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-182034';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -8821,7 +8822,7 @@ function fkBuildMini() {   // a copy of the small chat as it is right now (same 
   const pk = dock.querySelector('.peek'); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(fk.seen)}</i>`; pk.classList.toggle('live', fk.seen === 'online'); }
   fkForm(dock); $('fake').replaceChildren(dock);
 }
-let fkRe = null, fkPeekId = null, fkToEnd = false;
+let fkRe = null, fkPeekId = null, fkToEnd = false, fkSeenWas;
 function fkDraw() {   // the real chat's own bubbles, times and ticks: the colleague's old talk and the real messages in disguise, in time order
   const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
   const msgs = $('fake').querySelector('.msgs'); if (!msgs || !fk) return;
@@ -8830,11 +8831,12 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks: the colle
   const real = chat.slice(-80).map(c => ({ w: c.who === 'me' ? 'm' : 't', x: fkLine(c), at: +c.at, c })), from = real.length ? real[0].at : Infinity;
   const calls = callLog.filter(r => r.at >= from).map(r => ({ at: r.at, call: r }));   // calls stay calls: with the colleague, which is ordinary
   const list = [...fk.list, ...real, ...calls].sort((a, b) => a.at - b.at), unAt = fk.un && list.slice(-fk.un).every(m => !m.c && !m.call && m.w === 't') ? list.length - fk.un : -1;
+  const seenM = list.findLast(m => m.w === 'm' && !m.call && (m.c ? (m.c.st || 0) >= 3 : true));   // the newest one of ours that was read (the colleague's old talk counts as read)
   list.forEach((m, i) => {
     if (m.call) { msgs.insertAdjacentHTML('beforeend', callRow({ ...m.call, n: 1, last: m.call.at })); return; }
     if (i === unAt && !fkMini) { const u = document.createElement('div'); u.className = 'fkUn'; u.textContent = `${fk.un} unread message${fk.un > 1 ? 's' : ''}`; msgs.appendChild(u); }   // like WhatsApp, above the new ones
     const b = document.createElement('div'), meta = document.createElement('span'), tx = document.createElement('span'), first = m.w === 't' && (!i || list[i - 1].w !== 't' || list[i - 1].call), peek = m.c && m.c.id === fkPeekId;
-    b.className = 'bubble' + (m.w === 'm' ? ' mine' : '') + (first ? ' dpd' : '') + (emojiOnly(m.x) && !(m.c && m.c.re) ? ' big' : '') + (peek ? ' fkPeek' : '');
+    b.className = 'bubble' + (m.w === 'm' ? ' mine' : '') + (first ? ' dpd' : '') + (emojiOnly(m.x) && !(m.c && m.c.re) ? ' big' : '') + (peek ? ' fkPeek' : '') + (m === seenM ? ' seenOn' : '');
     if (first) { const f = document.createElement('span'); f.className = 'dp bdp'; fkDp(f); b.appendChild(f); }
     if (m.c) {
       b.dataset.rid = m.c.id;
@@ -8842,8 +8844,11 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks: the colle
     }
     tx.className = 'fkTx'; tx.dataset.x = m.x; tx.textContent = peek ? m.c.text : m.x; b.appendChild(tx);
     meta.className = 'meta'; meta.textContent = t(m.at);
-    if (m.w === 'm') { const st = m.c ? m.c.st || 0 : 3, k = document.createElement('span'); k.className = 'tick st' + st; k.textContent = st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'; meta.appendChild(k); }   // the real ticks, the WhatsApp way
-    b.appendChild(meta); msgs.appendChild(b);
+    const st = m.c ? m.c.st || 0 : 3;
+    if (m.w === 'm' && st < 3) { const k = document.createElement('span'); k.className = 'tick st' + st; k.textContent = st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'; meta.appendChild(k); }   // the real ticks; read = no ticks, like the real chat
+    b.appendChild(meta);
+    if (m === seenM) { const sn = document.createElement('span'), id = m.c ? m.c.id : 'f' + m.at; fkDp(sn); sn.className = 'seen' + (id !== fkSeenWas ? ' new' : ''); sn.style.fontSize = '10px'; sn.setAttribute('aria-label', 'Seen by ' + fk.name); b.appendChild(sn); fkSeenWas = id; }   // the colleague's face, not hers
+    msgs.appendChild(b);
   });
   const live = partnerShown(), seen = live ? 'online' : fk.seen; fkDraw.live = live;   // the colleague is online exactly when the real one is
   const sm = $('fake').querySelector('.chatWho small'); if (sm) { sm.textContent = seen; sm.classList.toggle('live', seen === 'online'); }
