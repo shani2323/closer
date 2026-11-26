@@ -1894,7 +1894,8 @@ function renderSeen() {   // the chat header: her name, and online or when she w
 const toySeen = store.get('toySeen:' + room, {}) || {};   // when each toy was last switched on and talking to us
 function noteToys() { let ch = false; for (const k in KINDS) if (state[k] && state[k].connected) { toySeen[k] = Date.now(); ch = true; } if (ch && Date.now() - (noteToys.at || 0) > 10000) { noteToys.at = Date.now(); store.set('toySeen:' + room, toySeen); } }   // saved at most every 10 s
 steady(() => { noteToys(); if (!partnerOnline() || Object.keys(KINDS).some(k => state[k] && !state[k].connected)) render(); }, 20000);   // keeps "5 min ago" fresh while she or a toy is away
-const who = () => partnerName || 'Your partner';
+const pn = () => hiding && fk ? fk.name : partnerName;   // Xed 26 Nov: while the office chat shows, the other one is the colleague everywhere
+const who = () => pn() || 'Your partner';
 const LONG_AWAY_MS = 3 * 3600e3;   // away this long: "just you" mode
 let wasAlone = null, shownOnline = null, aloneMoved = false, longGone = false;
 // What the screen says: still "online" through a short gap (an app switch, a weak signal), on both phones, for 30 s (Xed 11 Nov).
@@ -1998,7 +1999,7 @@ function render() {
   if (noEggs) {
     $('heroF1').textContent = faces.vib; $('heroF2').textContent = faces.suc;
     const looking = [...tries.values()].some(c => c.trying);
-    $('heroTitle').textContent = isRemote ? `Waiting for ${partnerName || "your partner"}` : `Bring ${label('vib')} and ${label('suc')} in`;
+    $('heroTitle').textContent = isRemote ? `Waiting for ${pn() || "your partner"}` : `Bring ${label('vib')} and ${label('suc')} in`;
     const guide = {
       nochrome: ['Open this page in Chrome', 'Bluetooth only works in Chrome on Android. Copy this address, open Chrome and paste it there.'],
       off: ['Turn Bluetooth on', 'Swipe down from the top of the screen and tap Bluetooth. This page notices by itself.'],
@@ -2060,13 +2061,13 @@ function render() {
 
   const mine = isRemote ? 'remote' : 'host', theirs = isRemote ? 'host' : 'remote';
   document.querySelector(`.seg [data-lead=${mine}]`).textContent = 'I lead';
-  document.querySelector(`.seg [data-lead=${theirs}]`).textContent = `${partnerName || 'Partner'} leads`;
+  document.querySelector(`.seg [data-lead=${theirs}]`).textContent = `${pn() || 'Partner'} leads`;
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-checked', b.dataset.lead === lead));
   $('leadText').textContent = lead === 'both' ? 'You can both play.'
     : lead === mine ? `You have full control. ${who()} just enjoys.`
     : isRemote ? `${who()} has taken control. Sit back and listen.` : `${who()} has full control. Relax. Stop always works for you.`;
   $('micSwitch').checked = !!mic;
-  $('micText').textContent = !mic ? `Let ${partnerName || 'your partner'} hear you` : partnerListening ? `${who()} is listening 🎧` : `Waiting for ${who()} to put headphones in`;
+  $('micText').textContent = !mic ? `Let ${pn() || 'your partner'} hear you` : partnerListening ? `${who()} is listening 🎧` : `Waiting for ${who()} to put headphones in`;
   $('listenAsk').hidden = !((hearing && listenGate) || vidAsk);
   $('askTitle').textContent = hearing && listenGate ? `🎧 ${who()} wants you to listen` : '🎧 Sound for the video';
   $('listenRow').hidden = !hearing || listenGate;
@@ -2104,7 +2105,7 @@ function render() {
     const inK = Object.keys(KINDS).find(k => state[k].connected), outK = inK === 'vib' ? 'suc' : 'vib', who2 = k => `${faces[k]} ${label(k)}`;
     $('connect').textContent = n === 0 ? (bt === 'nochrome' ? 'Copy address' : bt === 'notfound' || bt === 'blocked' ? 'Try again' : store.get('eggsSeen') ? `Bring ${label('vib')} and ${label('suc')} back` : `Connect ${label('vib')} and ${label('suc')}`) : n === 1 ? `Make it a threesome: bring ${who2(outK)} in` : `Bring ${who2('vib')} or ${who2('suc')} in`;
     $('hostHint').textContent = n === 2 ? `${label('vib')} and ${label('suc')} are both here.` : n === 1 ? `${label(inK)} is here. Switch ${label(outK)} on to join you both.` : `Switch ${label('vib')} and ${label('suc')} on and close the official app.`;
-    $('allowLabel').textContent = `Let ${partnerName || 'your partner'} control`;
+    $('allowLabel').textContent = `Let ${pn() || 'your partner'} control`;
     $('allow').checked = allow;
   }
 }
@@ -4274,7 +4275,7 @@ const PAD_DARES = [   // {S} her, {X} him, {A} Leo, {B} Max; she stays lying or 
 ];
 let touchK = 'both', touchPrev = null, padDownAt = 0, padRelease = 0;
 const fingers = new Map();   // pointer id -> last point, so several fingers and quick taps all count
-const her = () => isRemote ? partnerName || 'Her' : myName, him = () => isRemote ? myName : partnerName || 'Him';
+const her = () => isRemote ? pn() || 'Her' : myName, him = () => isRemote ? myName : pn() || 'Him';
 const fillDare = t => t.replace(/\{S\}/g, her()).replace(/\{X\}/g, him()).replace(/\{A\}/g, label('vib')).replace(/\{B\}/g, label('suc'));
 const usedDares = new Set();
 function showDare(i) { $('dareText').textContent = fillDare(PAD_DARES[i]); $('dareText').classList.add('on'); }
@@ -6333,7 +6334,7 @@ function banCard(turn, k, i) {   // kept on both phones for good
 }
 function fillCard(t) {   // names instead of placeholders: her, him, and each egg
   return t.replace(/\{A\}/g, label('vib')).replace(/\{B\}/g, label('suc'))
-    .replace(/\{S\}/g, isRemote ? partnerName || 'her' : myName).replace(/\{X\}/g, isRemote ? myName : partnerName || 'him');
+    .replace(/\{S\}/g, isRemote ? pn() || 'her' : myName).replace(/\{X\}/g, isRemote ? myName : pn() || 'him');
 }
 // Xed 13 Nov: a dare for losing a game comes on top of a card that was already open; that card waits and comes back after it
 const cleanHold = h => {
@@ -7006,7 +7007,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261126-180053';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261126-181010';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0;
 logLink(`opened as ${isRemote ? 'his' : 'her'} side, ${APP_V}`);
@@ -7471,7 +7472,8 @@ function common(m) {   // messages both phones handle the same way
 }
 function dpPaint() {
   const put = (el, d, name) => { if (!el) return; if (d) { if (!el.firstChild || el.firstChild.src !== d) el.innerHTML = `<img src="${d}" alt="">`; } else el.textContent = (name || '?').trim().charAt(0).toUpperCase() || '?'; };
-  put($('chatDp'), partnerDp, who()); put($('infoDp'), partnerDp, who()); put($('myDp'), myDp, myName || 'You');
+  const pd = hiding ? '' : partnerDp;   // no real photo while the office chat shows
+  put($('chatDp'), pd, who()); put($('infoDp'), pd, who()); put($('myDp'), myDp, myName || 'You');
   $('dpDrop').hidden = !myDp;
 }
 function gotDp(m) {
@@ -7972,7 +7974,7 @@ function callShow() {
   if (c) {
     v.dataset.mode = c.dir === 'in' && c.st === 'ring' ? 'in' : c.st === 'on' ? 'on' : 'out';
     const dp = $('callDp'), name = who();
-    if (partnerDp) { if (!dp.firstChild || dp.firstChild.src !== partnerDp) dp.innerHTML = `<img src="${partnerDp}" alt="">`; } else dp.textContent = name.trim().charAt(0).toUpperCase() || '?';
+    if (partnerDp && !hiding) { if (!dp.firstChild || dp.firstChild.src !== partnerDp) dp.innerHTML = `<img src="${partnerDp}" alt="">`; } else dp.textContent = name.trim().charAt(0).toUpperCase() || '?';
     $('callName').textContent = name; $('cbName').textContent = name;
     $('callEndT').textContent = v.dataset.mode === 'in' ? 'Decline' : 'End';
     for (const id of ['callMute', 'cbMute']) $(id).setAttribute('aria-pressed', !!c.muted);
@@ -8753,9 +8755,16 @@ const FK_THEM = ['Report ka kya bana?', 'Meeting 3 baje hai, yaad hai na?', 'Fil
   'Ek minute call pe aa sakte hain?', 'Is mahine ka target kitna hai?', 'Manager ne figures maange hain 📊', 'Sheet mein total check kar lein', 'Lunch ke baad meeting room 2', 'Woh quotation bhej dein', 'Leave approve ho gayi?',
   'Slides mein logo update karna hai', 'Payment kab tak release hogi?', 'Order confirm hua?', 'Training ka schedule aa gaya 📅', 'Printer phir kharab hai 😅', 'Audit wale kal aa rahe hain', 'Task ka kya status hai?',
   'Draft dekh ke batayein', 'Minutes of meeting bhej dena', 'Courier aa gaya?', 'Stock ki list chahiye', 'Branch se call aayi thi', 'Agenda final ho gaya?', 'Is pe signature chahiye', 'Reminder: deadline Friday hai', 'Thanks for the update 👍'];
-const FK_EMO = ['👍', '👌', '✅', '🙂', '🙏'];
+const FK_EMO = ['👍', '👌', '✅', '🙂', '🙏'], FK_DOC = ['Invoice', 'Quotation', 'Report', 'Statement', 'Receipt', 'Agenda', 'Schedule', 'Proposal'];
 const fkHash = id => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return h >>> 0; };
 const fkMask = (id, w, text) => { const h = fkHash(String(id)); if (emojiOnly(text || '')) return FK_EMO[h % FK_EMO.length]; const l = w === 'me' ? FK_ME : FK_THEM; return l[h % l.length]; };   // the same message always wears the same line
+const fkLine = c => {   // a photo is a PDF, a GIF a spreadsheet, a voice message a meeting recording; text gets an office line
+  const h = fkHash(String(c.id)), n = 1000 + h % 9000;
+  if (c.im) return `📄 ${FK_DOC[h % FK_DOC.length]}_${n}.pdf`;
+  if (c.gif) return `📊 Sheet_${n}.xlsx`;
+  if (c.vn) return `🎧 Meeting_recording_${n}.m4a`;
+  return fkMask(c.id, c.who, c.text);
+};
 const FK_MORE = ['Free ho to call karna 📞', 'Reply kar dena jab time mile', 'Acha suno', 'Ek kaam tha', 'Kal baat karte hain', 'Kahan ho?', '👍', 'Theek hai phir'];
 const fkRand = s => () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };   // the same numbers for the same day
 function fkNew() {   // today's colleague and conversation: drawn from the date, so it stays put all day
@@ -8817,12 +8826,14 @@ function fkDraw() {   // the real chat's own bubbles, times and ticks: the colle
   const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
   const msgs = $('fake').querySelector('.msgs'); if (!msgs || !fk) return;
   const near = fkToEnd || msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80, keep = msgs.scrollTop; fkToEnd = false;
-  for (const b of msgs.querySelectorAll('.bubble, .fkUn')) b.remove();
-  const real = chat.slice(-80).map(c => ({ w: c.who === 'me' ? 'm' : 't', x: fkMask(c.id, c.who, c.text), at: +c.at, c }));
-  const list = [...fk.list, ...real].sort((a, b) => a.at - b.at), unAt = fk.un && list.slice(-fk.un).every(m => !m.c && m.w === 't') ? list.length - fk.un : -1;
+  for (const b of msgs.querySelectorAll('.bubble, .fkUn, .callRow')) b.remove();
+  const real = chat.slice(-80).map(c => ({ w: c.who === 'me' ? 'm' : 't', x: fkLine(c), at: +c.at, c })), from = real.length ? real[0].at : Infinity;
+  const calls = callLog.filter(r => r.at >= from).map(r => ({ at: r.at, call: r }));   // calls stay calls: with the colleague, which is ordinary
+  const list = [...fk.list, ...real, ...calls].sort((a, b) => a.at - b.at), unAt = fk.un && list.slice(-fk.un).every(m => !m.c && !m.call && m.w === 't') ? list.length - fk.un : -1;
   list.forEach((m, i) => {
+    if (m.call) { msgs.insertAdjacentHTML('beforeend', callRow({ ...m.call, n: 1, last: m.call.at })); return; }
     if (i === unAt && !fkMini) { const u = document.createElement('div'); u.className = 'fkUn'; u.textContent = `${fk.un} unread message${fk.un > 1 ? 's' : ''}`; msgs.appendChild(u); }   // like WhatsApp, above the new ones
-    const b = document.createElement('div'), meta = document.createElement('span'), tx = document.createElement('span'), first = m.w === 't' && (!i || list[i - 1].w !== 't'), peek = m.c && m.c.id === fkPeekId;
+    const b = document.createElement('div'), meta = document.createElement('span'), tx = document.createElement('span'), first = m.w === 't' && (!i || list[i - 1].w !== 't' || list[i - 1].call), peek = m.c && m.c.id === fkPeekId;
     b.className = 'bubble' + (m.w === 'm' ? ' mine' : '') + (first ? ' dpd' : '') + (emojiOnly(m.x) && !(m.c && m.c.re) ? ' big' : '') + (peek ? ' fkPeek' : '');
     if (first) { const f = document.createElement('span'); f.className = 'dp bdp'; fkDp(f); b.appendChild(f); }
     if (m.c) {
@@ -8860,7 +8871,7 @@ function hideSet(on, mini) {
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     hiding = fkMini = true; document.body.classList.add('hiding', 'fkMini'); $('fake').classList.add('mini');
     fk = store.get('fake') || fkNew(); store.set('fake', fk); $('fake').hidden = false; fkBuildMini(); fkDraw(); $('dock').inert = true;   // shown first, so it opens at the newest message
-    return;
+    fkNames(); return;
   }
   hiding = on; document.body.classList.toggle('hiding', on); $('fake').hidden = !on;
   for (const el of document.body.children) if (!['fake', 'lock'].includes(el.id) && el.tagName !== 'SCRIPT') { el.inert = on; on ? el.setAttribute('aria-hidden', 'true') : el.removeAttribute('aria-hidden'); }   // review 14 Nov: the real app cannot be reached at all while hidden
@@ -8871,7 +8882,9 @@ function hideSet(on, mini) {
     else if (!on && el.dataset.hideMuted) { el.muted = false; delete el.dataset.hideMuted; }
   }
   if (!on) { renderChat(); render(); if (call && call.hidMute) { call.hidMute = false; callMuteSet(false); } }   // back from the office chat: the microphone comes back on
+  fkNames();
 }
+function fkNames() { render(); dpPaint(); if (call) callShow(); }   // every name and picture on screen follows: the colleague while hidden, the real one after
 let hideAskAt = 0;
 $('hideBtn').onclick = () => { tap(); store.set('fake', null); hideSet(true); };
 let fkHoldT = 0, fkHeldNow = false;
