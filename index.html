@@ -102,6 +102,8 @@
   .row.action { color: var(--blue); }
   .row.danger { color: var(--red); }
   .row svg { width: 20px; height: 20px; flex: none; }
+  .twinDot { width: 10px; height: 10px; flex: none; border-radius: 5px; background: var(--label3); transition: background-color .3s; }   /* Xed 27 Nov: green while the other phone of this side is open */
+  .twinDot.on { background: #30d158; box-shadow: 0 0 8px rgba(48, 209, 88, .6); }
   .row .grow { flex: 1; display: flex; align-items: center; gap: 10px; }
   .seg { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 8px 16px 12px; padding: 2px; border-radius: 9px; background: var(--fill); }
   .seg button { height: 32px; border: 0; border-radius: 7px; background: none; font-size: 13px; font-weight: 500; letter-spacing: -.005em; padding: 0 4px;
@@ -327,6 +329,11 @@
   /* Xed 26 Nov: the small chat (Watch, games) turns into a small office chat of exactly the same size and place */
   .fake.mini { top: auto; z-index: 4; padding: 0; overflow: visible; background: none; }
   .fake.mini .dock { position: relative; }
+  /* Xed 27 Nov: iPhone. Its keyboard covers the page instead of shrinking it, so the message box and the office chat
+     follow the part of the screen still visible above the keyboard (both stay 0 everywhere else) */
+  .dock { bottom: var(--kbGap, 0px); }
+  .fake { top: var(--vvTop, 0px); bottom: var(--kbGap, 0px); }
+  .fake .dock { bottom: 0; }
   body.fkMini #dock { visibility: hidden; }
   /* the call on the passcode screen, dressed as a system update: hold Pause (mute) or Stop (end) for a moment; a brush of the cheek does nothing */
   .lockNote > .lnCall { gap: 10px; padding-right: 9px; }
@@ -1604,6 +1611,7 @@
     <button type="button" class="primary alt switchSide">Switch this phone to the other side</button>
     <button type="button" class="ghost" id="lockChangeBtn">Change passcode</button>
     <button type="button" class="ghost" id="fakeCodeBtn">Set fake passcode</button>
+    <div class="row" id="twinRow"><span>Your other phone<small id="twinNote">Not linked yet.</small></span><span class="twinDot" id="twinDot" aria-hidden="true"></span></div>
     <label class="row"><span>Lock after<small>No touch, or away from the app, this long</small></span><select class="lockSel" id="lockMs" aria-label="Lock after"><option value="10000">10 seconds</option><option value="30000">30 seconds</option><option value="60000">1 minute</option><option value="120000">2 minutes</option><option value="300000">5 minutes</option></select></label>
     <label class="row"><span>Games, Play and Draw lock after<small>While playing, drawing or using Play</small></span><select class="lockSel" id="playLockMs" aria-label="Games, Play and Draw lock after"><option value="30000">30 seconds</option><option value="60000">1 minute</option><option value="120000">2 minutes</option><option value="180000">3 minutes</option><option value="300000">5 minutes</option><option value="600000">10 minutes</option></select></label>
     <label class="row"><span>Open in office chat<small>Every time the app opens, it starts in disguise. Show keeps the real app until it is closed or hidden again.</small></span><input type="checkbox" class="switch" id="fkStartOn"></label>
@@ -1929,6 +1937,7 @@ const partnerOnline = () => Date.now() - partnerSeen < PARTNER_TIMEOUT_MS;
 let seenSaved = 0;
 let partnerBgAt = +store.get('bgAt:' + room, 0) || 0;   // when the other phone put Loveline in the background (0 = on screen)
 const seenAt = () => partnerBgAt || partnerSeen || store.get('seenAt:' + room, 0);   // in the background: since it left the screen
+function onIphone() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }   // Chrome on iPhone is Apple's engine inside
 const PK = 'Asia/Karachi';   // every time shown is Pakistan time, on both phones
 // Xed 27 Nov (speed): one ready-made clock reading each, instead of building a new one for every message (that made a slow phone wait)
 const PK_TIME = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK }), PK_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: PK }), PK_HOUR = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: PK });
@@ -2456,6 +2465,7 @@ async function startNet() {
       c.subscribe(seenTheirs); noteRead(); publishSeen();   // when the other phone was last on screen (and what it read), even if this one slept through it
       if (boardDirty) setTimeout(publishBoard, 3000);   // drawn while this phone had no connection
       c.subscribe(fileIn);
+      c.subscribe(TW_T); if (twinTopic) c.subscribe(twinTopic);   // Xed 27 Nov: this side's other phone
       const first = !online; online = true;
       logEv('relay_up', { i: i + 1, first }); if (first) { logLink('relay reached'); isRemote ? (takenOver || hello()) : publishState(); boxIn(); }
       if (first) for (const m of chat) if (m.who === 'me' && !((m.st || 0) >= 1) && Date.now() - m.at < 86400000) send(msgOf(m)).then(ok => { if (ok && (m.st || 0) < 1) { m.st = 1; saveChat(); renderChat(); } });   // 17 Nov: typed while no relay was reached (e.g. the first second after the phone woke the app): goes out now, not only when the other phone comes on
@@ -2469,6 +2479,8 @@ async function startNet() {
     });
     c.on('message', (topic, payload) => {
       if (topic === LOBBY_T) { gotLobby(payload.toString()); return; }
+      if (topic === TW_T) { gotTwinBond(payload.toString()); return; }
+      if (topic === twinTopic) { gotTwin(payload.toString()); return; }
       if (topic === boardTopic) { gotBoard(payload.toString()); return; }
       if (topic === seenTheirs) { gotLastOn(payload.toString()); return; }
       if (topic === echoTopic(i)) { c.echoes = true; c.heardAt = Date.now(); c.lag = c.heardAt - +payload.toString(); return; }
@@ -2730,10 +2742,20 @@ function keepMsg(c) {   // save a changed message: in the live chat, or straight
   archSeen.set(c.id, JSON.stringify(c)); archTx('readwrite', st => { st.put(c); }).catch(() => {});
 }
 async function archOlder(n) {   // the next n older messages from this phone's database
+  // Xed 27 Nov (iPhone): one read for a stretch of time, wider until it holds n. Stepping through them one by one took
+  // 3 s for 200 in Apple's engine (a search result 2,000 messages back: 18 s); one read takes a moment on every phone.
   const all = chatAll(), first = all[0], have = new Set(all.map(c => c.id));
-  const out = [];
-  await archTx('readonly', st => { const r = st.index('at').openCursor(first ? IDBKeyRange.upperBound(first.at, true) : null, 'prev'); r.onsuccess = () => { const cur = r.result; if (!cur || out.length >= n) return; if (!have.has(cur.value.id) && !cleared.has(cur.value.id)) out.push(cur.value); cur.continue(); }; }).catch(() => {});
-  if (out.length) older = [...out.reverse(), ...older];
+  let out = [], span = 3 * 864e5;
+  for (;;) {
+    const range = !first ? null : span === Infinity ? IDBKeyRange.upperBound(first.at, true) : IDBKeyRange.bound(first.at - span, first.at, false, true);
+    let got = [];
+    await archTx('readonly', st => { const r = st.index('at').getAll(range); r.onsuccess = () => { got = r.result || []; }; }).catch(() => {});
+    out = got.filter(c => c && !have.has(c.id) && !cleared.has(c.id));
+    if (out.length >= n || span === Infinity || !first) break;
+    span = span >= 300 * 864e5 ? Infinity : span * 8;
+  }
+  out = out.slice(-n);   // oldest first already: the n nearest to what is shown
+  if (out.length) older = [...out, ...older];
   return out.length;
 }
 let olderBusy = false;
@@ -2759,7 +2781,7 @@ steady(archCap, 600000);
 const saveChat = () => {
   const keep = archBad ? 1000 : 200, drop = chat.slice(0, -keep);
   if (drop.length) { if (!archBad) archPut(drop); if (older.length) older.push(...drop); olderDone = false; }   // 8: newly kept messages can be scrolled to again
-  chat = chat.slice(-keep); store.set('chat:' + room, chat); archSave();
+  chat = chat.slice(-keep); store.set('chat:' + room, chat); archSave(); twinChanged();
 };
 archSave();
 const emojiOnly = t => t.length <= 16 && /^(\p{Extended_Pictographic}|\p{Emoji_Modifier}|️|‍|\s)+$/u.test(t);
@@ -2941,13 +2963,14 @@ function vnWant(id) {
   vnAsk(id);
 }
 function vnAsk(id) {
-  const p = vnPend.get(id); if (!p || !partnerOnline()) return;
+  const p = vnPend.get(id); if (!p || !(partnerOnline() || twinLive())) return;
   const miss = []; for (let i = 0; i < p.n && miss.length < 8; i++) if (!p.got[i]) miss.push(i);
   p.ask = Date.now(); p.tries++; p.batch = new Set(miss);
-  send({ t: 'vget', id, i: miss });
+  if (partnerOnline()) send({ t: 'vget', id, i: miss });
+  if (twinLive()) twinSend({ t: 'vget', id, i: miss });   // Xed 27 Nov: this side's other phone may have it too
 }
 steady(() => {
-  if (!vnReady || !partnerOnline()) return;
+  if (!vnReady || !(partnerOnline() || twinLive())) return;
   for (const [id, at] of vnGone) if (Date.now() - at > 60000) vnGone.delete(id);
   for (const c of chat) if ((c.vn || c.im) && !vnHave.has(c.id) && !vnPend.has(c.id) && !vnGone.has(c.id)) vnWant(c.id);
   for (const [id, p] of vnPend) if (Date.now() - p.ask > 4000) {
@@ -2955,16 +2978,16 @@ steady(() => {
     vnAsk(id);
   }
 }, 2000);
-async function gotVget(m) {
+async function gotVget(m, out = send) {   // out: twinSend when this side's other phone asks
   if (typeof m.id !== 'string' || !Array.isArray(m.i) || !vnHave.has(m.id)) return;
   const mc = msgById(m.id) || await archTx('readonly', st => st.get(m.id)).catch(() => null);
-  if (!mc || (mc.im && mc.im.vo && (mc.who === 'them' || imSpentNow(mc)))) return;   // unknown here: refuse. A view-once photo is only ever sent by the one who took it, and never after it was opened   // a view-once photo is only ever sent by the one who took it, and never after it was opened
+  if (!mc || (mc.im && mc.im.vo && (mc.who === 'them' || imSpentNow(mc) || out !== send))) return;   // unknown here: refuse. A view-once photo is only ever sent by the one who took it, and never after it was opened   // a view-once photo is only ever sent by the one who took it, and never after it was opened
   const v = await vnLoad(m.id); if (!v || !v.b) return;
   const n = Math.ceil(v.b.size / VN_PART);
   for (const i of m.i.slice(0, 8)) {
     if (!Number.isInteger(i) || i < 0 || i >= n) continue;
     const d = b64(new Uint8Array(await v.b.slice(i * VN_PART, (i + 1) * VN_PART).arrayBuffer()));
-    send({ t: 'vpart', id: m.id, i, n, d });
+    out({ t: 'vpart', id: m.id, i, n, d });
   }
 }
 async function gotVpart(m) {
@@ -4746,7 +4769,8 @@ function setChatTab() { openPanel('chat'); }
 function chatTabRoom() {   // the chat fills the space between the tabs and the bottom of the screen
   if (!chatTab) return;
   const top = Math.max(...['tabs', 'batWarn', 'alertAsk', 'listenAsk'].map(id => $(id)).filter(e => !e.hidden).map(e => e.getBoundingClientRect().bottom)), rest = $('dock').offsetHeight - $('msgs').offsetHeight;
-  document.body.style.setProperty('--chatRoom', Math.max(160, innerHeight - Math.max(0, top) - rest - 8) + 'px');
+  const v = onIphone() && window.visualViewport, low = v ? v.offsetTop + v.height : innerHeight, high = Math.max(0, top, v ? v.offsetTop : 0);   // iPhone: only the part above its keyboard
+  document.body.style.setProperty('--chatRoom', Math.max(160, low - high - rest - 8) + 'px');
 }
 let ctrQ = 0; const chatTabRoomSoon = () => { if (!ctrQ) ctrQ = requestAnimationFrame(() => { ctrQ = 0; chatTabRoom(); }); };   // Xed 27 Nov (speed): many changes in a row are measured once, just before the screen is drawn, instead of the whole layout each time
 addEventListener('resize', chatTabRoomSoon);
@@ -7230,7 +7254,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-062756';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-093046';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -8139,7 +8163,7 @@ addEventListener('pointerdown', () => {   // phones only let a page play sound a
   chime.play().then(() => { chime.pause(); chime.currentTime = 0; chime.muted = false; }).catch(() => { chime.muted = false; });
 }, true);
 function gotBuzz() {
-  if (!hiding) burst('💗'); notify(`💼 ${ROLE} is looking for you`, 4000, true);
+  if (!hiding) burst('💗'); notify(`${ROLE_IC} ${ROLE} is looking for you`, 4000, true);
   if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
   if (chime && store.get('buzzSound', true)) { chime.muted = false; chime.currentTime = 0; chime.play().catch(() => {}); }
   send({ t: 'buzzgot' });
@@ -8630,6 +8654,201 @@ async function boxFile(c) {
     logEv('box_file_out', { id: c.id, ok, kb: Math.round(body.length / 1024), ms: Date.now() - t0 });
   } catch {} finally { boxFileBusy = false; boxSending.delete('f' + c.id); }
 }
+// ---- Xed 27 Nov: two phones on the same side keep the same chat (his two phones, or her two phones).
+// They pair once, by themselves, when both are open with the same passcode: each only proves it knows the code (the same
+// guess-proof exchange as finding the partner's phone; a wrong code costs one of the 5 tries). The pair then shares a secret
+// key that never leaves the two phones. While both are open they swap every message, tick, reaction and edit at once, and
+// photos and voice notes in sealed pieces. While one sleeps, the other leaves sealed copies of the texts in a mailbox on
+// our own servers (kept 7 days, unreadable there), so it is up to date the moment it opens. Clear chat stays per phone.
+// Review 27 Nov: a change counts as given only once the other phone says it has it, or the mailbox took it; each note is
+// read once however many relays bring it, and an old one played back later is ignored.
+const TW_T = `closer-v2/${room}/tw`, TW_SIDE = isRemote ? 'c' : 'h', TW_K = `twinKey:${room}:${TW_SIDE}`, TW_G = `twinGiven:${room}:${TW_SIDE}`;
+let twinRaw = null, twinKey = null, twinTopic = '', twinAddr = '', twinSeen = 0, twinIdsAt = 0, twinHiAt = 0, twinPushQ = 0, twinCalm = '', twinDelN = 0;
+const twinLive = () => !!twinKey && Date.now() - twinSeen < 25000;
+const twinTold = new Map();   // phone -> the key it was last given, so each answer goes once
+const twinSigs = new Map();   // what went across live (sent, maybe not yet confirmed)
+const twinGiven = new Map(Object.entries(store.get(TW_G, {}) || {}));   // message -> mark of the state the other phone confirmed, or the mailbox took
+const twinHeard = new Set();   // notes already read (each comes once per relay)
+const twinVo = c => !!(c.im && c.im.vo);   // a view-once photo: whether it was opened stays on each phone (one that came across can never open)
+const twinSig = c => JSON.stringify([c.text, c.who === 'me' ? c.st || 0 : 0, c.ed || 0, c.pl && !twinVo(c) ? 1 : 0, ['me', 'them'].map(k => [(c.rx || {})[k] || '', (c.rxAt || {})[k] || 0])]);
+const twinH = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619); return (h >>> 0).toString(36); };
+const twinMark = c => twinH(twinSig(c));
+const twinAll = () => twinH(chat.map(c => c.id + twinSig(c)).sort().join('|'));   // the whole chat with its ticks, reactions and edits, in any order (each phone may list them by arrival)
+let twinGQ = 0;
+function twinGive(c, mark) {   // the other phone has this state now: it never needs the mailbox for it
+  if (twinGiven.get(c.id) === mark) return;
+  twinGiven.set(c.id, mark);
+  if (!twinGQ) twinGQ = setTimeout(() => { twinGQ = 0; const keep = new Set(chat.map(x => x.id)); for (const id of twinGiven.keys()) if (!keep.has(id)) twinGiven.delete(id); store.set(TW_G, Object.fromEntries(twinGiven)); }, 1500);
+}
+async function twinUse(raw) {
+  if (!raw || (twinKey && raw === twinRaw)) return;
+  const first = !store.get(TW_K);
+  twinRaw = raw; store.set(TW_K, raw);
+  twinKey = await crypto.subtle.importKey('raw', unb64url(raw), 'AES-GCM', false, ['encrypt', 'decrypt']);
+  const old = twinTopic;
+  twinTopic = `closer-v2/${room}/w${TW_SIDE}${(await sha(`loveline-twin-topic:${TW_SIDE}:${raw}`)).slice(0, 20)}`;
+  twinAddr = b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`loveline-twin-box:${TW_SIDE}:${raw}`))));
+  for (const c of clients) if (c.connected) { if (old && old !== twinTopic) c.unsubscribe(old); c.subscribe(twinTopic); }
+  for (const c of chat) twinSigs.set(c.id, twinSig(c));
+  if (first) for (const c of chat) twinGive(c, twinMark(c));   // just paired, both open: they swap the whole chat live, not through the mailbox
+  twinDelN = delAll.size;
+  twinHi(); twinBoxIn(); twinSay();
+}
+async function twinBondTick() {   // a phone with no pair yet says it is here, about every 5 s, while open
+  if (twinRaw || document.hidden || !online || !myV() || !await lobbyReady()) return;
+  const t = JSON.stringify({ t: 'th', from: lobbyId, side: TW_SIDE, A: lobbyA });
+  for (const c of clients) if (c.connected) c.publish(TW_T, t);
+}
+setInterval(twinBondTick, 5000);
+async function twinBondBox(to, p) {
+  twinTold.set(to, twinRaw);
+  const t = JSON.stringify({ t: 'tb', to, from: lobbyId, side: TW_SIDE, A: lobbyA, yours: p.A.slice(0, 24), box: await seal({ f: lobbyId, side: TW_SIDE, pid: phoneId, k: twinRaw }, p.key) });
+  for (const c of clients) if (c.connected) c.publish(TW_T, t);
+}
+async function gotTwinBond(txt) {
+  let m; try { m = JSON.parse(txt); } catch { return; }
+  if (!m || m.side !== TW_SIDE || typeof m.from !== 'string' || m.from.length > 24 || m.from === lobbyId || !myV() || !await lobbyReady()) return;   // the other side's phones are never asked anything
+  if (m.t === 'th') { const p = await lobbyPeer(m.from, m.A, true); if (p) twinBondBox(m.from, p); return; }
+  if (m.t !== 'tb' || m.to !== lobbyId || typeof m.box !== 'string' || m.yours !== lobbyA.slice(0, 24)) return;
+  const p = await lobbyPeer(m.from, m.A, false); if (!p) return;
+  const b = await unseal(m.box, p.key);
+  if (!b || b.f !== m.from) { if (!p.ok && !p.paid) p.paid = tryPay('lobbyStrikes', p.tag); return; }   // made with another passcode: a wrong try
+  if (!p.ok) { p.ok = true; tryBack('lobbyStrikes', p.tag); }
+  if (b.side !== TW_SIDE || typeof b.pid !== 'string' || b.pid === phoneId) return;   // another window on this same phone
+  const had = twinRaw, k = typeof b.k === 'string' && /^[\w-]{43}$/.test(b.k) ? b.k : null;
+  if (k && (!twinRaw || (k !== twinRaw && b.pid < phoneId))) await twinUse(k);
+  else if (!twinRaw && !k && phoneId < b.pid) await twinUse(b64url(rand(32)));
+  if (twinRaw && twinTold.get(m.from) !== twinRaw) twinBondBox(m.from, p);
+  if (!had && twinRaw) { logLink("paired with this side's other phone"); notify('Your other phone is linked. Both phones now keep the same chat.', 6000); }
+}
+async function twinSend(obj) {
+  if (!twinKey) return;
+  const t = await seal({ ...obj, from: phoneId, ts: Date.now() }, twinKey);
+  for (const c of clients) if (c.connected) c.publish(twinTopic, t);
+}
+let twinAt = +store.get('twinAt:' + room, 0) || 0;   // when this phone last heard from its other phone
+function twinSay() {   // the line in the name screen: linked or not, and when they last swapped
+  const el = $('twinNote'); if (!el) return;
+  const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+  el.textContent = !twinKey ? (myV() ? 'Not linked yet. Open Loveline on your other phone with the same passcode, and keep both open for a few seconds.' : 'Set a passcode first. Then open Loveline on your other phone with the same passcode.')
+    : twinLive() ? 'Linked and open now. Both phones show the same chat.' : `Linked. Same chat on both phones${twinAt ? `; last in touch ${ago(twinAt)}` : ''}.`;
+  $('twinDot').classList.toggle('on', twinLive());
+}
+function twinHi() { if (twinKey && online && !document.hidden) { twinHiAt = Date.now(); twinSend({ t: 'hi', cs: twinAll() }); } }
+setInterval(twinHi, 10000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) twinBoxOut(true); else { twinHi(); twinBoxIn(); } });
+const twinItem = c => ({ id: c.id, w: c.who, x: c.text, at: c.at, st: c.st || 0, ...(c.ed ? { ed: c.ed } : {}), ...(c.pl && !twinVo(c) ? { pl: 1 } : {}), ...(c.lp ? { lp: c.lp } : {}), ...(c.re ? { re: { ...reOut(c.re), w: c.re.w === 'me' ? 'them' : 'me' } } : {}), ...(c.vn ? { vn: c.vn } : {}), ...(c.im ? { im: c.im } : {}), ...(c.gif ? { gif: c.gif } : {}), ...(c.rx ? { rx: c.rx, rxAt: c.rxAt || {} } : {}) });   // re goes turned round: cleanRe turns it back
+const twinIds = () => [...chat.map(c => c.id + ':' + twinMark(c)), ...[...cleared].filter(x => !x.startsWith('clear:')).slice(-400).map(x => x + ':-')].slice(-1200);   // each message with a short mark of its state; cleared ones only as had
+function twinChanged() {   // after every save of the chat: the changes go across at once while the other phone is open
+  if (!twinKey || twinPushQ) return;
+  twinPushQ = setTimeout(() => {
+    twinPushQ = 0;
+    const out = chat.filter(c => twinSigs.get(c.id) !== twinSig(c)).slice(-40);
+    for (const c of out) twinSigs.set(c.id, twinSig(c));
+    if (out.length && twinLive()) for (let i = 0; i < out.length; i += 20) twinSend({ t: 'items', items: out.slice(i, i + 20).map(twinItem) });
+    if (out.length || delAll.size !== twinDelN) twinBoxSoon();   // unless the other phone confirms meanwhile, it waits in the mailbox
+  }, 400);
+}
+const twinRx = r => { const o = {}; if (r && typeof r === 'object') for (const k of ['me', 'them']) if (typeof r[k] === 'string' && REACTS.includes(r[k])) o[k] = r[k]; return o; };
+function twinTake(items) {   // what the other phone has: new messages slot in by time; known ones take the newer ticks, edits and reactions
+  let n = 0, ch = false;
+  const clearAt = (lastClear && +lastClear.at) || 0;
+  for (const it of (Array.isArray(items) ? items : []).slice(0, 200)) {
+    if (!it || typeof it.id !== 'string' || !/^[\w-]{1,24}$/.test(it.id) || typeof it.x !== 'string' || !['me', 'them'].includes(it.w) || cleared.has(it.id) || delAll.has(it.id)) continue;
+    const c = chat.find(x => x.id === it.id), st = Math.min(3, Math.max(0, +it.st || 0) | 0), rxAt = it.rxAt && typeof it.rxAt === 'object' ? it.rxAt : {};
+    if (c) {
+      let cc = false;
+      if (c.who === 'me' && st > (c.st || 0)) { c.st = st; cc = true; }
+      if (it.pl && !c.pl && !twinVo(c)) { c.pl = true; cc = true; }
+      if (+it.ed > (c.ed || 0) && !c.vn && !c.im && !c.gif) { c.text = it.x.slice(0, 500); c.ed = +it.ed; cc = true; }
+      const rx = twinRx(it.rx);
+      for (const k of ['me', 'them']) if ((+rxAt[k] || 0) > ((c.rxAt || {})[k] || 0)) { c.rx = c.rx || {}; c.rxAt = c.rxAt || {}; if (rx[k]) c.rx[k] = rx[k]; else delete c.rx[k]; c.rxAt[k] = +rxAt[k]; cc = true; }
+      if (cc) { twinSigs.set(c.id, twinSig(c)); ch = true; }
+      continue;
+    }
+    if (archIds.has(it.id) || (+it.at || 0) <= clearAt) continue;   // already kept among the older ones, or from before Clear chat on this phone
+    const re = cleanRe(it.re), vn = cleanVn(it.vn), im = !vn && cleanIm(it.im), gif = !vn && !im && cleanGif(it.gif), rx = twinRx(it.rx);
+    const nc = { id: it.id, who: it.w, text: vn ? vnText(vn.d) : im ? imText(im.vo) : gif ? gifText(gif.x) : it.x.slice(0, 500), at: +it.at || Date.now(), st, ...(+it.ed > 0 && !vn && !im && !gif ? { ed: +it.ed } : {}), ...(!vn && !im && !gif && lpFor(it.x, it.lp) ? { lp: lpFor(it.x, it.lp) } : {}), ...(re ? { re } : {}), ...(vn ? { vn } : {}), ...(im ? { im } : {}), ...(gif ? { gif } : {}), ...((im && im.vo) || it.pl ? { pl: true } : {}), ...(Object.keys(rx).length ? { rx, rxAt: { me: +rxAt.me || 0, them: +rxAt.them || 0 } } : {}) };   // a view-once photo opens only on the phone it reached first
+    const at = chat.findIndex(o => o.at > nc.at); at < 0 ? chat.push(nc) : chat.splice(at, 0, nc);
+    twinSigs.set(nc.id, twinSig(nc)); twinGive(nc, twinMark(nc)); n++; ch = true;
+  }
+  if (ch) { saveChat(); renderChat(); }
+  return n;
+}
+function twinAskIds() { if (Date.now() - twinIdsAt > 8000) { twinIdsAt = Date.now(); twinSend({ t: 'ids', ids: twinIds() }); } }
+function twinDel(list) { const ids = (Array.isArray(list) ? list : []).filter(x => typeof x === 'string' && /^[\w-]{1,24}$/.test(x) && !delAll.has(x)).slice(0, 300); if (ids.length) { dropMsgs(ids); delGone(ids); } }   // deleted for both: here too
+async function gotTwin(txt) {
+  if (!twinKey || twinHeard.has(txt)) return;
+  twinHeard.add(txt); if (twinHeard.size > 600) twinHeard.delete(twinHeard.values().next().value);
+  const m = await unseal(txt, twinKey);
+  if (!m || typeof m.from !== 'string' || m.from === phoneId || !(Math.abs(Date.now() - (+m.ts || 0)) < 600000)) return;   // a note played back much later is ignored
+  const back = !twinLive(); twinSeen = Date.now(); if (Date.now() - twinAt > 60000) store.set('twinAt:' + room, Date.now()); twinAt = Date.now(); if (back && !$('nameSheet').hidden) twinSay();
+  if (m.t === 'hi') { const mine = twinAll(); if (typeof m.cs === 'string' && m.cs !== mine && m.cs + '|' + mine !== twinCalm) twinAskIds(); if (back || Date.now() - twinHiAt > 9000) twinHi(); return; }
+  if (m.t === 'ids' && Array.isArray(m.ids)) {   // send back what the other phone is missing, and ask for what this one is missing
+    const have = new Map(m.ids.filter(x => typeof x === 'string' && x.length < 40).slice(0, 1200).map(x => { const i = x.lastIndexOf(':'); return [x.slice(0, i), x.slice(i + 1)]; }));
+    const gone = [...have.keys()].filter(id => delAll.has(id)).slice(0, 300); if (gone.length) twinSend({ t: 'del', ids: gone });
+    for (const c of chat) if (have.get(c.id) === twinMark(c)) twinGive(c, have.get(c.id));   // it has these as they are here
+    const miss = chat.filter(c => !cleared.has(c.id) && have.get(c.id) !== '-' && have.get(c.id) !== twinMark(c)).map(twinItem);   // missing there, or different there: the merge keeps the newer of each
+    for (let i = 0; i < miss.length; i += 20) twinSend({ t: 'items', items: miss.slice(i, i + 20) });
+    const want = [...have].some(([id, h]) => h !== '-' && !cleared.has(id) && !delAll.has(id) && !archIds.has(id) && !chat.some(c => c.id === id && twinMark(c) === h));
+    if (want) twinAskIds(); else if (!miss.length && !gone.length) twinSend({ t: 'calm', cs: twinAll() });   // nothing to swap: the difference is only what one phone cleared
+    return;
+  }
+  if (m.t === 'calm' && typeof m.cs === 'string') { twinCalm = m.cs + '|' + twinAll(); return; }
+  if (m.t === 'items') {
+    const n = twinTake(m.items); if (n) logLink(`${n} message${n > 1 ? 's' : ''} from this side's other phone`);
+    const got = (Array.isArray(m.items) ? m.items : []).map(it => it && chat.find(c => c.id === it.id)).filter(Boolean).map(c => c.id + ':' + twinMark(c));
+    if (got.length) twinSend({ t: 'got', ids: got });   // tell the other phone what it can stop keeping for the mailbox
+    return;
+  }
+  if (m.t === 'got' && Array.isArray(m.ids)) { for (const x of m.ids.slice(0, 200)) { if (typeof x !== 'string') continue; const i = x.lastIndexOf(':'), c = chat.find(o => o.id === x.slice(0, i)); if (c && twinMark(c) === x.slice(i + 1)) twinGive(c, x.slice(i + 1)); } return; }
+  if (m.t === 'del') { twinDel(m.ids); return; }
+  if (m.t === 'vget') { gotVget(m, twinSend); return; }
+  if (m.t === 'vpart') { gotVpart(m); return; }
+}
+let twinBoxQ = 0, twinBoxBusy = false, twinBoxInAt = 0;
+function twinBoxSoon() { if (!twinBoxQ) twinBoxQ = setTimeout(() => { twinBoxQ = 0; twinBoxOut(); }, 30000); }
+async function twinBoxOut(leaving) {   // what the other phone has not confirmed waits for it in the mailbox
+  if (!twinKey || twinBoxBusy) return;
+  if (twinLive() && leaving !== true) { twinBoxSoon(); return; }   // it is open: it will confirm live; checked again in 30 s
+  clearTimeout(twinBoxQ); twinBoxQ = 0;
+  const out = chat.filter(c => twinGiven.get(c.id) !== twinMark(c)).slice(-150), dels = delAll.size !== twinDelN ? [...delAll].slice(-100) : [];
+  if (!out.length && !dels.length) return;
+  twinBoxBusy = true;
+  try {
+    let part = [], ok = true;
+    const post = async (del = []) => {
+      if (!part.length && !del.length) return;
+      const items = part; part = [];
+      const body = 'T.' + await seal({ from: phoneId, items: items.map(([it]) => it), del }, twinKey);
+      const st = await Promise.all(BOXES.map(b => fetch(`${b}/m/${twinAddr}`, { method: 'POST', body, keepalive: body.length < 60000, signal: AbortSignal.timeout(15000) }).then(r => r.ok, () => false)));
+      if (st.some(Boolean)) for (const [, c, mk] of items) twinGive(c, mk); else ok = false;   // kept by at least one mailbox; otherwise tried again later
+    };
+    for (const c of out) { const it = twinItem(c); if (JSON.stringify(part.map(x => x[0])).length + JSON.stringify(it).length > 36000) await post(); part.push([it, c, twinMark(c)]); }
+    const dn = delAll.size; await post(dels); if (ok) twinDelN = dn;
+    if (!ok) twinBoxSoon();
+  } finally { twinBoxBusy = false; }
+}
+async function twinBoxIn() {   // what the other phone left while this one slept
+  if (!twinKey || document.hidden || Date.now() - twinBoxInAt < 10000) return;
+  twinBoxInAt = Date.now();
+  const got = [];
+  await Promise.all(BOXES.map(async (b, i) => {
+    const k = `twinBoxAt:${room}:${TW_SIDE}:${i}`;
+    for (let page = 0; page < 5; page++) {
+      const since = Math.max(0, (+store.get(k, 0) || 0) - (page ? 0 : 10000));
+      const r = await fetch(`${b}/m/${twinAddr}?since=${since}`, { cache: 'no-store', signal: AbortSignal.timeout(10000) }).then(x => x.ok ? x.json() : null).catch(() => null);
+      if (!r || !Array.isArray(r.m)) return;
+      for (const o of r.m) if (o && typeof o.d === 'string' && o.d.startsWith('T.')) got.push([o.d.slice(2), +o.at || 0]);
+      if (r.m.length) store.set(k, Math.max(...r.m.map(o => +o.at || 0)));
+      if (!r.more || !r.m.length) return;
+    }
+  }));
+  let n = 0; const seen = new Set();
+  for (const [d] of got.sort((x, y) => x[1] - y[1])) { if (seen.has(d)) continue; seen.add(d); const m = await unseal(d, twinKey); if (m && m.from !== phoneId) { twinDel(m.del); n += twinTake(m.items); } }   // both mailboxes hold the same notes: each is read once
+  if (n) logLink(`${n} message${n > 1 ? 's' : ''} from this side's other phone, kept while this one slept`);
+}
+setTimeout(() => { const k = store.get(TW_K); if (k) twinUse(k).catch(() => {}); }, 0);
 function boxDel(id, mine) { boxAddr().then(a => BOXES.forEach(b => fetch(`${b}/f/${mine ? a.fMe : a.fThem}/${id}`, { method: 'DELETE', signal: AbortSignal.timeout(15000) }).catch(() => {}))).catch(() => {}); }   // mine: a copy left for this phone; else one this phone left for the other
 async function boxIn() {   // messages left in this phone's mailbox while it slept
   if (boxInBusy || !pairKey || Date.now() - boxInAt < 5000) return;
@@ -8717,7 +8936,7 @@ let testAt = 0;   // when this phone asked for a test alert
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => {   // the alert arrived while Loveline is open: a test must still show as a real alert
   if (!e.data || e.data.t !== 'pushed' || Date.now() - testAt > 30000) return;
   testAt = 0;
-  navigator.serviceWorker.ready.then(r => r.showNotification('1+1=1', { body: `💼 ${ROLE} is looking for you`, tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' })).catch(() => {});
+  navigator.serviceWorker.ready.then(r => r.showNotification('1+1=1', { body: `${ROLE_IC} ${ROLE} is looking for you`, tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' })).catch(() => {});
 });
 function alertHelp(text) { document.querySelectorAll('.alertHelp').forEach(p => { p.textContent = text || ''; p.hidden = !text; }); }
 function showAlerts() {
@@ -8803,6 +9022,17 @@ $('text').addEventListener('focus', () => setTimeout(() => { if (document.active
 $('compose').addEventListener('click', ev => { if (!ev.target.closest('button, input')) $('text').focus(); });
 $('dock').addEventListener('click', ev => { const bar = document.querySelector('#dock .bar'); if (!ev.target.closest('button, input, .msgs, .quick, .replyBar, .pinBar, .chatTop, .recBar, .recLock') && ev.clientY >= bar.getBoundingClientRect().top - 4) $('text').focus(); });   // the space just around and under the box opens typing too
 addEventListener('resize', () => document.body.classList.toggle('kbUp', keyboardUp()));
+if (onIphone() && window.visualViewport) {   // Xed 27 Nov: iPhone tells about its keyboard only here; the box, the full chat and the office chat follow the visible part
+  let q = 0;
+  const glue = () => {
+    q = 0; const v = visualViewport, up = keyboardUp(), st = document.documentElement.style;
+    st.setProperty('--kbGap', (up ? Math.max(0, Math.round(document.documentElement.clientHeight - v.height - v.offsetTop)) : 0) + 'px');
+    st.setProperty('--vvTop', (up ? Math.max(0, Math.round(v.offsetTop)) : 0) + 'px');
+    document.body.classList.toggle('kbUp', up); chatTabRoom();
+  };
+  const soon = () => { if (!q) q = requestAnimationFrame(glue); };
+  visualViewport.addEventListener('resize', soon); visualViewport.addEventListener('scroll', soon);
+}
 const sendTyped = () => { if (editing) { sendEdit($('text').value); return; } sendChat($('text').value); $('text').value = ''; $('sendBtn').disabled = true; };
 $('text').addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.keyCode === 13) && !ev.shiftKey) { ev.preventDefault(); sendTyped(); } });   // the keyboard's Enter sends
 $('msgs').addEventListener('scroll', toEndState, { passive: true });
@@ -9337,7 +9567,7 @@ addEventListener('click', ev => {
 function chatInFront() { return !document.hidden && $('lock').hidden && (hiding ? !fkMini && !fkDuress() : chatIsOpen()); }   // Xed 26 Nov: read in the big office chat counts as read
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
 const ONLINE_LINES = [['Sync', 'Cloud sync connected'], ['Backup', 'Backup device is online'], ['Sync', 'Paired device active'], ['Devices', 'Linked device connected']];
-const ROLE = isRemote ? 'Boss' : 'Madam';   // Xed 26 Nov: alerts speak office language: his phone says Boss, hers says Madam
+const ROLE = isRemote ? 'Boss' : 'Madam', ROLE_IC = isRemote ? '💼' : '📚';   // Xed 26 Nov: alerts speak office language: his phone says Boss, hers says Madam
 const LN_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
   LN_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
   LN_STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
@@ -9404,7 +9634,7 @@ addEventListener('popstate', () => {
 });
 $('splashSide').textContent = isRemote ? 'His side' : 'Her side';
 $('splash').classList.add('out'); setTimeout(() => $('splash').remove(), 200);   // the logo only covers the moment the app is getting ready, never a fixed wait
-$('meBtn').onclick = () => { $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
+$('meBtn').onclick = () => { twinSay(); $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
 $('nameForm').onsubmit = ev => {
   ev.preventDefault();
   myName = $('nameInput').value.trim().slice(0, 24); store.set('name', myName);

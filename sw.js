@@ -58,8 +58,10 @@ self.addEventListener('message', e => {
 // Xed 26 Nov: a call. One "Incoming call" alert that buzzes again every second: the same alert is shown again in place (same tag, renotify),
 // so her screen only ever holds one. It stops after 40 s, when she taps or swipes it, when the caller gives up, or when Loveline comes on screen.
 let ringId = null;
-// Xed 26 Nov: office words. The app notes which phone this is; she sees Boss, he sees Madam.
-const role = async () => { try { const r = await (await caches.open(SHELL)).match(here('__side')); return r && (await r.text()) === 'his' ? 'Madam' : 'Boss'; } catch { return 'Boss'; } };
+// Xed 27 Nov: office words, each side its own world. The app notes which phone this is: his phone hears from "Boss" (work),
+// hers from "Madam" (college). (26 Nov had them the wrong way round here: his closed app said Madam.)
+const role = async () => { try { const r = await (await caches.open(SHELL)).match(here('__side')); return r && (await r.text()) === 'her' ? 'Madam' : 'Boss'; } catch { return 'Boss'; } };
+const roleIc = async () => (await role()) === 'Madam' ? '📚' : '💼';   // college books for her, a briefcase for him
 const IPHONE = /iPhone|iPad/.test(navigator.userAgent), nap = ms => new Promise(r => setTimeout(r, ms));
 async function missedCall(id) {   // the alert says so, and the chat shows it when Loveline opens
   await boxPut({ mc: id }).catch(() => {});
@@ -128,7 +130,7 @@ self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of y
     return;
   }
   if (Date.now() > testUntil && open.some(c => c.visibilityState === 'visible') && !/iPhone|iPad/.test(navigator.userAgent)) { open.forEach(c => c.postMessage({ t: 'pushed' })); return; }   // the open page shows its own heart (and shows a test alert itself if this helper restarted and forgot the test); an iPhone must always be shown something
-  await self.registration.showNotification('1+1=1', { body: `💼 ${await role()} is looking for you`, tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
+  await self.registration.showNotification('1+1=1', { body: `${await roleIc()} ${await role()} is looking for you`, tag: 'buzz', renotify: true, requireInteraction: true, vibrate: [200, 100, 200, 100, 400], icon: 'icon-192.png' });
 })()));
 self.addEventListener('notificationclose', e => { if (e.notification.tag === 'call') ringId = null; });   // swiped away: it stops buzzing
 self.addEventListener('notificationclick', e => {
