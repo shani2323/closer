@@ -7290,7 +7290,7 @@ function renderVids() {
   }
   for (const v of list) {
     const row = $('vidList').querySelector(`[data-id="${v.id}"]`), [say, frac] = vidState(v);
-    row.querySelector('small').textContent = `${v.link ? 'Link' : fmtSize(v.size)} · added by ${v.from === me ? 'you' : v.by || who()} · ${say}`;
+    row.querySelector('small').textContent = `${v.link ? 'Link' : fmtSize(v.size)} · added by ${v.from === me ? 'you' : (hiding ? '' : v.by) || who()} · ${say}`;   // Xed 27 Nov: in office mode the colleague, never her saved name
     if (frac !== null) row.querySelector('.vbar i').style.width = Math.floor(frac * 100) + '%';
   }
   $('vidEmpty').hidden = list.length > 0;
@@ -7378,7 +7378,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-223851';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-225453';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9711,7 +9711,10 @@ function hideSet(on, mini) {
   if (!on) { renderChat(); render(); if (call && call.hidMute) { call.hidMute = false; callMuteSet(false); } }   // back from the office chat: the microphone comes back on
   fkNames();
 }
-function fkNames() { $('topbar').querySelector('h1').textContent = hiding ? fkApp() : 'Loveline'; if (panel === 'draw') redraw(); render(); dpPaint(); if (call) callShow(); for (const f of [renderTower, renderLudo, renderGame]) try { f(); } catch {} }   // game scores and turns say the colleague's name
+function fkNames() { $('topbar').querySelector('h1').textContent = hiding ? fkApp() : 'Loveline'; if (panel === 'draw') redraw(); render(); dpPaint(); if (call) callShow(); for (const f of [renderTower, renderLudo, renderGame, renderPins, renderVids, showAlerts]) try { f(); } catch {}
+  if (replyTo) $('replyWho').textContent = replyTo.w === 'me' ? 'You' : who();
+  if (hiding) $('updCard').hidden = true; else updPaint();   // Xed 27 Nov: the pinned message, the video list, the reply bar, the alerts note and the update card also kept the other name: all repainted at every switch, both ways
+}   // game scores and turns say the colleague's name
 const fkThisOpen = () => { try { return sessionStorage.getItem('closer:fkOpen') === '1'; } catch { return false; } };
 const fkDuress = on => { try { if (on === undefined) return sessionStorage.getItem('closer:fkDuress') === '1'; on ? sessionStorage.setItem('closer:fkDuress', '1') : sessionStorage.removeItem('closer:fkDuress'); } catch { return false; } };
 function fkGo(p) { if (fkDuress()) return; openPanel(p); if (chatIsOpen()) closeChat(); hideSet(true, true); }   // review 26 Nov: opened with the fake passcode, the tabs lead nowhere real   // a section from the office chat: its small chat stays the office chat
