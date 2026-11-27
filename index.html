@@ -1930,6 +1930,9 @@ let seenSaved = 0;
 let partnerBgAt = +store.get('bgAt:' + room, 0) || 0;   // when the other phone put Loveline in the background (0 = on screen)
 const seenAt = () => partnerBgAt || partnerSeen || store.get('seenAt:' + room, 0);   // in the background: since it left the screen
 const PK = 'Asia/Karachi';   // every time shown is Pakistan time, on both phones
+// Xed 27 Nov (speed): one ready-made clock reading each, instead of building a new one for every message (that made a slow phone wait)
+const PK_TIME = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK }), PK_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: PK }), PK_HOUR = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: PK });
+const pkTime = t => PK_TIME.format(new Date(t));
 function seenText(t) {   // Xed 12 Nov: how long ago, not a clock time: "not seen for 3 h", "not seen for 2 days"
   if (!t) return '';
   const mins = Math.floor((Date.now() - t) / 60000), h = Math.floor(mins / 60), d = Math.floor(h / 24);
@@ -3456,8 +3459,8 @@ const stBlank = () => ({ n: 0, w: 0, love: 0, ily: 0, kiss: 0, miss: 0, hug: 0, 
 let stats = store.get('stats:' + room, null);
 if (!stats || typeof stats !== 'object' || !stats.p) stats = { since: 0, p: { me: stBlank(), them: stBlank() }, days: {}, firsts: {}, hours: Array(24).fill(0) };
 const stIds = new Set(store.get('statIds:' + room, []));
-const stDay = t => new Date(t).toLocaleDateString('en-CA', { timeZone: PK });
-const stHour = t => +new Date(t).toLocaleString('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: PK }) % 24;
+const stDay = t => PK_DAY.format(new Date(t));
+const stHour = t => +PK_HOUR.format(new Date(t)) % 24;
 const stCount = (re, t) => (t.match(re) || []).length;
 function stAdd(c, prev) {
   const p = stats.p[c.who]; if (!p) return;
@@ -4196,7 +4199,7 @@ function gotLp(m) {
 const lpHtml = c => !c.lp || !c.lp.t ? '' : `<a class="lp" href="${esc(c.lp.u)}" target="_blank" rel="noopener noreferrer">${c.lp.th ? `<img src="${c.lp.th}" alt="">` : ''}<b>${esc(c.lp.t)}</b>${c.lp.d ? `<span>${esc(c.lp.d)}</span>` : ''}<small>${esc(c.lp.s)}</small></a>`;
 let seenWas;   // the message their photo sat on at the last drawing: it pops in only when it moves
 function renderChat() {
-  const time = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });   // 10:15 PM, never 22:15 (Xed 12 Nov)
+  const time = pkTime;   // 10:15 PM, never 22:15 (Xed 12 Nov)
   const ticks = st => st >= 3 ? ''   // Xed 26 Nov: read = no ticks; their tiny photo sits under the newest one they read
     : `<span class="tick st${st}">${st >= 2 ? '✓✓' : st === 1 ? '✓' : '…'}</span>`;
   const quote = r => r ? `<span class="quote" data-re="${esc(r.id)}"><b>${r.w === 'me' ? 'You' : esc(who())}</b><span>${r.x ? esc(r.x) : 'Message'}</span></span>` : '';
@@ -4745,8 +4748,9 @@ function chatTabRoom() {   // the chat fills the space between the tabs and the 
   const top = Math.max(...['tabs', 'batWarn', 'alertAsk', 'listenAsk'].map(id => $(id)).filter(e => !e.hidden).map(e => e.getBoundingClientRect().bottom)), rest = $('dock').offsetHeight - $('msgs').offsetHeight;
   document.body.style.setProperty('--chatRoom', Math.max(160, innerHeight - Math.max(0, top) - rest - 8) + 'px');
 }
-addEventListener('resize', chatTabRoom);
-new MutationObserver(() => chatTabRoom()).observe(document.querySelector('main'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });   // a card above the chat came or went
+let ctrQ = 0; const chatTabRoomSoon = () => { if (!ctrQ) ctrQ = requestAnimationFrame(() => { ctrQ = 0; chatTabRoom(); }); };   // Xed 27 Nov (speed): many changes in a row are measured once, just before the screen is drawn, instead of the whole layout each time
+addEventListener('resize', chatTabRoomSoon);
+new MutationObserver(ms => { if (ms.some(m => (m.oldValue === null) !== !m.target.hasAttribute('hidden'))) chatTabRoomSoon(); }).observe(document.querySelector('main'), { subtree: true, attributes: true, attributeFilter: ['hidden'], attributeOldValue: true });   // only a real change: the regular refresh sets the same value again and again   // a card above the chat came or went
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { if (!okToLeave(b.dataset.p)) return; tap(); openPanel(b.dataset.p); });
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { if (okToLeave('chat')) openPanel('chat'); });   // Done goes home: the chat
 
@@ -7226,7 +7230,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-061215';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-062756';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9168,7 +9172,7 @@ function fkBuildMini() {   // a copy of the small chat as it is right now (same 
 }
 let fkRe = null, fkPeekId = null, fkToEnd = false, fkSeenWas;
 function fkDraw() {   // the real chat's own bubbles, times and ticks: the colleague's old talk and the real messages in disguise, in time order
-  const t = at => new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: PK });
+  const t = pkTime;
   const msgs = $('fake').querySelector('.msgs'); if (!msgs || !fk) return;
   const near = fkToEnd || msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80, keep = msgs.scrollTop; fkToEnd = false;
   for (const b of msgs.querySelectorAll('.bubble, .fkUn, .callRow')) b.remove();
