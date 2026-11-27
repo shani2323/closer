@@ -2288,16 +2288,16 @@ async function lobbyTick() {
 setInterval(lobbyTick, 4000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) lobbyTick(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && isRemote && takenOver) { takenOver = false; blocked = false; logLink('opened again: taking over from his other phone'); hello(); } });
-async function lobbyPeer(from, A, pay) {
+async function lobbyPeer(from, A, pay, bucket = 'lobbyStrikes') {   // bucket: twin pairing counts its own wrong tries, so it can never pause finding the partner
   let p = lobbyPeers.get(from);
   if (p && p.A === A) {
-    if (pay && !p.paid && !p.ok) { if (!tryPay('lobbyStrikes', p.tag)) return null; p.paid = true; }
+    if (pay && !p.paid && !p.ok) { if (!tryPay(bucket, p.tag)) return null; p.paid = true; }
     return p;
   }
   if (typeof A !== 'string' || A.length < 24) return null;
   const tag = from + ':' + A.slice(0, 24);
-  if (pay) { if (!tryPay('lobbyStrikes', tag)) return null; }
-  else { if (triesFull('lobbyStrikes') || Date.now() - lobbyCalc < 1500) return null; lobbyCalc = Date.now(); }   // an unasked message: none at the limit, and at most one sum per 1.5 s, so a flood cannot slow the phone
+  if (pay) { if (!tryPay(bucket, tag)) return null; }
+  else { if (triesFull(bucket) || Date.now() - lobbyCalc < 1500) return null; lobbyCalc = Date.now(); }   // an unasked message: none at the limit, and at most one sum per 1.5 s, so a flood cannot slow the phone
   const key = await speke('loveline-lobby-k|', lobbyId, from, A);
   if (!key) return null;
   if (lobbyPeers.size > 30) lobbyPeers.clear();
@@ -7254,7 +7254,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-093046';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-093855';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -8708,15 +8708,16 @@ async function twinBondBox(to, p) {
 async function gotTwinBond(txt) {
   let m; try { m = JSON.parse(txt); } catch { return; }
   if (!m || m.side !== TW_SIDE || typeof m.from !== 'string' || m.from.length > 24 || m.from === lobbyId || !myV() || !await lobbyReady()) return;   // the other side's phones are never asked anything
-  if (m.t === 'th') { const p = await lobbyPeer(m.from, m.A, true); if (p) twinBondBox(m.from, p); return; }
+  if (document.hidden || !$('lock').hidden) return;   // review 27 Nov: answered only while this phone is open and unlocked
+  if (m.t === 'th') { const p = await lobbyPeer(m.from, m.A, true, 'twinStrikes'); if (p) twinBondBox(m.from, p); return; }
   if (m.t !== 'tb' || m.to !== lobbyId || typeof m.box !== 'string' || m.yours !== lobbyA.slice(0, 24)) return;
-  const p = await lobbyPeer(m.from, m.A, false); if (!p) return;
+  const p = await lobbyPeer(m.from, m.A, false, 'twinStrikes'); if (!p) return;
   const b = await unseal(m.box, p.key);
-  if (!b || b.f !== m.from) { if (!p.ok && !p.paid) p.paid = tryPay('lobbyStrikes', p.tag); return; }   // made with another passcode: a wrong try
-  if (!p.ok) { p.ok = true; tryBack('lobbyStrikes', p.tag); }
+  if (!b || b.f !== m.from) { if (!p.ok && !p.paid) p.paid = tryPay('twinStrikes', p.tag); return; }   // made with another passcode: a wrong try
+  if (!p.ok) { p.ok = true; tryBack('twinStrikes', p.tag); }
   if (b.side !== TW_SIDE || typeof b.pid !== 'string' || b.pid === phoneId) return;   // another window on this same phone
   const had = twinRaw, k = typeof b.k === 'string' && /^[\w-]{43}$/.test(b.k) ? b.k : null;
-  if (k && (!twinRaw || (k !== twinRaw && b.pid < phoneId))) await twinUse(k);
+  if (k && !twinRaw) await twinUse(k);   // review 27 Nov: once linked, a phone never takes another key by itself
   else if (!twinRaw && !k && phoneId < b.pid) await twinUse(b64url(rand(32)));
   if (twinRaw && twinTold.get(m.from) !== twinRaw) twinBondBox(m.from, p);
   if (!had && twinRaw) { logLink("paired with this side's other phone"); notify('Your other phone is linked. Both phones now keep the same chat.', 6000); }
