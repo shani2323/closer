@@ -138,10 +138,10 @@
   body.chatTab #dock > .dock-in { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; }
   body.chatTab #dock > .dock-in > * { flex: none; }
   body.chatTab #dock.open .msgs { flex: 1 1 0; min-height: 0 !important; max-height: none !important; overflow: auto !important; }
-  body.kbUp .dock.open .pinBar { display: none !important; }   /* keyboard up: more room for the messages */
-  body.kbUp .dock.open .chatTop { margin-bottom: 2px; gap: 4px; } body.kbUp .dock.open .chatTop .dp { width: 26px; height: 26px; font-size: 12px; }
-  body.kbUp .dock.open .chatWhoT { display: flex; align-items: baseline; gap: 6px; } body.kbUp .dock.open .chatWhoT b { font-size: 14px; } body.kbUp .dock.open .chatWhoT small { font-size: 11px; }
-  body.kbUp .dock.open .chatTop .callBtn, body.kbUp .dock.open .chatTop .findBtn { width: 26px; height: 26px; margin-right: 4px; } body.kbUp .dock.open .chatTop .statBtn { height: 26px; padding: 0 9px; font-size: 12px; }
+  body.kbSlim .dock.open .pinBar { display: none !important; }   /* keyboard up: more room for the messages */
+  body.kbSlim .dock.open .chatTop { margin-bottom: 2px; gap: 4px; } body.kbSlim .dock.open .chatTop .dp { width: 26px; height: 26px; font-size: 12px; }
+  body.kbSlim .dock.open .chatWhoT { display: flex; align-items: baseline; gap: 6px; } body.kbSlim .dock.open .chatWhoT b { font-size: 14px; } body.kbSlim .dock.open .chatWhoT small { font-size: 11px; }
+  body.kbSlim .dock.open .chatTop .callBtn, body.kbSlim .dock.open .chatTop .findBtn { width: 26px; height: 26px; margin-right: 4px; } body.kbSlim .dock.open .chatTop .statBtn { height: 26px; padding: 0 9px; font-size: 12px; }
   .e2e { display: block; align-self: center; max-width: 88%; margin: 2px auto 8px; padding: 6px 10px; border: 0; border-radius: 8px; background: rgba(255, 214, 10, .12); color: #e9d58c; font-family: inherit; font-size: 12px; line-height: 1.35; text-align: center; }
   .dock:not(.open) .e2e { display: none; }
   .float.mini { bottom: var(--b, 120px); font-size: var(--fs, 22px); animation-name: riseMini; }
@@ -305,7 +305,6 @@
     padding-top: min(4px, var(--chatH)); padding-bottom: clamp(0px, calc(var(--chatH) - 4px), 36px) !important; }   /* no old 0.28 s easing fighting the finger; at 0 nothing at all */
   .dock.open .msgs[style*=height] { transition: none; }   /* Xed 27 Nov: the height it was dragged to, in this section */
   body.chatSized:not(.chatTab) .dock:not(.open) .msgs:empty { display: flex; }
-  body.chatOpenSized:not(.chatTab) .dock.open .msgs { height: var(--chatOH); max-height: var(--chatOH) !important; min-height: 0; overflow-y: auto !important; transition: none; }   /* Xed 27 Nov: the full chat stays at the height it was let go */
   body.chatDrag, body.chatDrag * { -webkit-user-select: none; user-select: none; }
   .grab::before { content: ""; position: absolute; left: 50%; top: 12px; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: rgba(255, 255, 255, .32); }
   .grab:active::before { background: rgba(255, 255, 255, .6); }
@@ -572,6 +571,7 @@
   body.hiding #toast.fkOk { z-index: 61; }   /* Xed 26 Nov: an office-worded note shows over the office chat */
   body.hiding #theirDot { display: none !important; }
   .fake [data-fk=show], body.hiding #hideBtn { display: none !important; }
+  #hideBtn { display: none !important; }   /* Xed 27 Nov: gone: three taps on the chat, or two on the app name, do it */
   .fkPv { position: fixed; z-index: 30; border-radius: 14px; overflow: hidden; background: #000; box-shadow: 0 12px 40px rgba(0, 0, 0, .45); pointer-events: none; transform-origin: var(--o, 50% 100%); animation: fkPvIn 160ms cubic-bezier(.2, .8, .2, 1); }   /* Xed 26 Nov: held photo or GIF in the office chat: a small square preview */
   .fkPv.loading { background: linear-gradient(100deg, #222 30%, #3a3a3a 50%, #222 70%) 0 0 / 300% 100%; animation: fkPvIn 160ms cubic-bezier(.2, .8, .2, 1), fkPvWait 1.2s linear infinite; }   /* the photo is still coming */
   @keyframes fkPvWait { to { background-position: -300% 0; } }
@@ -7348,7 +7348,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-190111';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-201145';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9121,13 +9121,18 @@ $('text').addEventListener('focus', () => setTimeout(() => { if (document.active
 $('compose').addEventListener('click', ev => { if (!ev.target.closest('button, input')) $('text').focus(); });
 $('dock').addEventListener('click', ev => { const bar = document.querySelector('#dock .bar'); if (!ev.target.closest('button, input, .msgs, .quick, .replyBar, .pinBar, .chatTop, .recBar, .recLock') && ev.clientY >= bar.getBoundingClientRect().top - 4) $('text').focus(); });   // the space just around and under the box opens typing too
 addEventListener('resize', () => document.body.classList.toggle('kbUp', keyboardUp()));
+// Xed 27 Nov: typing: no pinned message and a slim banner, for more messages. On a phone the box being typed in is enough
+// (some phones never say their keyboard is up); on a computer only a real keyboard-up counts.
+const kbSlim = () => document.body.classList.toggle('kbSlim', document.body.classList.contains('kbUp') || (matchMedia('(pointer: coarse)').matches && document.activeElement === $('text')));
+$('text').addEventListener('focus', () => { kbSlim(); chatTabRoomSoon(); }); $('text').addEventListener('blur', () => setTimeout(() => { kbSlim(); chatTabRoomSoon(); }, 50));
+addEventListener('resize', kbSlim);
 if (window.visualViewport) {   // Xed 27 Nov: every phone (iPhone, and Android browsers that lay the keyboard over the page): it tells about its keyboard only here; the box, the full chat and the office chat follow the visible part
   let q = 0;
   const glue = () => {
     q = 0; const v = visualViewport, up = keyboardUp(), st = document.documentElement.style;
     st.setProperty('--kbGap', (up ? Math.max(0, Math.round(document.documentElement.clientHeight - v.height - v.offsetTop)) : 0) + 'px');
     st.setProperty('--vvTop', (up ? Math.max(0, Math.round(v.offsetTop)) : 0) + 'px');
-    document.body.classList.toggle('kbUp', up); chatTabRoom();
+    document.body.classList.toggle('kbUp', up); kbSlim(); chatTabRoom();
   };
   const soon = () => { if (!q) q = requestAnimationFrame(glue); };
   visualViewport.addEventListener('resize', soon); visualViewport.addEventListener('scroll', soon);
@@ -9493,7 +9498,7 @@ function fkBuildMini(open) {   // a copy of the small chat as it is right now (s
   const dock = fkCopy($('dock')), t0 = Date.now(); dock.classList.toggle('open', !!open);
   const ms = dock.querySelector('.msgs'); new ResizeObserver(() => { if (Date.now() - t0 < 1500) ms.scrollTop = ms.scrollHeight; }).observe(ms);   // its size settles a moment later (coming from the big one): it still opens at the newest message
   dock.querySelectorAll((open ? '.peek, ' : '.chatTop, ') + '.pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .lp').forEach(x => x.remove());
-  if (open) fkTopFill(dock);
+  if (open) { fkTopFill(dock); const m = dock.querySelector('.msgs'), h = Math.round($('msgs').getBoundingClientRect().height); if (m && h > 0) { m.style.height = h + 'px'; m.style.maxHeight = h + 'px'; } }   // Xed 27 Nov: exactly as tall as the real full chat under it
   const pk = dock.querySelector('.peek'), sn = fkSeen(); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(sn)}</i>`; pk.classList.toggle('live', sn === 'online'); }
   fkForm(dock); $('fake').replaceChildren(dock);
 }
@@ -9599,7 +9604,7 @@ function fkNames() { $('topbar').querySelector('h1').textContent = hiding ? fkAp
 const fkThisOpen = () => { try { return sessionStorage.getItem('closer:fkOpen') === '1'; } catch { return false; } };
 const fkDuress = on => { try { if (on === undefined) return sessionStorage.getItem('closer:fkDuress') === '1'; on ? sessionStorage.setItem('closer:fkDuress', '1') : sessionStorage.removeItem('closer:fkDuress'); } catch { return false; } };
 function fkGo(p) { if (fkDuress()) return; openPanel(p); if (chatIsOpen()) closeChat(); hideSet(true, true); }   // review 26 Nov: opened with the fake passcode, the tabs lead nowhere real   // a section from the office chat: its small chat stays the office chat
-fkDbl($('topbar').querySelector('h1'), () => { if (hiding) fkBuzz($('topbar').querySelector('h1')); }); fkHold($('topbar').querySelector('h1'));   // Xed 26 Nov: in disguise, a double tap on the app's name sends Thinking of you   // every name and picture on screen follows: the colleague while hidden, the real one after
+fkDbl($('topbar').querySelector('h1'), () => { if (hiding) fkBuzz($('topbar').querySelector('h1')); else if ($('lock').hidden) $('hideBtn').onclick(); }); fkHold($('topbar').querySelector('h1'));   // Xed 27 Nov: in the real app, two taps on the name: the office chat   // Xed 26 Nov: in disguise, a double tap on the app's name sends Thinking of you   // every name and picture on screen follows: the colleague while hidden, the real one after
 let hideAskAt = 0;
 $('hideBtn').onclick = () => {   // Xed 26 Nov: in Watch or a game, that screen stays and only the chat goes into disguise
   tap();
@@ -9628,8 +9633,14 @@ $('fake').addEventListener('click', ev => {
   const rb = (!fkMini || fkOpen) && !fkDuress() && ev.target.closest('.bubble[data-rid]');
   if (rb) { const c = chat.find(x => x.id === rb.dataset.rid); if (c) { tap(); fkReply(c); } return; }   // a tap on a real message answers it
   if (!ev.target.closest('[data-fk=show]')) return; tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); });   // the passcode first; with no passcode set, straight back
-addEventListener('lockfake', () => { hideAskAt = 0; fkDuress(true); hideSet(true); });   // the full office chat, sealed: nothing real can be reached from it
-addEventListener('lockopen', () => fkDuress(false));   // the real passcode: the tabs work again   // the fake passcode was typed: the office chat (stays if it was already showing)
+const fkFrom = v => { try { if (v === undefined) return JSON.parse(sessionStorage.getItem('closer:fkFrom') || 'null'); v ? sessionStorage.setItem('closer:fkFrom', JSON.stringify(v)) : sessionStorage.removeItem('closer:fkFrom'); } catch { return null; } };   // Xed 27 Nov
+addEventListener('lockfake', () => { if (!fkDuress()) fkFrom({ h: hiding, m: !hiding ? '' : fkMini ? (fkOpen ? 'open' : 'mini') : 'full' }); hideAskAt = 0; fkDuress(true); hideSet(true); });   // the full office chat, sealed: nothing real can be reached from it
+addEventListener('lockopen', () => fkDuress(false));
+addEventListener('lockopen', () => {   // Xed 27 Nov: back from the fake passcode's office chat: to the office chat if that is where it was typed, else the real chat
+  const f = fkFrom(); if (!f) return; fkFrom(null); hideAskAt = 0;
+  if (!f.h) { hideSet(false); return; }
+  if (f.m === 'mini') { if (chatIsOpen()) closeChat(); hideSet(true, true); } else if (f.m === 'open') hideSet(true, 'open'); else hideSet(true);
+});   // the real passcode: the tabs work again   // the fake passcode was typed: the office chat (stays if it was already showing)
 addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hideAskAt < 600000) { hideAskAt = 0; hideSet(false); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !hiding && store.get('fkStart', false)) { store.set('fake', null); hideSet(true, panel !== 'chat' && !chatIsOpen()); } });   // Xed 26 Nov: an accidental switch back never lands on the real chat
 if ((store.get('fake') && (isRemote || fkDuress() || fkThisOpen())) || store.get('fkStart', false)) hideSet(true);   // it stays hidden after the app is closed and opened again; with Open in office chat on, every open starts hidden   // Xed 26 Nov: her phone opens in the real chat after the app is closed (she does not know how to unhide yet), unless she turns Open in office chat on herself; a refresh keeps the cover (review: the fake passcode must never refresh its way to the real chat)
@@ -9677,15 +9688,12 @@ addEventListener('click', ev => {
 // Three quick taps anywhere in the office chat (small or full) come back to the real chat (passcode first), as three taps
 // anywhere in the real chat bring the office chat in the same place and size.
 const chatHs = () => { const o = store.get('chatH', {}); return o && typeof o === 'object' ? o : {}; };
-const chatOHs = () => { const o = store.get('chatOH', {}); return o && typeof o === 'object' ? o : {}; };
 function chatSizeApply() {
   const h = chatTab ? null : chatHs()[panel], on = typeof h === 'number' && h >= 0;
   document.body.classList.toggle('chatSized', on); if (on) document.body.style.setProperty('--chatH', h + 'px');
-  const oh = chatTab ? null : chatOHs()[panel], oon = typeof oh === 'number' && oh > 0;
-  document.body.classList.toggle('chatOpenSized', oon); if (oon) document.body.style.setProperty('--chatOH', oh + 'px');
   $('msgs').scrollTop = $('msgs').scrollHeight;
 }
-function chatSizeKeep(h, open) { const o = open ? chatOHs() : chatHs(); o[panel] = Math.round(h); store.set(open ? 'chatOH' : 'chatH', o); }
+function chatSizeKeep(h) { const o = chatHs(); o[panel] = Math.round(h); store.set('chatH', o); }
 function chatSpring(from, to, v, paint, done) {   // critically damped (a slight give only after a fast flick), real time at any frame rate
   const rm = matchMedia('(prefers-reduced-motion: reduce)').matches, w = 2 * Math.PI / (rm ? .15 : .35), z = !rm && Math.abs(v) > 900 ? .86 : 1, run = { stop: false };
   let x = from - to, last = performance.now();
@@ -9704,15 +9712,9 @@ function chatSpring(from, to, v, paint, done) {   // critically damped (a slight
   const st = document.body.style, cl = document.body.classList;
   const stick = () => { if (pin && pin.isConnected) pin.scrollTop = pin.scrollHeight; };
   const setSmall = h => { cl.add('chatSized'); st.setProperty('--chatH', Math.max(0, h) + 'px'); stick(); };   // one value: the real chat and the office chat follow it alike
-  const setOpen = h => { cl.add('chatOpenSized'); st.setProperty('--chatOH', Math.max(0, h) + 'px'); stick(); };
   const cur = () => hiding ? $('fake').querySelector('.dock') : $('dock');
   const roomOf = dock => { const m = dock.querySelector('.msgs'); return Math.max(0, m.getBoundingClientRect().height + dock.getBoundingClientRect().top - $('tabs').getBoundingClientRect().bottom - 10); };   // up to just under the tabs
-  const paint = () => { raf = 0; if (!d || !d.on) return; d.open ? setOpen(d.h) : setSmall(d.h); };
-  const goOpen = fake => {   // the full chat, here in this section, as tall as there is room
-    if (fake) hideSet(true, 'open');
-    openChat();   // the real one under it opens too: three taps back come to the full real chat
-    cl.remove('chatOpenSized'); const dock = cur(), oh = roomOf(dock); chatSizeKeep(oh, true); chatSizeApply(); pin = dock.querySelector('.msgs'); stick();
-  };
+  const paint = () => { raf = 0; if (!d || !d.on) return; setSmall(d.h); };
   const goSmall = fake => { if (fake) { closeChat(); hideSet(true, true); } else closeChat(); chatSizeApply(); pin = cur().querySelector('.msgs'); stick(); };
   addEventListener('pointerdown', ev => {
     if (d || !ev.isPrimary || (ev.pointerType === 'mouse' && ev.button !== 0) || chatTab || !$('lock').hidden) return;
@@ -9728,6 +9730,9 @@ function chatSpring(from, to, v, paint, done) {   // critically damped (a slight
     if (!d.on) {
       if (Math.abs(ev.clientY - d.y0) < 6) return;
       d.on = true; d.y0 = ev.clientY; cl.add('chatDrag');   // it starts from where the finger is now: no jump
+      if (d.open) {   // Xed 27 Nov: the full chat being dragged becomes the small one at once (no banner while dragging in a section)
+        const h = d.h0; goSmall(d.fake); d.open = false; setSmall(h); d.max = roomOf(cur());
+      }
       try { d.el.setPointerCapture(ev.pointerId); } catch {}
     }
     const h = d.h0 - (ev.clientY - d.y0);
@@ -9742,21 +9747,8 @@ function chatSpring(from, to, v, paint, done) {   // critically damped (a slight
     quietUntil = Date.now() + 450; cl.remove('chatDrag');
     const a = s.hist[0], b = s.hist[s.hist.length - 1], v = a && b && b[0] - a[0] > 8 && performance.now() - b[0] < 120 ? (b[1] - a[1]) / (b[0] - a[0]) * 1000 : 0;   // px/s, up is +; only if the finger was still moving
     const to = s.h + v * .099, far = s.h + v * .499;   // where the flick was heading (Apple's projection): quick rate for where it rests, normal rate to decide open or small
-    if (!s.open) {
-      if ((to > s.max - 30 || (far > s.max && v > 300)) && v >= 0 && s.h > s.h0 + 20) {   // pulled to the top: the full chat, in this section
-        run = chatSpring(s.h, s.max, v, setSmall, () => { run = null; goOpen(s.fake); });
-        return;
-      }
-      const stop = Math.min(s.max, Math.max(0, to)); chatSizeKeep(stop);   // anywhere: it stays where it was let go
-      run = chatSpring(s.h, stop, v, setSmall, () => { run = null; });
-      return;
-    }
-    if ((to < Math.max(60, s.max * .15) || (far < 0 && v < -300)) && v <= 0 && s.h < s.h0 - 40) {   // the full chat pulled nearly all the way down: small again
-      run = chatSpring(s.h, 0, v, setOpen, () => { run = null; goSmall(s.fake); });
-      return;
-    }
-    const stop = Math.min(s.max, Math.max(60, to)); chatSizeKeep(stop, true);   // the full chat stays at the height it was let go, banner and all
-    run = chatSpring(s.h, stop, v, setOpen, () => { run = null; });
+    const stop = far > s.max && v > 300 ? s.max : far < 0 && v < -300 ? 0 : Math.min(s.max, Math.max(0, to)); chatSizeKeep(stop);   // a flick throws it to the top or the bottom; let go slowly it stays there; small, never the banner (Xed 27 Nov)
+    run = chatSpring(s.h, stop, v, setSmall, () => { run = null; });
   };
   addEventListener('pointerup', end, true); addEventListener('pointercancel', end, true);
   addEventListener('click', ev => { if (Date.now() < quietUntil) { quietUntil = 0; ev.preventDefault(); ev.stopImmediatePropagation(); } }, true);   // the tap that ends a drag opens nothing, wherever the finger was let go
