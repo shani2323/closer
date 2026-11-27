@@ -7378,7 +7378,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-215426';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-223851';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9345,7 +9345,8 @@ $('delMe').onclick = () => { $('delSheet').hidden = true; if (delFor) { tap(); d
 $('clearSheet').onclick = ev => { if (ev.target === $('clearSheet')) $('clearSheet').hidden = true; };
 $('clearForm').onsubmit = ev => { ev.preventDefault(); $('clearSheet').hidden = true; clearChat(); };
 let chatTapAt = 0, chatTapT = 0;
-const openChat = () => { if (chatIsOpen()) return; $('dock').classList.add('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
+const openChat = () => { if (chatIsOpen() || !chatTab) return;   // Xed 27 Nov: in a section the chat stays small: never a banner there
+  $('dock').classList.add('open'); $('msgs').scrollTop = $('msgs').scrollHeight; fitDock(); };
 $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap anywhere makes the chat small again
   if (ev.target.closest('.e2e')) { showCode(); return; }
   const b = ev.target.closest('.bubble'), now = Date.now();
@@ -9610,7 +9611,7 @@ function fkBuildMini(open) {   // a copy of the small chat as it is right now (s
   dock.querySelectorAll((open ? '.peek, ' : '.chatTop, ') + '.pinBar, .toEndWrap, .typing, .quick, .gifPanel, .replyBar, .recBar, .emoHint, .lp').forEach(x => x.remove());
   if (open) { fkTopFill(dock); const m = dock.querySelector('.msgs'), h = Math.round($('msgs').getBoundingClientRect().height); if (m && h > 0) { m.style.height = h + 'px'; m.style.maxHeight = h + 'px'; } }   // Xed 27 Nov: exactly as tall as the real full chat under it
   const pk = dock.querySelector('.peek'), sn = fkSeen(); if (pk) { pk.innerHTML = `<b>${esc(fk.name)}</b> <i>· ${esc(sn)}</i>`; pk.classList.toggle('live', sn === 'online'); }
-  fkForm(dock); $('fake').replaceChildren(dock);
+  fkForm(dock); $('fake').replaceChildren(dock); if (window.chatClamp) chatClamp();
 }
 let fkOpen = false;   // Xed 27 Nov: the office chat in a section is full (banner, taller), like the real one opened there
 let fkRe = null, fkPeekId = null, fkToEnd = false, fkSeenWas;
@@ -9739,7 +9740,7 @@ addEventListener('pointerdown', () => { if (fkPeekId && fkLiftT) { clearTimeout(
 $('fake').addEventListener('contextmenu', ev => { if (ev.target.closest('.bubble')) ev.preventDefault(); });
 $('fake').addEventListener('click', ev => {
   if (fkHeldNow) { fkHeldNow = false; return; }   // that was a hold, not a tap
-  if (fkMini && !fkOpen && ev.target.closest('.msgs, .peek')) { clearTimeout(fkMiniT); fkMiniT = setTimeout(() => { if (fkMini && !fkOpen) { tap(); hideSet(true, 'open'); openChat(); } }, 360); return; }   // Xed 27 Nov: a tap on the small one opens it full, here in this section, like the real one   // a tap on the small one opens the big office chat, like the real one
+  if (fkMini && !fkOpen && ev.target.closest('.msgs, .peek')) { const b = ev.target.closest('.bubble[data-rid]'), c = b && !fkDuress() && chat.find(x => x.id === b.dataset.rid); clearTimeout(fkMiniT); if (c) fkMiniT = setTimeout(() => { if (fkMini && !fkOpen) { tap(); fkReply(c); } }, 360); return; }   // Xed 27 Nov: the small one never opens full in a section (no banner); a tap on a message answers it, as in the real small chat   // Xed 27 Nov: a tap on the small one opens it full, here in this section, like the real one   // a tap on the small one opens the big office chat, like the real one
   const rb = (!fkMini || fkOpen) && !fkDuress() && ev.target.closest('.bubble[data-rid]');
   if (rb) { const c = chat.find(x => x.id === rb.dataset.rid); if (c) { tap(); fkReply(c); } return; }   // a tap on a real message answers it
   if (!ev.target.closest('[data-fk=show]')) return; tap(); if (window.lockAsk && window.lockAsk()) hideAskAt = Date.now(); else hideSet(false); });   // the passcode first; with no passcode set, straight back
@@ -9801,7 +9802,7 @@ const chatHs = () => { const o = store.get('chatH', {}); return o && typeof o ==
 function chatSizeApply() {
   const h = chatTab ? null : chatHs()[panel], on = typeof h === 'number' && h >= 0;
   document.body.classList.toggle('chatSized', on); if (on) document.body.style.setProperty('--chatH', h + 'px');
-  $('msgs').scrollTop = $('msgs').scrollHeight;
+  $('msgs').scrollTop = $('msgs').scrollHeight; if (window.chatClamp) chatClamp();
 }
 function chatSizeKeep(h) { const o = chatHs(); o[panel] = Math.round(h); store.set('chatH', o); }
 function chatSpring(from, to, v, paint, done) {   // critically damped (a slight give only after a fast flick), real time at any frame rate
@@ -9823,8 +9824,15 @@ function chatSpring(from, to, v, paint, done) {   // critically damped (a slight
   const stick = () => { if (pin && pin.isConnected) pin.scrollTop = pin.scrollHeight; };
   const setSmall = h => { cl.add('chatSized'); st.setProperty('--chatH', Math.max(0, h) + 'px'); stick(); };   // one value: the real chat and the office chat follow it alike
   const cur = () => hiding ? $('fake').querySelector('.dock') : $('dock');
-  const roomOf = dock => { const m = dock.querySelector('.msgs'); return Math.max(0, m.getBoundingClientRect().height + dock.getBoundingClientRect().top - $('tabs').getBoundingClientRect().bottom - 10); };   // up to just under the tabs
+  const roomOf = dock => { const m = dock.querySelector('.msgs'); return Math.max(0, m.getBoundingClientRect().height + dock.getBoundingClientRect().top - $('topbar').getBoundingClientRect().bottom - 8); };   // up to just under the top bar (not the tabs: its black edge hid the handle), so it can always be pulled down again (Xed 27 Nov)
   const paint = () => { raf = 0; if (!d || !d.on) return; setSmall(d.h); };
+  // Xed 27 Nov: whatever grows the small chat later (a pinned message, the office copy, another screen size), its top never goes
+  // behind the top bar: it gives up just that much height, so the line to pull it down by is always there
+  const clamp = () => { if (d || run || chatTab || !cl.contains('chatSized')) return; const dock = cur(); if (!dock || (hiding && !fkMini)) return;
+    const over = $('topbar').getBoundingClientRect().bottom + 8 - dock.getBoundingClientRect().top; if (over < 1) return;
+    st.setProperty('--chatH', Math.max(0, (parseFloat(st.getPropertyValue('--chatH')) || 0) - over) + 'px'); };
+  window.chatClamp = () => requestAnimationFrame(clamp);
+  new ResizeObserver(() => chatClamp()).observe($('dock')); addEventListener('resize', () => chatClamp());
   const goSmall = fake => { if (fake) { closeChat(); hideSet(true, true); } else closeChat(); chatSizeApply(); pin = cur().querySelector('.msgs'); stick(); };
   addEventListener('pointerdown', ev => {
     if (d || !ev.isPrimary || (ev.pointerType === 'mouse' && ev.button !== 0) || chatTab || !$('lock').hidden) return;
@@ -9858,7 +9866,7 @@ function chatSpring(from, to, v, paint, done) {   // critically damped (a slight
     const a = s.hist[0], b = s.hist[s.hist.length - 1], v = a && b && b[0] - a[0] > 8 && performance.now() - b[0] < 120 ? (b[1] - a[1]) / (b[0] - a[0]) * 1000 : 0;   // px/s, up is +; only if the finger was still moving
     const to = s.h + v * .099, far = s.h + v * .499;   // where the flick was heading (Apple's projection): quick rate for where it rests, normal rate to decide open or small
     const stop = far > s.max && v > 300 ? s.max : far < 0 && v < -300 ? 0 : Math.min(s.max, Math.max(0, to)); chatSizeKeep(stop);   // a flick throws it to the top or the bottom; let go slowly it stays there; small, never the banner (Xed 27 Nov)
-    run = chatSpring(s.h, stop, v, setSmall, () => { run = null; });
+    run = chatSpring(s.h, stop, v, setSmall, () => { run = null; chatClamp(); });
   };
   addEventListener('pointerup', end, true); addEventListener('pointercancel', end, true);
   addEventListener('click', ev => { if (Date.now() < quietUntil) { quietUntil = 0; ev.preventDefault(); ev.stopImmediatePropagation(); } }, true);   // the tap that ends a drag opens nothing, wherever the finger was let go
