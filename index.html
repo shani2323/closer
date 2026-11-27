@@ -143,7 +143,7 @@
           -webkit-mask-image: linear-gradient(transparent, #000 20px); mask-image: linear-gradient(transparent, #000 20px); }
   .msgs::-webkit-scrollbar { display: none; }
   .msgs:empty { display: none; }
-  body:not(.watching) .dock:not(.open) .msgs .bubble:not(:nth-last-child(-n+3)), body.watching.vidOn .dock:not(.open) .msgs .bubble:not(:nth-last-child(-n+3)) { display: none; }   /* small: the newest 3 messages in every section (Xed 13 Nov); on Watch with nothing playing the chat fills the empty space instead */
+  body:not(.watching):not(.chatSized) .dock:not(.open) .msgs .bubble:not(:nth-last-child(-n+3)), body.watching.vidOn:not(.chatSized) .dock:not(.open) .msgs .bubble:not(:nth-last-child(-n+3)) { display: none; }   /* small: the newest 3 messages in every section (Xed 13 Nov); on Watch with nothing playing the chat fills the empty space instead */
   .dock:not(.open) .msgs { max-height: 136px; }
   .peek { margin: 0 0 4px; text-align: center; font-size: 12px; line-height: 1.2; color: var(--label2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .peek b { font-weight: 600; color: var(--label); }
@@ -291,8 +291,14 @@
   .bubble { max-width: 80%; padding: 6px 8px 5px 10px; border-radius: 10px 10px 10px 3px; font-size: 16px; line-height: 1.32; letter-spacing: -.01em;
             align-self: flex-start; overflow-wrap: anywhere; white-space: pre-wrap; background: #202c33; color: #e9edef; }
   .bubble.mine { align-self: flex-end; border-radius: 10px 10px 3px 10px; background: #005c4b; }
-  .grab { display: block; width: 64px; height: 20px; margin: -12px auto 0; padding: 0; border: 0; background: none; position: relative; }
-  .grab::before { content: ""; position: absolute; left: 50%; top: 8px; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: rgba(255, 255, 255, .32); }
+  .grab { display: block; width: 120px; height: 28px; margin: -16px auto -8px; padding: 0; border: 0; background: none; position: relative; touch-action: none; }   /* Xed 27 Nov: a bigger handle, dragged up or down */
+  .dock:not(.open) .peek { touch-action: none; }
+  body.chatSized:not(.chatTab) .dock:not(.open) .msgs { height: var(--chatH); max-height: var(--chatH) !important; min-height: 0; overflow-y: auto !important; transition: none;
+    padding-top: min(4px, var(--chatH)); padding-bottom: clamp(0px, calc(var(--chatH) - 4px), 36px) !important; }   /* no old 0.28 s easing fighting the finger; at 0 nothing at all */
+  .dock.open .msgs[style*=height] { transition: none; }   /* Xed 27 Nov: the height it was dragged to, in this section */
+  body.chatSized:not(.chatTab) .dock:not(.open) .msgs:empty { display: flex; }
+  body.chatDrag, body.chatDrag * { -webkit-user-select: none; user-select: none; }
+  .grab::before { content: ""; position: absolute; left: 50%; top: 12px; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: rgba(255, 255, 255, .32); }
   .grab:active::before { background: rgba(255, 255, 255, .6); }
   .msgs { transition: max-height 280ms cubic-bezier(.2, .8, .2, 1); }
   .bubble.big { background: none; font-size: 40px; line-height: 1.1; padding: 0 2px; }
@@ -995,7 +1001,7 @@
   .dock.open .bubble { cursor: pointer; }
   .bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: pan-y; }   /* sideways belongs to swipe-to-reply (18 Nov) */
   .bubble.swiping { transition: none; will-change: transform; }
-  .swipeIcon { position: fixed; left: 0; top: 0; z-index: 60; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 16px; background: rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: #fff; opacity: 0; pointer-events: none; }
+  .swipeIcon { position: fixed; left: 0; top: 0; z-index: 60; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 16px; background: rgba(60, 60, 64, .82); color: #fff; opacity: 0; pointer-events: none; will-change: transform, opacity; }   /* Xed 27 Nov: no blur behind the moving arrow: cheaper on iPhone, looks the same over the chat */
   .swipeIcon svg { width: 17px; height: 17px; }
   .swipeIcon.back { transition: opacity 200ms ease; }
   /* a long press opens Loveline's own menu, not the browser's */
@@ -1483,7 +1489,7 @@
   <button type="button" class="grab" id="chatGrab" aria-label="Open or close the chat" hidden></button>
   <div class="peek" id="chatPeek"></div>
   <div class="pinBar" id="pinBar" role="button" tabindex="0" hidden><span class="pinTicks" id="pinTicks"></span><div><b id="pinHead">Pinned message</b><span id="pinText"></span></div><svg class="pinMark" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.9 3.9.7 4.4-1.6 1.6-3.8-3.8L5 21.2 3.8 20l4.9-4.9-3.8-3.8 1.6-1.6 4.4.7 3.9-3.9z"/></svg></div>
-  <div class="msgs" id="msgs" aria-live="polite" title="Tap a message to answer it. Hold it to react. Double tap to make the chat small."></div>
+  <div class="msgs" id="msgs" aria-live="polite" title="Tap a message to answer it. Hold it to react. Swipe it to answer."></div>
   <div class="toEndWrap"><button type="button" class="toEnd" id="toEnd" aria-label="Go to the newest messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><b id="toEndN" hidden></b></button></div>
   <div class="typing" id="typing" hidden></div>
   <div class="quick glass" id="quick" hidden></div>
@@ -3680,7 +3686,7 @@ function infoDraw() {
 let whoTap = 0;
 $('chatWho').onclick = ev => {   // one tap: Shared. A quick second tap still makes the chat small, as before.
   ev.stopPropagation();
-  if (whoTap) { clearTimeout(whoTap); whoTap = 0; tap(); closeChat(); return; }
+  if (whoTap) { clearTimeout(whoTap); whoTap = 0; return; }   // Xed 27 Nov: two taps no longer close the chat (three bring the office chat)
   whoTap = setTimeout(() => { whoTap = 0; tap(); openInfo(); }, 260);
 };
 $('infoX').onclick = () => { tap(); closeInfo(); };
@@ -4785,6 +4791,7 @@ function openPanel(p, fromPartner, quiet) {
   if (p === 'watch') { renderVids(); renderPlayer(); }
   renderGame();
   if (chatTab) { openChat(); scrollTo({ top: 0 }); chatTabRoom(); requestAnimationFrame(chatTabRoom); $('msgs').scrollTop = $('msgs').scrollHeight; }   // the conversation fills everything under the title
+  chatSizeApply();   // Xed 27 Nov: the chat height dragged to in this section
   if (!fromPartner) { if (!ghostAt) { panelV = nextV(panelV); keep('panelV', panelV); send({ t: 'panel', p, v: panelV }); } }   // ghost mode: his sections never move her phone
   else if (changed && !quiet) {   // a game left for Chat or Play: "left"; a game opened: "opened"; Chat <-> Play: nothing to say
     const game = x => x !== 'chat' && x !== 'play';
@@ -7284,7 +7291,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-144755';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-170504';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9188,7 +9195,7 @@ $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap a
     setTimeout(() => { jumpTo(q.dataset.re, 'That message is no longer in the chat.'); toEndState(); }, was ? 0 : 320);   // a small chat grows first
     return;
   }
-  if (now - chatTapAt < 300) { clearTimeout(chatTapT); chatTapAt = 0; if (chatIsOpen()) { tap(); closeChat(); } return; }
+  if (now - chatTapAt < 300) { clearTimeout(chatTapT); chatTapAt = 0; return; }   // Xed 27 Nov: a quick second tap only cancels the first (no more double tap to close; three taps bring the office chat)
   chatTapAt = now;
   chatTapT = setTimeout(() => {
     const c = b && msgById(b.dataset.id);
@@ -9197,12 +9204,6 @@ $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap a
   }, 260);
 };
 $('chatGrab').onclick = () => { tap(); chatIsOpen() ? closeChat() : openChat(); };
-let dockTapAt = 0;
-$('dock').addEventListener('click', ev => {   // a double tap on any empty part of the open chat makes it small again
-  if (!chatIsOpen() || ev.target.closest('#msgs, button, input, #quick, .pinBar, .replyBar, .bar, .chatTop')) return;   // the banner and the message box belong to the triple tap
-  const now = Date.now();
-  if (now - dockTapAt < 300) { dockTapAt = 0; tap(); closeChat(); } else dockTapAt = now;
-});
 $('replyX').onclick = () => { setReply(null); backToTyping(); };
 $('editX').onclick = () => { setEdit(null); backToTyping(); };
 $('replyPin').onclick = () => {   // pin or unpin the message being answered, then drop the reply
@@ -9539,8 +9540,11 @@ $('hideBtn').onclick = () => {   // Xed 26 Nov: in Watch or a game, that screen 
   store.set('fake', null); hideSet(true, panel !== 'chat' && !chatIsOpen());
 };
 let fkHoldT = 0, fkHeldNow = false;
+let fkHoldXY = null;
+$('fake').addEventListener('pointermove', ev => { if (fkHoldT && fkHoldXY && Math.hypot(ev.clientX - fkHoldXY[0], ev.clientY - fkHoldXY[1]) > 6) { clearTimeout(fkHoldT); fkHoldT = 0; } });   // Xed 27 Nov: moving = a swipe or a scroll: the peek never jumps in mid-swipe
 $('fake').addEventListener('pointerdown', ev => {
   fkHeldNow = false; const b = ev.target.closest('.bubble[data-rid]'); if (!b || fkDuress()) return;
+  fkHoldXY = [ev.clientX, ev.clientY];
   clearTimeout(fkHoldT); fkHoldT = setTimeout(() => { fkPeekId = b.dataset.rid; fkHeldNow = true; if (navigator.vibrate) navigator.vibrate(10); fkPeekPaint(); }, 300);
 });
 let fkLiftT = 0;
@@ -9564,12 +9568,12 @@ addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hid
 document.addEventListener('visibilitychange', () => { if (document.hidden && !hiding && store.get('fkStart', false)) { store.set('fake', null); hideSet(true, panel !== 'chat' && !chatIsOpen()); } });   // Xed 26 Nov: an accidental switch back never lands on the real chat
 if ((store.get('fake') && (isRemote || fkDuress() || fkThisOpen())) || store.get('fkStart', false)) hideSet(true);   // it stays hidden after the app is closed and opened again; with Open in office chat on, every open starts hidden   // Xed 26 Nov: her phone opens in the real chat after the app is closed (she does not know how to unhide yet), unless she turns Open in office chat on herself; a refresh keeps the cover (review: the fake passcode must never refresh its way to the real chat)
 new MutationObserver(() => { if (fkMini && chatIsOpen()) hideSet(true); }).observe($('dock'), { attributes: true, attributeFilter: ['class'] });   // the real chat opened (Chat tab): the big office chat instead
-// Xed 26 Nov: a tap gesture anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
+// Xed 26 Nov: a tap gesture anywhere on the chat (27 Nov: messages too, small or full) or the call bar, buttons included, brings the office chat at once.
 // On the small chat (Watch, games) it becomes a small office chat in the same place.
 // Xed 27 Nov: THREE quick taps, not two: a double tap while typing brought the office chat by accident. The first two taps work as usual.
 // Buttons there wait a quarter second before acting (after a second tap a little longer), so the taps of a triple tap never start a call,
 // end one or close the chat.
-const DT_ZONE = '#dock .chatTop, #dock .bar, #callBar, #dock:not(.open)', DT_WAIT = '#dock .chatTop button, #callBar button';
+const DT_ZONE = '#dock, #callBar', DT_WAIT = '#dock .chatTop button, #callBar button';
 let dt = null, dtEatAt = 0, dtHeld = null, dtPass = false;   // dt: the taps so far (n), the last one's time, where the first was
 function dtHide(mode) {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -9599,6 +9603,109 @@ addEventListener('click', ev => {
   ev.preventDefault(); ev.stopImmediatePropagation();
   clearTimeout(dtHeld); dtHeld = setTimeout(() => { dtHeld = null; dtPass = true; try { b.click(); } finally { dtPass = false; } }, dt && dt.n === 2 ? 380 : 240);
 }, true);
+// Xed 27 Nov: the small chat's top edge (the handle and the name line) is dragged up or down to any height, in every section and
+// in the small office chat. The chat follows the finger, the section behind gets the rest of the screen, and on letting go it
+// glides on to where the flick was heading (a spring, from where it is, at the finger's speed; it can be caught again).
+// Pulled to the top it opens the full chat (in disguise: the big office chat); the full chat's handle pulled down makes it small
+// again at that height. Each section keeps its own height. Three quick taps anywhere in the office chat (small or big) come back
+// to the real chat (passcode first), as three taps anywhere in the real chat bring the office chat.
+const chatHs = () => { const o = store.get('chatH', {}); return o && typeof o === 'object' ? o : {}; };
+function chatSizeApply() {
+  const h = chatTab ? null : chatHs()[panel], on = typeof h === 'number' && h >= 0;
+  document.body.classList.toggle('chatSized', on);
+  if (on) { document.body.style.setProperty('--chatH', h + 'px'); $('msgs').scrollTop = $('msgs').scrollHeight; }
+}
+function chatSizeKeep(h) { const o = chatHs(); o[panel] = Math.round(h); store.set('chatH', o); }
+function chatSpring(from, to, v, paint, done) {   // critically damped (a slight give only after a fast flick), real time at any frame rate
+  const rm = matchMedia('(prefers-reduced-motion: reduce)').matches, w = 2 * Math.PI / (rm ? .15 : .35), z = !rm && Math.abs(v) > 900 ? .86 : 1, run = { stop: false };
+  let x = from - to, last = performance.now();
+  const step = now => {
+    if (run.stop) return;
+    let left = Math.min(.5, Math.max(0, now - last) / 1000); last = now;
+    while (left > 0) { const dt = Math.min(.004, left); left -= dt; v += (-w * w * x - 2 * z * w * v) * dt; x += v * dt; }
+    if (Math.abs(x) < .5 && Math.abs(v) < 20) { paint(to); if (done) done(); return; }
+    paint(to + x); requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step); return run;
+}
+{
+  let d = null, run = null, raf = 0, quietUntil = 0, pin = null;   // pin: the list that was at its newest message stays there while it changes size
+  const band = (x, k = 120) => x * k * .55 / (k + .55 * x);   // past the top it still moves, slower and slower
+  const stick = () => { if (pin && pin.isConnected) pin.scrollTop = pin.scrollHeight; };
+  const setSmall = h => { document.body.classList.add('chatSized'); document.body.style.setProperty('--chatH', Math.max(0, h) + 'px'); stick(); };
+  const setOpen = (m, h) => { m.style.height = m.style.maxHeight = Math.max(0, h) + 'px'; stick(); };
+  const roomOf = (dock, m) => Math.max(0, m.getBoundingClientRect().height + dock.getBoundingClientRect().top - $('tabs').getBoundingClientRect().bottom - 10);   // up to just under the tabs
+  const paint = () => { raf = 0; if (!d || !d.on) return; d.open ? setOpen(d.msgs, d.h) : setSmall(d.h); };
+  addEventListener('pointerdown', ev => {
+    if (d || !ev.isPrimary || (ev.pointerType === 'mouse' && ev.button !== 0) || chatTab || !$('lock').hidden) return;
+    const real = !hiding && ev.target.closest('#dock .grab, #dock:not(.open) .peek'), fake = hiding && fkMini && ev.target.closest('#fake .grab, #fake .peek');
+    if (!real && !fake) return;
+    const dock = real ? $('dock') : $('fake').querySelector('.dock'), msgs = dock && dock.querySelector('.msgs'); if (!msgs) return;
+    if (run) { run.stop = true; run = null; }   // caught while still gliding: it stays where it is, under the finger
+    const h0 = msgs.getBoundingClientRect().height; pin = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40 ? msgs : null;
+    d = { pid: ev.pointerId, y0: ev.clientY, h0, h: h0, max: roomOf(dock, msgs), open: !!real && chatIsOpen(), fake: !!fake, dock, msgs, el: ev.target, on: false, hist: [] };
+  }, true);
+  addEventListener('pointermove', ev => {
+    if (!d || ev.pointerId !== d.pid) return;
+    if (!d.on) {
+      if (Math.abs(ev.clientY - d.y0) < 6) return;
+      d.on = true; d.y0 = ev.clientY; document.body.classList.add('chatDrag');   // it starts from where the finger is now: no jump
+      try { d.el.setPointerCapture(ev.pointerId); } catch {}
+      if (!d.open) setSmall(d.h0);
+    }
+    let h = d.h0 - (ev.clientY - d.y0);
+    h = h > d.max ? d.max + band(h - d.max) : h;
+    d.h = Math.max(0, h);
+    const now = performance.now(); d.hist.push([now, d.h]); while (d.hist.length > 2 && now - d.hist[0][0] > 100) d.hist.shift();
+    if (!raf) raf = requestAnimationFrame(paint);   // one paint per screen frame
+  });
+  const end = ev => {
+    if (!d || ev.pointerId !== d.pid) return;
+    const s = d; d = null; cancelAnimationFrame(raf); raf = 0;
+    if (!s.on) return;
+    quietUntil = Date.now() + 400; document.body.classList.remove('chatDrag');
+    const a = s.hist[0], b = s.hist[s.hist.length - 1], v = a && b && b[0] - a[0] > 8 && performance.now() - b[0] < 80 ? (b[1] - a[1]) / (b[0] - a[0]) * 1000 : 0;   // px/s, up is +; only if the finger was still moving
+    const to = s.h + v * .099, far = s.h + v * .499;   // where the flick was heading (Apple's projection): quick rate for where it rests, normal rate to decide open or small
+    if (!s.open) {
+      if ((to > s.max - 30 || (far > s.max && v > 300)) && v >= 0 && s.h > s.h0 + 20) {   // pulled to the top: the full chat
+        if (s.fake) { tap(); hideSet(true); return; }   // the big office chat
+        run = chatSpring(s.h, s.max, v, setSmall, () => {
+          run = null; chatSizeApply(); openChat();
+          const m = $('msgs'); pin = m; const top = $('dock').querySelector('.chatTop'), from = Math.max(0, s.max - (top ? top.offsetHeight + 4 : 0)), nat = m.getBoundingClientRect().height;
+          setOpen(m, from); run = chatSpring(from, nat, 0, h => setOpen(m, h), () => { run = null; m.style.height = m.style.maxHeight = ''; });   // the header comes in on top; the list settles to the full chat's size
+        });
+        return;
+      }
+      const stop = Math.min(s.max, Math.max(0, to)); chatSizeKeep(stop);   // anywhere: it stays where it was thrown
+      run = chatSpring(s.h, stop, v, setSmall, () => { run = null; });
+      return;
+    }
+    if ((to < s.h0 - 90 || (far < s.h0 - 200 && v < -300)) && v <= 0) {   // the full chat pulled down: small again, at the height it was let go
+      s.msgs.style.height = s.msgs.style.maxHeight = '';
+      setSmall(s.h); closeChat();
+      const m = $('msgs'); pin = m; const max = roomOf($('dock'), m), stop = Math.min(max, Math.max(0, to)); chatSizeKeep(stop);
+      run = chatSpring(Math.min(s.h, max), stop, v, setSmall, () => { run = null; });
+      return;
+    }
+    run = chatSpring(s.h, s.h0, v, h => setOpen(s.msgs, h), () => { run = null; s.msgs.style.height = s.msgs.style.maxHeight = ''; });   // not far enough: back to full
+  };
+  addEventListener('pointerup', end, true); addEventListener('pointercancel', end, true);
+  addEventListener('click', ev => { if (Date.now() < quietUntil && ev.target.closest && ev.target.closest('#dock, #fake')) { quietUntil = 0; ev.preventDefault(); ev.stopImmediatePropagation(); } }, true);   // the tap that ends a drag opens nothing
+}
+{ // three quick taps anywhere in the office chat (small or big): back to the real chat, passcode first. Never with the fake passcode.
+  let ft = null;
+  $('fake').addEventListener('pointerdown', ev => {
+    if (!ev.isPrimary || !hiding || fkDuress()) { ft = null; return; }
+    if (ft && ev.timeStamp - ft.at < 350 && Math.hypot(ev.clientX - ft.x, ev.clientY - ft.y) < 60) {
+      ft.at = ev.timeStamp; if (++ft.n < 3) return;
+      ft = null; ev.preventDefault(); ev.stopImmediatePropagation(); dtEatAt = Date.now();
+      clearTimeout(fkMiniT); clearTimeout(fkHoldT); fkHoldT = 0;   // the earlier taps do nothing
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      tap(); fkUnhide(); return;
+    }
+    ft = { n: 1, at: ev.timeStamp, x: ev.clientX, y: ev.clientY };
+  }, true);
+}
 function chatInFront() { return !document.hidden && $('lock').hidden && (hiding ? !fkMini && !fkDuress() : chatIsOpen()); }   // Xed 26 Nov: read in the big office chat counts as read
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
 const ONLINE_LINES = [['Sync', 'Cloud sync connected'], ['Backup', 'Backup device is online'], ['Sync', 'Paired device active'], ['Devices', 'Linked device connected']];
