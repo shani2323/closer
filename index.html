@@ -7378,7 +7378,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-225453';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261128-014957';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -7525,8 +7525,8 @@ function keepTogether() {   // the video is still arriving, or comes from a site
   if (here() && vid.readyState < 3 && !stallAt) stallAt = Date.now();
   if (!here() || (stallAt && vid.readyState < 3 && Date.now() - stallAt > 1500)) {
     act(false, here() ? vid.currentTime : wstate.pos, wstate.id, true); stallAt = 0;
-    if (v.link) holdAhead = 3; else if (holdId === v.id) holdAhead = Math.min(30, holdAhead * 2); else { holdId = v.id; holdAhead = 2; }
-    logLink(`video waits: ${Math.floor((recv[v.id] ? recv[v.id].have : v.have) / v.size * 100)}% here, by the ${fcDirect() ? 'direct' : 'backup'} route`);
+    if (holdId === v.id) holdAhead = Math.min(30, holdAhead * 2); else { holdId = v.id; holdAhead = v.link ? 3 : 2; }   // Xed 28 Nov: a link too: each stop waits for twice the cushion (3, 6, 12, 24, 30 s), not 3 s every time (it played a second and stopped, over and over)
+    logLink(v.link ? `link video waits: ${holdAhead} s cushion${viaCarrier.has(v.id) ? ', through the carrier' : ''}${hlsPlayer ? ', stream' : ''}` : `video waits: ${Math.floor((recv[v.id] ? recv[v.id].have : v.have) / v.size * 100)}% here, by the ${fcDirect() ? 'direct' : 'backup'} route`);
     if (Date.now() - holdNoteAt > 60000) { holdNoteAt = Date.now(); notify('Waiting for the video to catch up. It carries on by itself.'); }
   }
 }
@@ -7543,7 +7543,7 @@ async function startStream(id, url) {
   if (loadedId !== id) return;
   if (window.Hls && Hls.isSupported()) {
     let fixes = 0;
-    hlsPlayer = new Hls({ abrEwmaDefaultEstimate: 1.5e6, capLevelToPlayerSize: true, xhrSetup: (_, u) => { if (homeNet(new URL(u).hostname)) throw new Error('home network'); } });
+    hlsPlayer = new Hls({ abrEwmaDefaultEstimate: 6e5, capLevelToPlayerSize: true, xhrSetup: (_, u) => { if (homeNet(new URL(u).hostname)) throw new Error('home network'); } });
     hlsPlayer.on(Hls.Events.ERROR, (_, d) => {
       if (!d.fatal) return;
       if (d.type === Hls.ErrorTypes.MEDIA_ERROR && fixes++ < 2) { hlsPlayer.recoverMediaError(); return; }
