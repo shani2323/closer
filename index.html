@@ -378,6 +378,8 @@
   .bubble .lp span { margin-top: 2px; font-size: 12.5px; line-height: 1.3; opacity: .72; }
   .bubble .lp small { display: block; padding: 4px 10px 8px; font-size: 11.5px; opacity: .55; }
   #sendBtn:not(:disabled) ~ #micBtn { display: none; }
+  body.rec #sendBtn:not(:disabled) { display: none; } body.rec #sendBtn:not(:disabled) ~ #micBtn { display: grid; }   /* Xed 27 Nov: a recording started from the chat while words are typed */
+  #msgs, #dock .dock-in { -webkit-touch-callout: none; }
   .mic { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform 120ms ease-out; }
   .mic svg { width: 21px; height: 21px; }
   .mic .micSend { display: none; }
@@ -3178,6 +3180,50 @@ for (const e of ['pointerup', 'pointercancel']) micBtn.addEventListener(e, () =>
 });
 micBtn.addEventListener('click', ev => { ev.preventDefault(); const r = vnRec; if (r && r.locked && !r.held && Date.now() - r.upAt > 300) { tap(); vnStop(true); } });   // hands-free: the mic has become Send
 $('vnDel').onclick = () => { tap(); vnStop(false); };
+// Xed 27 Nov: hold anywhere empty in the chat (between or beside the messages, small or full, any section) to record a voice
+// note, like holding the mic: it records while the finger stays down and sends on letting go (slide left to throw it away).
+// A tap and then a hold records hands-free (locked), for longer ones: the mic becomes Send, and the bin throws it away first.
+// Not on a message (that holds open its menu), not on the message box, not in the office chat, not in select mode.
+{
+  let h = null, lastTap = null, eatUntil = 0;
+  const empty = t => t === $('msgs') || t === $('dock') || (t.classList && (t.classList.contains('dock-in') || t.classList.contains('chatTop')));
+  const quit = () => { if (h) { clearTimeout(h.timer); h = null; } };
+  $('dock').addEventListener('pointerdown', ev => {
+    if (h || vnRec || !ev.isPrimary || (ev.pointerType === 'mouse' && ev.button !== 0) || hiding || sel || !$('lock').hidden || !empty(ev.target)) { lastTap = null; return; }
+    const lock = !!lastTap && Date.now() - lastTap.at < 450 && Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) < 60;   // a tap just before: hands-free
+    if (lock) clearTimeout(chatTapT);   // the tap before it opens nothing
+    const x = ev.clientX, y = ev.clientY, pid = ev.pointerId;
+    h = { x, y, pid, lock, on: false, timer: setTimeout(() => {
+      if (!h || h.pid !== pid) return;
+      if (!VN_MIME || !navigator.mediaDevices) { h = null; notify('This browser cannot record voice messages.'); return; }
+      h.on = true; eatUntil = Date.now() + 1e9; clearTimeout(chatTapT);
+      vnStart({ clientX: x, clientY: y });
+      if (lock) { const r = vnRec; r.locked = true; r.held = false; r.upAt = Date.now(); document.body.classList.add('recLocked'); $('recLock').hidden = true; }
+    }, 450) };
+  });
+  addEventListener('pointermove', ev => {
+    if (!h || ev.pointerId !== h.pid) return;
+    if (!h.on) { if (Math.hypot(ev.clientX - h.x, ev.clientY - h.y) > 10) quit(); return; }   // it moved first: a scroll, not a hold
+    const r = vnRec; if (!r || r.locked || !r.held) return;
+    const dx = Math.min(0, ev.clientX - h.x);
+    if (dx < -110) { tap(); vnStop(false); return; }   // slid left: thrown away
+    $('recSlide').style.transform = `translateX(${dx}px)`; $('recSlide').style.opacity = String(Math.max(.2, 1 + dx / 130));
+  }, true);
+  const up = ev => {
+    if (!h || ev.pointerId !== h.pid) return;
+    const was = h; quit();
+    if (!was.on) { if (ev.type === 'pointerup') lastTap = { at: Date.now(), x: ev.clientX, y: ev.clientY }; return; }   // a short tap: remembered for tap-then-hold
+    lastTap = null; eatUntil = Date.now() + 400;   // the click that ends the hold opens nothing
+    const r = vnRec; if (!r) return;
+    if (r.locked) { r.held = false; r.upAt = Date.now(); return; }   // hands-free: it keeps recording
+    r.held = false; r.upAt = Date.now();
+    if (ev.type === 'pointercancel') { r.locked = true; document.body.classList.add('recLocked'); $('recLock').hidden = true; return; }   // the phone took the finger (a scroll): keep it, locked, so nothing is lost
+    vnStop(true);
+  };
+  addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
+  addEventListener('click', ev => { if (Date.now() < eatUntil && ev.target.closest && ev.target.closest('#dock') && !ev.target.closest('#micBtn, #vnDel')) { eatUntil = 0; ev.preventDefault(); ev.stopImmediatePropagation(); } }, true);
+  $('dock').addEventListener('contextmenu', ev => { if (h || vnRec || empty(ev.target)) ev.preventDefault(); });   // no browser menu on the empty part
+}
 if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => {   // headphones out or changed: stop at once; the next play looks again
   if (!vnAudio.paused) { vnAudio.pause(); notify('Your headphones changed, so the voice message stopped. Put them back in to listen.'); }
 });
@@ -7295,7 +7341,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-180412';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-182127';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9582,7 +9628,7 @@ new MutationObserver(() => { if (fkMini && !fkOpen && chatIsOpen()) hideSet(true
 // Xed 27 Nov: THREE quick taps, not two: a double tap while typing brought the office chat by accident. The first two taps work as usual.
 // Buttons there wait a quarter second before acting (after a second tap a little longer), so the taps of a triple tap never start a call,
 // end one or close the chat.
-const DT_ZONE = '#dock, #callBar', DT_WAIT = '#dock .chatTop button, #callBar button';
+const DT_ZONE = '#dock, #callBar', DT_WAIT = '#dock .chatTop button, #chatGrab, #callBar button';
 let dt = null, dtEatAt = 0, dtHeld = null, dtPass = false;   // dt: the taps so far (n), the last one's time, where the first was
 function dtHide(mode) {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -9595,7 +9641,7 @@ function dtHide(mode) {
 addEventListener('pointerdown', ev => {
   if (!ev.isPrimary) return;
   const z = ev.target.closest && ev.target.closest(DT_ZONE);
-  if (!z || !$('lock').hidden || hiding) { dt = null; return; }   // Xed 26 Nov: these taps do nothing in the office chat (big or small); holding the app name is the way back
+  if (!z || !$('lock').hidden || hiding || ev.target.closest('#dock .bar, #dock .replyBar')) { dt = null; return; }   // Xed 27 Nov: never from the message box (taps there are typing)   // Xed 26 Nov: these taps do nothing in the office chat (big or small); holding the app name is the way back
   if (dt && ev.timeStamp - dt.at < 350 && Math.hypot(ev.clientX - dt.x, ev.clientY - dt.y) < 60) {
     dt.n++; dt.at = ev.timeStamp;
     if (dtHeld) { clearTimeout(dtHeld); dtHeld = null; }   // a button tapped again: it waits to see if a third tap comes
@@ -9707,7 +9753,7 @@ function chatSpring(from, to, v, paint, done) {   // critically damped (a slight
 { // three quick taps anywhere in the office chat (small or big): back to the real chat, passcode first. Never with the fake passcode.
   let ft = null;
   $('fake').addEventListener('pointerdown', ev => {
-    if (!ev.isPrimary || !hiding || fkDuress()) { ft = null; return; }
+    if (!ev.isPrimary || !hiding || fkDuress() || ev.target.closest('.bar, .replyBar')) { ft = null; return; }   // never from the message box
     if (ft && ev.timeStamp - ft.at < 350 && Math.hypot(ev.clientX - ft.x, ev.clientY - ft.y) < 60) {
       ft.at = ev.timeStamp; if (++ft.n < 3) return;
       ft = null; ev.preventDefault(); ev.stopImmediatePropagation(); dtEatAt = Date.now();
