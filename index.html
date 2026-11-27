@@ -633,6 +633,10 @@
   body:has(.sheet:not([hidden])):not(:has(.park:not([hidden]))) header { z-index: 13; }
   .sheet { position: fixed; inset: 0; z-index: 7; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, .5); }
   .sheet form { width: 100%; max-width: 480px; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; background: var(--glass-strong); }
+  .sheet form { max-height: calc(100dvh - max(16px, env(safe-area-inset-top))); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }   /* Xed 27 Nov: a tall sheet scrolls; its top (name, Save) is never cut off */
+  #nameSheet form { padding-top: 6px; } #nameSheet .grabber { margin-bottom: 10px; } #nameSheet .dpRow { margin: 0 0 8px; } #nameSheet h2 { font-size: 20px; } #nameSheet p { margin-bottom: 10px; font-size: 14px; }
+  #nameSheet .field { height: 44px; } #nameSheet .primary, #nameSheet .ghost { height: 44px; margin-top: 8px; font-size: 16px; } #nameSheet .sideNow { margin-top: 10px; }
+  #nameSheet .row { min-height: 42px; padding-top: 4px; padding-bottom: 4px; }   /* compact: more fits on one screen */
   .grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--fill2); margin: 0 auto 14px; }
   .sheet h2 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -.025em; }
   .sheet p { margin: 0 0 14px; color: var(--label2); font-size: 15px; }
@@ -7374,7 +7378,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-214545';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-215426';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9943,7 +9947,7 @@ addEventListener('popstate', () => {
 });
 $('splashSide').textContent = isRemote ? 'His side' : 'Her side';
 $('splash').classList.add('out'); setTimeout(() => $('splash').remove(), 200);   // the logo only covers the moment the app is getting ready, never a fixed wait
-$('meBtn').onclick = () => { twinSay(); $('verNote').textContent = `This phone: ${verText(APP_V)}` + (partnerAv ? ` · ${who()}'s phone: ${verText(partnerAv)}${partnerAv === APP_V ? ' (same)' : ''}` : ''); $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
+$('meBtn').onclick = () => { requestAnimationFrame(() => { $('nameForm').scrollTop = 0; }); twinSay(); $('verNote').textContent = `This phone: ${verText(APP_V)}` + (partnerAv ? ` · ${who()}'s phone: ${verText(partnerAv)}${partnerAv === APP_V ? ' (same)' : ''}` : ''); $('nameInput').value = myName; $('sideNow').textContent = `This phone is on ${isRemote ? 'his side: the remote' : 'her side: it holds Leo and Max'}.`; $('nameSheet').hidden = false; };
 $('nameForm').onsubmit = ev => {
   ev.preventDefault();
   myName = $('nameInput').value.trim().slice(0, 24); store.set('name', myName);
