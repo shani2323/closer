@@ -7284,7 +7284,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-142803';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-144755';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9199,7 +9199,7 @@ $('msgs').onclick = ev => {   // one tap on a message answers it; a double tap a
 $('chatGrab').onclick = () => { tap(); chatIsOpen() ? closeChat() : openChat(); };
 let dockTapAt = 0;
 $('dock').addEventListener('click', ev => {   // a double tap on any empty part of the open chat makes it small again
-  if (!chatIsOpen() || ev.target.closest('#msgs, button, input, #quick, .pinBar, .replyBar')) return;
+  if (!chatIsOpen() || ev.target.closest('#msgs, button, input, #quick, .pinBar, .replyBar, .bar, .chatTop')) return;   // the banner and the message box belong to the triple tap
   const now = Date.now();
   if (now - dockTapAt < 300) { dockTapAt = 0; tap(); closeChat(); } else dockTapAt = now;
 });
@@ -9564,11 +9564,13 @@ addEventListener('lockopen', () => { if (hiding && hideAskAt && Date.now() - hid
 document.addEventListener('visibilitychange', () => { if (document.hidden && !hiding && store.get('fkStart', false)) { store.set('fake', null); hideSet(true, panel !== 'chat' && !chatIsOpen()); } });   // Xed 26 Nov: an accidental switch back never lands on the real chat
 if ((store.get('fake') && (isRemote || fkDuress() || fkThisOpen())) || store.get('fkStart', false)) hideSet(true);   // it stays hidden after the app is closed and opened again; with Open in office chat on, every open starts hidden   // Xed 26 Nov: her phone opens in the real chat after the app is closed (she does not know how to unhide yet), unless she turns Open in office chat on herself; a refresh keeps the cover (review: the fake passcode must never refresh its way to the real chat)
 new MutationObserver(() => { if (fkMini && chatIsOpen()) hideSet(true); }).observe($('dock'), { attributes: true, attributeFilter: ['class'] });   // the real chat opened (Chat tab): the big office chat instead
-// Xed 26 Nov: a double tap anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
-// On the small chat (Watch, games) it becomes a small office chat in the same place; a double tap on that comes back (passcode first).
-// Buttons there wait a quarter second before acting, so the first tap of a double tap never starts a call, ends one or closes the chat.
+// Xed 26 Nov: a tap gesture anywhere on the chat banner, the message box or the call bar, buttons included, brings the office chat at once.
+// On the small chat (Watch, games) it becomes a small office chat in the same place.
+// Xed 27 Nov: THREE quick taps, not two: a double tap while typing brought the office chat by accident. The first two taps work as usual.
+// Buttons there wait a quarter second before acting (after a second tap a little longer), so the taps of a triple tap never start a call,
+// end one or close the chat.
 const DT_ZONE = '#dock .chatTop, #dock .bar, #callBar, #dock:not(.open)', DT_WAIT = '#dock .chatTop button, #callBar button';
-let dt = null, dtEatAt = 0, dtHeld = null, dtPass = false;
+let dt = null, dtEatAt = 0, dtHeld = null, dtPass = false;   // dt: the taps so far (n), the last one's time, where the first was
 function dtHide(mode) {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   store.set('fake', null);
@@ -9579,21 +9581,23 @@ function dtHide(mode) {
 addEventListener('pointerdown', ev => {
   if (!ev.isPrimary) return;
   const z = ev.target.closest && ev.target.closest(DT_ZONE);
-  if (!z || !$('lock').hidden || hiding) { dt = null; return; }   // Xed 26 Nov: a double tap does nothing in the office chat (big or small); holding the app name is the way back
+  if (!z || !$('lock').hidden || hiding) { dt = null; return; }   // Xed 26 Nov: these taps do nothing in the office chat (big or small); holding the app name is the way back
   if (dt && ev.timeStamp - dt.at < 350 && Math.hypot(ev.clientX - dt.x, ev.clientY - dt.y) < 60) {
+    dt.n++; dt.at = ev.timeStamp;
+    if (dtHeld) { clearTimeout(dtHeld); dtHeld = null; }   // a button tapped again: it waits to see if a third tap comes
+    if (dt.n < 3) return;   // the second tap works as usual (typing, placing the cursor)
     const mode = dt.mode; dt = null; ev.preventDefault(); ev.stopImmediatePropagation(); dtEatAt = Date.now();
-    if (dtHeld) { clearTimeout(dtHeld); dtHeld = null; }
-    clearTimeout(chatTapT); clearTimeout(fkMiniT);   // the first tap of the two does nothing
+    clearTimeout(chatTapT); clearTimeout(fkMiniT);   // the earlier taps do nothing
     tap(); dtHide(mode); return;
   }
-  dt = { at: ev.timeStamp, x: ev.clientX, y: ev.clientY, mode: z.closest('#dock') && !chatIsOpen() ? 'mini' : 'full' };
+  dt = { n: 1, at: ev.timeStamp, x: ev.clientX, y: ev.clientY, mode: z.closest('#dock') && !chatIsOpen() ? 'mini' : 'full' };
 }, true);
 addEventListener('click', ev => {
-  if (dtEatAt && Date.now() - dtEatAt < 700) { dtEatAt = 0; ev.preventDefault(); ev.stopImmediatePropagation(); return; }   // the second tap's click
+  if (dtEatAt && Date.now() - dtEatAt < 700) { dtEatAt = 0; ev.preventDefault(); ev.stopImmediatePropagation(); return; }   // the third tap's click
   if (dtPass || !ev.isTrusted) return;
   const b = ev.target.closest && ev.target.closest(DT_WAIT); if (!b || b.disabled) return;
   ev.preventDefault(); ev.stopImmediatePropagation();
-  clearTimeout(dtHeld); dtHeld = setTimeout(() => { dtHeld = null; dtPass = true; try { b.click(); } finally { dtPass = false; } }, 240);
+  clearTimeout(dtHeld); dtHeld = setTimeout(() => { dtHeld = null; dtPass = true; try { b.click(); } finally { dtPass = false; } }, dt && dt.n === 2 ? 380 : 240);
 }, true);
 function chatInFront() { return !document.hidden && $('lock').hidden && (hiding ? !fkMini && !fkDuress() : chatIsOpen()); }   // Xed 26 Nov: read in the big office chat counts as read
 // Xed 12 Nov: the app hides behind a calculator, so these read like the phone's own system notices; only the two of them know
