@@ -325,9 +325,9 @@
   #chatSeen.typingNow { color: #34c759; }
   .hideBtn { display: grid; place-items: center; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; color: var(--label); } .hideBtn svg { width: 18px; height: 18px; } .hideBtn:active { transform: scale(.92); transition: transform 100ms ease-out; }
   .fake { position: fixed; inset: 0; z-index: 60; overflow: hidden; padding: max(12px, env(safe-area-inset-top)) 16px 0; animation: fkIn 180ms ease-out;   /* Xed 14 Nov: the same look as the real app */
-    background: radial-gradient(60% 40% at 15% 8%, rgba(10, 132, 255, .26), transparent 70%), radial-gradient(55% 35% at 90% 30%, rgba(48, 176, 199, .20), transparent 70%), radial-gradient(70% 45% at 40% 95%, rgba(100, 210, 255, .10), transparent 70%), #04070c; }   /* Xed 27 Nov: a cool work look, so the office chat is noticed at a glance */
-  .fake.mini .dock::before { background: rgba(8, 22, 42, .72); }   /* the small office chat: blue-grey glass */
-  .fake:not(.mini) .dock::before { background: radial-gradient(80% 45% at 90% 8%, rgba(10, 132, 255, .16), transparent 70%), radial-gradient(70% 45% at 8% 92%, rgba(48, 176, 199, .12), transparent 70%), #050b14; }   /* Xed 27 Nov: the big office chat too */
+    background: radial-gradient(60% 40% at 15% 8%, rgba(10, 132, 255, .13), transparent 70%), radial-gradient(55% 35% at 90% 30%, rgba(48, 176, 199, .10), transparent 70%), radial-gradient(70% 45% at 40% 95%, rgba(100, 210, 255, .05), transparent 70%), #020407; }   /* Xed 27 Nov: a cool work look, so the office chat is noticed at a glance */
+  .fake.mini .dock::before { background: rgba(4, 12, 22, .66); }   /* the small office chat: blue-grey glass */
+  .fake:not(.mini) .dock::before { background: radial-gradient(80% 45% at 90% 8%, rgba(10, 132, 255, .08), transparent 70%), radial-gradient(70% 45% at 8% 92%, rgba(48, 176, 199, .06), transparent 70%), #03060b; }   /* Xed 27 Nov: the big office chat too */
   .fake .fkIn { max-width: 480px; margin: 0 auto; }
   .fake .topbar { position: relative; }
   .fake .dock { position: absolute; }
@@ -409,6 +409,7 @@
   body.recLocked .recBar { padding-left: 4px; }
   body.recLocked .vnDel { display: grid; }
   body.recPaused .recDot { animation: none; opacity: .45; }   /* Xed 27 Nov: kept, not recording */
+  body.recHold .recSlide { display: none; }   /* held on the empty chat: nothing to slide */
   body.recLocked .recSlide { display: none; }
   body.recLocked .recWave { display: flex; }
   .recLock { position: absolute; right: 4px; bottom: 70px; width: 38px; padding: 10px 0 8px; border-radius: 19px; display: grid; justify-items: center; gap: 4px; color: var(--label2); z-index: 2; animation: recUp 260ms cubic-bezier(.2, .8, .2, 1); }
@@ -3152,7 +3153,7 @@ const vnWaveOf = l => {
 function vnStop(sendIt) {
   const r = vnRec; if (!r) return;
   vnRec = null; clearInterval(r.timer);
-  document.body.classList.remove('rec', 'recLocked', 'recPaused'); $('recBar').hidden = true; $('recLock').hidden = true;
+  document.body.classList.remove('rec', 'recLocked', 'recPaused', 'recHold'); $('recBar').hidden = true; $('recLock').hidden = true;
   micBtn.style.transform = ''; $('recSlide').style.transform = ''; $('recSlide').style.opacity = '';
   const d = r.started ? (r.pausedAt || Date.now()) - r.started : 0;
   const done = () => { if (r.stream) r.stream.getTracks().forEach(t => t.stop()); if (r.ctx) r.ctx.close().catch(() => {}); };
@@ -3207,7 +3208,7 @@ $('vnDel').onclick = () => { tap(); vnStop(false); };
     h = { x, y, pid, lock, on: false, timer: setTimeout(() => {
       if (!h || h.pid !== pid) return;
       if (!VN_MIME || !navigator.mediaDevices) { h = null; notify('This browser cannot record voice messages.'); return; }
-      h.on = true; eatUntil = Date.now() + 1e9; clearTimeout(chatTapT);
+      h.on = true; eatUntil = Date.now() + 1e9; clearTimeout(chatTapT); document.body.classList.add('recHold');
       vnStart({ clientX: x, clientY: y });
       if (lock) { const r = vnRec; r.locked = true; r.held = false; r.upAt = Date.now(); document.body.classList.add('recLocked'); $('recLock').hidden = true; }
     }, 450) };
@@ -3215,11 +3216,7 @@ $('vnDel').onclick = () => { tap(); vnStop(false); };
   addEventListener('pointermove', ev => {
     if (!h || ev.pointerId !== h.pid) return;
     if (!h.on) { if (Math.hypot(ev.clientX - h.x, ev.clientY - h.y) > 10) quit(); return; }   // it moved first: a scroll, not a hold
-    const r = vnRec; if (!r || r.locked || !r.held) return;
-    const dx = Math.min(0, ev.clientX - h.x);
-    if (dx < -110 || ev.clientX - h.x > 110) { tap(); vnStop(false); return; }   // slid left or right: thrown away (Xed 27 Nov)
-    $('recSlide').style.transform = `translateX(${dx}px)`; $('recSlide').style.opacity = String(Math.max(.2, 1 + dx / 130));
-  }, true);
+  }, true);   // once recording, the finger may wander: it just records (Xed 27 Nov)
   const up = ev => {
     if (!h || ev.pointerId !== h.pid) return;
     const was = h; quit();
@@ -3231,6 +3228,8 @@ $('vnDel').onclick = () => { tap(); vnStop(false); };
     // Xed 27 Nov: never sent by letting go: it stops and waits in the box, Send sends it, the bin throws it away (no accidental voice notes)
     r.locked = true; r.pausedAt = Date.now(); try { if (r.rec && r.rec.state === 'recording') r.rec.pause(); } catch {}
     document.body.classList.add('recLocked', 'recPaused'); $('recLock').hidden = true; tap();
+    const d = r.started ? r.pausedAt - r.started : 0;   // Xed 27 Nov: under a second, or nothing said: thrown away by itself
+    if (d < 1000 || Math.max(0, ...r.levels) < .2) { vnStop(false); notify(d < 1000 ? 'Too short: not kept.' : 'Nothing was heard: not kept.'); }
   };
   addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
   addEventListener('click', ev => { if (Date.now() < eatUntil && ev.target.closest && ev.target.closest('#dock') && !ev.target.closest('#micBtn, #vnDel')) { eatUntil = 0; ev.preventDefault(); ev.stopImmediatePropagation(); } }, true);
@@ -7353,7 +7352,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-205145';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-211155';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9128,10 +9127,14 @@ $('dock').addEventListener('click', ev => { const bar = document.querySelector('
 addEventListener('resize', () => document.body.classList.toggle('kbUp', keyboardUp()));
 // Xed 27 Nov: typing: no pinned message and a slim banner, for more messages. On a phone the box being typed in is enough
 // (some phones never say their keyboard is up); on a computer only a real keyboard-up counts.
-let kbSeen = false;   // Xed 27 Nov: the phone said its keyboard is up since the box was tapped: from then on only what it says counts (Android: the keyboard hidden, the box still selected)
-const kbSlim = () => { const up = document.body.classList.contains('kbUp'), f = document.activeElement === $('text'); if (!f) kbSeen = false; else if (up) kbSeen = true;
-  document.body.classList.toggle('kbSlim', up || (f && !kbSeen && matchMedia('(pointer: coarse)').matches)); };
-$('text').addEventListener('focus', () => { kbSeen = false; kbSlim(); chatTabRoomSoon(); }); $('text').addEventListener('blur', () => setTimeout(() => { kbSlim(); chatTabRoomSoon(); }, 50));
+let kbLow = 0, kbHid = false;   // the smallest visible height since the box was tapped; the keyboard put away with Back (the box still selected)
+const kbVis = () => Math.min(innerHeight, window.visualViewport ? visualViewport.height : innerHeight);
+const kbSlim = () => {
+  const up = document.body.classList.contains('kbUp'), f = document.activeElement === $('text');
+  if (f) { const h = kbVis(); if (h < kbLow + 60) { kbLow = Math.min(kbLow, h); kbHid = false; } else if (h > kbLow + 120) kbHid = true; }
+  document.body.classList.toggle('kbSlim', f && matchMedia('(pointer: coarse)').matches ? !kbHid : up);
+};
+$('text').addEventListener('focus', () => { kbLow = kbVis(); kbHid = false; kbSlim(); chatTabRoomSoon(); }); $('text').addEventListener('blur', () => setTimeout(() => { kbSlim(); chatTabRoomSoon(); }, 50));
 addEventListener('resize', kbSlim);
 if (window.visualViewport) {   // Xed 27 Nov: every phone (iPhone, and Android browsers that lay the keyboard over the page): it tells about its keyboard only here; the box, the full chat and the office chat follow the visible part
   let q = 0;
