@@ -995,11 +995,10 @@
   .dock.open .bubble { cursor: pointer; }
   .bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: pan-y; }   /* sideways belongs to swipe-to-reply (18 Nov) */
   .bubble.swiping { transition: none; will-change: transform; }
-  .bubble.swipeBack { transition: transform 300ms cubic-bezier(.2, .9, .3, 1); }   /* springs home, no bounce */
   .swipeIcon { position: fixed; left: 0; top: 0; z-index: 60; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 16px; background: rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: #fff; opacity: 0; pointer-events: none; }
   .swipeIcon svg { width: 17px; height: 17px; }
   .swipeIcon.back { transition: opacity 200ms ease; }
-  @media (prefers-reduced-motion: reduce) { .bubble.swipeBack { transition-duration: 120ms; } }   /* a long press opens Loveline's own menu, not the browser's */
+  /* a long press opens Loveline's own menu, not the browser's */
   .bubble.held { filter: brightness(1.25); }
   /* Xed 22 Nov: select several messages. The bar slides down with no overshoot; a tick pops onto each chosen message; a message dips the instant it is pressed */
   .selBar { position: fixed; top: 0; left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 12px; padding: max(8px, env(safe-area-inset-top)) 12px 8px; background: #121214; box-shadow: 0 .5px 0 rgba(255, 255, 255, .1);
@@ -4394,24 +4393,51 @@ holdToOpen($('msgs'), ev => ev.target.closest('.bubble'), b => {   // Xed 22 Nov
 // grows in behind it; past the mark the phone ticks once, and letting go there starts the reply. Up and down still scrolls.
 // Xed 26 Nov: her messages swipe to the right, mine to the left (each away from its own side), the arrow points the way
 // of the swipe; the same in the office chat, where it answers through the disguise.
+// Xed 27 Nov (sluggish on iPhone): the office chat's 0.18 s smoothing made the message trail the finger, and the way back was a
+// fixed 0.3 s slide. Now the message is glued to the finger (no smoothing while touched, one paint per screen frame), goes home
+// on a spring that starts from where it is at the finger's own speed, can be caught again on the way back, and a quick flick
+// toward the mark replies too.
 const swipeReply = (() => {
   const MARK = 64, icon = document.createElement('div');
   icon.className = 'swipeIcon'; icon.setAttribute('aria-hidden', 'true');
   icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5V20"/></svg>';
   document.body.appendChild(icon);
   const band = (x, d = 120, k = .55) => x * d * k / (d + k * x);   // past the mark it still moves, but slower and slower
+  const homing = new Map();   // bubble -> its spring home, so a finger can catch it on the way
+  const move = (el, dir, t) => { if (el.isConnected) el.style.transform = t > .3 ? `translate3d(${t * dir}px, 0, 0)` : ''; };
+  const settle = (el, dir, x, v) => {   // critically damped spring (no bounce), response 0.3 s
+    const w = 2 * Math.PI / (matchMedia('(prefers-reduced-motion: reduce)').matches ? .15 : .3), run = { x, stop: false };
+    let last = performance.now();
+    homing.set(el, run);
+    const step = now => {
+      if (run.stop) return;
+      let left = Math.min(.5, Math.max(0, now - last) / 1000); last = now;   // real time in small steps: same speed at 120, 60 or 30 frames a second (Low Power Mode)
+      while (left > 0) { const dt = Math.min(.004, left); left -= dt; v += (-w * w * run.x - 2 * w * v) * dt; run.x += v * dt; }
+      if (!el.isConnected || (Math.abs(run.x) < .3 && Math.abs(v) < 10)) { homing.delete(el); el.style.transform = ''; el.style.transition = ''; el.classList.remove('swiping'); return; }
+      move(el, dir, Math.max(0, run.x)); requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
   return (box, o) => {   // o: sel (the bubbles), id (a bubble's message id), skip (no swipe now), start (it became a swipe), reply (the message)
-    let sw = null, quietUntil = 0;
-    const place = t => {
-      if (sw.el.isConnected) sw.el.style.transform = t ? `translateX(${t * sw.dir}px)` : '';
-      const p = Math.min(1, t / MARK), x = sw.dir > 0 ? sw.x0 + Math.min(t, MARK) / 2 - 16 : sw.x1 - Math.min(t, MARK) / 2 - 16;
-      icon.style.opacity = p; icon.style.transform = `translate(${x}px, ${sw.y0 - 16}px) scale(${(sw.armed ? 1.12 : .55 + .45 * p) * -sw.dir}, ${sw.armed ? 1.12 : .55 + .45 * p})`;
+    let sw = null, quietUntil = 0, raf = 0;
+    const paint = () => {
+      raf = 0; if (!sw || !sw.on) return;
+      const t = sw.t; move(sw.el, sw.dir, t);
+      const p = Math.min(1, t / MARK), x = sw.dir > 0 ? sw.x0 + Math.min(t, MARK) / 2 - 16 : sw.x1 - Math.min(t, MARK) / 2 - 16, k = sw.armed ? 1.12 : .55 + .45 * p;
+      icon.style.opacity = p; icon.style.transform = `translate3d(${x}px, ${sw.y0 - 16}px, 0) scale(${k * -sw.dir}, ${k})`;
+    };
+    const begin = ev => {   // it is a swipe now: nothing smooths the message while the finger holds it
+      sw.on = true; sw.el.classList.add('swiping'); sw.el.style.transition = 'none'; icon.classList.remove('back');
+      try { sw.el.setPointerCapture(ev.pointerId); } catch {}
+      if (o.start) o.start();
     };
     box.addEventListener('pointerdown', ev => {
       if (sw || (o.skip && o.skip()) || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
       const el = ev.target.closest(o.sel); if (!el || !o.id(el) || ev.target.closest('.vnWave')) return;   // the voice wave is dragged to seek
-      const r = el.getBoundingClientRect();
-      sw = { el, id: o.id(el), dir: el.classList.contains('mine') ? -1 : 1, pid: ev.pointerId, sx: ev.clientX, sy: ev.clientY, on: false, armed: false, t: 0, x0: r.left, x1: r.right, y0: r.top + Math.min(r.height, 80) / 2 };
+      const run = homing.get(el), t0 = run ? Math.max(0, run.x) : 0; if (run) { run.stop = true; homing.delete(el); }
+      const r = el.getBoundingClientRect(), dir = el.classList.contains('mine') ? -1 : 1;
+      sw = { el, id: o.id(el), dir, pid: ev.pointerId, sx: ev.clientX, sy: ev.clientY, on: false, armed: false, t0, t: t0, raw: t0, hist: [], x0: r.left - t0 * dir, x1: r.right - t0 * dir, y0: r.top + Math.min(r.height, 80) / 2 };
+      if (t0) { begin(ev); if (o.start) setTimeout(o.start, 0); }   // caught on its way home: it stays under the finger from where it is (start again after the office chat's own press handler, so its hold-to-peek never fires mid-swipe)
     });
     box.addEventListener('pointermove', ev => {
       if (!sw || ev.pointerId !== sw.pid) return;
@@ -4419,23 +4445,27 @@ const swipeReply = (() => {
       if (!sw.on) {
         if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { sw = null; return; }   // a scroll, not a swipe
         if (dx < 10 || dx < Math.abs(dy) * 1.2) return;
-        sw.on = true; sw.el.classList.add('swiping'); icon.classList.remove('back'); try { sw.el.setPointerCapture(ev.pointerId); } catch {}
-        if (o.start) o.start();
+        sw.sx = ev.clientX; begin(ev);   // it starts from where the finger is now: no jump
       }
-      const raw = Math.max(0, dx), t = raw <= MARK ? raw : MARK + band(raw - MARK);
+      const raw = Math.max(0, sw.t0 + (ev.clientX - sw.sx) * sw.dir), now = performance.now();
+      sw.hist.push([now, raw]); while (sw.hist.length > 2 && now - sw.hist[0][0] > 100) sw.hist.shift();
       const armed = raw >= MARK;
       if (armed && !sw.armed) tap();   // the tick says "let go now to reply"
-      sw.armed = armed; sw.t = t; place(t);
+      sw.armed = armed; sw.raw = raw; sw.t = raw <= MARK ? raw : MARK + band(raw - MARK);
+      if (!raf) raf = requestAnimationFrame(paint);
     });
     const end = ev => {
       if (!sw || (ev && ev.pointerId !== sw.pid)) return;
-      const s = sw; sw = null;
+      const s = sw; sw = null; cancelAnimationFrame(raf); raf = 0;
       if (!s.on) return;
       quietUntil = Date.now() + 400;   // the tap that ends a swipe opens nothing
-      s.el.classList.remove('swiping'); s.el.classList.add('swipeBack'); s.el.style.transform = '';
       icon.classList.add('back'); icon.style.opacity = 0;
-      setTimeout(() => s.el.classList.remove('swipeBack'), 320);
-      const c = s.armed && ev && ev.type === 'pointerup' ? msgById(s.id) : null;
+      const a = s.hist[0], b = s.hist[s.hist.length - 1], v = a && b && b[0] - a[0] > 8 && performance.now() - b[0] < 80 ? (b[1] - a[1]) / (b[0] - a[0]) * 1000 : 0;   // px/s, only if the finger was still moving
+      const flick = !s.armed && s.raw > 24 && v > 350 && s.raw + v * .099 >= MARK;   // where the flick would have carried it (Apple's projection, quick rate)
+      const go = ev && ev.type === 'pointerup' && (s.armed || flick);
+      if (go && flick) tap();
+      settle(s.el, s.dir, s.t, Math.max(-4000, Math.min(4000, s.armed ? v * .3 : v)));
+      const c = go ? msgById(s.id) : null;
       if (c) o.reply(c);
     };
     box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
@@ -7254,7 +7284,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-094638';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-142803';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
