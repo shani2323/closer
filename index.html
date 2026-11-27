@@ -325,7 +325,9 @@
   #chatSeen.typingNow { color: #34c759; }
   .hideBtn { display: grid; place-items: center; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; color: var(--label); } .hideBtn svg { width: 18px; height: 18px; } .hideBtn:active { transform: scale(.92); transition: transform 100ms ease-out; }
   .fake { position: fixed; inset: 0; z-index: 60; overflow: hidden; padding: max(12px, env(safe-area-inset-top)) 16px 0; animation: fkIn 180ms ease-out;   /* Xed 14 Nov: the same look as the real app */
-    background: radial-gradient(60% 40% at 15% 8%, rgba(94, 92, 230, .30), transparent 70%), radial-gradient(55% 35% at 90% 30%, rgba(191, 90, 242, .22), transparent 70%), radial-gradient(70% 45% at 40% 95%, rgba(255, 122, 184, .14), transparent 70%), var(--bg); }
+    background: radial-gradient(60% 40% at 15% 8%, rgba(10, 132, 255, .26), transparent 70%), radial-gradient(55% 35% at 90% 30%, rgba(48, 176, 199, .20), transparent 70%), radial-gradient(70% 45% at 40% 95%, rgba(100, 210, 255, .10), transparent 70%), #04070c; }   /* Xed 27 Nov: a cool work look, so the office chat is noticed at a glance */
+  .fake.mini .dock::before { background: rgba(8, 22, 42, .72); }   /* the small office chat: blue-grey glass */
+  .fake:not(.mini) .dock::before { background: radial-gradient(80% 45% at 90% 8%, rgba(10, 132, 255, .16), transparent 70%), radial-gradient(70% 45% at 8% 92%, rgba(48, 176, 199, .12), transparent 70%), #050b14; }   /* Xed 27 Nov: the big office chat too */
   .fake .fkIn { max-width: 480px; margin: 0 auto; }
   .fake .topbar { position: relative; }
   .fake .dock { position: absolute; }
@@ -406,6 +408,7 @@
   .vnDel { display: none; margin-left: -8px; color: var(--label2); }
   body.recLocked .recBar { padding-left: 4px; }
   body.recLocked .vnDel { display: grid; }
+  body.recPaused .recDot { animation: none; opacity: .45; }   /* Xed 27 Nov: kept, not recording */
   body.recLocked .recSlide { display: none; }
   body.recLocked .recWave { display: flex; }
   .recLock { position: absolute; right: 4px; bottom: 70px; width: 38px; padding: 10px 0 8px; border-radius: 19px; display: grid; justify-items: center; gap: 4px; color: var(--label2); z-index: 2; animation: recUp 260ms cubic-bezier(.2, .8, .2, 1); }
@@ -3125,16 +3128,17 @@ function vnStart(ev) {
     try {
       r.rec = new MediaRecorder(stream, { mimeType: VN_MIME, audioBitsPerSecond: 24000 });
       r.rec.ondataavailable = e => { if (e.data && e.data.size) r.chunks.push(e.data); };
-      r.rec.start(250); r.started = Date.now(); tap();
+      r.rec.start(250); r.started = Date.now(); tap(); if (r.pausedAt) { try { r.rec.pause(); } catch {} r.pausedAt = Date.now(); }   // let go before the mic was ready
     } catch { vnStop(false); notify('This phone could not start recording.'); return; }
     try { r.ctx = new (window.AudioContext || window.webkitAudioContext)(); r.an = r.ctx.createAnalyser(); r.an.fftSize = 512; r.ctx.createMediaStreamSource(stream).connect(r.an); r.buf = new Uint8Array(r.an.fftSize); } catch {}
   })();
 }
 function vnTickRec() {
   const r = vnRec; if (!r) return;
-  if (r.an) { r.an.getByteTimeDomainData(r.buf); let pk = 0; for (const v of r.buf) pk = Math.max(pk, Math.abs(v - 128)); r.levels.push(Math.min(1, Math.sqrt(pk / 128) * 1.3)); }
-  const ms = r.started ? Date.now() - r.started : 0;
+  if (r.an && !r.pausedAt) { r.an.getByteTimeDomainData(r.buf); let pk = 0; for (const v of r.buf) pk = Math.max(pk, Math.abs(v - 128)); r.levels.push(Math.min(1, Math.sqrt(pk / 128) * 1.3)); }
+  const ms = r.started ? (r.pausedAt || Date.now()) - r.started : 0;
   $('recT').textContent = vnFmt(ms);
+  if (r.pausedAt) return;   // kept, waiting for Send or the bin
   if (r.locked) $('recWave').innerHTML = r.levels.slice(-40).map(l => `<i style="height:${Math.round(3 + l * 22)}px"></i>`).join('');
   if (r.started && Date.now() - typingSent > 2000) { typingSent = Date.now(); send({ t: 'typing', rec: true }); }
   if (ms >= VN_MAX) vnStop(true);
@@ -3148,9 +3152,9 @@ const vnWaveOf = l => {
 function vnStop(sendIt) {
   const r = vnRec; if (!r) return;
   vnRec = null; clearInterval(r.timer);
-  document.body.classList.remove('rec', 'recLocked'); $('recBar').hidden = true; $('recLock').hidden = true;
+  document.body.classList.remove('rec', 'recLocked', 'recPaused'); $('recBar').hidden = true; $('recLock').hidden = true;
   micBtn.style.transform = ''; $('recSlide').style.transform = ''; $('recSlide').style.opacity = '';
-  const d = r.started ? Date.now() - r.started : 0;
+  const d = r.started ? (r.pausedAt || Date.now()) - r.started : 0;
   const done = () => { if (r.stream) r.stream.getTracks().forEach(t => t.stop()); if (r.ctx) r.ctx.close().catch(() => {}); };
   if (!r.rec || r.rec.state === 'inactive') { done(); return; }
   r.rec.onstop = () => {
@@ -3213,7 +3217,7 @@ $('vnDel').onclick = () => { tap(); vnStop(false); };
     if (!h.on) { if (Math.hypot(ev.clientX - h.x, ev.clientY - h.y) > 10) quit(); return; }   // it moved first: a scroll, not a hold
     const r = vnRec; if (!r || r.locked || !r.held) return;
     const dx = Math.min(0, ev.clientX - h.x);
-    if (dx < -110) { tap(); vnStop(false); return; }   // slid left: thrown away
+    if (dx < -110 || ev.clientX - h.x > 110) { tap(); vnStop(false); return; }   // slid left or right: thrown away (Xed 27 Nov)
     $('recSlide').style.transform = `translateX(${dx}px)`; $('recSlide').style.opacity = String(Math.max(.2, 1 + dx / 130));
   }, true);
   const up = ev => {
@@ -3224,8 +3228,9 @@ $('vnDel').onclick = () => { tap(); vnStop(false); };
     const r = vnRec; if (!r) return;
     if (r.locked) { r.held = false; r.upAt = Date.now(); return; }   // hands-free: it keeps recording
     r.held = false; r.upAt = Date.now();
-    if (ev.type === 'pointercancel') { r.locked = true; document.body.classList.add('recLocked'); $('recLock').hidden = true; return; }   // the phone took the finger (a scroll): keep it, locked, so nothing is lost
-    vnStop(true);
+    // Xed 27 Nov: never sent by letting go: it stops and waits in the box, Send sends it, the bin throws it away (no accidental voice notes)
+    r.locked = true; r.pausedAt = Date.now(); try { if (r.rec && r.rec.state === 'recording') r.rec.pause(); } catch {}
+    document.body.classList.add('recLocked', 'recPaused'); $('recLock').hidden = true; tap();
   };
   addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
   addEventListener('click', ev => { if (Date.now() < eatUntil && ev.target.closest && ev.target.closest('#dock') && !ev.target.closest('#micBtn, #vnDel')) { eatUntil = 0; ev.preventDefault(); ev.stopImmediatePropagation(); } }, true);
@@ -7348,7 +7353,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-201145';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-205145';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9123,8 +9128,10 @@ $('dock').addEventListener('click', ev => { const bar = document.querySelector('
 addEventListener('resize', () => document.body.classList.toggle('kbUp', keyboardUp()));
 // Xed 27 Nov: typing: no pinned message and a slim banner, for more messages. On a phone the box being typed in is enough
 // (some phones never say their keyboard is up); on a computer only a real keyboard-up counts.
-const kbSlim = () => document.body.classList.toggle('kbSlim', document.body.classList.contains('kbUp') || (matchMedia('(pointer: coarse)').matches && document.activeElement === $('text')));
-$('text').addEventListener('focus', () => { kbSlim(); chatTabRoomSoon(); }); $('text').addEventListener('blur', () => setTimeout(() => { kbSlim(); chatTabRoomSoon(); }, 50));
+let kbSeen = false;   // Xed 27 Nov: the phone said its keyboard is up since the box was tapped: from then on only what it says counts (Android: the keyboard hidden, the box still selected)
+const kbSlim = () => { const up = document.body.classList.contains('kbUp'), f = document.activeElement === $('text'); if (!f) kbSeen = false; else if (up) kbSeen = true;
+  document.body.classList.toggle('kbSlim', up || (f && !kbSeen && matchMedia('(pointer: coarse)').matches)); };
+$('text').addEventListener('focus', () => { kbSeen = false; kbSlim(); chatTabRoomSoon(); }); $('text').addEventListener('blur', () => setTimeout(() => { kbSlim(); chatTabRoomSoon(); }, 50));
 addEventListener('resize', kbSlim);
 if (window.visualViewport) {   // Xed 27 Nov: every phone (iPhone, and Android browsers that lay the keyboard over the page): it tells about its keyboard only here; the box, the full chat and the office chat follow the visible part
   let q = 0;
@@ -9470,9 +9477,18 @@ function fkBuild() {   // copies of the real top bar, chat header and message bo
   fkTopFill(dock);
   fkForm(dock);
   wrap.appendChild(top); box.replaceChildren(wrap, dock);
-  const msgs = dock.querySelector('.msgs'), room = innerHeight - top.getBoundingClientRect().bottom - (dock.getBoundingClientRect().height - msgs.getBoundingClientRect().height) - 12;
-  msgs.style.maxHeight = msgs.style.height = Math.max(160, room) + 'px'; msgs.dataset.h = Math.max(160, room);   // the chat fills the screen under the top bar
+  fkFit(true);   // the chat fills the screen under the top bar
+  requestAnimationFrame(() => fkFit()); setTimeout(fkFit, 400); setTimeout(fkFit, 1500); if (document.fonts) document.fonts.ready.then(() => fkFit());   // Xed 27 Nov: after a restart the screen is still settling: measured again
 }
+function fkFit(now) {
+  const box = $('fake'); if (!now && (box.hidden || fkMini)) return;
+  const top = box.querySelector('.topbar'), dock = box.querySelector('.dock'), msgs = dock && dock.querySelector('.msgs'), rb = box.querySelector('.fkReBar');
+  if (!top || !msgs || (!now && rb && !rb.hidden)) return;
+  const h = Math.max(160, Math.round(innerHeight - top.getBoundingClientRect().bottom - (dock.getBoundingClientRect().height - msgs.getBoundingClientRect().height) - 12));
+  if (+msgs.dataset.h === h && msgs.style.height === h + 'px') return;
+  msgs.style.maxHeight = msgs.style.height = h + 'px'; msgs.dataset.h = h;
+}
+addEventListener('resize', () => requestAnimationFrame(() => fkFit()));
 function fkTopFill(dock) {   // the banner of the office chat: the colleague's name and picture; its buttons look real and do nothing
   const sb = dock.querySelector('[aria-label="Our stats"]'); if (sb) sb.textContent = '📊 Stats';
   for (const b of dock.querySelectorAll('.chatTop button')) b.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); });   // call, repeat call, search, stats, close: look real, do nothing
