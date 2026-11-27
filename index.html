@@ -7291,7 +7291,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-170504';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-170756';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -9670,9 +9670,9 @@ function chatSpring(from, to, v, paint, done) {   // critically damped (a slight
       if ((to > s.max - 30 || (far > s.max && v > 300)) && v >= 0 && s.h > s.h0 + 20) {   // pulled to the top: the full chat
         if (s.fake) { tap(); hideSet(true); return; }   // the big office chat
         run = chatSpring(s.h, s.max, v, setSmall, () => {
-          run = null; chatSizeApply(); openChat();
-          const m = $('msgs'); pin = m; const top = $('dock').querySelector('.chatTop'), from = Math.max(0, s.max - (top ? top.offsetHeight + 4 : 0)), nat = m.getBoundingClientRect().height;
-          setOpen(m, from); run = chatSpring(from, nat, 0, h => setOpen(m, h), () => { run = null; m.style.height = m.style.maxHeight = ''; });   // the header comes in on top; the list settles to the full chat's size
+          run = null; chatSizeApply(); const m = $('msgs'); m.style.transition = 'none'; openChat(); pin = m;   // no old easing: its full size is read at once
+          const top = $('dock').querySelector('.chatTop'), from = Math.max(0, s.max - (top ? top.offsetHeight + 4 : 0)), nat = m.getBoundingClientRect().height;
+          setOpen(m, from); run = chatSpring(from, nat, 0, h => setOpen(m, h), () => { run = null; m.style.height = m.style.maxHeight = ''; m.style.transition = ''; });   // the header comes in on top; the list settles to the full chat's size
         });
         return;
       }
