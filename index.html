@@ -1646,11 +1646,12 @@ async function getIce() {   // a 24-hour pass for Cloudflare's relay: when a net
   if (Date.now() - iceAt < 12 * 3600e3) return;
   if (location.hostname !== 'shani2323.github.io' && !window.__turnTest) return;   // the helper only answers the real site
   iceAt = Date.now();
-  try {
-    const r = await fetch('https://loveline-buzz.shani2323.workers.dev/ice', { method: 'POST' });
-    const j = await r.json();
-    if (Array.isArray(j.iceServers) && j.iceServers.length) ICE = [{ urls: 'stun:stun.l.google.com:19302' }, ...j.iceServers];
-  } catch { iceAt = Date.now() - 11.9 * 3600e3; }   // try again in about 6 minutes
+  // Xed 27 Nov: his own Singapore and London servers relay calls too, so a call still connects when Cloudflare's relay is blocked or slow
+  const get = (u, o) => fetch(u, { ...o, signal: AbortSignal.timeout(8000) }).then(r => r.json()).then(j => Array.isArray(j.iceServers) ? j.iceServers : []).catch(() => null);
+  const got = await Promise.all([get('https://loveline-buzz.shani2323.workers.dev/ice', { method: 'POST' }), get('https://13.215.146.59:8443/ice'), get('https://3.11.52.88:8443/ice')]);
+  const all = got.filter(Boolean).flat();
+  if (all.length) ICE = [{ urls: 'stun:stun.l.google.com:19302' }, ...all];
+  if (got.some(x => !x)) iceAt = Date.now() - 11.9 * 3600e3;   // one did not answer: ask again in about 6 minutes
 }
 getIce();
 const MODES = { __proto__: null,   // name, base speed in beats per second (the speed slider scales it 0.5x to 1.5x)
@@ -7225,7 +7226,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-023539';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-061215';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
