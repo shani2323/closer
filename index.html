@@ -134,7 +134,14 @@
   body.chatTab #alertAsk, body.chatTab #listenAsk { margin-top: 8px; }   /* the Chat section: title, tabs, then only the conversation */
   body.chatTab .dock { padding-top: 6px; }
   body.chatTab .dock::before { top: -14px; background: var(--bg); -webkit-mask-image: none; mask-image: none; }   /* the Chat tab: the conversation fills everything under the tabs */
-  body.chatTab .dock.open .msgs { max-height: var(--chatRoom, 60dvh) !important; min-height: var(--chatRoom, 60dvh); overflow: auto !important; }
+  body.chatTab #dock { top: max(var(--tabsB, 120px), var(--vvTop, 0px)); display: flex; flex-direction: column; }   /* Xed 27 Nov: the Chat section is a box from under the tabs to the message box: the banner never moves */
+  body.chatTab #dock > .dock-in { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; }
+  body.chatTab #dock > .dock-in > * { flex: none; }
+  body.chatTab #dock.open .msgs { flex: 1 1 0; min-height: 0 !important; max-height: none !important; overflow: auto !important; }
+  body.kbUp .dock.open .pinBar { display: none !important; }   /* keyboard up: more room for the messages */
+  body.kbUp .dock.open .chatTop { margin-bottom: 2px; gap: 4px; } body.kbUp .dock.open .chatTop .dp { width: 26px; height: 26px; font-size: 12px; }
+  body.kbUp .dock.open .chatWhoT { display: flex; align-items: baseline; gap: 6px; } body.kbUp .dock.open .chatWhoT b { font-size: 14px; } body.kbUp .dock.open .chatWhoT small { font-size: 11px; }
+  body.kbUp .dock.open .chatTop .callBtn, body.kbUp .dock.open .chatTop .findBtn { width: 26px; height: 26px; margin-right: 4px; } body.kbUp .dock.open .chatTop .statBtn { height: 26px; padding: 0 9px; font-size: 12px; }
   .e2e { display: block; align-self: center; max-width: 88%; margin: 2px auto 8px; padding: 6px 10px; border: 0; border-radius: 8px; background: rgba(255, 214, 10, .12); color: #e9d58c; font-family: inherit; font-size: 12px; line-height: 1.35; text-align: center; }
   .dock:not(.open) .e2e { display: none; }
   .float.mini { bottom: var(--b, 120px); font-size: var(--fs, 22px); animation-name: riseMini; }
@@ -1522,7 +1529,7 @@
 </div></div>
 
 <div class="toast glass hide" id="toast" role="status"></div>
-<div class="callBar" id="callBar" hidden><div><button type="button" class="cbBody" id="cbOpen" aria-label="Open the call"><span class="cbDot"></span><span class="cbTx"><b id="cbName"></b><small id="cbState" aria-live="polite"></small></span></button><button type="button" class="cbI" id="cbHide" aria-label="Hide: office chat"></button><button type="button" class="cbI" id="cbMute" aria-pressed="false" aria-label="Mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button type="button" class="cbI end" id="cbEnd" aria-label="End call"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="transform: rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button></div></div>
+<div class="callBar" id="callBar" hidden><div><button type="button" class="cbBody" id="cbOpen" aria-label="Open the call"><span class="cbDot"></span><span class="cbTx"><b id="cbName"></b><small id="cbState" aria-live="polite"></small></span></button><button type="button" class="cbI" id="cbHide" aria-label="Hide: office chat"></button><button type="button" class="cbI" id="cbMute" aria-pressed="false" aria-label="Mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button type="button" class="cbI" id="cbLock" aria-label="Pocket lock" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="11" width="15" height="10" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg></button><button type="button" class="cbI end" id="cbEnd" aria-label="End call"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="transform: rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button></div></div>
 <div class="callPocket" id="callPocket" hidden role="alertdialog" aria-label="Pocket lock"><span>Lock the screen so stray touches do nothing?</span><button type="button" id="pkNo">Not now</button><button type="button" class="go" id="pkYes">Lock</button></div>
 <div class="callView" id="callView" hidden role="dialog" aria-label="Voice call"><div class="callTop"><button type="button" id="callMin" aria-label="Make the call small"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="11" width="15" height="10" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>End-to-end encrypted</span><i aria-hidden="true"></i></div><div class="callWho"><span class="callDp" id="callDp"></span><b id="callName"></b><small id="callState" aria-live="polite"></small></div><div class="callGrid"><button type="button" class="cb" id="callLoud" aria-pressed="false"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></i>Speaker</button><button type="button" class="cb" id="callMute" aria-pressed="false"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></i>Mute</button><button type="button" class="cb" id="callLock"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="11" width="15" height="10" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg></i>Pocket lock</button><button type="button" class="cb end" id="callEnd"><i><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="transform: rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i><span id="callEndT">End</span></button><button type="button" class="cb ok" id="callOk"><i><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i>Answer</button></div><audio id="callAudio" autoplay playsinline></audio></div>
 <div class="sheet" id="rptSheet" hidden><form class="glass" onsubmit="return false">
@@ -4855,7 +4862,7 @@ function chatTabRoom() {   // the chat fills the space between the tabs and the 
   if (!chatTab) return;
   const top = Math.max(...['tabs', 'batWarn', 'alertAsk', 'listenAsk'].map(id => $(id)).filter(e => !e.hidden).map(e => e.getBoundingClientRect().bottom)), rest = $('dock').offsetHeight - $('msgs').offsetHeight;
   const v = window.visualViewport, low = v ? v.offsetTop + v.height : innerHeight, high = Math.max(0, top, v ? v.offsetTop : 0);   // only the part above the keyboard
-  document.body.style.setProperty('--chatRoom', Math.max(160, low - high - rest - 8) + 'px');
+  document.body.style.setProperty('--chatRoom', Math.max(160, low - high - rest - 8) + 'px'); document.body.style.setProperty('--tabsB', Math.round(top + 4) + 'px');
   const over = high + 4 - $('dock').getBoundingClientRect().top; if (over > 0) document.body.style.setProperty('--chatRoom', Math.max(160, low - high - rest - 8 - over) + 'px');   // Xed 27 Nov: the banner never slides under the tabs
 }
 let ctrQ = 0; const chatTabRoomSoon = () => { if (!ctrQ) ctrQ = requestAnimationFrame(() => { ctrQ = 0; chatTabRoom(); }); };   // Xed 27 Nov (speed): many changes in a row are measured once, just before the screen is drawn, instead of the whole layout each time
@@ -7341,7 +7348,7 @@ function playVid() {
 }
 const CANT_PLAY = "This phone can't play this video's format. On iPhone, turn off HDR Video in Settings, Camera, Formats, and film it again.";
 const canStream = () => !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-const APP_V = 'v-20261127-182127';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
+const APP_V = 'v-20261127-190111';   // set on every publish; a phone that finds a newer copy reloads itself so both phones always play the same game
 try { for (const k of Object.keys(localStorage)) if (/^closer:press(Wins|Best)?:/.test(k)) localStorage.removeItem(k); } catch {}   // the Pressure game was removed (Xed 23 Nov): its saved scores go too
 let avAt = 0, avOffAt = 0, avWarnAt = 0;
 function avWarn(av) {   // Xed 26 Nov: still on different versions 30 s after noticing (a normal update takes a few seconds): tell both what to do
@@ -8294,7 +8301,8 @@ const callLen = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${
 let callAc = null, callToneT = 0, callMini = false, callPocketOn = false, rpt = null, rptT = 0, callLoud = null;
 function callPush(kind, id) {   // c: ring her phone through its alert address; x: it stopped ringing. Only a random call id travels, sealed.
   if (!partnerPush || !partnerKeys) return;
-  fetch(BUZZ, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: partnerPush, keys: partnerKeys, kind, id }) })
+  const back = kind === 'c' && partnerBox >= 3 && myPush && myKeys ? { e: myPush, k: myKeys } : undefined;   // Xed 27 Nov: her phone says "it is ringing here" back to this address the moment it shows the call
+  fetch(BUZZ, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: partnerPush, keys: partnerKeys, kind, id, back }) })
     .then(r => r.json()).then(a => logLink(`call alert ${kind}: Google said ${a.status}`, 'alert_c', { kind, status: a.status })).catch(() => {});
 }
 const callSend = (k, x) => { if (call) send({ t: 'call', k, id: call.id, ...x }); };
@@ -8337,7 +8345,7 @@ function callShow() {
     $('callLoud').setAttribute('aria-pressed', !!c.loud);
     $('callLock').disabled = !window.lockPocket;
   } else if (gap) $('cbName').textContent = who();
-  bar.dataset.st = c ? c.st : 'gap'; $('cbMute').hidden = !c;
+  bar.dataset.st = c ? c.st : 'gap'; $('cbMute').hidden = !c; $('cbLock').hidden = !c || !window.lockPocket;   // Xed 27 Nov: the pocket lock on the bar too, from the first ring
   $('callPocket').hidden = !(c && c.st === 'on' && c.askPocket && callMini && window.lockPocket);
   callPaintText();
 }
@@ -8371,7 +8379,8 @@ async function callStart(ringMs) {
   const id = [...crypto.getRandomValues(new Uint8Array(9))].map(x => x.toString(16).padStart(2, '0')).join('');
   call = { id, dir: 'out', st: 'ring', at: Date.now(), sent: Date.now(), mic: m, ice: [], ringMs: ringMs || CALL_RING_MS, nOut: 0 };
   callMini = true;   // Xed 26 Nov: calling shrinks to the bar at once; the rest of Loveline stays usable
-  callSend('ring'); callPush('c', id); callTone('back'); callRun(); callShow(); getIce(); callRoute(call, false);
+  callSend('ring'); callPush('c', id); for (const t of [4000, 12000]) setTimeout(() => { const c = call; if (c && c.id === id && c.st === 'ring' && !c.heard) callPush('c', id); }, t);   // Xed 27 Nov: not ringing there yet: the alert goes again (her phone rings once per call)
+  callTone('back'); callRun(); callShow(); getIce(); callRoute(call, false);
   logLink('call: calling', 'call', { s: 'out', on: partnerOnline() ? 1 : 0, rpt: rpt ? rpt.n : 0 });
 }
 async function callAnswer(m) {
@@ -8612,6 +8621,7 @@ $('callOk').onclick = () => { tap(); callAnswer(); };
 $('callEnd').onclick = callEndTap; $('cbEnd').onclick = ev => { ev.stopPropagation(); callEndTap(); };
 $('callMute').onclick = () => { if (!call) return; tap(); callMuteSet(!call.muted); };
 $('cbMute').onclick = ev => { ev.stopPropagation(); if (!call) return; tap(); callMuteSet(!call.muted); };
+$('cbLock').onclick = ev => { ev.stopPropagation(); if (!call) return; tap(); callPocket(); };
 $('callLoud').onclick = () => { if (!call) return; tap(); callLoudSet(!call.loud); };
 $('callLock').onclick = () => { tap(); callPocket(); };
 $('callMin').onclick = () => { tap(); callMin(true); };
@@ -8623,6 +8633,7 @@ $('pkNo').onclick = () => { tap(); if (call) call.askPocket = false; callShow();
 if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', e => {   // the alert: tapped, or it arrived while Loveline is on screen
   const d = e.data || {};
   if ((d.t === 'callTap' || d.t === 'callRing') && callOk(d.id)) callIncoming(d.id);
+  if (d.t === 'callRang' && call && call.id === d.id && call.dir === 'out' && !call.heard) { call.heard = true; callShow(); logLink('call: her phone shows the call (its alert)', 'call', {}); }   // Xed 27 Nov: Ringing only now
 });
 addEventListener('pagehide', () => { if (call) callStop(call.dir === 'in' && call.st === 'ring' ? 'no' : 'end'); });
 // Xed 14 Nov: she is often in WhatsApp, where Loveline sleeps and the relays keep nothing, so a message used to wait until both apps
@@ -8675,7 +8686,7 @@ async function drainBox() {   // messages that came inside alerts while this app
 }
 function askBox() {   // is this phone's background helper new enough to keep messages?
   if (!navigator.serviceWorker) return;
-  navigator.serviceWorker.ready.then(r => new Promise(res => { const ch = new MessageChannel(); ch.port1.onmessage = e => res(e.data && e.data.box === 2 ? 2 : e.data && e.data.box ? 1 : 0); r.active.postMessage({ t: 'caps' }, [ch.port2]); setTimeout(() => res(0), 4000); }))
+  navigator.serviceWorker.ready.then(r => new Promise(res => { const ch = new MessageChannel(); ch.port1.onmessage = e => res(e.data && e.data.box >= 2 ? Math.min(3, e.data.box | 0) : e.data && e.data.box ? 1 : 0); r.active.postMessage({ t: 'caps' }, [ch.port2]); setTimeout(() => res(0), 4000); }))
     .then(b => { if (b !== myBox) { myBox = b; logLink(`this phone: alerts ${myPush ? 'on' : 'off'}, helper level ${b}, notifications ${window.Notification ? Notification.permission : 'none'}`, 'push_me', { on: !!myPush, box: b, perm: window.Notification ? Notification.permission : 'none' }); if (myPush) pushSay(); } }).catch(() => {});
 }
 if (navigator.serviceWorker) {
@@ -9012,7 +9023,7 @@ function gotPushSub(m) {
   if (m.endpoint && m.endpoint === store.get('deadPush:' + room)) { send({ t: 'pushdead' }); return; }   // the same dead address again: ask for a new one
   partnerPush = m.endpoint; store.set('partnerPush:' + room, partnerPush);
   const k = m.endpoint && m.keys; partnerKeys = k && /^[\w-]{80,100}$/.test(k.p256dh) && /^[\w-]{16,30}$/.test(k.auth) ? { p256dh: k.p256dh, auth: k.auth } : null; store.set('partnerKeys:' + room, partnerKeys);
-  partnerBox = !partnerKeys || !m.box ? 0 : m.box === 2 ? 2 : 1; store.set('partnerBox:' + room, partnerBox);
+  partnerBox = !partnerKeys || !m.box ? 0 : m.box >= 2 ? Math.min(3, m.box | 0) : 1; store.set('partnerBox:' + room, partnerBox);
   logLink(`partner alerts ${partnerPush ? 'on' : 'off'}, their helper level ${partnerBox}`, 'push_partner', { on: !!partnerPush, keys: !!partnerKeys, box: partnerBox });
   render(); showAlerts();
 }
@@ -9641,7 +9652,7 @@ function dtHide(mode) {
 addEventListener('pointerdown', ev => {
   if (!ev.isPrimary) return;
   const z = ev.target.closest && ev.target.closest(DT_ZONE);
-  if (!z || !$('lock').hidden || hiding || ev.target.closest('#dock .bar, #dock .replyBar')) { dt = null; return; }   // Xed 27 Nov: never from the message box (taps there are typing)   // Xed 26 Nov: these taps do nothing in the office chat (big or small); holding the app name is the way back
+  if (!z || !$('lock').hidden || hiding || ev.target.closest('#dock .bar, #dock .replyBar, #dock .vn, #dock .vnFoot')) { dt = null; return; }   // Xed 27 Nov: never from the message box (taps there are typing) nor a voice message's play/speed (play, pause, play is not a disguise)   // Xed 26 Nov: these taps do nothing in the office chat (big or small); holding the app name is the way back
   if (dt && ev.timeStamp - dt.at < 350 && Math.hypot(ev.clientX - dt.x, ev.clientY - dt.y) < 60) {
     dt.n++; dt.at = ev.timeStamp;
     if (dtHeld) { clearTimeout(dtHeld); dtHeld = null; }   // a button tapped again: it waits to see if a third tap comes

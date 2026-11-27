@@ -52,7 +52,7 @@ const boxPut = rec => new Promise((res, rej) => {   // rec: { t: a sealed messag
 let testUntil = 0;   // her own test alert must show even while Loveline is open
 self.addEventListener('message', e => {
   if (e.data && e.data.t === 'testAlert') testUntil = Date.now() + 30000;
-  if (e.data && e.data.t === 'caps' && e.ports[0]) e.ports[0].postMessage({ box: 2 });   // the app asks whether this helper can keep messages (1) and send "delivered" back (2)
+  if (e.data && e.data.t === 'caps' && e.ports[0]) e.ports[0].postMessage({ box: 3 });   // the app asks whether this helper can keep messages (1) and send "delivered" back (2)
   if (e.data && e.data.t === 'shell' && e.ports[0]) e.waitUntil((async () => { const want = String(e.data.v || ''); e.ports[0].postMessage({ ok: (await keptV()) === want || (await shellPull(want)) === want }); })());   // the open app asks for a version before it reloads into it
 });
 // Xed 26 Nov: a call. One "Incoming call" alert that buzzes again every second: the same alert is shown again in place (same tag, renotify),
@@ -68,16 +68,25 @@ async function missedCall(id) {   // the alert says so, and the chat shows it wh
   for (const c of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) c.postMessage({ t: 'box' });
   await self.registration.showNotification('1+1=1', { body: `📞 Missed call from ${await role()}`, tag: 'call', silent: true, icon: 'icon-192.png' });
 }
-async function ringCall(id) {
+const rungIds = new Set();   // Xed 27 Nov: each call rings once here, however many times its alert comes
+async function ringBack(id, back) {   // tell the calling phone "it is ringing here" (only its own alert address and the call id)
+  if (!back || typeof back.e !== 'string' || !back.k) return;
+  await fetch(BUZZ, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: back.e, keys: back.k, kind: 'r', id }), signal: AbortSignal.timeout(15000) }).catch(() => {});
+}
+async function ringCall(id, back) {
+  if (rungIds.has(id)) return; rungIds.add(id);
+  let told = false;
   ringId = id; const end = Date.now() + 65000, from = await role();   // the caller sends 'stopped' as soon as it gives up
   while (ringId === id && Date.now() < end) {
     const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (open.some(c => c.visibilityState === 'visible') && !IPHONE) {   // Loveline is on screen: it rings there itself
       ringId = null; open.forEach(c => c.postMessage({ t: 'callRing', id }));
       for (const n of await self.registration.getNotifications({ tag: 'call' })) n.close();
+      if (!told) await ringBack(id, back);   // the open app rings it (and says so too)
       return;
     }
     await self.registration.showNotification('1+1=1', { body: `📞 ${from} is calling you`, tag: 'call', renotify: true, requireInteraction: true, vibrate: [600], data: { call: id }, icon: 'icon-192.png' });
+    if (!told) { told = true; ringBack(id, back); }   // shown: now the caller may say Ringing
     if (IPHONE) { ringId = null; open.forEach(c => c.postMessage({ t: 'callRing', id })); return; }   // an iPhone takes one alert, with its own sound
     await nap(1000);
   }
@@ -100,7 +109,13 @@ async function callTap(id) {
 self.addEventListener('push', e => e.waitUntil((async () => {   // Thinking of you, with the app closed. The message is fixed here, so no words travel through the helper.
   const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   let kind = ''; try { kind = e.data ? e.data.text() : ''; } catch {}   // q: an unread message, o: the other one is online, u: several unread messages; nothing: Thinking of you
-  if ((kind[0] === 'c' || kind[0] === 'x') && /^[\w-]{6,40}$/.test(kind.slice(1))) { await (kind[0] === 'c' ? ringCall(kind.slice(1)) : ringEnd(kind.slice(1))); return; }   // Xed 26 Nov: a call rings, or stopped ringing
+  { const nl = kind.indexOf('\n'), head = nl < 0 ? kind : kind.slice(0, nl);   // c<id>, then (27 Nov) the caller's own alert address on the next line
+    if ((head[0] === 'c' || head[0] === 'x') && /^[\w-]{6,40}$/.test(head.slice(1))) { let back = null; try { back = nl < 0 ? null : JSON.parse(kind.slice(nl + 1)); } catch {} await (head[0] === 'c' ? ringCall(head.slice(1), back) : ringEnd(head.slice(1))); return; }
+    if (head[0] === 'r' && /^[\w-]{6,40}$/.test(head.slice(1))) {   // her phone shows our call: the app says Ringing
+      open.forEach(c => c.postMessage({ t: 'callRang', id: head.slice(1) }));
+      if (open.some(c => c.visibilityState === 'visible') && !IPHONE) return;
+      await self.registration.showNotification('1+1=1', { body: '📞 Ringing…', tag: 'callout', silent: true, icon: 'icon-192.png' }); return;
+    } }   // Xed 26 Nov: a call rings, or stopped ringing
   if (kind[0] === 'd') {   // Xed 15 Nov: messages of ours reached the other phone while its app slept: two ticks
     let ids = []; try { ids = JSON.parse(kind.slice(1)); } catch {}
     for (const d of Array.isArray(ids) ? ids.filter(s => typeof s === 'string').slice(0, 30) : []) await boxPut({ d }).catch(() => {});
